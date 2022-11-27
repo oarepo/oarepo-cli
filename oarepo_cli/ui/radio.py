@@ -32,18 +32,8 @@ class Radio(Widget):
                 option = d[0]
                 break
 
-        def hook():
-            readline.insert_text(option or "")
-            readline.redisplay()
-
-        readline.set_pre_input_hook(hook)
-
         while True:
-            try:
-                value = input("Your choice: ").strip()
-            finally:
-                # remove default option
-                readline.set_pre_input_hook()
+            value = input("Your choice: ").strip() or option
             for d in displayed:
                 if d[0] == value:
                     return d[1]

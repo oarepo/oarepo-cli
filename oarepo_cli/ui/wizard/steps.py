@@ -87,10 +87,10 @@ class WizardStep:
 
 
 class InputWizardStep(WizardStep):
-    def __init__(self, key, heading, required=True, default=None):
+    def __init__(self, key, heading=None, required=True, default=None, prompt=None):
         self.step_name = key
         super().__init__(
-            Input(key, default=default),
+            Input(key, default=default, prompt=prompt),
             heading=heading,
             validate=[required_validation(key)] if required else [],
         )

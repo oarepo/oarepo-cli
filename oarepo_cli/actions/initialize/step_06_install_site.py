@@ -33,25 +33,24 @@ If not sure, keep the default values.""",
         return [
             InputWizardStep(
                 "repository_name",
-                """Enter the repository name ("title" of the HTML site)""",
+                prompt="""Enter the repository name ("title" of the HTML site)""",
             ),
             InputWizardStep(
                 "www",
-                """Enter the WWW address on which the repository will reside""",
+                prompt="""Enter the WWW address on which the repository will reside""",
             ),
             InputWizardStep(
-                "site_package", """Site package (keep the default if not sure)"""
+                "site_package", prompt="""Site package (keep the default if not sure)"""
             ),
-            InputWizardStep("author_name", """Author name"""),
-            InputWizardStep("author_email", """Author email"""),
-            InputWizardStep("year", """Year (for copyright)"""),
-            InputWizardStep("copyright_holder", """Copyright holder"""),
+            InputWizardStep("author_name", prompt="""Author name"""),
+            InputWizardStep("author_email", prompt="""Author email"""),
+            InputWizardStep("year", prompt="""Year (for copyright)"""),
+            InputWizardStep("copyright_holder", prompt="""Copyright holder"""),
             StaticWizardStep("install-site-before-generate",
                              heading="""I have all the information to generate the site.
 To do so, I'll call the invenio client. If anything goes wrong, please fix the problem
 and run the wizard again.
-            """
-                             ),
+            """),
         ]
 
     def after_run(self, data):
