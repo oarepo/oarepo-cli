@@ -23,6 +23,7 @@ OARepo client is meant to simplify:
 
 * [ ] adding UI module
 * [ ] installing UI module to the site
+* [ ] scaffolding UI component (jinja and react)
 
 **Automated testing:**
 
