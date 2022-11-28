@@ -8,8 +8,6 @@ OARepo client is meant to simplify:
 
 * [x] checking invenio prerequisites
 * [x] bootstraping new repository site in development mode
-    * [ ] in monorepo mode (single pypi package from all components)
-    * [x] in per-model, per-ui package mode
     * [ ] in per-model, per-ui git submodule mode
 * [x] including UI compilation
 * [ ] running development server
@@ -26,9 +24,24 @@ OARepo client is meant to simplify:
 * [ ] adding UI module
 * [ ] installing UI module to the site
 
-**Deployment scenarios:**
+**Automated testing:**
+
+* [ ] running unit tests for models
+    * [x] per-model tests
+    * [ ] running tests for all models
+* [ ] unit tests for UI
+    * [ ] per-ui tests
+    * [ ] running tests for all models
+* [ ] running tests for site
+    * [ ] overall tests (can run server, https on index page works)
+    * [ ] per-ui tests (ui is accessible, returns meaningful pages)
+
+**Build and Deployment scenarios:**
 
 * [ ] publishing packages to pypi/gitlab/...
+    * [ ] in monorepo mode (single pypi package from all components)
+    * [ ] in per-model, per-ui package mode
+
 * [ ] creating docker/k8s image for the whole site
 
 **Github/Gitlab integration:**
