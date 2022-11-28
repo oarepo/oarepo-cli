@@ -1,10 +1,10 @@
 from pathlib import Path
 
 import click
-from utils import print_banner
 
 from oarepo_cli.config import MonorepoConfig
 
+from ..utils import print_banner
 from .wizard import initialize_wizard
 
 

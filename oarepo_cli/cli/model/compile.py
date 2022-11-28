@@ -5,7 +5,7 @@ from pathlib import Path
 import click as click
 from colorama import Fore, Style
 
-from oarepo_cli.cli.model.utils import load_model_repo
+from oarepo_cli.cli.model.utils import get_model_dir, load_model_repo
 from oarepo_cli.ui.wizard import Wizard, WizardStep
 from oarepo_cli.ui.wizard.steps import RadioWizardStep
 from oarepo_cli.utils import run_cmdline
@@ -46,10 +46,6 @@ so that you might recover them if the compilation process fails.{Style.RESET_ALL
         )
     wizard = Wizard(*optional_steps, CompileWizardStep())
     wizard.run(cfg)
-
-
-def get_model_dir(data):
-    return Path(data["project_dir"]) / "models" / data["model_name"]
 
 
 class CompileWizardStep(WizardStep):

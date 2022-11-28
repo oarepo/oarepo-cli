@@ -13,3 +13,7 @@ def load_model_repo(model_name, project_dir):
     cfg = MonorepoConfig(oarepo_yaml_file, section=["models", model_name])
     cfg.load()
     return cfg, project_dir
+
+
+def get_model_dir(data):
+    return Path(data["project_dir"]) / "models" / data["model_name"]
