@@ -8,8 +8,8 @@ OARepo client is meant to simplify:
 
 * [x] checking invenio prerequisites
 * [x] bootstraping new repository site in development mode
-    * [x] in monorepo mode
-    * [ ] in per-model, per-ui package mode
+    * [ ] in monorepo mode (single pypi package from all components)
+    * [x] in per-model, per-ui package mode
     * [ ] in per-model, per-ui git submodule mode
 * [x] including UI compilation
 * [ ] running development server
