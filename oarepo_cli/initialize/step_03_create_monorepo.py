@@ -13,7 +13,7 @@ class CreateMonorepoStep(WizardStep):
 
     def __init__(self, **kwargs):
         super().__init__(
-            heading='Now I will create the monorepo inside the selected directory.',
+            heading="Now I will create the monorepo inside the selected directory.",
             **kwargs
         )
 

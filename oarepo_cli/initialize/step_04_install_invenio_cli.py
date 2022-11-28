@@ -4,7 +4,8 @@ import shutil
 import venv
 from pathlib import Path
 
-from oarepo_cli.actions.utils import run_cmdline
+from utils import run_cmdline
+
 from oarepo_cli.ui.wizard import WizardStep
 
 
@@ -40,7 +41,5 @@ https://inveniordm.docs.cern.ch/install/requirements/ .
             invenio_cli_dir / "bin" / "invenio-cli",
             "check-requirements",
             "--development",
-            environ={
-                'PIPENV_IGNORE_VIRTUALENVS': '1'
-            }
+            environ={"PIPENV_IGNORE_VIRTUALENVS": "1"},
         )

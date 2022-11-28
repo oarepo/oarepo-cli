@@ -4,11 +4,11 @@ import copy
 
 from colorama import Fore, Style
 
+from ...config import Config
 from ..input import Input
-from .validation import required as required_validation
 from ..radio import Radio
 from ..utils import slow_print
-from ...config import Config
+from .validation import required as required_validation
 
 
 class WizardStep:
@@ -99,15 +99,10 @@ class InputWizardStep(WizardStep):
 class StaticWizardStep(WizardStep):
     def __init__(self, key, heading, **kwargs):
         self.step_name = key
-        super().__init__(
-            heading=heading, **kwargs
-        )
+        super().__init__(heading=heading, **kwargs)
 
 
 class RadioWizardStep(WizardStep):
     def __init__(self, key, heading, options=None, default=None):
         self.step_name = key
-        super().__init__(
-            Radio(key, default=default, options=options),
-            heading=heading
-        )
+        super().__init__(Radio(key, default=default, options=options), heading=heading)

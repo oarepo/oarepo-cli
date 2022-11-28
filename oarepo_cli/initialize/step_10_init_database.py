@@ -1,6 +1,7 @@
 from pathlib import Path
 
-from oarepo_cli.actions.utils import run_cmdline
+from utils import run_cmdline
+
 from oarepo_cli.ui.radio import Radio
 from oarepo_cli.ui.wizard import WizardStep
 
@@ -27,7 +28,12 @@ Should I do it?
     def after_run(self, data):
         if data["init_database_switch"] == "yes":
             site_dir = str(Path(data["project_dir"]) / data["site_package"])
-            run_cmdline("pipenv", "run", "invenio", "db", "create", cwd=site_dir,
-                        environ={
-                            'PIPENV_IGNORE_VIRTUALENVS': '1'
-                        })
+            run_cmdline(
+                "pipenv",
+                "run",
+                "invenio",
+                "db",
+                "create",
+                cwd=site_dir,
+                environ={"PIPENV_IGNORE_VIRTUALENVS": "1"},
+            )

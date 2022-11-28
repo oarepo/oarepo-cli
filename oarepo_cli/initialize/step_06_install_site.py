@@ -1,11 +1,13 @@
 from __future__ import annotations
 
 import datetime
+import os
 from pathlib import Path
 
-from oarepo_cli.actions.utils import run_cmdline
+from utils import run_cmdline
+
 from oarepo_cli.templates import get_cookiecutter_template
-from oarepo_cli.ui.wizard import WizardStep, StaticWizardStep
+from oarepo_cli.ui.wizard import StaticWizardStep, WizardStep
 from oarepo_cli.ui.wizard.steps import InputWizardStep
 
 
@@ -29,6 +31,9 @@ If not sure, keep the default values.""",
         data.setdefault(
             "repository_name", data.get("project_package").replace("_", " ").title()
         )
+        data.setdefault(
+            "author_name", os.environ.get("USERNAME") or os.environ.get("USERNAME")
+        )
         # substeps of this step
         return [
             InputWizardStep(
@@ -46,11 +51,13 @@ If not sure, keep the default values.""",
             InputWizardStep("author_email", prompt="""Author email"""),
             InputWizardStep("year", prompt="""Year (for copyright)"""),
             InputWizardStep("copyright_holder", prompt="""Copyright holder"""),
-            StaticWizardStep("install-site-before-generate",
-                             heading="""I have all the information to generate the site.
+            StaticWizardStep(
+                "install-site-before-generate",
+                heading="""I have all the information to generate the site.
 To do so, I'll call the invenio client. If anything goes wrong, please fix the problem
 and run the wizard again.
-            """),
+            """,
+            ),
         ]
 
     def after_run(self, data):
@@ -83,12 +90,12 @@ development_tools = yes
             "init",
             "rdm",
             "-t",
-            get_cookiecutter_template("site-v10.0"),
+            "https://github.com/oarepo/cookiecutter-site",
+            "-c",
+            "v10.0",
             "--no-input",
             "--config",
             str(cookiecutter_config_file),
             cwd=Path(data["project_dir"]),
-            environ={
-                'PIPENV_IGNORE_VIRTUALENVS': '1'
-            }
+            environ={"PIPENV_IGNORE_VIRTUALENVS": "1"},
         )

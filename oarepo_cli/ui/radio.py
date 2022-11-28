@@ -31,9 +31,14 @@ class Radio(Widget):
             if d[1] == value:
                 option = d[0]
                 break
+        if option:
+            prompt = f"Your choice [{option}]: "
+        else:
+            prompt = "Your choice: "
 
         while True:
-            value = input("Your choice: ").strip() or option
+            print()
+            value = input(prompt).strip() or option
             for d in displayed:
                 if d[0] == value:
                     return d[1]

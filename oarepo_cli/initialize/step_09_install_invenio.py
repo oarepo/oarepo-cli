@@ -1,6 +1,7 @@
 from pathlib import Path
 
-from oarepo_cli.actions.utils import run_cmdline
+from utils import run_cmdline
+
 from oarepo_cli.ui.wizard import WizardStep
 
 
@@ -19,7 +20,9 @@ will be downloaded and installed and UI will be compiled.
 
     def after_run(self, data):
         site_dir = str(Path(data["project_dir"]) / data["site_package"])
-        run_cmdline(data["invenio_cli"], "install", cwd=site_dir,
-                    environ={
-                        'PIPENV_IGNORE_VIRTUALENVS': '1'
-                    })
+        run_cmdline(
+            data["invenio_cli"],
+            "install",
+            cwd=site_dir,
+            environ={"PIPENV_IGNORE_VIRTUALENVS": "1"},
+        )

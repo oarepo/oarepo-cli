@@ -1,6 +1,7 @@
 from pathlib import Path
 
-from oarepo_cli.actions.utils import run_cmdline
+from utils import run_cmdline
+
 from oarepo_cli.ui.radio import Radio
 from oarepo_cli.ui.wizard import WizardStep
 
@@ -46,5 +47,5 @@ https://localhost:5000/<uiname>
 Detailed information for using oarepo-configure and other
 oarepo scripts is available at .....TODO......
             """,
-            **kwargs
+            **kwargs,
         )

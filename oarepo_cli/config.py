@@ -7,7 +7,7 @@ import yaml
 class Config:
     def __init__(self):
         self.config = {}
-        self.ok_steps = set()
+        self.ok_steps = []
 
     def __getitem__(self, item):
         return self.config[item]
@@ -35,7 +35,8 @@ class Config:
         return self.config.setdefault(item, default)
 
     def set_step_ok(self, step_name):
-        self.ok_steps.add(step_name)
+        if step_name not in self.ok_steps:
+            self.ok_steps.append(step_name)
         self.on_changed()
 
     def is_step_ok(self, step_name):
@@ -54,7 +55,7 @@ class MonorepoConfig(Config):
         self.existing = False
         self.section = tuple(section or [])
         self.whole_data = {}
-        self.ok_steps = set()
+        self.save_steps = True
 
     def load(self):
         with open(self.path, "r") as f:
@@ -62,8 +63,8 @@ class MonorepoConfig(Config):
             self.whole_data = data
             for s in self.section:
                 data = data.get(s, {})
-            self.config = data.get('config', {})
-            self.ok_steps = set(data.get("ok_steps", []))
+            self.config = data.get("config", {})
+            self.ok_steps = data.get("ok_steps", [])
             self.existing = True
 
     def save(self):
@@ -82,17 +83,17 @@ class MonorepoConfig(Config):
             f.write(sio.getvalue())
 
     def on_changed(self):
-        if self.path.parent.exists():
+        if self.path.parent.exists() and self.save_steps:
             self.save()
 
     def _section(self, name, default=None):
-        name = name.split('.')
+        name = name.split(".")
         d = self.whole_data
         for n in name[:-1]:
             d = d.get(n, {})
         return d.get(name[-1], None)
 
     def get(self, item, default=None):
-        if '.' in item:
+        if "." in item:
             return self._section(item, default)
         return super().get(item, default)

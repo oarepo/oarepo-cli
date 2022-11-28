@@ -4,7 +4,8 @@ import shutil
 import venv
 from pathlib import Path
 
-from oarepo_cli.actions.utils import run_cmdline
+from utils import run_cmdline
+
 from oarepo_cli.ui.wizard import WizardStep
 
 
@@ -34,4 +35,10 @@ To run them, invoke the "oarepo-cli" script from within the project directory.
         )
         # TODO: non-local path
         # run_cmdline(pip_binary, "install", "--no-input", "oarepo-cli")
-        run_cmdline(pip_binary, "install", "--no-input", "-e", Path(__file__).parent.parent.parent.parent)
+        run_cmdline(
+            pip_binary,
+            "install",
+            "--no-input",
+            "-e",
+            Path(__file__).parent.parent.parent.parent,
+        )
