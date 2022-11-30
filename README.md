@@ -8,6 +8,7 @@ OARepo client is meant to simplify:
 
 * [x] checking invenio prerequisites
 * [x] bootstraping new repository site in development mode
+    * [x] in 1 git contains all mode
     * [ ] in per-model, per-ui git submodule mode
 * [x] including UI compilation
 * [x] running development server
