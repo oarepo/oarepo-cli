@@ -2,6 +2,19 @@
 
 Work in progress.
 
+## Repository project initialization
+
+If you trust us (generally not a good idea though), run:
+
+```bash
+curl -o- -L https://raw.githubusercontent.com/oarepo/oarepo-cli/main/get.sh | bash <project_directory>
+```
+
+If not, download the file from `https://raw.githubusercontent.com/oarepo/oarepo-cli/main/get.sh`,
+inspect it and run `bash get.sh <project_dir> 
+
+## Roadmap
+
 OARepo client is meant to simplify:
 
 **Site:**
@@ -24,11 +37,13 @@ OARepo client is meant to simplify:
 * [x] importing (sample) data
 
 *Requests:*
+
 * [ ] installing requests
 * [ ] adding request type & actions
     * [ ] using approval process libraries
 
 *Expanded fields:*
+
 * [ ] installing support for expanded fields
 * [ ] adding expanded fields
     * [ ] using libraries of expanded fields
