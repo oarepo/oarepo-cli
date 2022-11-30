@@ -17,19 +17,19 @@ OARepo client is meant to simplify:
 
 * [x] adding metadata model
 * [x] testing metadata model
-* [x] installing metadata model to the site
+* [x] installing metadata model into the site
 * [x] updating alembic during the installation step
     * [x] handling empty migrations when model has not changed
 * [x] initializing index during the installation step and reindexing data
 * [x] importing (sample) data
 
 *Requests:*
-* [ ] switching on requests
-* [ ] adding request type
+* [ ] installing requests
+* [ ] adding request type & actions
     * [ ] using approval process libraries
 
 *Expanded fields:*
-* [ ] switching on support for expanded fields
+* [ ] installing support for expanded fields
 * [ ] adding expanded fields
     * [ ] using libraries of expanded fields
 
