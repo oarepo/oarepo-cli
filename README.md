@@ -20,7 +20,7 @@ OARepo client is meant to simplify:
 * [x] updating alembic during the installation step
     * [x] handling empty migrations when model has not changed
 * [x] initializing index during the installation step and reindexing data
-* [ ] importing sample data
+* [x] importing (sample) data
 
 *Requests:*
 * [ ] switching on requests
