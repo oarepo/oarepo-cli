@@ -14,16 +14,21 @@ from .validation import required as required_validation
 class WizardStep:
     step_name = None
     steps: "WizardStep" = []
+    widgets = ()
+    validate_functions = ()
+    heading = ''
+    pause = None
 
-    def __init__(self, *widgets, validate=None, heading=None, pause=False, **kwargs):
-        self.widgets = widgets
+    def __init__(self, *widgets, validate=None, heading=None, pause=False, step_name=None, **kwargs):
+        self.step_name = step_name or self.step_name
+        self.widgets = tuple(widgets or self.widgets)
         if not validate:
             validate = []
         elif not isinstance(validate, (list, tuple)):
             validate = tuple(validate)
-        self.validate_functions = tuple(validate)
-        self.heading = heading
-        self.pause = pause
+        self.validate_functions = tuple(validate or self.validate_functions)
+        self.heading = heading or self.heading
+        self.pause = pause or self.pause
 
     def run(self, data: Config):
         if data.is_step_ok(self.step_name):
@@ -57,7 +62,10 @@ class WizardStep:
                 valid = False
         steps = self.get_steps(data)
         for step in steps:
-            step.run(data)
+            if isinstance(step, str):
+                getattr(self, step)(data)
+            else:
+                step.run(data)
         self.on_after_steps(data)
         if self.pause:
             input(f"Press enter to continue ...")

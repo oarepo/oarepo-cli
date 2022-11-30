@@ -64,7 +64,7 @@ class MonorepoConfig(Config):
             for s in self.section:
                 data = data.get(s, {})
             self.config = data.get("config", {})
-            self.ok_steps = data.get("ok_steps", [])
+            self.ok_steps = data.get("ok_steps", []) or []
             self.existing = True
 
     def save(self):
