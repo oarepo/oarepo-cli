@@ -172,13 +172,8 @@ def upgrade():
                 fn.write_text(data)
 
 
-class UpdateIndexWizardStep(WizardStep):
+class UpdateIndexWizardStep(ModelWizardStep):
     step_name = "update-index-step"
-    heading = f"""
-Before the model can be used, I need to create index inside opensearch server.
-This is not necessary if the model has not been changed. Should I create/update
-the index? 
-                """
 
     steps = (
         RadioWizardStep(
@@ -189,20 +184,13 @@ the index?
             },
             default="run",
             heading=f"""
-        Before installing the model, it is wise to run the test to check that the model is ok.
-        If the tests fail, please fix the errors and run this command again.
-            """,
+Before the model can be used, I need to create index inside opensearch server.
+This is not necessary if the model has not been changed. Should I create/update
+the index? 
+                            """
         ),
         "update_opensearch_index"
     )
 
     def update_opensearch_index(self, data):
-        model = data['model_name']
-        model_package_dir = Path(data.get('config.project_dir')) / 'models' / data['model_name'] / data['model_package']
-        model_file_path = model_package_dir / 'models' / 'model.json'
-
-        with open(model_file_path) as f:
-            model_data = json.load(f)
-
-    def after_run(self, data):
-        pass
+        self.invenio_command(data, data['model_name'], 'reindex', '--recreate')
