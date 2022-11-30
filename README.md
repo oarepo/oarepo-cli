@@ -10,7 +10,7 @@ OARepo client is meant to simplify:
 * [x] bootstraping new repository site in development mode
     * [x] in 1 git contains all mode
     * [ ] in per-model, per-ui git submodule mode
-* [x] including UI (webpack) compilation
+* [x] including UI (webpack) compilation and collection of static assets
 * [x] running development server
 
 **Metadata model:**
