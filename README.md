@@ -10,7 +10,7 @@ OARepo client is meant to simplify:
 * [x] bootstraping new repository site in development mode
     * [ ] in per-model, per-ui git submodule mode
 * [x] including UI compilation
-* [ ] running development server
+* [x] running development server
 
 **Metadata model:**
 
@@ -22,11 +22,12 @@ OARepo client is meant to simplify:
 * [x] initializing index during the installation step and reindexing data
 * [ ] importing sample data
 
-
+*Requests:*
 * [ ] switching on requests
 * [ ] adding request type
     * [ ] using approval process libraries
 
+*Expanded fields:*
 * [ ] switching on support for expanded fields
 * [ ] adding expanded fields
     * [ ] using libraries of expanded fields
