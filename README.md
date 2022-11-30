@@ -11,7 +11,7 @@ curl -o- -L https://raw.githubusercontent.com/oarepo/oarepo-cli/main/get.sh | ba
 ```
 
 If not, download the file from `https://raw.githubusercontent.com/oarepo/oarepo-cli/main/get.sh`,
-inspect it and run `bash get.sh <project_dir> 
+inspect it and run `bash get.sh <project_dir>`
 
 ## Roadmap
 
