@@ -65,7 +65,7 @@ class CompileWizardStep(WizardStep):
                 pip_binary,
                 "install",
                 "--no-input",
-                "oarepo-model-builder>=1.0.0a4",
+                "oarepo-model-builder>=1.0.0a5",
                 "oarepo-model-builder-tests",
             )
 
