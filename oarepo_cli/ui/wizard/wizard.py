@@ -11,7 +11,8 @@ class Wizard:
 
     def run(self, data: Config):
         for step in self.steps:
-            step.run(data)
+            if step.should_run(data):
+                step.run(data)
         self.after_run(data)
 
     def after_run(self, data):

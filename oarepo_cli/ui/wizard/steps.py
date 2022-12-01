@@ -30,6 +30,9 @@ class WizardStep:
         self.heading = heading or self.heading
         self.pause = pause or self.pause
 
+    def should_run(self, data):
+        return True
+
     def run(self, data: Config):
         if data.is_step_ok(self.step_name):
             return
@@ -65,7 +68,8 @@ class WizardStep:
             if isinstance(step, str):
                 getattr(self, step)(data)
             else:
-                step.run(data)
+                if step.should_run(data):
+                    step.run(data)
         self.on_after_steps(data)
         if self.pause:
             input(f"Press enter to continue ...")
