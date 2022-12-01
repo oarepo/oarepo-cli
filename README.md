@@ -51,7 +51,7 @@ OARepo client is meant to simplify:
 
 **User interface for a metadata model:**
 
-* [ ] adding UI module
+* [x] adding UI module
 * [ ] installing UI module to the site
 * [ ] scaffolding UI component (jinja and react)
 * [ ] UI on proxied models
