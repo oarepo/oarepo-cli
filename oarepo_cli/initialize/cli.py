@@ -21,8 +21,6 @@ def run(project_dir):
     if project_dir.exists():
         if oarepo_yaml_file.exists():
             cfg.load()
-        # else:
-        #     sys.exit("Please select a non-existent directory")
 
     cfg["project_dir"] = str(project_dir)
 

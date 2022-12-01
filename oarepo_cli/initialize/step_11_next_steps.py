@@ -1,8 +1,3 @@
-from pathlib import Path
-
-from utils import run_cmdline
-
-from oarepo_cli.ui.radio import Radio
 from oarepo_cli.ui.wizard import WizardStep
 
 

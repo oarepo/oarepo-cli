@@ -4,7 +4,7 @@ import datetime
 import os
 from pathlib import Path
 
-from utils import run_cmdline
+from ..utils import run_cmdline
 
 from oarepo_cli.templates import get_cookiecutter_template
 from oarepo_cli.ui.wizard import StaticWizardStep, WizardStep

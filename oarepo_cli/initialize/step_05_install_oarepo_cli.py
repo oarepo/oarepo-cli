@@ -4,7 +4,7 @@ import shutil
 import venv
 from pathlib import Path
 
-from utils import run_cmdline
+from ..utils import run_cmdline
 
 from oarepo_cli.ui.wizard import WizardStep
 
@@ -20,6 +20,10 @@ To run them, invoke the "oarepo-cli" script from within the project directory.
             """,
             **kwargs,
         )
+
+    def should_run(self, data):
+        oarepo_cli_dir = Path(data["project_dir"]) / ".venv" / "oarepo-cli"
+        return not oarepo_cli_dir.exists()
 
     def after_run(self, data):
         print("Creating oarepo-cli virtualenv")
