@@ -35,6 +35,7 @@ OARepo client is meant to simplify:
     * [x] handling empty migrations when model has not changed
 * [x] initializing index during the installation step and reindexing data
 * [x] importing (sample) data
+* [ ] proxied models (that is, model that is built on index alias)
 
 *Requests:*
 
@@ -53,6 +54,7 @@ OARepo client is meant to simplify:
 * [ ] adding UI module
 * [ ] installing UI module to the site
 * [ ] scaffolding UI component (jinja and react)
+* [ ] UI on proxied models
 
 **Automated testing:**
 
