@@ -23,5 +23,5 @@ def list_uis(project_dir, *args, **kwargs):
     cfg = MonorepoConfig(oarepo_yaml_file)
     cfg.load()
 
-    for ui in cfg.whole_data.get('uis', {}):
+    for ui in cfg.whole_data.get("uis", {}):
         print(ui)

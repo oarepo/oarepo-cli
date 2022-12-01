@@ -8,7 +8,7 @@ import click as click
 import tomlkit
 from colorama import Fore, Style
 
-from oarepo_cli.cli.model.utils import get_model_dir, load_model_repo, ModelWizardStep
+from oarepo_cli.cli.model.utils import ModelWizardStep, get_model_dir, load_model_repo
 from oarepo_cli.ui.wizard import Wizard
 from oarepo_cli.ui.wizard.steps import RadioWizardStep, WizardStep
 from oarepo_cli.utils import run_cmdline
@@ -121,29 +121,45 @@ class AlembicWizardStep(ModelWizardStep):
     pause = True
 
     def after_run(self, data):
-        model_package = data['model_package']
+        model_package = data["model_package"]
         model_package_dir = self.model_package_dir(data)
-        alembic_path = model_package_dir / 'alembic'
+        alembic_path = model_package_dir / "alembic"
         filecount = len(list(alembic_path.iterdir()))
 
         if filecount < 2:
             # alembic has not been initialized yet ...
-            self.invenio_command(data, 'alembic', 'upgrade', 'heads')
+            self.invenio_command(data, "alembic", "upgrade", "heads")
             # create model branch
             self.invenio_command(
-                data, 'alembic', "revision",
+                data,
+                "alembic",
+                "revision",
                 f"Create {model_package} branch.",
-                '-b', model_package, '-p', 'dbdbc1b19cf2', '--empty')
-            self.invenio_command(data, 'alembic', 'upgrade', 'heads')
-            self.invenio_command(data, "alembic", "revision", "Initial revision.", "-b", model_package)
+                "-b",
+                model_package,
+                "-p",
+                "dbdbc1b19cf2",
+                "--empty",
+            )
+            self.invenio_command(data, "alembic", "upgrade", "heads")
+            self.invenio_command(
+                data, "alembic", "revision", "Initial revision.", "-b", model_package
+            )
             self.fix_sqlalchemy_utils(alembic_path)
-            self.invenio_command(data, 'alembic', 'upgrade', 'heads')
+            self.invenio_command(data, "alembic", "upgrade", "heads")
         else:
             # alembic has been initialized, update heads and generate
-            self.invenio_command(data, 'alembic', 'upgrade', 'heads')
-            self.invenio_command(data, "alembic", "revision", "oarepo-cli install revision.", "-b", model_package)
+            self.invenio_command(data, "alembic", "upgrade", "heads")
+            self.invenio_command(
+                data,
+                "alembic",
+                "revision",
+                "oarepo-cli install revision.",
+                "-b",
+                model_package,
+            )
             self.fix_sqlalchemy_utils(alembic_path)
-            self.invenio_command(data, 'alembic', 'upgrade', 'heads')
+            self.invenio_command(data, "alembic", "upgrade", "heads")
 
     def fix_sqlalchemy_utils(self, alembic_path):
         for fn in alembic_path.iterdir():
@@ -157,7 +173,9 @@ def upgrade():
     # ### end Alembic commands ###'''
 
             if empty_migration in data:
-                print(f"{Fore.YELLOW}Found empty migration in file {fn}, deleting it{Style.RESET_ALL}")
+                print(
+                    f"{Fore.YELLOW}Found empty migration in file {fn}, deleting it{Style.RESET_ALL}"
+                )
                 fn.unlink()
                 continue
 
@@ -187,10 +205,10 @@ class UpdateIndexWizardStep(ModelWizardStep):
 Before the model can be used, I need to create index inside opensearch server.
 This is not necessary if the model has not been changed. Should I create/update
 the index? 
-                            """
+                            """,
         ),
-        "update_opensearch_index"
+        "update_opensearch_index",
     )
 
     def update_opensearch_index(self, data):
-        self.invenio_command(data, data['model_name'], 'reindex', '--recreate')
+        self.invenio_command(data, data["model_name"], "reindex", "--recreate")

@@ -3,11 +3,13 @@ import click as click
 from .add import add_model
 from .compile import compile_model
 from .install import install_model
-from .load import load_data
 from .list import list_models
+from .load import load_data
 
 
-@click.group(help="Model-related tools (add model, compile, install, load and dump data)")
+@click.group(
+    help="Model-related tools (add model, compile, install, load and dump data)"
+)
 def model():
     pass
 

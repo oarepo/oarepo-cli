@@ -16,10 +16,19 @@ class WizardStep:
     steps: "WizardStep" = []
     widgets = ()
     validate_functions = ()
-    heading = ''
+    heading = ""
     pause = None
 
-    def __init__(self, *widgets, validate=None, heading=None, pause=False, step_name=None, **kwargs):
+    def __init__(
+        self,
+        *widgets,
+        validate=None,
+        heading=None,
+        pause=False,
+        step_name=None,
+        steps=None,
+        **kwargs,
+    ):
         self.step_name = step_name or self.step_name
         self.widgets = tuple(widgets or self.widgets)
         if not validate:
@@ -29,6 +38,7 @@ class WizardStep:
         self.validate_functions = tuple(validate or self.validate_functions)
         self.heading = heading or self.heading
         self.pause = pause or self.pause
+        self.steps = steps or self.steps
 
     def should_run(self, data):
         return True

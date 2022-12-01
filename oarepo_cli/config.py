@@ -62,8 +62,8 @@ class MonorepoConfig(Config):
             data = yaml.safe_load(f)
             self.whole_data = data
             for s in self.section:
-                data = data.get(s, {})
-            self.config = data.get("config", {})
+                data = data.get(s, {}) or {}
+            self.config = data.get("config", {}) or {}
             self.ok_steps = data.get("ok_steps", []) or []
             self.existing = True
 

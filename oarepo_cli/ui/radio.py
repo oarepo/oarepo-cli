@@ -17,6 +17,7 @@ class Radio(Widget):
         self.default = default
 
     def run(self):
+        options = self.options
         displayed = [
             (str(idx + 1), key, label)
             for idx, (key, label) in enumerate(self.options.items())

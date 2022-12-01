@@ -23,5 +23,5 @@ def list_models(project_dir, *args, **kwargs):
     cfg = MonorepoConfig(oarepo_yaml_file)
     cfg.load()
 
-    for model in cfg.whole_data.get('models', {}):
+    for model in cfg.whole_data.get("models", {}):
         print(model)
