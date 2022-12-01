@@ -1,0 +1,1 @@
+recursive-include oarepo_cli/templates/repo *

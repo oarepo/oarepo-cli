@@ -4,14 +4,9 @@ Work in progress.
 
 ## Repository project initialization
 
-If you trust us (generally not a good idea though), run:
-
-```bash
-curl -o- -L https://raw.githubusercontent.com/oarepo/oarepo-cli/main/get.sh | bash <project_directory>
-```
-
-If not, download the file from `https://raw.githubusercontent.com/oarepo/oarepo-cli/main/get.sh`,
-inspect it and run `bash get.sh <project_dir>`
+Download the file from 
+`https://raw.githubusercontent.com/oarepo/oarepo-cli/main/get.sh`,
+inspect it (always a good practice) and run `bash get.sh <project_dir>`
 
 ## Roadmap
 

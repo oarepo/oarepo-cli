@@ -18,7 +18,7 @@ test -d "$PROJECT_DIR/.venv" || {
 test -d "$PROJECT_DIR/.venv/oarepo-cli" || {
   "$PYTHON" -m venv "$PROJECT_DIR/.venv/oarepo-cli"
   "$PROJECT_DIR/.venv/oarepo-cli/bin/pip" install -U setuptools pip wheel
-  "$PROJECT_DIR/.venv/oarepo-cli/bin/pip" install "git+http://github/com/oarepo/oarepo-cli"
+  "$PROJECT_DIR/.venv/oarepo-cli/bin/pip" install "git+https://github.com/oarepo/oarepo-cli"
 }
 
 "$PROJECT_DIR/.venv/oarepo-cli/bin/oarepo-initialize" "$PROJECT_DIR"
