@@ -8,7 +8,7 @@ from cookiecutter.main import cookiecutter
 from oarepo_cli.cli.model.utils import ProjectWizardStep
 from oarepo_cli.config import MonorepoConfig
 from oarepo_cli.ui.wizard import StaticWizardStep, Wizard
-from oarepo_cli.ui.wizard.steps import RadioWizardStep
+from oarepo_cli.ui.wizard.steps import RadioWizardStep, InputWizardStep
 from oarepo_cli.utils import print_banner
 
 
@@ -62,13 +62,13 @@ class AddUIWizardStep(ProjectWizardStep):
         data.setdefault("model_package", model_package)
         model_file = (
             (
-                self.project_dir(data)
-                / "ui"
-                / ui_name
-                / data["local_model_path"]
-                / model_package
-                / "models"
-                / "model.json"
+                    self.project_dir(data)
+                    / "ui"
+                    / ui_name
+                    / data["local_model_path"]
+                    / model_package
+                    / "models"
+                    / "model.json"
             )
             .absolute()
             .resolve(strict=False)
@@ -130,4 +130,9 @@ and then I'll ask you a couple of additional questions.
                 "model_defaults",
             ]
         ),
+        InputWizardStep(
+            'url_prefix',
+            prompt="On which url prefix will the UI reside? The prefix should like /something/: ",
+            default=f"/{data['ui_name']}/"
+        )
     )
