@@ -11,7 +11,7 @@ from colorama import Fore, Style
 from oarepo_cli.cli.model.utils import ModelWizardStep, get_model_dir, load_model_repo
 from oarepo_cli.ui.wizard import Wizard
 from oarepo_cli.ui.wizard.steps import RadioWizardStep, WizardStep
-from oarepo_cli.utils import run_cmdline
+from oarepo_cli.utils import run_cmdline, add_to_pipfile_dependencies
 
 
 @click.command(name="install", help="Install the model into the current site")
@@ -28,21 +28,21 @@ def install_model(project_dir, model_name, *args, **kwargs):
     cfg["project_dir"] = project_dir
 
     wizard = Wizard(
-        #         RadioWizardStep(
-        #             "run_tests",
-        #             options={
-        #                 "run": f"{Fore.GREEN}Run tests{Style.RESET_ALL}",
-        #                 "skip": f"{Fore.RED}Skip tests{Style.RESET_ALL}",
-        #             },
-        #             default="run",
-        #             heading=f"""
-        # Before installing the model, it is wise to run the test to check that the model is ok.
-        # If the tests fail, please fix the errors and run this command again.
-        #     """,
-        #         ),
-        #         TestWizardStep(),
-        #         InstallWizardStep(),
-        # AlembicWizardStep(),
+                RadioWizardStep(
+                    "run_tests",
+                    options={
+                        "run": f"{Fore.GREEN}Run tests{Style.RESET_ALL}",
+                        "skip": f"{Fore.RED}Skip tests{Style.RESET_ALL}",
+                    },
+                    default="run",
+                    heading=f"""
+        Before installing the model, it is wise to run the test to check that the model is ok.
+        If the tests fail, please fix the errors and run this command again.
+            """,
+                ),
+                TestWizardStep(),
+                InstallWizardStep(),
+        AlembicWizardStep(),
         UpdateIndexWizardStep(),
     )
     wizard.run(cfg)
@@ -89,22 +89,7 @@ class InstallWizardStep(ModelWizardStep):
     def add_model_to_pipfile(self, data):
         model_name = data["model_name"]
         pipfile = self.site_dir(data) / "Pipfile"
-
-        with open(pipfile, "r") as f:
-            pipfile_data = tomlkit.load(f)
-        for pkg in pipfile_data["packages"]:
-            if pkg == model_name:
-                break
-        else:
-            t = tomlkit.inline_table()
-            t.comment("Added by oarepo-cli")
-            t.update({"editable": True, "path": f"../models/{model_name}"})
-            pipfile_data["packages"].add(tomlkit.nl())
-            pipfile_data["packages"][model_name] = t
-            pipfile_data["packages"].add(tomlkit.nl())
-
-            with open(pipfile, "w") as f:
-                tomlkit.dump(pipfile_data, f)
+        add_to_pipfile_dependencies(pipfile, model_name, f"../models/{model_name}")
 
     def install_pipfile(self, data):
         self.pipenv_command(data, "lock")

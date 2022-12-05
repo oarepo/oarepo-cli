@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import copy
 
+from typing import List, Union, Callable, Dict
 from colorama import Fore, Style
 
 from ...config import Config
@@ -11,24 +12,45 @@ from ..utils import slow_print
 from .validation import required as required_validation
 
 
-class WizardStep:
+class WizardBase:
+    steps: "List[Union[WizardStep, Callable[[Dict], None], str]]" = []
+
+    def __init__(self, steps: "List[Union[WizardStep, Callable[[Dict], None], str]]" = None):
+        self.steps = steps or self.steps
+
+    def run(self, data):
+        steps = self.get_steps(data)
+        for step in steps:
+            if isinstance(step, str):
+                getattr(self, step)(data)
+            elif callable(step):
+                step(data)
+            else:
+                if step.should_run(data):
+                    step.run(data)
+
+    def get_steps(self, data):
+        return self.steps
+
+
+class WizardStep(WizardBase):
     step_name = None
-    steps: "WizardStep" = []
     widgets = ()
     validate_functions = ()
     heading = ""
     pause = None
 
     def __init__(
-        self,
-        *widgets,
-        validate=None,
-        heading=None,
-        pause=False,
-        step_name=None,
-        steps=None,
-        **kwargs,
+            self,
+            *widgets,
+            validate=None,
+            heading=None,
+            pause=False,
+            step_name=None,
+            steps=None,
+            **kwargs,
     ):
+        super().__init__(steps)
         self.step_name = step_name or self.step_name
         self.widgets = tuple(widgets or self.widgets)
         if not validate:
@@ -38,7 +60,6 @@ class WizardStep:
         self.validate_functions = tuple(validate or self.validate_functions)
         self.heading = heading or self.heading
         self.pause = pause or self.pause
-        self.steps = steps or self.steps
 
     def should_run(self, data):
         return True
@@ -73,13 +94,7 @@ class WizardStep:
                     continue
                 print(f"{Fore.RED}Error: {res}{Style.RESET_ALL}")
                 valid = False
-        steps = self.get_steps(data)
-        for step in steps:
-            if isinstance(step, str):
-                getattr(self, step)(data)
-            else:
-                if step.should_run(data):
-                    step.run(data)
+        super().run(data)
         self.on_after_steps(data)
         if self.pause:
             input(f"Press enter to continue ...")
@@ -97,9 +112,6 @@ class WizardStep:
 
     def get_validate_functions(self, data):
         return self.validate_functions
-
-    def get_steps(self, data):
-        return self.steps
 
     def on_after_steps(self, data):
         pass

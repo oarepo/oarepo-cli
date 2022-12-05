@@ -20,7 +20,7 @@ def get_model_dir(data):
     return Path(data["project_dir"]) / "models" / data["model_name"]
 
 
-class ProjectWizardStep(WizardStep):
+class ProjectWizardMixin():
     def site_dir(self, data):
         return Path(data.get("config.project_dir")) / data.get("config.site_dir")
 
@@ -57,7 +57,7 @@ class ProjectWizardStep(WizardStep):
         )
 
 
-class ModelWizardStep(ProjectWizardStep):
+class ModelWizardStep(ProjectWizardMixin, WizardStep):
     def model_dir(self, data):
         return self.project_dir(data) / "models" / data["model_name"]
 
