@@ -38,7 +38,7 @@ class WizardBase(abc.ABC):
                     if subsequent_should_run is not None:
                         should_run = subsequent_should_run
                         break
-                if not should_run:
+                if should_run is False:
                     continue
             step.run(data)
             data.save()
