@@ -43,6 +43,5 @@ def load_data(project_dir, model_name, data_path, *args, **kwargs):
 
 
 class ImportDataWizardStep(ModelWizardStep):
-
     def after_run(self, data):
         self.invenio_command(data, data["model_name"], "load", data["data_path"])

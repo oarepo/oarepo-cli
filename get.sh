@@ -21,4 +21,4 @@ test -d "$PROJECT_DIR/.venv/oarepo-cli" || {
   "$PROJECT_DIR/.venv/oarepo-cli/bin/pip" install "git+https://github.com/oarepo/oarepo-cli"
 }
 
-"$PROJECT_DIR/.venv/oarepo-cli/bin/oarepo-initialize" "$PROJECT_DIR"
+"$PROJECT_DIR/.venv/oarepo-cli/bin/oarepo-cli" initialize "$PROJECT_DIR"

@@ -4,7 +4,7 @@ from typing import Callable, Dict, Union
 
 from oarepo_cli.config import Config
 
-from .steps import WizardStep, WizardBase
+from .steps import WizardBase, WizardStep
 
 
 class Wizard(WizardBase):
@@ -17,3 +17,6 @@ class Wizard(WizardBase):
 
     def after_run(self, data):
         pass
+
+    def should_run(self, data):
+        return super().should_run(data)

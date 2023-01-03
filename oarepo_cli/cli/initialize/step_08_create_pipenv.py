@@ -3,11 +3,10 @@ from pathlib import Path
 from oarepo_cli.ui.radio import Radio
 from oarepo_cli.ui.wizard import WizardStep
 
-from ..utils import run_cmdline
+from ...utils import run_cmdline
 
 
 class CreatePipenvStep(WizardStep):
-
     def __init__(self, **kwargs):
         super().__init__(
             Radio(
@@ -29,7 +28,7 @@ What is your preference of pipenv virtual environment location?
         )
 
     def after_run(self, data):
-        site_dir = str(Path(data["project_dir"]) / data["site_package"])
+        site_dir = self._site_dir(data)
         if data["create_pipenv_in_site"] == "yes":
             (Path(data["project_dir"]) / data["site_package"] / ".venv").mkdir(
                 parents=True, exist_ok=True
@@ -50,4 +49,29 @@ What is your preference of pipenv virtual environment location?
             "python",
             cwd=site_dir,
             environ={"PIPENV_IGNORE_VIRTUALENVS": "1"},
+        )
+
+        pipenv_venv_dir = self._get_pipenv_venv_dir()
+
+        data["site_pipenv_dir"] = pipenv_venv_dir
+
+    def _site_dir(self, data):
+        return str(Path(data["project_dir"]) / data["site_package"])
+
+    def _get_pipenv_venv_dir(self, data):
+        success = run_cmdline(
+            "pipenv",
+            "--venv",
+            cwd=self._site_dir(data),
+            environ={"PIPENV_IGNORE_VIRTUALENVS": "1"},
+            check_only=True,
+            grab_stdout=True,
+        )
+        if not success:
+            return None
+        return success.strip()
+
+    def should_run(self, data):
+        return (
+            "site_pipenv_dir" not in data or not Path(data["site_pipenv_dir"]).exists()
         )

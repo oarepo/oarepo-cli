@@ -2,7 +2,6 @@ from oarepo_cli.ui.wizard import WizardStep
 
 
 class NextStepsStep(WizardStep):
-
     def __init__(self, **kwargs):
         super().__init__(
             heading=lambda data: f"""
@@ -43,3 +42,6 @@ oarepo scripts is available at .....TODO......
             """,
             **kwargs,
         )
+
+    def should_run(self, data):
+        return True

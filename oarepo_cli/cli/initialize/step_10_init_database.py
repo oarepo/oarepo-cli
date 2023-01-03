@@ -3,11 +3,10 @@ from pathlib import Path
 from oarepo_cli.ui.radio import Radio
 from oarepo_cli.ui.wizard import WizardStep
 
-from ..utils import run_cmdline
+from ...utils import run_cmdline
 
 
 class InitDatabaseStep(WizardStep):
-
     def __init__(self, **kwargs):
         super().__init__(
             Radio(
@@ -36,3 +35,7 @@ Should I do it?
                 cwd=site_dir,
                 environ={"PIPENV_IGNORE_VIRTUALENVS": "1"},
             )
+
+    def should_run(self, data):
+        # TODO: proper check
+        return True

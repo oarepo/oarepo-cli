@@ -5,11 +5,10 @@ import sys
 from pathlib import Path
 
 import pyfiglet
+import tomlkit
 from colorama import Fore, Style
 
 from oarepo_cli.ui.utils import slow_print
-
-import tomlkit
 
 
 def print_banner():
@@ -24,7 +23,7 @@ def print_banner():
     slow_print(f"\n\n\n{Fore.GREEN}{intro_string}{Style.RESET_ALL}")
 
 
-def run_cmdline(*cmdline, cwd=".", environ=None):
+def run_cmdline(*cmdline, cwd=".", environ=None, check_only=False, grab_stdout=False):
     env = os.environ.copy()
     env.update(environ or {})
     cwd = Path(cwd).absolute()
@@ -33,8 +32,16 @@ def run_cmdline(*cmdline, cwd=".", environ=None):
         f"{Fore.BLUE}Running {Style.RESET_ALL} {' '.join(cmdline)}", file=sys.__stderr__
     )
     print(f"{Fore.BLUE}    inside {Style.RESET_ALL} {cwd}", file=sys.__stderr__)
-    ret = subprocess.call(cmdline, cwd=cwd, env=env)
-    if ret:
+    try:
+        if grab_stdout:
+            ret = subprocess.check_output(cmdline, cwd=cwd, env=env)
+        else:
+            ret = subprocess.call(cmdline, cwd=cwd, env=env)
+            if ret:
+                raise subprocess.CalledProcessError(ret, cmdline)
+    except:
+        if check_only:
+            return False
         print(f"Error running {' '.join(cmdline)}", file=sys.__stderr__)
         sys.exit(ret)
     print(
@@ -42,6 +49,9 @@ def run_cmdline(*cmdline, cwd=".", environ=None):
         file=sys.__stderr__,
     )
     print(f"{Fore.GREEN}    inside {Style.RESET_ALL} {cwd}", file=sys.__stderr__)
+    if grab_stdout:
+        return ret
+    return True
 
 
 def find_oarepo_project(dirname, raises=False):
@@ -57,6 +67,7 @@ def find_oarepo_project(dirname, raises=False):
             f"or its 4 ancestors do not contain oarepo.yaml file"
         )
     return
+
 
 def add_to_pipfile_dependencies(pipfile, package_name, package_path):
     with open(pipfile, "r") as f:

@@ -11,7 +11,7 @@ from colorama import Fore, Style
 from oarepo_cli.cli.model.utils import ModelWizardStep, get_model_dir, load_model_repo
 from oarepo_cli.ui.wizard import Wizard
 from oarepo_cli.ui.wizard.steps import RadioWizardStep, WizardStep
-from oarepo_cli.utils import run_cmdline, add_to_pipfile_dependencies
+from oarepo_cli.utils import add_to_pipfile_dependencies, run_cmdline
 
 
 @click.command(name="install", help="Install the model into the current site")
@@ -27,20 +27,20 @@ def install_model(project_dir, model_name, *args, **kwargs):
     cfg["project_dir"] = project_dir
 
     wizard = Wizard(
-                RadioWizardStep(
-                    "run_tests",
-                    options={
-                        "run": f"{Fore.GREEN}Run tests{Style.RESET_ALL}",
-                        "skip": f"{Fore.RED}Skip tests{Style.RESET_ALL}",
-                    },
-                    default="run",
-                    heading=f"""
+        RadioWizardStep(
+            "run_tests",
+            options={
+                "run": f"{Fore.GREEN}Run tests{Style.RESET_ALL}",
+                "skip": f"{Fore.RED}Skip tests{Style.RESET_ALL}",
+            },
+            default="run",
+            heading=f"""
         Before installing the model, it is wise to run the test to check that the model is ok.
         If the tests fail, please fix the errors and run this command again.
             """,
-                ),
-                TestWizardStep(),
-                InstallWizardStep(),
+        ),
+        TestWizardStep(),
+        InstallWizardStep(),
         AlembicWizardStep(),
         UpdateIndexWizardStep(),
     )
@@ -48,7 +48,6 @@ def install_model(project_dir, model_name, *args, **kwargs):
 
 
 class TestWizardStep(WizardStep):
-
     def after_run(self, data):
         if data["run_tests"] == "skip":
             return

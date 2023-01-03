@@ -6,11 +6,10 @@ from pathlib import Path
 
 from oarepo_cli.ui.wizard import WizardStep
 
-from ..utils import run_cmdline
+from ...utils import run_cmdline
 
 
 class InstallInvenioCliStep(WizardStep):
-
     def __init__(self, **kwargs):
         super().__init__(
             heading="""I will install invenio command-line client. I will use the client to check that
@@ -25,7 +24,7 @@ https://inveniordm.docs.cern.ch/install/requirements/ .
 
     def after_run(self, data):
         print("Creating invenio-cli virtualenv")
-        invenio_cli_dir = Path(data["project_dir"]) / ".venv" / "invenio-cli"
+        invenio_cli_dir = self._invenio_cli_dir(data)
         data["invenio_cli"] = str(invenio_cli_dir / "bin" / "invenio-cli")
         if invenio_cli_dir.exists():
             shutil.rmtree(invenio_cli_dir)
@@ -42,3 +41,11 @@ https://inveniordm.docs.cern.ch/install/requirements/ .
             "--development",
             environ={"PIPENV_IGNORE_VIRTUALENVS": "1"},
         )
+        with open(invenio_cli_dir / ".check.ok", "w") as f:
+            f.write("invenio check ok")
+
+    def _invenio_cli_dir(self, data):
+        return Path(data["project_dir"]) / ".venv" / "invenio-cli"
+
+    def should_run(self, data):
+        return not (self._invenio_cli_dir(data) / ".check.ok").exists()

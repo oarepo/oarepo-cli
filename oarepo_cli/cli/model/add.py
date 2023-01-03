@@ -30,7 +30,6 @@ def add_model(project_dir, name, *args, **kwargs):
 
 
 class CreateModelWizardStep(WizardStep):
-
     def after_run(self, data):
         base_model_package = {
             "empty": "(none)",
@@ -43,13 +42,20 @@ class CreateModelWizardStep(WizardStep):
             "https://github.com/oarepo/cookiecutter-model",
             checkout="v10.0",
             no_input=True,
-            output_dir=Path(data.get("config.project_dir")) / "models",
+            output_dir=self._models_dir(data),
             extra_context={
                 **data,
                 "base_model_package": base_model_package,
                 "base_model_use": base_model_use,
             },
         )
+
+    def should_run(self, data):
+        checked_dir = self._models_dir(data) / data["model_name"]
+        return not checked_dir.exists()
+
+    def _models_dir(self, data):
+        return Path(data.get("config.project_dir")) / "models"
 
 
 add_model_wizard = Wizard(

@@ -9,8 +9,8 @@ from cookiecutter.main import cookiecutter
 from oarepo_cli.cli.model.utils import ProjectWizardMixin
 from oarepo_cli.config import MonorepoConfig
 from oarepo_cli.ui.wizard import StaticWizardStep, Wizard
-from oarepo_cli.ui.wizard.steps import RadioWizardStep, InputWizardStep
-from oarepo_cli.utils import print_banner, add_to_pipfile_dependencies
+from oarepo_cli.ui.wizard.steps import InputWizardStep, RadioWizardStep
+from oarepo_cli.utils import add_to_pipfile_dependencies, print_banner
 
 
 @click.command(
@@ -31,7 +31,7 @@ def install_ui(project_dir, name, *args, **kwargs):
     cfg.load()
     print_banner()
 
-    if not (name.endswith('-ui') or name.endswith('-app')):
+    if not (name.endswith("-ui") or name.endswith("-app")):
         name = name + "-ui"
     cfg["ui_name"] = name
 
@@ -51,7 +51,7 @@ class InstallWizard(ProjectWizardMixin, Wizard):
     Now I will compile the assets so that UI's javascript and CSS will be incorporated to site's UI.
                     """,
         ),
-        "compile_assets"
+        "compile_assets",
     ]
 
     def install(self, data):

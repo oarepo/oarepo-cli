@@ -6,11 +6,10 @@ from pathlib import Path
 
 from oarepo_cli.ui.wizard import WizardStep
 
-from ..utils import run_cmdline
+from ...utils import run_cmdline
 
 
 class InstallIOARepoCliStep(WizardStep):
-
     def __init__(self, **kwargs):
         super().__init__(
             heading="""
@@ -20,13 +19,9 @@ To run them, invoke the "oarepo-cli" script from within the project directory.
             **kwargs,
         )
 
-    def should_run(self, data):
-        oarepo_cli_dir = Path(data["project_dir"]) / ".venv" / "oarepo-cli"
-        return not oarepo_cli_dir.exists()
-
     def after_run(self, data):
         print("Creating oarepo-cli virtualenv")
-        oarepo_cli_dir = Path(data["project_dir"]) / ".venv" / "oarepo-cli"
+        oarepo_cli_dir = self._oarepo_cli_dir(data)
         data["oarepo_cli"] = str(oarepo_cli_dir / "bin" / "oarepo-cli")
         if oarepo_cli_dir.exists():
             shutil.rmtree(oarepo_cli_dir)
@@ -45,3 +40,11 @@ To run them, invoke the "oarepo-cli" script from within the project directory.
             "-e",
             Path(__file__).parent.parent.parent.parent,
         )
+        with open(oarepo_cli_dir / ".check.ok", "w") as f:
+            f.write("oarepo check ok")
+
+    def _oarepo_cli_dir(self, data):
+        return Path(data["project_dir"]) / ".venv" / "oarepo-cli"
+
+    def should_run(self, data):
+        return not (self._oarepo_cli_dir(data) / ".check.ok").exists()

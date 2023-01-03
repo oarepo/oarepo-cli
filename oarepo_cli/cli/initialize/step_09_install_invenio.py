@@ -2,15 +2,15 @@ from pathlib import Path
 
 from oarepo_cli.ui.wizard import WizardStep
 
-from ..utils import run_cmdline
+from ...utils import run_cmdline
 
 
 class InstallInvenioStep(WizardStep):
-
     def __init__(self, **kwargs):
         super().__init__(
             heading="""
-Now I'll install invenio libraries from site's Pipfile. 
+Now I'll install invenio site.
+
 Note that this can take a lot of time as UI dependencies
 will be downloaded and installed and UI will be compiled.
             """,
@@ -25,3 +25,7 @@ will be downloaded and installed and UI will be compiled.
             cwd=site_dir,
             environ={"PIPENV_IGNORE_VIRTUALENVS": "1"},
         )
+
+    def should_run(self, data):
+        # TODO: add check here
+        return True

@@ -1,8 +1,9 @@
 from __future__ import annotations
 
+import abc
 import copy
+from typing import Callable, Dict, List, Union
 
-from typing import List, Union, Callable, Dict
 from colorama import Fore, Style
 
 from ...config import Config
@@ -10,30 +11,51 @@ from ..input import Input
 from ..radio import Radio
 from ..utils import slow_print
 from .validation import required as required_validation
-import abc
+
 
 class WizardBase(abc.ABC):
     steps: "List[Union[WizardStep, Callable[[Dict], None], str]]" = []
 
-    def __init__(self, steps: "List[Union[WizardStep, Callable[[Dict], None], str]]" = None):
+    def __init__(
+        self, steps: "List[Union[WizardStep, Callable[[Dict], None], str]]" = None
+    ):
         self.steps = steps or self.steps
 
     def run(self, data):
         steps = self.get_steps(data)
-        for step in steps:
+        for stepidx, step in enumerate(steps):
             if isinstance(step, str):
                 getattr(self, step)(data)
-            elif callable(step):
-                step(data)
-            else:
-                step.run(data)
+            should_run = step.should_run(data)
+            if should_run is False:
+                continue
+            if should_run is None:
+                # only if one of the subsequent steps should run
+                for subsequent in steps[stepidx + 1 :]:
+                    if isinstance(subsequent, str):
+                        getattr(self, subsequent)(data)
+                    subsequent_should_run = subsequent.should_run(data)
+                    if subsequent_should_run is not None:
+                        should_run = subsequent_should_run
+                        break
+                if should_run:
+                    step.run(data)
 
     def get_steps(self, data):
         return self.steps
 
     @abc.abstractmethod
     def should_run(self, data):
-        raise Exception('Implement this !!!')
+        if self.steps:
+            steps = self.get_steps(data)
+            for step in steps:
+                if isinstance(step, str):
+                    getattr(self, step)(data)
+                should_run = step.should_run(data)
+                if should_run:
+                    return True
+            return False
+        raise Exception("Implement this !!!")
 
 
 class WizardStep(WizardBase):
@@ -43,13 +65,13 @@ class WizardStep(WizardBase):
     pause = None
 
     def __init__(
-            self,
-            *widgets,
-            validate=None,
-            heading=None,
-            pause=False,
-            steps=None,
-            **kwargs,
+        self,
+        *widgets,
+        validate=None,
+        heading=None,
+        pause=False,
+        steps=None,
+        **kwargs,
     ):
         super().__init__(steps)
         self.widgets = tuple(widgets or self.widgets)
@@ -62,8 +84,6 @@ class WizardStep(WizardBase):
         self.pause = pause or self.pause
 
     def run(self, data: Config):
-        if not self.should_run(data):
-            return
         self.on_before_heading(data)
         if self.heading:
             heading = self.heading
@@ -124,13 +144,25 @@ class InputWizardStep(WizardStep):
             heading=heading,
             validate=[required_validation(key)] if required else [],
         )
+        self.key = key
+
+    def should_run(self, data):
+        return self.key not in data
 
 
 class StaticWizardStep(WizardStep):
-    def __init__(self, key, heading, **kwargs):
+    def __init__(self, heading, **kwargs):
         super().__init__(heading=heading, **kwargs)
+
+    def should_run(self, data):
+        # do not know - should run only if one of the subsequent steps should run
+        return None
 
 
 class RadioWizardStep(WizardStep):
     def __init__(self, key, heading, options=None, default=None):
         super().__init__(Radio(key, default=default, options=options), heading=heading)
+        self.key = key
+
+    def should_run(self, data):
+        return self.key not in data

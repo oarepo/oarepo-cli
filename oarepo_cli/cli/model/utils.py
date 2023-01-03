@@ -20,7 +20,7 @@ def get_model_dir(data):
     return Path(data["project_dir"]) / "models" / data["model_name"]
 
 
-class ProjectWizardMixin():
+class ProjectWizardMixin:
     def site_dir(self, data):
         return Path(data.get("config.project_dir")) / data.get("config.site_dir")
 

@@ -9,7 +9,7 @@ from cookiecutter.main import cookiecutter
 from oarepo_cli.cli.model.utils import ProjectWizardMixin
 from oarepo_cli.config import MonorepoConfig
 from oarepo_cli.ui.wizard import StaticWizardStep, Wizard
-from oarepo_cli.ui.wizard.steps import RadioWizardStep, InputWizardStep, WizardStep
+from oarepo_cli.ui.wizard.steps import InputWizardStep, RadioWizardStep, WizardStep
 from oarepo_cli.utils import print_banner
 
 
@@ -30,7 +30,7 @@ def add_ui(project_dir, name, *args, **kwargs):
     cfg = MonorepoConfig(oarepo_yaml_file, section=["uis", name])
     cfg.load()
     print_banner()
-    if not (name.endswith('-ui') or name.endswith('-app')):
+    if not (name.endswith("-ui") or name.endswith("-app")):
         name = name + "-ui"
 
     cfg["ui_name"] = name
@@ -52,9 +52,8 @@ def snail_to_title(v):
 
 
 class AddUIWizardStep(ProjectWizardMixin, WizardStep):
-
     def model_defaults(self, data):
-        ui_name = data['ui_name']
+        ui_name = data["ui_name"]
 
         ui_package = ui_name.lower().replace("-", "_")
         ui_base = snail_to_title(ui_package)
@@ -66,13 +65,13 @@ class AddUIWizardStep(ProjectWizardMixin, WizardStep):
         data.setdefault("model_package", model_package)
         model_file = (
             (
-                    self.project_dir(data)
-                    / "ui"
-                    / ui_name
-                    / data["local_model_path"]
-                    / model_package
-                    / "models"
-                    / "model.json"
+                self.project_dir(data)
+                / "ui"
+                / ui_name
+                / data["local_model_path"]
+                / model_package
+                / "models"
+                / "model.json"
             )
             .absolute()
             .resolve(strict=False)
@@ -134,8 +133,8 @@ and then I'll ask you a couple of additional questions.
             ]
         ),
         InputWizardStep(
-            'url_prefix',
+            "url_prefix",
             prompt="On which url prefix will the UI reside? The prefix should like /something/: ",
-            default=f"/{data['ui_name']}/"
-        )
+            default=f"/{data['ui_name']}/",
+        ),
     )

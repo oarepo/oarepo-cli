@@ -8,7 +8,6 @@ log = logging.getLogger("step_01_initialize_directory")
 
 
 class DirectoryStep(WizardStep):
-
     def __init__(self, *args, **kwargs):
         super().__init__(heading="Creating the target directory ...")
 
@@ -17,3 +16,6 @@ class DirectoryStep(WizardStep):
         p = Path(data["project_dir"])
         if not p.exists():
             p.mkdir(parents=True)
+
+    def should_run(self, data):
+        return not Path(data["project_dir"]).exists()
