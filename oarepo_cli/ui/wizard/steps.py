@@ -38,8 +38,10 @@ class WizardBase(abc.ABC):
                     if subsequent_should_run is not None:
                         should_run = subsequent_should_run
                         break
-                if should_run:
-                    step.run(data)
+                if not should_run:
+                    continue
+            step.run(data)
+            data.save()
 
     def get_steps(self, data):
         return self.steps

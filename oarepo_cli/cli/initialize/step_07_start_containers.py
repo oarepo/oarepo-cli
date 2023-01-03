@@ -30,14 +30,21 @@ If this step fails, please fix the problem and run the wizard again.
     def _check_containers_running(self, data, check_only):
         site_dir = str(Path(data["project_dir"]) / data["site_package"])
 
-        return not run_cmdline(
+        return run_cmdline(
             data["invenio_cli"],
             "services",
             "status",
             cwd=site_dir,
             environ={"PIPENV_IGNORE_VIRTUALENVS": "1"},
             check_only=check_only,
+            discard_output=True,
         )
 
     def should_run(self, data):
+        if "project_dir" not in data:
+            return False
+        if "site_package" not in data:
+            return False
+        if "invenio_cli" not in data:
+            return False
         return not self._check_containers_running(data, True)

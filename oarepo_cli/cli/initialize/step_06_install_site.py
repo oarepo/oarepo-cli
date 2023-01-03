@@ -99,7 +99,7 @@ development_tools = yes
             cwd=Path(data["project_dir"]),
             environ={"PIPENV_IGNORE_VIRTUALENVS": "1"},
         )
-        with open(self._oarepo_site_dir() / ".check.ok", "w") as f:
+        with open(self._oarepo_site_dir(data) / ".check.ok", "w") as f:
             f.write("oarepo check ok")
 
     def _oarepo_site_dir(self, data):

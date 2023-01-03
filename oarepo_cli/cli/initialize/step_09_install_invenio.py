@@ -25,7 +25,36 @@ will be downloaded and installed and UI will be compiled.
             cwd=site_dir,
             environ={"PIPENV_IGNORE_VIRTUALENVS": "1"},
         )
+        if not self._get_manifest_file(data).exists():
+            raise Exception(
+                "invenio-cli install has not created var/instance/static/dist/manifest.json."
+                "Please check the output, correct errors and run this command again"
+            )
+
+    def _site_dir(self, data):
+        return str(Path(data["project_dir"]) / data["site_package"])
+
+    def _get_pipenv_venv_dir(self, data):
+        success = run_cmdline(
+            "pipenv",
+            "--venv",
+            cwd=self._site_dir(data),
+            environ={"PIPENV_IGNORE_VIRTUALENVS": "1"},
+            check_only=True,
+            grab_stdout=True,
+        )
+        if not success:
+            return None
+        return success.strip()
 
     def should_run(self, data):
-        # TODO: add check here
-        return True
+        manifest_file = self._get_manifest_file(data)
+        return not manifest_file.exists()
+
+    def _get_manifest_file(self, data):
+        pipenv_dir = data["site_pipenv_dir"]
+        manifest_file = (
+            Path(pipenv_dir) / "var" / "instance" / "static" / "dist" / "manifest.json"
+        )
+
+        return manifest_file

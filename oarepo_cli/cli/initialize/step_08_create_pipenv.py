@@ -51,7 +51,7 @@ What is your preference of pipenv virtual environment location?
             environ={"PIPENV_IGNORE_VIRTUALENVS": "1"},
         )
 
-        pipenv_venv_dir = self._get_pipenv_venv_dir()
+        pipenv_venv_dir = self._get_pipenv_venv_dir(data)
 
         data["site_pipenv_dir"] = pipenv_venv_dir
 

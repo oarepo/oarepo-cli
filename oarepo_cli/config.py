@@ -67,8 +67,9 @@ class MonorepoConfig(Config):
         yaml.safe_dump(data, sio)
 
         # and real dump here
-        with open(self.path, "w") as f:
-            f.write(sio.getvalue())
+        if self.path.parent.exists():
+            with open(self.path, "w") as f:
+                f.write(sio.getvalue())
 
     def on_changed(self):
         if self.path.parent.exists():

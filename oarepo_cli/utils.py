@@ -23,7 +23,14 @@ def print_banner():
     slow_print(f"\n\n\n{Fore.GREEN}{intro_string}{Style.RESET_ALL}")
 
 
-def run_cmdline(*cmdline, cwd=".", environ=None, check_only=False, grab_stdout=False):
+def run_cmdline(
+    *cmdline,
+    cwd=".",
+    environ=None,
+    check_only=False,
+    grab_stdout=False,
+    discard_output=False,
+):
     env = os.environ.copy()
     env.update(environ or {})
     cwd = Path(cwd).absolute()
@@ -33,24 +40,33 @@ def run_cmdline(*cmdline, cwd=".", environ=None, check_only=False, grab_stdout=F
     )
     print(f"{Fore.BLUE}    inside {Style.RESET_ALL} {cwd}", file=sys.__stderr__)
     try:
-        if grab_stdout:
-            ret = subprocess.check_output(cmdline, cwd=cwd, env=env)
+        if grab_stdout or discard_output:
+            kwargs = {}
+            if discard_output:
+                kwargs["stderr"] = subprocess.PIPE
+            ret = subprocess.run(
+                cmdline, stdout=subprocess.PIPE, check=True, cwd=cwd, env=env, **kwargs
+            ).stdout
         else:
             ret = subprocess.call(cmdline, cwd=cwd, env=env)
             if ret:
                 raise subprocess.CalledProcessError(ret, cmdline)
-    except:
+    except subprocess.CalledProcessError as e:
         if check_only:
             return False
         print(f"Error running {' '.join(cmdline)}", file=sys.__stderr__)
-        sys.exit(ret)
+        if e.stdout:
+            print(e.stdout)
+        if e.stderr:
+            print(e.stderr)
+        sys.exit(e.returncode)
     print(
         f"{Fore.GREEN}Finished running {Style.RESET_ALL} {' '.join(cmdline)}",
         file=sys.__stderr__,
     )
     print(f"{Fore.GREEN}    inside {Style.RESET_ALL} {cwd}", file=sys.__stderr__)
     if grab_stdout:
-        return ret
+        return ret.decode("utf-8")
     return True
 
 
