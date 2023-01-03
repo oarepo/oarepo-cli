@@ -6,7 +6,6 @@ from ..utils import run_cmdline
 
 
 class StartContainersStep(WizardStep):
-    step_name = "start-containers"
 
     def __init__(self, **kwargs):
         super().__init__(

@@ -4,7 +4,6 @@ from oarepo_cli.ui.wizard.validation import required
 
 
 class DeploymentTypeStep(WizardStep):
-    step_name = "deployment-type"
 
     def __init__(self):
         super().__init__(

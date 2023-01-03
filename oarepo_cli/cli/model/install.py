@@ -24,7 +24,6 @@ from oarepo_cli.utils import run_cmdline, add_to_pipfile_dependencies
 @click.argument("model-name", required=False)
 def install_model(project_dir, model_name, *args, **kwargs):
     cfg, project_dir = load_model_repo(model_name, project_dir)
-    cfg.save_steps = False
     cfg["project_dir"] = project_dir
 
     wizard = Wizard(
@@ -49,7 +48,6 @@ def install_model(project_dir, model_name, *args, **kwargs):
 
 
 class TestWizardStep(WizardStep):
-    step_name = "test-step"
 
     def after_run(self, data):
         if data["run_tests"] == "skip":
@@ -74,7 +72,6 @@ class TestWizardStep(WizardStep):
 
 
 class InstallWizardStep(ModelWizardStep):
-    step_name = "install-step"
     heading = f"""
     Now I will add the model to site's Pipfile (if it is not there yet)
     and will run pipenv lock & install.
@@ -97,7 +94,6 @@ class InstallWizardStep(ModelWizardStep):
 
 
 class AlembicWizardStep(ModelWizardStep):
-    step_name = "alembic-step"
     heading = f"""
     I will create/update the alembic migration steps so that you might later modify 
     the model and perform automatic database migrations. This command will write
@@ -176,7 +172,6 @@ def upgrade():
 
 
 class UpdateIndexWizardStep(ModelWizardStep):
-    step_name = "update-index-step"
 
     steps = (
         RadioWizardStep(

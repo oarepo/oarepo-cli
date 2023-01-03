@@ -2,7 +2,6 @@ from oarepo_cli.ui.wizard import WizardStep
 
 
 class NextStepsStep(WizardStep):
-    step_name = "next-steps"
 
     def __init__(self, **kwargs):
         super().__init__(

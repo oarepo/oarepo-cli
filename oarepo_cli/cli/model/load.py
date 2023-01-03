@@ -28,7 +28,6 @@ from oarepo_cli.utils import run_cmdline
 )
 def load_data(project_dir, model_name, data_path, *args, **kwargs):
     cfg, project_dir = load_model_repo(model_name, project_dir)
-    cfg.save_steps = False
 
     cfg["project_dir"] = project_dir
 
@@ -44,7 +43,6 @@ def load_data(project_dir, model_name, data_path, *args, **kwargs):
 
 
 class ImportDataWizardStep(ModelWizardStep):
-    step_name = "import-data-step"
 
     def after_run(self, data):
         self.invenio_command(data, data["model_name"], "load", data["data_path"])

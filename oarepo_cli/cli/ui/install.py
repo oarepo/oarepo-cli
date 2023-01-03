@@ -29,7 +29,6 @@ def install_ui(project_dir, name, *args, **kwargs):
     oarepo_yaml_file = project_dir / "oarepo.yaml"
     cfg = MonorepoConfig(oarepo_yaml_file, section=["uis", name])
     cfg.load()
-    cfg.save_steps = False
     print_banner()
 
     if not (name.endswith('-ui') or name.endswith('-app')):
@@ -42,14 +41,12 @@ def install_ui(project_dir, name, *args, **kwargs):
 class InstallWizard(ProjectWizardMixin, Wizard):
     steps = [
         StaticWizardStep(
-            "before_installation",
             heading="""
     I will install the UI package into the repository site.
                 """,
         ),
         "install",
         StaticWizardStep(
-            "assets",
             heading="""
     Now I will compile the assets so that UI's javascript and CSS will be incorporated to site's UI.
                     """,

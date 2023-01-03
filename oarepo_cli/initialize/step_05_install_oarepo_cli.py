@@ -10,7 +10,6 @@ from ..utils import run_cmdline
 
 
 class InstallIOARepoCliStep(WizardStep):
-    step_name = "install-oarepo-cli"
 
     def __init__(self, **kwargs):
         super().__init__(

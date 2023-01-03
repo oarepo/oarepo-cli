@@ -7,7 +7,6 @@ from ..utils import run_cmdline
 
 
 class InitDatabaseStep(WizardStep):
-    step_name = "init-database"
 
     def __init__(self, **kwargs):
         super().__init__(

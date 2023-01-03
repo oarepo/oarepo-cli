@@ -7,7 +7,6 @@ from ..utils import run_cmdline
 
 
 class CreatePipenvStep(WizardStep):
-    step_name = "create-pipenv"
 
     def __init__(self, **kwargs):
         super().__init__(

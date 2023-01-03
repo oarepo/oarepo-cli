@@ -30,7 +30,6 @@ def add_model(project_dir, name, *args, **kwargs):
 
 
 class CreateModelWizardStep(WizardStep):
-    step_name = "create_model_step"
 
     def after_run(self, data):
         base_model_package = {
@@ -55,7 +54,6 @@ class CreateModelWizardStep(WizardStep):
 
 add_model_wizard = Wizard(
     StaticWizardStep(
-        "intro",
         heading="""
 Before creating the datamodel, I'll ask you a few questions.
 If unsure, use the default value.
@@ -101,7 +99,6 @@ of the extension without 'model-builder-'. See the documentation of your custom 
         default="common",
     ),
     StaticWizardStep(
-        "intro2",
         heading="""
 Now tell me something about you. The defaults are taken from the monorepo, feel free to use them.
     """,
@@ -117,13 +114,11 @@ Now tell me something about you. The defaults are taken from the monorepo, feel 
         default=lambda data: data.get("config.author_email"),
     ),
     StaticWizardStep(
-        "outro1",
         heading="Now I have all the information to generate your model. After pressing Enter, I will generate the sources",
         pause=True,
     ),
     CreateModelWizardStep(),
     StaticWizardStep(
-        "outro2",
         heading=lambda data: f"""
 The model has been generated in the {Path(data.get('config.project_dir')) / 'models' / data['model_name']} directory.
 At first, edit the metadata.yaml and then run "oarepo-cli model compile {data['model_name']}"

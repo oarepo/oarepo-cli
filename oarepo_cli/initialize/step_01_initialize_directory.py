@@ -8,7 +8,6 @@ log = logging.getLogger("step_01_initialize_directory")
 
 
 class DirectoryStep(WizardStep):
-    step_name = "directory"
 
     def __init__(self, *args, **kwargs):
         super().__init__(heading="Creating the target directory ...")

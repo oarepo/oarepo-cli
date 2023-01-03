@@ -10,9 +10,9 @@ from ..input import Input
 from ..radio import Radio
 from ..utils import slow_print
 from .validation import required as required_validation
+import abc
 
-
-class WizardBase:
+class WizardBase(abc.ABC):
     steps: "List[Union[WizardStep, Callable[[Dict], None], str]]" = []
 
     def __init__(self, steps: "List[Union[WizardStep, Callable[[Dict], None], str]]" = None):
@@ -26,15 +26,17 @@ class WizardBase:
             elif callable(step):
                 step(data)
             else:
-                if step.should_run(data):
-                    step.run(data)
+                step.run(data)
 
     def get_steps(self, data):
         return self.steps
 
+    @abc.abstractmethod
+    def should_run(self, data):
+        raise Exception('Implement this !!!')
+
 
 class WizardStep(WizardBase):
-    step_name = None
     widgets = ()
     validate_functions = ()
     heading = ""
@@ -46,12 +48,10 @@ class WizardStep(WizardBase):
             validate=None,
             heading=None,
             pause=False,
-            step_name=None,
             steps=None,
             **kwargs,
     ):
         super().__init__(steps)
-        self.step_name = step_name or self.step_name
         self.widgets = tuple(widgets or self.widgets)
         if not validate:
             validate = []
@@ -61,18 +61,16 @@ class WizardStep(WizardBase):
         self.heading = heading or self.heading
         self.pause = pause or self.pause
 
-    def should_run(self, data):
-        return True
-
     def run(self, data: Config):
-        if data.is_step_ok(self.step_name):
+        if not self.should_run(data):
             return
         self.on_before_heading(data)
         if self.heading:
             heading = self.heading
             if callable(heading):
                 heading = heading(data)
-            slow_print(f"\n\n{Fore.BLUE}{heading}{Style.RESET_ALL}")
+            if heading:
+                slow_print(f"\n\n{Fore.BLUE}{heading}{Style.RESET_ALL}")
             print()
         self.on_after_heading(data)
         valid = False
@@ -99,7 +97,6 @@ class WizardStep(WizardBase):
         if self.pause:
             input(f"Press enter to continue ...")
         self.after_run(data)
-        data.set_step_ok(self.step_name)
 
     def on_before_heading(self, data):
         pass
@@ -122,7 +119,6 @@ class WizardStep(WizardBase):
 
 class InputWizardStep(WizardStep):
     def __init__(self, key, heading=None, required=True, default=None, prompt=None):
-        self.step_name = key
         super().__init__(
             Input(key, default=default, prompt=prompt),
             heading=heading,
@@ -132,11 +128,9 @@ class InputWizardStep(WizardStep):
 
 class StaticWizardStep(WizardStep):
     def __init__(self, key, heading, **kwargs):
-        self.step_name = key
         super().__init__(heading=heading, **kwargs)
 
 
 class RadioWizardStep(WizardStep):
     def __init__(self, key, heading, options=None, default=None):
-        self.step_name = key
         super().__init__(Radio(key, default=default, options=options), heading=heading)

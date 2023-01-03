@@ -9,7 +9,6 @@ from oarepo_cli.ui.wizard import WizardStep
 
 
 class CreateMonorepoStep(WizardStep):
-    step_name = "create-monorepo"
 
     def __init__(self, **kwargs):
         super().__init__(

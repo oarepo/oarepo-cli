@@ -10,7 +10,6 @@ from ..utils import run_cmdline
 
 
 class InstallInvenioCliStep(WizardStep):
-    step_name = "install-invenio-cli"
 
     def __init__(self, **kwargs):
         super().__init__(

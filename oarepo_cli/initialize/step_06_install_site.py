@@ -12,7 +12,6 @@ from ..utils import run_cmdline
 
 
 class InstallSiteStep(WizardStep):
-    step_name = "install-site"
 
     def __init__(self, **kwargs):
         super().__init__(
@@ -52,7 +51,6 @@ If not sure, keep the default values.""",
             InputWizardStep("year", prompt="""Year (for copyright)"""),
             InputWizardStep("copyright_holder", prompt="""Copyright holder"""),
             StaticWizardStep(
-                "install-site-before-generate",
                 heading="""I have all the information to generate the site.
 To do so, I'll call the invenio client. If anything goes wrong, please fix the problem
 and run the wizard again.

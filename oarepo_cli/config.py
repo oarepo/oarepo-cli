@@ -7,7 +7,6 @@ import yaml
 class Config:
     def __init__(self):
         self.config = {}
-        self.ok_steps = []
 
     def __getitem__(self, item):
         return self.config[item]
@@ -34,14 +33,6 @@ class Config:
     def setdefault(self, item, default):
         return self.config.setdefault(item, default)
 
-    def set_step_ok(self, step_name):
-        if step_name not in self.ok_steps:
-            self.ok_steps.append(step_name)
-        self.on_changed()
-
-    def is_step_ok(self, step_name):
-        return step_name in self.ok_steps
-
     def on_changed(self):
         pass
 
@@ -55,7 +46,6 @@ class MonorepoConfig(Config):
         self.existing = False
         self.section = tuple(section or [])
         self.whole_data = {}
-        self.save_steps = True
 
     def load(self):
         with open(self.path, "r") as f:
@@ -64,7 +54,6 @@ class MonorepoConfig(Config):
             for s in self.section:
                 data = data.get(s, {}) or {}
             self.config = data.get("config", {}) or {}
-            self.ok_steps = data.get("ok_steps", []) or []
             self.existing = True
 
     def save(self):
@@ -73,7 +62,6 @@ class MonorepoConfig(Config):
         for s in self.section:
             dd = dd.setdefault(s, {})
         dd["config"] = self.config
-        dd["ok_steps"] = self.ok_steps
         # just try to dump so that if that is not successful we do not overwrite the config
         sio = StringIO()
         yaml.safe_dump(data, sio)
@@ -83,7 +71,7 @@ class MonorepoConfig(Config):
             f.write(sio.getvalue())
 
     def on_changed(self):
-        if self.path.parent.exists() and self.save_steps:
+        if self.path.parent.exists():
             self.save()
 
     def _section(self, name, default=None):

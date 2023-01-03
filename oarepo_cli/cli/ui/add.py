@@ -52,7 +52,6 @@ def snail_to_title(v):
 
 
 class AddUIWizardStep(ProjectWizardMixin, WizardStep):
-    step_name = "add-ui-wizard-step"
 
     def model_defaults(self, data):
         ui_name = data['ui_name']
@@ -116,7 +115,6 @@ class AddUIWizardStep(ProjectWizardMixin, WizardStep):
 def add_ui_wizard(data):
     return Wizard(
         StaticWizardStep(
-            "intro",
             heading="""
 A UI is a python package that displays the search, detail, edit, ... pages for a single
 metadata model. At first you'll have to select the model for which the UI will be created
