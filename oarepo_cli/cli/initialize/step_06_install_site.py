@@ -97,7 +97,11 @@ development_tools = yes
             "--config",
             str(cookiecutter_config_file),
             cwd=Path(data["project_dir"]),
-            environ={"PIPENV_IGNORE_VIRTUALENVS": "1"},
+            environ={
+                "PIPENV_IGNORE_VIRTUALENVS": "1",
+                # use our own cookiecutter, not the system one
+                "PATH": f"{data['project_dir']}/.bin:{os.environ['PATH']}",
+            },
         )
         with open(self._oarepo_site_dir(data) / ".check.ok", "w") as f:
             f.write("oarepo check ok")

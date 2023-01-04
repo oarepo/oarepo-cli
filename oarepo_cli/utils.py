@@ -30,6 +30,7 @@ def run_cmdline(
     check_only=False,
     grab_stdout=False,
     discard_output=False,
+    raise_exception=False,
 ):
     env = os.environ.copy()
     env.update(environ or {})
@@ -59,6 +60,8 @@ def run_cmdline(
             print(e.stdout)
         if e.stderr:
             print(e.stderr)
+        if raise_exception:
+            raise
         sys.exit(e.returncode)
     print(
         f"{Fore.GREEN}Finished running {Style.RESET_ALL} {' '.join(cmdline)}",

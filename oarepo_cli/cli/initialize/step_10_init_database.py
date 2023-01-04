@@ -1,4 +1,5 @@
 from pathlib import Path
+import subprocess
 
 from oarepo_cli.ui.radio import Radio
 from oarepo_cli.ui.wizard import WizardStep
@@ -40,16 +41,25 @@ Should I do it?
 
     def check_db_initialized(self, data, raise_error=False):
         site_dir = str(Path(data["project_dir"]) / data["site_package"])
-        output = run_cmdline(
-            "pipenv",
-            "run",
-            "invenio",
-            "alembic",
-            "current",
-            cwd=site_dir,
-            environ={"PIPENV_IGNORE_VIRTUALENVS": "1"},
-            grab_stdout=True,
-        )
+        try:
+            output = run_cmdline(
+                "pipenv",
+                "run",
+                "invenio",
+                "alembic",
+                "current",
+                cwd=site_dir,
+                environ={"PIPENV_IGNORE_VIRTUALENVS": "1"},
+                grab_stdout=True,
+                raise_exception=True,
+            )
+        except subprocess.CalledProcessError:
+            raise Exception(
+                "Alembic initialization failed. This could mean that the database "
+                "does not exist or that there is already an incompatible alembic "
+                "(previous repository) present in the database. Please fix the problem "
+                "and try again"
+            )
         if re.search("[a-zA-Z0-9]{12,24}\s+->\s+[a-zA-Z0-9]{12,24}", output):
             return True
         if raise_error:
