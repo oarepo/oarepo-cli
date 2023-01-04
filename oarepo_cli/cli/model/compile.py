@@ -79,3 +79,7 @@ class CompileWizardStep(WizardStep):
             "model.yaml",
             cwd=get_model_dir(data),
         )
+
+    def should_run(self, data):
+        # always run as there is an optional step for merge/overwrite changes
+        return True
