@@ -21,7 +21,7 @@ from oarepo_cli.utils import run_cmdline
 @click.argument("model-name", required=False)
 def compile_model(project_dir, model_name, *args, **kwargs):
     cfg, project_dir = load_model_repo(model_name, project_dir)
-    cfg["project_dir"] = project_dir
+    cfg["project_dir"] = str(project_dir)
     optional_steps = []
     if (get_model_dir(cfg) / "setup.cfg").exists():
         optional_steps.append(

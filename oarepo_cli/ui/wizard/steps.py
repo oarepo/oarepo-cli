@@ -24,16 +24,12 @@ class WizardBase(abc.ABC):
     def run(self, data):
         steps = self.get_steps(data)
         for stepidx, step in enumerate(steps):
-            if isinstance(step, str):
-                getattr(self, step)(data)
             should_run = step.should_run(data)
             if should_run is False:
                 continue
             if should_run is None:
                 # only if one of the subsequent steps should run
                 for subsequent in steps[stepidx + 1 :]:
-                    if isinstance(subsequent, str):
-                        getattr(self, subsequent)(data)
                     subsequent_should_run = subsequent.should_run(data)
                     if subsequent_should_run is not None:
                         should_run = subsequent_should_run
@@ -140,16 +136,25 @@ class WizardStep(WizardBase):
 
 
 class InputWizardStep(WizardStep):
-    def __init__(self, key, heading=None, required=True, default=None, prompt=None):
+    def __init__(
+        self,
+        key,
+        heading=None,
+        required=True,
+        default=None,
+        prompt=None,
+        force_run=False,
+    ):
         super().__init__(
             Input(key, default=default, prompt=prompt),
             heading=heading,
             validate=[required_validation(key)] if required else [],
         )
         self.key = key
+        self.force_run = force_run
 
     def should_run(self, data):
-        return self.key not in data
+        return self.force_run or self.key not in data
 
 
 class StaticWizardStep(WizardStep):
@@ -162,9 +167,10 @@ class StaticWizardStep(WizardStep):
 
 
 class RadioWizardStep(WizardStep):
-    def __init__(self, key, heading, options=None, default=None):
+    def __init__(self, key, heading, options=None, default=None, force_run=False):
         super().__init__(Radio(key, default=default, options=options), heading=heading)
         self.key = key
+        self.force_run = force_run
 
     def should_run(self, data):
-        return self.key not in data
+        return self.force_run or self.key not in data

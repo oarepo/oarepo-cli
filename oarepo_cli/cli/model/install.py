@@ -24,7 +24,7 @@ from oarepo_cli.utils import add_to_pipfile_dependencies, run_cmdline
 @click.argument("model-name", required=False)
 def install_model(project_dir, model_name, *args, **kwargs):
     cfg, project_dir = load_model_repo(model_name, project_dir)
-    cfg["project_dir"] = project_dir
+    cfg["project_dir"] = str(project_dir)
 
     wizard = Wizard(
         RadioWizardStep(
@@ -38,6 +38,7 @@ def install_model(project_dir, model_name, *args, **kwargs):
         Before installing the model, it is wise to run the test to check that the model is ok.
         If the tests fail, please fix the errors and run this command again.
             """,
+            force_run=True,
         ),
         TestWizardStep(),
         InstallWizardStep(),
@@ -69,6 +70,9 @@ class TestWizardStep(WizardStep):
 
         run_cmdline(pytest_binary, "tests", cwd=model_dir)
 
+    def should_run(self, data):
+        return True
+
 
 class InstallWizardStep(ModelWizardStep):
     heading = f"""
@@ -90,6 +94,9 @@ class InstallWizardStep(ModelWizardStep):
     def install_pipfile(self, data):
         self.pipenv_command(data, "lock")
         self.pipenv_command(data, "install")
+
+    def should_run(self, data):
+        return True
 
 
 class AlembicWizardStep(ModelWizardStep):
@@ -169,6 +176,9 @@ def upgrade():
             if modified:
                 fn.write_text(data)
 
+    def should_run(self, data):
+        return True
+
 
 class UpdateIndexWizardStep(ModelWizardStep):
 
@@ -185,9 +195,12 @@ Before the model can be used, I need to create index inside opensearch server.
 This is not necessary if the model has not been changed. Should I create/update
 the index? 
                             """,
+            force_run=True,
         ),
-        "update_opensearch_index",
     )
 
-    def update_opensearch_index(self, data):
+    def after_run(self, data):
         self.invenio_command(data, data["model_name"], "reindex", "--recreate")
+
+    def should_run(self, data):
+        return True
