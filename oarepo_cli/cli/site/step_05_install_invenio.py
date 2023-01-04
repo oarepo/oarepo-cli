@@ -1,11 +1,12 @@
 from pathlib import Path
+from oarepo_cli.cli.site.utils import SiteWizardStepMixin
 
 from oarepo_cli.ui.wizard import WizardStep
 
 from ...utils import run_cmdline
 
 
-class InstallInvenioStep(WizardStep):
+class InstallInvenioStep(SiteWizardStepMixin, WizardStep):
     def __init__(self, **kwargs):
         super().__init__(
             heading="""
@@ -18,11 +19,10 @@ will be downloaded and installed and UI will be compiled.
         )
 
     def after_run(self, data):
-        site_dir = str(Path(data["project_dir"]) / data["site_package"])
         run_cmdline(
-            data["invenio_cli"],
+            data.get("config.invenio_cli"),
             "install",
-            cwd=site_dir,
+            cwd=self.site_dir(data),
             environ={"PIPENV_IGNORE_VIRTUALENVS": "1"},
         )
         if not self._get_manifest_file(data).exists():
@@ -31,14 +31,11 @@ will be downloaded and installed and UI will be compiled.
                 "Please check the output, correct errors and run this command again"
             )
 
-    def _site_dir(self, data):
-        return str(Path(data["project_dir"]) / data["site_package"])
-
     def _get_pipenv_venv_dir(self, data):
         success = run_cmdline(
             "pipenv",
             "--venv",
-            cwd=self._site_dir(data),
+            cwd=self.site_dir(data),
             environ={"PIPENV_IGNORE_VIRTUALENVS": "1"},
             check_only=True,
             grab_stdout=True,

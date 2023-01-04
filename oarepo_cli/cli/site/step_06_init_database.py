@@ -1,5 +1,6 @@
 from pathlib import Path
 import subprocess
+from oarepo_cli.cli.site.utils import SiteWizardStepMixin
 
 from oarepo_cli.ui.radio import Radio
 from oarepo_cli.ui.wizard import WizardStep
@@ -8,7 +9,7 @@ from ...utils import run_cmdline
 import re
 
 
-class InitDatabaseStep(WizardStep):
+class InitDatabaseStep(SiteWizardStepMixin, WizardStep):
     def __init__(self, **kwargs):
         super().__init__(
             Radio(
@@ -27,20 +28,18 @@ Should I do it?
 
     def after_run(self, data):
         if data["init_database_switch"] == "yes":
-            site_dir = str(Path(data["project_dir"]) / data["site_package"])
             run_cmdline(
                 "pipenv",
                 "run",
                 "invenio",
                 "db",
                 "create",
-                cwd=site_dir,
+                cwd=self.site_dir(data),
                 environ={"PIPENV_IGNORE_VIRTUALENVS": "1"},
             )
         self.check_db_initialized(data, raise_error=True)
 
     def check_db_initialized(self, data, raise_error=False):
-        site_dir = str(Path(data["project_dir"]) / data["site_package"])
         try:
             output = run_cmdline(
                 "pipenv",
@@ -48,7 +47,7 @@ Should I do it?
                 "invenio",
                 "alembic",
                 "current",
-                cwd=site_dir,
+                cwd=self.site_dir(data),
                 environ={"PIPENV_IGNORE_VIRTUALENVS": "1"},
                 grab_stdout=True,
                 raise_exception=True,

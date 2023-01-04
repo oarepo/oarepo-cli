@@ -1,6 +1,7 @@
 from pathlib import Path
 
 import click
+from oarepo_cli.cli.site.add import add_site
 
 from oarepo_cli.config import MonorepoConfig
 
@@ -12,18 +13,15 @@ from .step_02_deployment_type import DeploymentTypeStep
 from .step_03_create_monorepo import CreateMonorepoStep
 from .step_04_install_invenio_cli import InstallInvenioCliStep
 from .step_05_install_oarepo_cli import InstallIOARepoCliStep
-from .step_06_install_site import InstallSiteStep
-from .step_07_start_containers import StartContainersStep
-from .step_08_create_pipenv import CreatePipenvStep
-from .step_09_install_invenio import InstallInvenioStep
-from .step_10_init_database import InitDatabaseStep
-from .step_11_next_steps import NextStepsStep
+from .step_06_primary_site_name import PrimarySiteNameStep
 
-@click.command(name="initialize")
+
+@click.command(name="initialize", help="Initialize the whole repository structure")
 @click.argument(
     "project_dir", type=click.Path(exists=False, file_okay=False), required=True
 )
-def initialize(project_dir):
+@click.pass_context
+def initialize(ctx, project_dir):
     project_dir = Path(project_dir).absolute()
     oarepo_yaml_file = project_dir / "oarepo.yaml"
 
@@ -49,14 +47,15 @@ def initialize(project_dir):
         CreateMonorepoStep(pause=True),
         InstallInvenioCliStep(pause=True),
         InstallIOARepoCliStep(pause=True),
-        InstallSiteStep(pause=True),
-        StartContainersStep(pause=True),
-        CreatePipenvStep(),
-        InstallInvenioStep(pause=True),
-        InitDatabaseStep(),
-        NextStepsStep(pause=True),
+        PrimarySiteNameStep(),
     )
     initialize_wizard.run(cfg)
+    ctx.invoke(
+        add_site,
+        project_dir=str(project_dir),
+        site_name=cfg["primary_site_name"],
+        no_banner=True,
+    )
 
 
 if __name__ == "__main__":

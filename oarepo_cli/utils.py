@@ -1,4 +1,5 @@
 import os
+import re
 import signal
 import subprocess
 import sys
@@ -43,11 +44,16 @@ def run_cmdline(
     try:
         if grab_stdout or discard_output:
             kwargs = {}
-            if discard_output:
-                kwargs["stderr"] = subprocess.PIPE
             ret = subprocess.run(
-                cmdline, stdout=subprocess.PIPE, check=True, cwd=cwd, env=env, **kwargs
-            ).stdout
+                cmdline,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                check=True,
+                cwd=cwd,
+                env=env,
+                **kwargs,
+            )
+            ret = ret.stdout + b"\n" + ret.stderr
         else:
             ret = subprocess.call(cmdline, cwd=cwd, env=env)
             if ret:
@@ -104,3 +110,9 @@ def add_to_pipfile_dependencies(pipfile, package_name, package_path):
 
         with open(pipfile, "w") as f:
             tomlkit.dump(pipfile_data, f)
+
+
+def to_python_name(x):
+    x = re.sub(r"(?<!^)(?=[A-Z])", "_", x).lower()
+    x = x.replace("-", "_")
+    return re.sub("[^a-z_]", "", x)

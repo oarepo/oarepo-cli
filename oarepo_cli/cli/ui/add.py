@@ -10,7 +10,7 @@ from oarepo_cli.cli.model.utils import ProjectWizardMixin
 from oarepo_cli.config import MonorepoConfig
 from oarepo_cli.ui.wizard import StaticWizardStep, Wizard
 from oarepo_cli.ui.wizard.steps import InputWizardStep, RadioWizardStep, WizardStep
-from oarepo_cli.utils import print_banner
+from oarepo_cli.utils import print_banner, to_python_name
 
 
 @click.command(
@@ -55,7 +55,7 @@ class AddUIWizardStep(ProjectWizardMixin, WizardStep):
     def model_defaults(self, data):
         ui_name = data["ui_name"]
 
-        ui_package = ui_name.lower().replace("-", "_")
+        ui_package = to_python_name(ui_name)
         ui_base = snail_to_title(ui_package)
 
         model_config = data.whole_data["models"][data["model_name"]]["config"]

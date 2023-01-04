@@ -1,7 +1,8 @@
+from oarepo_cli.cli.site.utils import SiteWizardStepMixin
 from oarepo_cli.ui.wizard import WizardStep
 
 
-class NextStepsStep(WizardStep):
+class NextStepsStep(SiteWizardStepMixin, WizardStep):
     def __init__(self, **kwargs):
         super().__init__(
             heading=lambda data: f"""
@@ -9,7 +10,7 @@ The repository skeleton has been created and dependencies installed.
 To check that everything has been installed successfully you may want
 to start your new repository by running
 
-    cd {data['project_dir']}/{data['site_package']}
+    cd {self.site_dir(data)}
     pipenv run invenio run --cert docker/nginx/test.crt --key docker/nginx/test.key
     
 and point your browser to 

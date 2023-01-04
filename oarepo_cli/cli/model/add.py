@@ -7,7 +7,7 @@ from cookiecutter.main import cookiecutter
 from oarepo_cli.config import MonorepoConfig
 from oarepo_cli.ui.wizard import InputWizardStep, StaticWizardStep, Wizard, WizardStep
 from oarepo_cli.ui.wizard.steps import RadioWizardStep
-from oarepo_cli.utils import print_banner
+from oarepo_cli.utils import print_banner, to_python_name
 
 
 @click.command(name="add", help="Generate a new model")
@@ -68,7 +68,7 @@ If unsure, use the default value.
     InputWizardStep(
         "model_package",
         prompt="Enter the model package",
-        default=lambda data: data["model_name"].replace("-", "_"),
+        default=lambda data: to_python_name(data["model_name"]),
     ),
     RadioWizardStep(
         "model_kind",

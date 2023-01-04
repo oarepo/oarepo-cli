@@ -53,7 +53,6 @@ class WizardBase(abc.ABC):
                 if should_run:
                     return True
             return False
-        raise Exception("Implement this !!!")
 
 
 class WizardStep(WizardBase):
