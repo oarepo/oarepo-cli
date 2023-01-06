@@ -9,4 +9,17 @@ test -d $cli_directory || {
   exit 1
 }
 
+if [ ! -f invenio.cfg ] ; then
+    if [[ $1 != 'check-requirements' && $1 != 'init' ]] ; then
+      echo >&2
+      echo >&2
+      echo "    You are calling invenio.cfg outside the site directory." >&2
+      echo "    This might be intentional but in most cases is not." >&2
+      echo "    If the command does not work, please run this from the site dir." >&2
+      echo >&2
+      echo >&2
+      read -p "Press enter to continue"
+    fi
+fi
+
 $cli_directory/bin/invenio-cli $@
