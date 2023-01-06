@@ -1,5 +1,6 @@
 import os
 from pathlib import Path
+import sys
 
 import click as click
 
@@ -16,20 +17,35 @@ from oarepo_cli.utils import find_oarepo_project, run_cmdline
     default=lambda: os.getcwd(),
 )
 @click.option("-c", "--celery")
-def run_server(project_dir, celery=False, *args, **kwargs):
+@click.argument("site", default=None, required=False)
+def run_server(project_dir, celery=False, site=None, *args, **kwargs):
     project_dir = find_oarepo_project(project_dir)
     config = MonorepoConfig(project_dir / "oarepo.yaml")
     config.load()
-
-    if celery:
-        run_invenio_cli(config)
+    sites = config.whole_data.get("sites", {})
+    if not site:
+        if len(sites) == 1:
+            site = next(iter(sites.keys()))
+        else:
+            print(
+                f"You have more than one site installed ({list(sites.keys())}), please specify its name on the commandline"
+            )
+            sys.exit(1)
     else:
-        run_pipenv_server(config)
+        if site not in sites:
+            print(
+                f"Site with name {site} not found in repository sites {list(sites.keys())}"
+            )
+            sys.exit(1)
+    if celery:
+        run_invenio_cli(config, sites[site])
+    else:
+        run_pipenv_server(config, sites[site])
 
 
-def run_invenio_cli(config):
+def run_invenio_cli(config, site):
     invenio_cli = str(Path(config.get("invenio_cli")).absolute())
-    site_dir = Path(config.get("project_dir")).absolute() / config.get("site_dir")
+    site_dir = Path(config.get("project_dir")).absolute() / site["config"]["site_dir"]
     run_cmdline(
         "pipenv",
         "run",
@@ -40,8 +56,8 @@ def run_invenio_cli(config):
     )
 
 
-def run_pipenv_server(config):
-    site_dir = Path(config.get("project_dir")).absolute() / config.get("site_dir")
+def run_pipenv_server(config, site):
+    site_dir = Path(config.get("project_dir")).absolute() / site["config"]["site_dir"]
     run_cmdline(
         "pipenv",
         "run",
