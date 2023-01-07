@@ -3,6 +3,9 @@ from oarepo_cli.cli.site.utils import SiteWizardStepMixin
 
 from oarepo_cli.ui.radio import Radio
 from oarepo_cli.ui.wizard import WizardStep
+from pathlib import Path
+from pkg_resources import parse_requirements
+
 
 from ...utils import run_cmdline
 
@@ -25,7 +28,7 @@ during which "Locking ..." will be displayed.
 
 What is your preference of pipenv virtual environment location?
             """,
-            **kwargs
+            **kwargs,
         )
 
     def after_run(self, data):
@@ -50,9 +53,11 @@ What is your preference of pipenv virtual environment location?
             environ={"PIPENV_IGNORE_VIRTUALENVS": "1"},
         )
 
-        pipenv_venv_dir = self._get_pipenv_venv_dir(data)
+        pipenv_venv_dir = Path(self._get_pipenv_venv_dir(data)).relative_to(
+            data.project_dir
+        )
 
-        data["site_pipenv_dir"] = pipenv_venv_dir
+        data["site_pipenv_dir"] = str(pipenv_venv_dir)
 
     def _get_pipenv_venv_dir(self, data):
         success = run_cmdline(
@@ -68,6 +73,71 @@ What is your preference of pipenv virtual environment location?
         return success.strip()
 
     def should_run(self, data):
-        return (
-            "site_pipenv_dir" not in data or not Path(data["site_pipenv_dir"]).exists()
+        should_run = (
+            "site_pipenv_dir" not in data
+            or not (data.project_dir / data["site_pipenv_dir"]).exists()
         )
+        if should_run:
+            return should_run
+
+        # the directory exists, fetch requirements and compare them
+        pipfile_requirements = self.load_reqs(
+            run_cmdline(
+                "pipenv",
+                "requirements",
+                cwd=self.site_dir(data),
+                environ={"PIPENV_IGNORE_VIRTUALENVS": "1"},
+                check_only=True,
+                grab_stdout=True,
+            )
+        )
+
+        virtualenv_requirements = self.load_reqs(
+            run_cmdline(
+                "pipenv",
+                "run",
+                "pip",
+                "freeze",
+                cwd=self.site_dir(data),
+                environ={"PIPENV_IGNORE_VIRTUALENVS": "1"},
+                check_only=True,
+                grab_stdout=True,
+            )
+        )
+
+        IGNORED_PACKAGES = {"setuptools", "pip", "wheel"}
+
+        requirement_not_found = False
+
+        for key, pipfile_version in pipfile_requirements.items():
+            virtualenv_version = virtualenv_requirements.get(key)
+            if not virtualenv_version:
+                if key in IGNORED_PACKAGES:
+                    continue
+                print(f"Requirement {key} not found, will run pipfile lock")
+                requirement_not_found = True
+            elif pipfile_version != virtualenv_version:
+                print(
+                    f"Requirement version mismatch in {key}. Expected {pipfile_version}, is {virtualenv_version}. Will run pipfile lock"
+                )
+                requirement_not_found = True
+
+        return requirement_not_found
+
+    def load_reqs(self, txt):
+        ret = {}
+        for l in txt.splitlines():
+            l = l.strip()
+            if l[0] == "-" or l[0] == "#":
+                continue
+            try:
+                for resource in parse_requirements(l):
+                    pn = resource.project_name.replace("_", "-").lower()
+                    version = None
+                    for spec in resource.specs:
+                        if spec[0] == "==":
+                            version = spec[1]
+                    ret[pn] = version
+            except Exception as e:
+                print(f"Error parsing {l}: {e}")
+        return ret

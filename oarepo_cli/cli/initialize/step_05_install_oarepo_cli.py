@@ -22,7 +22,9 @@ To run them, invoke the "oarepo-cli" script from within the project directory.
     def after_run(self, data):
         print("Creating oarepo-cli virtualenv")
         oarepo_cli_dir = self._oarepo_cli_dir(data)
-        data["oarepo_cli"] = str(oarepo_cli_dir / "bin" / "oarepo-cli")
+        data["oarepo_cli"] = str(
+            (oarepo_cli_dir / "bin" / "oarepo-cli").relative_to(data.project_dir)
+        )
         if oarepo_cli_dir.exists():
             shutil.rmtree(oarepo_cli_dir)
         venv.main([str(oarepo_cli_dir)])
@@ -44,7 +46,7 @@ To run them, invoke the "oarepo-cli" script from within the project directory.
             f.write("oarepo check ok")
 
     def _oarepo_cli_dir(self, data):
-        return Path(data["project_dir"]) / ".venv" / "oarepo-cli"
+        return data.project_dir / ".venv" / "oarepo-cli"
 
     def should_run(self, data):
         return not (self._oarepo_cli_dir(data) / ".check.ok").exists()

@@ -30,6 +30,7 @@ def run_cmdline(
     environ=None,
     check_only=False,
     grab_stdout=False,
+    grab_stderr=False,
     discard_output=False,
     raise_exception=False,
 ):
@@ -42,18 +43,21 @@ def run_cmdline(
     )
     print(f"{Fore.BLUE}    inside {Style.RESET_ALL} {cwd}", file=sys.__stderr__)
     try:
-        if grab_stdout or discard_output:
+        if grab_stdout or grab_stderr or discard_output:
             kwargs = {}
+            if grab_stdout or discard_output:
+                kwargs["stdout"] = subprocess.PIPE
+            if grab_stderr or discard_output:
+                kwargs["stderr"] = subprocess.PIPE
+
             ret = subprocess.run(
                 cmdline,
-                stdout=subprocess.PIPE,
-                stderr=subprocess.PIPE,
                 check=True,
                 cwd=cwd,
                 env=env,
                 **kwargs,
             )
-            ret = ret.stdout + b"\n" + ret.stderr
+            ret = (ret.stdout or b"") + b"\n" + (ret.stderr or b"")
         else:
             ret = subprocess.call(cmdline, cwd=cwd, env=env)
             if ret:
@@ -75,7 +79,7 @@ def run_cmdline(
     )
     print(f"{Fore.GREEN}    inside {Style.RESET_ALL} {cwd}", file=sys.__stderr__)
     if grab_stdout:
-        return ret.decode("utf-8")
+        return ret.decode("utf-8").strip()
     return True
 
 

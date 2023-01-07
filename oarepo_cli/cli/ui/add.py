@@ -65,7 +65,7 @@ class AddUIWizardStep(ProjectWizardMixin, WizardStep):
         data.setdefault("model_package", model_package)
         model_file = (
             (
-                self.project_dir(data)
+                data.project_dir
                 / "ui"
                 / ui_name
                 / data["local_model_path"]
@@ -104,7 +104,7 @@ class AddUIWizardStep(ProjectWizardMixin, WizardStep):
             "https://github.com/oarepo/cookiecutter-app",
             checkout="v10.0",
             no_input=True,
-            output_dir=Path(data.get("config.project_dir")) / "ui",
+            output_dir=data.project_dir / "ui",
             extra_context={
                 **data,
             },

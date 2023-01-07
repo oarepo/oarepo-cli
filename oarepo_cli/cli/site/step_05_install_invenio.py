@@ -20,7 +20,7 @@ will be downloaded and installed and UI will be compiled.
 
     def after_run(self, data):
         run_cmdline(
-            data.get("config.invenio_cli"),
+            data.project_dir / data.get("config.invenio_cli"),
             "install",
             cwd=self.site_dir(data),
             environ={"PIPENV_IGNORE_VIRTUALENVS": "1"},
@@ -49,9 +49,9 @@ will be downloaded and installed and UI will be compiled.
         return not manifest_file.exists()
 
     def _get_manifest_file(self, data):
-        pipenv_dir = data["site_pipenv_dir"]
+        pipenv_dir = data.project_dir / data["site_pipenv_dir"]
         manifest_file = (
-            Path(pipenv_dir) / "var" / "instance" / "static" / "dist" / "manifest.json"
+            pipenv_dir / "var" / "instance" / "static" / "dist" / "manifest.json"
         )
 
         return manifest_file

@@ -3,6 +3,7 @@ from pathlib import Path
 
 import click as click
 from cookiecutter.main import cookiecutter
+from oarepo_cli.cli.model.utils import ModelWizardStep
 
 from oarepo_cli.config import MonorepoConfig
 from oarepo_cli.ui.wizard import InputWizardStep, StaticWizardStep, Wizard, WizardStep
@@ -24,12 +25,11 @@ def add_model(project_dir, name, *args, **kwargs):
     cfg = MonorepoConfig(oarepo_yaml_file, section=["models", name])
     cfg.load()
     print_banner()
-    cfg["model_name"] = name
 
     add_model_wizard.run(cfg)
 
 
-class CreateModelWizardStep(WizardStep):
+class CreateModelWizardStep(ModelWizardStep, WizardStep):
     def after_run(self, data):
         base_model_package = {
             "empty": "(none)",
@@ -42,20 +42,18 @@ class CreateModelWizardStep(WizardStep):
             "https://github.com/oarepo/cookiecutter-model",
             checkout="v10.0",
             no_input=True,
-            output_dir=self._models_dir(data),
+            output_dir=str(self.model_dir(data).parent),
             extra_context={
                 **data,
+                "model_name": self.model_dir(data).name,
                 "base_model_package": base_model_package,
                 "base_model_use": base_model_use,
             },
         )
+        data["model_dir"] = str(self.model_dir(data).relative_to(data.project_dir))
 
     def should_run(self, data):
-        checked_dir = self._models_dir(data) / data["model_name"]
-        return not checked_dir.exists()
-
-    def _models_dir(self, data):
-        return Path(data.get("config.project_dir")) / "models"
+        return not self.model_dir(data).exists()
 
 
 add_model_wizard = Wizard(
@@ -68,7 +66,7 @@ If unsure, use the default value.
     InputWizardStep(
         "model_package",
         prompt="Enter the model package",
-        default=lambda data: to_python_name(data["model_name"]),
+        default=lambda data: to_python_name(data.section),
     ),
     RadioWizardStep(
         "model_kind",
@@ -112,12 +110,12 @@ Now tell me something about you. The defaults are taken from the monorepo, feel 
     InputWizardStep(
         "author_name",
         prompt="""Model author""",
-        default=lambda data: data.get("config.author_name"),
+        default=lambda data: get_site(data)["author_name"],
     ),
     InputWizardStep(
         "author_email",
         prompt="""Model author's email""",
-        default=lambda data: data.get("config.author_email"),
+        default=lambda data: get_site(data)["author_email"],
     ),
     StaticWizardStep(
         heading="Now I have all the information to generate your model. After pressing Enter, I will generate the sources",
@@ -126,10 +124,15 @@ Now tell me something about you. The defaults are taken from the monorepo, feel 
     CreateModelWizardStep(),
     StaticWizardStep(
         heading=lambda data: f"""
-The model has been generated in the {Path(data.get('config.project_dir')) / 'models' / data['model_name']} directory.
-At first, edit the metadata.yaml and then run "oarepo-cli model compile {data['model_name']}"
-and to install to the site run "oarepo-cli model install {data['model_name']}".
+The model has been generated in the {data.section} directory.
+At first, edit the metadata.yaml and then run "oarepo-cli model compile {data.section}"
+and to install to the site run "oarepo-cli model install {data.section}".
                      """,
         pause=True,
     ),
 )
+
+
+def get_site(data):
+    primary_site_name = data.get("config.primary_site_name")
+    return data.get(f"sites.{primary_site_name}")

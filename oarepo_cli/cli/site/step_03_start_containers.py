@@ -20,7 +20,7 @@ If this step fails, please fix the problem and run the wizard again.
     def after_run(self, data):
 
         run_cmdline(
-            data.get("config.invenio_cli"),
+            data.project_dir / data.get("config.invenio_cli"),
             "services",
             "start",
             cwd=self.site_dir(data),
@@ -32,7 +32,7 @@ If this step fails, please fix the problem and run the wizard again.
 
         try:
             stdout = run_cmdline(
-                data.get("config.invenio_cli"),
+                data.project_dir / data.get("config.invenio_cli"),
                 "services",
                 "status",
                 cwd=self.site_dir(data),

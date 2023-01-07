@@ -29,14 +29,11 @@ from oarepo_cli.utils import run_cmdline
 def load_data(project_dir, model_name, data_path, *args, **kwargs):
     cfg, project_dir = load_model_repo(model_name, project_dir)
 
-    cfg["project_dir"] = project_dir
-
     if not data_path:
-        data_path = (
-            Path(project_dir) / "models" / model_name / "scripts" / "sample_data.yaml"
-        )
-
-    cfg["data_path"] = str(data_path)
+        data_path = project_dir / cfg["model_dir"] / "data" / "sample_data.yaml"
+        cfg["data_path"] = "data" / "sample_data.yaml"
+    else:
+        cfg["data_path"] = data_path
 
     w = Wizard(ImportDataWizardStep())
     w.run(cfg)
@@ -44,4 +41,5 @@ def load_data(project_dir, model_name, data_path, *args, **kwargs):
 
 class ImportDataWizardStep(ModelWizardStep):
     def after_run(self, data):
-        self.invenio_command(data, data["model_name"], "load", data["data_path"])
+        data_path = self.model_dir.join(data["data_path"])
+        self.invenio_command(data, self.model_name, "load", data_path)

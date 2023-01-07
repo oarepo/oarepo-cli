@@ -59,7 +59,7 @@ and run the wizard again.
 
     def after_run(self, data):
         # create site config for invenio-cli
-        cookiecutter_config_file = Path(data.get("config.project_dir")) / ".invenio"
+        cookiecutter_config_file = data.project_dir / ".invenio"
         site_dir = self.site_dir(data)
         if not site_dir.parent.exists():
             site_dir.parent.mkdir(parents=True)
@@ -87,7 +87,7 @@ development_tools = yes
         # and run invenio-cli with our site template
         # (submodule from https://github.com/oarepo/cookiecutter-oarepo-instance)
         run_cmdline(
-            data.get("config.invenio_cli"),
+            data.project_dir / data.get("config.invenio_cli"),
             "init",
             "rdm",
             "-t",
@@ -97,7 +97,7 @@ development_tools = yes
             "--no-input",
             "--config",
             str(cookiecutter_config_file),
-            cwd=Path(data.get("config.project_dir")) / "sites",
+            cwd=data.project_dir / "sites",
             environ={
                 "PIPENV_IGNORE_VIRTUALENVS": "1",
                 # use our own cookiecutter, not the system one

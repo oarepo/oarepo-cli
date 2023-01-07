@@ -40,28 +40,29 @@ class Config:
 class MonorepoConfig(Config):
     type = "monorepo"
 
-    def __init__(self, path: Path, section=None):
+    def __init__(self, path: Path, section=["config"]):
         super().__init__()
         self.path = path
         self.existing = False
-        self.section = tuple(section or [])
+        self.section_path = tuple(section or [])
         self.whole_data = {}
+        self._load_section()
 
     def load(self):
         with open(self.path, "r") as f:
             data = yaml.safe_load(f)
             self.whole_data = data
-            for s in self.section:
-                data = data.get(s, {}) or {}
-            self.config = data.get("config", {}) or {}
+            self._load_section()
             self.existing = True
+
+    def _load_section(self):
+        data = self.whole_data
+        for s in self.section_path:
+            data = data.setdefault(s, {})
+        self.config = data
 
     def save(self):
         data = {**self.whole_data, "type": self.type}
-        dd = data
-        for s in self.section:
-            dd = dd.setdefault(s, {})
-        dd["config"] = self.config
         # just try to dump so that if that is not successful we do not overwrite the config
         sio = StringIO()
         yaml.safe_dump(data, sio)
@@ -80,9 +81,17 @@ class MonorepoConfig(Config):
         d = self.whole_data
         for n in name[:-1]:
             d = d.get(n, {})
-        return d.get(name[-1], None)
+        return d.get(name[-1], default)
 
     def get(self, item, default=None):
         if "." in item:
             return self._section(item, default)
         return super().get(item, default)
+
+    @property
+    def section(self):
+        return self.section_path[-1]
+
+    @property
+    def project_dir(self):
+        return self.path.parent

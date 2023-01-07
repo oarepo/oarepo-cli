@@ -13,22 +13,22 @@ def load_model_repo(model_name, project_dir):
     oarepo_yaml_file = project_dir / "oarepo.yaml"
     cfg = MonorepoConfig(oarepo_yaml_file, section=["models", model_name])
     cfg.load()
+    cfg["model_name"] = model_name
     return cfg, project_dir
 
 
 def get_model_dir(data):
-    return Path(data["project_dir"]) / "models" / data["model_name"]
+    return data.project_dir / "models" / data["model_name"]
 
 
 class ProjectWizardMixin:
     def site_dir(self, data):
-        return Path(data.get("config.project_dir")) / data.get("config.site_dir")
-
-    def project_dir(self, data):
-        return Path(data.get("config.project_dir"))
+        if not hasattr(self, "site"):
+            raise Exception("Current site not set")
+        return data.project_dir / self.site["site_dir"]
 
     def invenio_cli(self, data):
-        return Path(data.get("config.invenio_cli"))
+        return data.project_dir / data.get("config.invenio_cli")
 
     def invenio_cli_command(self, data, *args, cwd=None, environ=None):
         return run_cmdline(
@@ -58,8 +58,22 @@ class ProjectWizardMixin:
 
 
 class ModelWizardStep(ProjectWizardMixin, WizardStep):
+    def model_name(self, data):
+        return data.section
+
     def model_dir(self, data):
-        return self.project_dir(data) / "models" / data["model_name"]
+        return data.project_dir / "models" / self.model_name(data)
 
     def model_package_dir(self, data):
         return self.model_dir(data) / data["model_package"]
+
+    def site_dir(self, data):
+        site_name = data.get("installation_site", None)
+        if not site_name:
+            raise Exception("Unexpected error: No installation site specified")
+        site = data.get(f"sites.{site_name}")
+        if not site:
+            raise Exception(
+                f"Unexpected error: Site with name {site_name} does not exist"
+            )
+        return data.project_dir / site["site_dir"]

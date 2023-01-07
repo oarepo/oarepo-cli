@@ -24,9 +24,15 @@ from oarepo_cli.utils import add_to_pipfile_dependencies, run_cmdline
 @click.argument("model-name", required=False)
 def install_model(project_dir, model_name, *args, **kwargs):
     cfg, project_dir = load_model_repo(model_name, project_dir)
-    cfg["project_dir"] = str(project_dir)
 
-    wizard = Wizard(
+    sites = cfg.whole_data.get("sites", {})
+    if not sites:
+        print(
+            "Please install the site before running the command (oarepo-cli site add)"
+        )
+        return
+
+    config_steps = [
         RadioWizardStep(
             "run_tests",
             options={
@@ -40,6 +46,28 @@ def install_model(project_dir, model_name, *args, **kwargs):
             """,
             force_run=True,
         ),
+    ]
+
+    if len(sites) == 1:
+        cfg["installation_site"] = next(iter(sites))
+    else:
+        config_steps.append(
+            RadioWizardStep(
+                "installation_site",
+                options={
+                    x: f"{Fore.GREEN}{x}{Style.RESET_ALL}"
+                    for x in cfg.whole_data["sites"]
+                },
+                default=next(iter(cfg.whole_data["sites"])),
+                heading=f"""
+        Select the site where you want to install the model to.
+            """,
+                force_run=True,
+            )
+        )
+
+    wizard = Wizard(
+        *config_steps,
         TestWizardStep(),
         InstallWizardStep(),
         AlembicWizardStep(),
@@ -68,7 +96,15 @@ class TestWizardStep(WizardStep):
             pip_binary, "install", "--no-input", "-e", ".[tests]", cwd=model_dir
         )
 
-        run_cmdline(pytest_binary, "tests", cwd=model_dir)
+        run_cmdline(
+            pytest_binary,
+            "tests",
+            cwd=model_dir,
+            environ={
+                "OPENSEARCH_HOST": data.get("config.TEST_OPENSEARCH_HOST", "localhost"),
+                "OPENSEARCH_PORT": data.get("config.TEST_OPENSEARCH_PORT", "9400"),
+            },
+        )
 
     def should_run(self, data):
         return True
@@ -87,9 +123,10 @@ class InstallWizardStep(ModelWizardStep):
         self.install_pipfile(data)
 
     def add_model_to_pipfile(self, data):
-        model_name = data["model_name"]
         pipfile = self.site_dir(data) / "Pipfile"
-        add_to_pipfile_dependencies(pipfile, model_name, f"../models/{model_name}")
+        add_to_pipfile_dependencies(
+            pipfile, self.model_name(data), f"../../models/{self.model_name(data)}"
+        )
 
     def install_pipfile(self, data):
         self.pipenv_command(data, "lock")
@@ -184,7 +221,7 @@ class UpdateIndexWizardStep(ModelWizardStep):
 
     steps = (
         RadioWizardStep(
-            "run_tests",
+            "update_opensearch",
             options={
                 "run": f"{Fore.GREEN}Update opensearch index{Style.RESET_ALL}",
                 "skip": f"{Fore.RED}Do not update opensearch index{Style.RESET_ALL}",
@@ -200,7 +237,8 @@ the index?
     )
 
     def after_run(self, data):
-        self.invenio_command(data, data["model_name"], "reindex", "--recreate")
+        if data["update_opensearch"] == "run":
+            self.invenio_command(data, self.model_name(data), "reindex", "--recreate")
 
     def should_run(self, data):
         return True

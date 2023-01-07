@@ -24,7 +24,9 @@ In this step I'll patch them up to use the current invenio config.
         )
 
     def get_service_health_file(self, data):
-        invenio_cli_venv = Path(data.get("config.invenio_cli")).parent.parent
+        invenio_cli_venv = (
+            data.project_dir / data.get("config.invenio_cli")
+        ).parent.parent
         for candidate in invenio_cli_venv.rglob("services_health.py"):
             if (
                 candidate.parent.name == "commands"

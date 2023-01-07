@@ -44,8 +44,8 @@ def run_server(project_dir, celery=False, site=None, *args, **kwargs):
 
 
 def run_invenio_cli(config, site):
-    invenio_cli = str(Path(config.get("invenio_cli")).absolute())
-    site_dir = Path(config.get("project_dir")).absolute() / site["config"]["site_dir"]
+    invenio_cli = config.project_dir / config.get("invenio_cli")
+    site_dir = config.project_dir.absolute() / site["site_dir"]
     run_cmdline(
         "pipenv",
         "run",
@@ -57,7 +57,7 @@ def run_invenio_cli(config, site):
 
 
 def run_pipenv_server(config, site):
-    site_dir = Path(config.get("project_dir")).absolute() / site["config"]["site_dir"]
+    site_dir = config.project_dir.absolute() / site["site_dir"]
     run_cmdline(
         "pipenv",
         "run",

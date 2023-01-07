@@ -26,7 +26,9 @@ https://inveniordm.docs.cern.ch/install/requirements/ .
     def after_run(self, data):
         print("Creating invenio-cli virtualenv")
         invenio_cli_dir = self._invenio_cli_dir(data)
-        data["invenio_cli"] = str(invenio_cli_dir / "bin" / "invenio-cli")
+        data["invenio_cli"] = str(
+            (invenio_cli_dir / "bin" / "invenio-cli").relative_to(data.project_dir)
+        )
         if invenio_cli_dir.exists():
             shutil.rmtree(invenio_cli_dir)
         venv.main([str(invenio_cli_dir)])
@@ -42,14 +44,14 @@ https://inveniordm.docs.cern.ch/install/requirements/ .
             "--development",
             environ={
                 "PIPENV_IGNORE_VIRTUALENVS": "1",
-                "PATH": f"{data['project_dir']}/.bin:{os.environ['PATH']}",
+                "PATH": f"{data.project_dir}/.bin:{os.environ['PATH']}",
             },
         )
         with open(invenio_cli_dir / ".check.ok", "w") as f:
             f.write("invenio check ok")
 
     def _invenio_cli_dir(self, data):
-        return Path(data["project_dir"]) / ".venv" / "invenio-cli"
+        return Path(data.project_dir) / ".venv" / "invenio-cli"
 
     def should_run(self, data):
         return not (self._invenio_cli_dir(data) / ".check.ok").exists()

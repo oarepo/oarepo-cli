@@ -21,7 +21,6 @@ from oarepo_cli.utils import run_cmdline
 @click.argument("model-name", required=False)
 def compile_model(project_dir, model_name, *args, **kwargs):
     cfg, project_dir = load_model_repo(model_name, project_dir)
-    cfg["project_dir"] = str(project_dir)
     optional_steps = []
     if (get_model_dir(cfg) / "setup.cfg").exists():
         optional_steps.append(
@@ -49,9 +48,7 @@ so that you might recover them if the compilation process fails.{Style.RESET_ALL
 
 class CompileWizardStep(WizardStep):
     def after_run(self, data):
-        venv_dir = (
-            Path(data.get("config.project_dir")) / ".venv" / "oarepo-model-builder"
-        )
+        venv_dir = data.project_dir / ".venv" / "oarepo-model-builder"
         venv_dir = venv_dir.absolute()
         if not venv_dir.exists():
             venv.main([str(venv_dir)])

@@ -31,8 +31,6 @@ def initialize(ctx, project_dir):
         if oarepo_yaml_file.exists():
             cfg.load()
 
-    cfg["project_dir"] = str(project_dir)
-
     print_banner()
 
     initialize_wizard = Wizard(

@@ -30,28 +30,26 @@ class CreateMonorepoStep(WizardStep):
         cookiecutter(
             get_cookiecutter_template("repo"),
             no_input=True,
-            output_dir=repo_out,
+            output_dir=str(repo_out),
             extra_context={
                 **data,
                 "repo_name": repo_name,
                 "repo_human_name": repo_name,
             },
         )
-        for f in (Path(repo_out) / repo_name).iterdir():
+        for f in (repo_out / repo_name).iterdir():
             shutil.move(f, project_dir, copy_function=keep_existing_copy)
-        os.rmdir(Path(repo_out) / repo_name)
+        os.rmdir(repo_out / repo_name)
         os.rmdir(repo_out)
 
         return True
 
     def _repo_params(self, data):
-        project_dir = data["project_dir"]
-        while project_dir.endswith("/"):
-            project_dir = project_dir[:-1]
-        repo_name = Path(project_dir).name
-        repo_out = project_dir + "-tmp"
+        project_dir = data.project_dir
+        repo_name = project_dir.name
+        repo_out = project_dir.parent / (project_dir.name + "-tmp")
         return project_dir, repo_name, repo_out
 
     def should_run(self, data):
         project_dir, repo_name, repo_out = self._repo_params(data)
-        return not (Path(project_dir) / "invenio-cli").exists()
+        return not (project_dir / "invenio-cli").exists()
