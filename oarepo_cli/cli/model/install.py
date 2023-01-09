@@ -9,6 +9,7 @@ import tomlkit
 from colorama import Fore, Style
 
 from oarepo_cli.cli.model.utils import ModelWizardStep, get_model_dir, load_model_repo
+from oarepo_cli.cli.utils import PipenvInstallWizardStep
 from oarepo_cli.ui.wizard import Wizard
 from oarepo_cli.ui.wizard.steps import RadioWizardStep, WizardStep
 from oarepo_cli.utils import add_to_pipfile_dependencies, run_cmdline
@@ -25,14 +26,7 @@ from oarepo_cli.utils import add_to_pipfile_dependencies, run_cmdline
 def install_model(project_dir, model_name, *args, **kwargs):
     cfg, project_dir = load_model_repo(model_name, project_dir)
 
-    sites = cfg.whole_data.get("sites", {})
-    if not sites:
-        print(
-            "Please install the site before running the command (oarepo-cli site add)"
-        )
-        return
-
-    config_steps = [
+    wizard = Wizard(
         RadioWizardStep(
             "run_tests",
             options={
@@ -46,28 +40,6 @@ def install_model(project_dir, model_name, *args, **kwargs):
             """,
             force_run=True,
         ),
-    ]
-
-    if len(sites) == 1:
-        cfg["installation_site"] = next(iter(sites))
-    else:
-        config_steps.append(
-            RadioWizardStep(
-                "installation_site",
-                options={
-                    x: f"{Fore.GREEN}{x}{Style.RESET_ALL}"
-                    for x in cfg.whole_data["sites"]
-                },
-                default=next(iter(cfg.whole_data["sites"])),
-                heading=f"""
-        Select the site where you want to install the model to.
-            """,
-                force_run=True,
-            )
-        )
-
-    wizard = Wizard(
-        *config_steps,
         TestWizardStep(),
         InstallWizardStep(),
         AlembicWizardStep(),
@@ -110,30 +82,8 @@ class TestWizardStep(WizardStep):
         return True
 
 
-class InstallWizardStep(ModelWizardStep):
-    heading = f"""
-    Now I will add the model to site's Pipfile (if it is not there yet)
-    and will run pipenv lock & install.
-        """
-    pause = True
-
-    def after_run(self, data):
-        # add package to pipfile
-        self.add_model_to_pipfile(data)
-        self.install_pipfile(data)
-
-    def add_model_to_pipfile(self, data):
-        pipfile = self.site_dir(data) / "Pipfile"
-        add_to_pipfile_dependencies(
-            pipfile, self.model_name(data), f"../../models/{self.model_name(data)}"
-        )
-
-    def install_pipfile(self, data):
-        self.pipenv_command(data, "lock")
-        self.pipenv_command(data, "install")
-
-    def should_run(self, data):
-        return True
+class InstallWizardStep(PipenvInstallWizardStep):
+    folder = "model"
 
 
 class AlembicWizardStep(ModelWizardStep):

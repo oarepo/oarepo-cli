@@ -118,6 +118,7 @@ class AddUIWizardStep(UIWizardMixin, ProjectWizardMixin, WizardStep):
             output_dir=data.project_dir / "ui",
             extra_context=cookiecutter_data,
         )
+        data["ui_dir"] = f"ui/{ui_name}"
 
     def should_run(self, data):
         return not self.ui_dir(data).exists()

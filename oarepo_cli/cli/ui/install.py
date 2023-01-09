@@ -1,16 +1,14 @@
-import json
 import os
-import re
 from pathlib import Path
 
 import click as click
-from cookiecutter.main import cookiecutter
 
 from oarepo_cli.cli.model.utils import ProjectWizardMixin
+from oarepo_cli.cli.utils import PipenvInstallWizardStep, SiteMixin
 from oarepo_cli.config import MonorepoConfig
-from oarepo_cli.ui.wizard import StaticWizardStep, Wizard
-from oarepo_cli.ui.wizard.steps import InputWizardStep, RadioWizardStep
-from oarepo_cli.utils import add_to_pipfile_dependencies, print_banner
+from oarepo_cli.ui.wizard import Wizard
+from oarepo_cli.ui.wizard.steps import RadioWizardStep, WizardStep
+from oarepo_cli.utils import print_banner
 
 
 @click.command(
@@ -38,29 +36,20 @@ def install_ui(project_dir, name, *args, **kwargs):
     InstallWizard().run(cfg)
 
 
-class InstallWizard(ProjectWizardMixin, Wizard):
-    steps = [
-        StaticWizardStep(
-            heading="""
-    I will install the UI package into the repository site.
-                """,
-        ),
-        "install",
-        StaticWizardStep(
-            heading="""
-    Now I will compile the assets so that UI's javascript and CSS will be incorporated to site's UI.
-                    """,
-        ),
-        "compile_assets",
-    ]
+class InstallWizardStep(PipenvInstallWizardStep):
+    folder = "ui"
 
-    def install(self, data):
-        ui_name = data["ui_name"]
-        pipfile = self.site_dir(data) / "Pipfile"
-        add_to_pipfile_dependencies(pipfile, ui_name, f"../ui/{ui_name}")
 
-        self.pipenv_command(data, "lock")
-        self.pipenv_command(data, "install")
+class CompileAssetsStep(SiteMixin, ProjectWizardMixin, WizardStep):
+    def should_run(self, data):
+        return True
 
-    def compile_assets(self, data):
+    def after_run(self, data):
         self.invenio_command(data, "webpack", "buildall")
+
+
+class InstallWizard(ProjectWizardMixin, Wizard):
+    steps = [InstallWizardStep(), CompileAssetsStep()]
+
+    def should_run(self, data):
+        return super().should_run(data)
