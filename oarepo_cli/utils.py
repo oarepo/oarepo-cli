@@ -1,6 +1,5 @@
 import os
 import re
-import signal
 import subprocess
 import sys
 from pathlib import Path

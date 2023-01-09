@@ -1,31 +1,22 @@
-import os
-from pathlib import Path
-
 import click as click
 from cookiecutter.main import cookiecutter
-from oarepo_cli.cli.model.utils import ModelWizardStep
 
-from oarepo_cli.config import MonorepoConfig
+from oarepo_cli.cli.model.utils import ModelWizardStep
+from oarepo_cli.cli.utils import with_config
 from oarepo_cli.ui.wizard import InputWizardStep, StaticWizardStep, Wizard, WizardStep
 from oarepo_cli.ui.wizard.steps import RadioWizardStep
-from oarepo_cli.utils import print_banner, to_python_name
+from oarepo_cli.utils import to_python_name
 
 
-@click.command(name="add", help="Generate a new model")
-@click.option(
-    "-p",
-    "--project-dir",
-    type=click.Path(exists=False, file_okay=False),
-    default=lambda: os.getcwd(),
-    callback=lambda ctx, param, value: Path(value).absolute(),
+@click.command(
+    name="add",
+    help="""
+Generate a new model. Required arguments:
+    <name>   ... name of the model, can contain [a-z] and dash (-)""",
 )
 @click.argument("name")
-def add_model(project_dir, name, *args, **kwargs):
-    oarepo_yaml_file = project_dir / "oarepo.yaml"
-    cfg = MonorepoConfig(oarepo_yaml_file, section=["models", name])
-    cfg.load()
-    print_banner()
-
+@with_config(config_section=lambda name, **kwargs: ["models", name])
+def add_model(cfg, **kwargs):
     add_model_wizard.run(cfg)
 
 

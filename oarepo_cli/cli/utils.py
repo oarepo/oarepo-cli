@@ -1,14 +1,15 @@
 import functools
 import sys
+from pathlib import Path
+
+import click
+import yaml
+from colorama import Fore, Style
+from deepmerge import always_merger
+
 from oarepo_cli.config import MonorepoConfig
 from oarepo_cli.ui.wizard.steps import RadioWizardStep, WizardStep
-from oarepo_cli.utils import run_cmdline
-from oarepo_cli.utils import add_to_pipfile_dependencies
-from colorama import Fore, Style
-import click
-from pathlib import Path
-import yaml
-from deepmerge import always_merger
+from oarepo_cli.utils import add_to_pipfile_dependencies, print_banner, run_cmdline
 
 
 def with_config(
@@ -95,8 +96,10 @@ def with_config(
                 always_merger(cfg.config, config_data)
 
             cfg.no_input = no_input
-            cfg.banner = not no_banner
             cfg.silent = silent
+
+            if not no_banner:
+                print_banner()
 
             try:
                 return f(project_dir, cfg=cfg, **kwargs)

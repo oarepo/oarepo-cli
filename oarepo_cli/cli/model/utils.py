@@ -1,10 +1,10 @@
 import os
 from pathlib import Path
 
+from oarepo_cli.cli.utils import ProjectWizardMixin, SiteMixin
 from oarepo_cli.config import MonorepoConfig
 from oarepo_cli.ui.wizard import WizardStep
 from oarepo_cli.utils import find_oarepo_project
-from oarepo_cli.cli.utils import SiteMixin, ProjectWizardMixin
 
 
 def load_model_repo(model_name, project_dir):
@@ -31,14 +31,3 @@ class ModelWizardStep(SiteMixin, ProjectWizardMixin, WizardStep):
 
     def model_package_dir(self, data):
         return self.model_dir(data) / data["model_package"]
-
-    def site_dir(self, data):
-        site_name = data.get("installation_site", None)
-        if not site_name:
-            raise Exception("Unexpected error: No installation site specified")
-        site = data.get(f"sites.{site_name}")
-        if not site:
-            raise Exception(
-                f"Unexpected error: Site with name {site_name} does not exist"
-            )
-        return data.project_dir / site["site_dir"]

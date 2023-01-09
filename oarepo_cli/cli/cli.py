@@ -1,10 +1,10 @@
 import click
 
+from oarepo_cli.cli.initialize import initialize
 from oarepo_cli.cli.model import model
 from oarepo_cli.cli.run import run_server
-from oarepo_cli.cli.ui import ui
 from oarepo_cli.cli.site import site
-from oarepo_cli.cli.initialize import initialize
+from oarepo_cli.cli.ui import ui
 
 
 @click.group()

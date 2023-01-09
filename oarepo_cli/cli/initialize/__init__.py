@@ -1,12 +1,7 @@
-from pathlib import Path
-
 import click
+
 from oarepo_cli.cli.site.add import add_site
 from oarepo_cli.cli.utils import with_config
-
-from oarepo_cli.config import MonorepoConfig
-
-from ...utils import print_banner
 
 from ...ui.wizard import StaticWizardStep, Wizard
 from .step_01_initialize_directory import DirectoryStep
@@ -20,7 +15,7 @@ from .step_06_primary_site_name import PrimarySiteNameStep
 @click.command(
     name="initialize",
     help="""
-Initialize the whole repository structure. Required parameters:
+Initialize the whole repository structure. Required arguments:
     <project_dir>   ... path to the output directory
 """,
 )
@@ -28,8 +23,6 @@ Initialize the whole repository structure. Required parameters:
 @with_config(project_dir_as_argument=True)
 @click.pass_context
 def initialize(ctx, project_dir, cfg, no_site):
-    if cfg.banner:
-        print_banner()
 
     initialize_wizard = Wizard(
         StaticWizardStep(

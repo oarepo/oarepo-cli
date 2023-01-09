@@ -1,28 +1,17 @@
-import os
-from pathlib import Path
 import sys
 
 import click as click
 
-from oarepo_cli.cli.model.utils import load_model_repo
-from oarepo_cli.config import MonorepoConfig
-from oarepo_cli.utils import find_oarepo_project, run_cmdline
+from oarepo_cli.cli.utils import with_config
+from oarepo_cli.utils import run_cmdline
 
 
 @click.command(name="run", help="Run the server")
-@click.option(
-    "-p",
-    "--project-dir",
-    type=click.Path(exists=False, file_okay=False),
-    default=lambda: os.getcwd(),
-)
 @click.option("-c", "--celery")
 @click.argument("site", default=None, required=False)
-def run_server(project_dir, celery=False, site=None, *args, **kwargs):
-    project_dir = find_oarepo_project(project_dir)
-    config = MonorepoConfig(project_dir / "oarepo.yaml")
-    config.load()
-    sites = config.whole_data.get("sites", {})
+@with_config()
+def run_server(cfg=None, celery=False, site=None, **kwargs):
+    sites = cfg.whole_data.get("sites", {})
     if not site:
         if len(sites) == 1:
             site = next(iter(sites.keys()))
@@ -38,9 +27,9 @@ def run_server(project_dir, celery=False, site=None, *args, **kwargs):
             )
             sys.exit(1)
     if celery:
-        run_invenio_cli(config, sites[site])
+        run_invenio_cli(cfg, sites[site])
     else:
-        run_pipenv_server(config, sites[site])
+        run_pipenv_server(cfg, sites[site])
 
 
 def run_invenio_cli(config, site):

@@ -1,16 +1,7 @@
 from __future__ import annotations
 
-import datetime
-import os
-from pathlib import Path
-import re
 from oarepo_cli.cli.site.utils import SiteWizardStepMixin
-
-from oarepo_cli.templates import get_cookiecutter_template
-from oarepo_cli.ui.wizard import StaticWizardStep, WizardStep
-from oarepo_cli.ui.wizard.steps import InputWizardStep
-
-from ...utils import run_cmdline, to_python_name
+from oarepo_cli.ui.wizard import WizardStep
 
 
 class FixupSiteCodeStep(SiteWizardStepMixin, WizardStep):

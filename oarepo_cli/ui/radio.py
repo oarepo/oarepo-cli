@@ -1,7 +1,7 @@
 try:
-    import gnureadline as readline
+    pass
 except ImportError:
-    import readline
+    pass
 
 from typing import Dict
 

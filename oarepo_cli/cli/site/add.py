@@ -1,12 +1,9 @@
-from pathlib import Path
-
 import click
 
-from oarepo_cli.config import MonorepoConfig
+from oarepo_cli.cli.utils import with_config
 
-from ...utils import print_banner, to_python_name
-
-from ...ui.wizard import StaticWizardStep, Wizard
+from ...ui.wizard import Wizard
+from ...utils import to_python_name
 from .step_01_install_site import InstallSiteStep
 from .step_02_fixup_code import FixupSiteCodeStep
 from .step_03_start_containers import StartContainersStep
@@ -14,40 +11,19 @@ from .step_04_create_pipenv import CreatePipenvStep
 from .step_05_install_invenio import InstallInvenioStep
 from .step_06_init_database import InitDatabaseStep
 from .step_07_next_steps import NextStepsStep
-import os
 
 
 @click.command(
     name="add",
-    help="""Generate a new site. Invoke this command with a site name. 
-The recommended pattern is <something>-site""",
+    help="""Generate a new site.  Required arguments:
+    <name>   ... name of the site. The recommended pattern for it is <something>-site""",
 )
-@click.option(
-    "-p",
-    "--project-dir",
-    type=click.Path(exists=False, file_okay=False),
-    default=lambda: os.getcwd(),
-    callback=lambda ctx, param, value: Path(value).absolute(),
-)
-@click.option("--no-banner", type=bool, default=False)
-@click.argument("site_name")
+@click.argument("name")
+@with_config(config_section=lambda name, **kwargs: ["sites", name])
 @click.pass_context
-def add_site(ctx, project_dir, site_name, no_banner, **kwargs):
-    project_dir = Path(project_dir).absolute()
-    oarepo_yaml_file = project_dir / "oarepo.yaml"
-
-    cfg = MonorepoConfig(oarepo_yaml_file, section=["sites", site_name])
-
-    if project_dir.exists():
-        if oarepo_yaml_file.exists():
-            cfg.load()
-
-    site_name = to_python_name(site_name)
-    cfg["site_package"] = site_name
-    cfg["site_dir"] = f"sites/{site_name}"
-
-    if not no_banner:
-        print_banner()
+def add_site(ctx, cfg, name, **kwargs):
+    cfg["site_package"] = to_python_name(name)
+    cfg["site_dir"] = f"sites/{name}"
 
     initialize_wizard = Wizard(
         InstallSiteStep(pause=True),
@@ -59,7 +35,3 @@ def add_site(ctx, project_dir, site_name, no_banner, **kwargs):
         NextStepsStep(pause=True),
     )
     initialize_wizard.run(cfg)
-
-
-if __name__ == "__main__":
-    initialize()

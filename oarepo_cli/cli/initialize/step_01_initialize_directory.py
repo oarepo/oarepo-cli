@@ -1,5 +1,4 @@
 import logging
-from pathlib import Path
 
 from oarepo_cli.config import Config
 from oarepo_cli.ui.wizard import WizardStep

@@ -1,12 +1,11 @@
-from pathlib import Path
+import re
 import subprocess
-from oarepo_cli.cli.site.utils import SiteWizardStepMixin
 
+from oarepo_cli.cli.site.utils import SiteWizardStepMixin
 from oarepo_cli.ui.radio import Radio
 from oarepo_cli.ui.wizard import WizardStep
 
 from ...utils import run_cmdline
-import re
 
 
 class InitDatabaseStep(SiteWizardStepMixin, WizardStep):

@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import os
 import shutil
 import venv
 from pathlib import Path
@@ -7,7 +8,6 @@ from pathlib import Path
 from oarepo_cli.ui.wizard import WizardStep
 
 from ...utils import run_cmdline
-import os
 
 
 class InstallInvenioCliStep(WizardStep):

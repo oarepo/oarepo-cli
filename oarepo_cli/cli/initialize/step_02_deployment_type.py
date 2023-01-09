@@ -23,4 +23,4 @@ Single package is the preferred choice unless you plan to share parts of reposit
         )
 
     def should_run(self, data):
-        return data.get('packaging') not in ('single', 'multiple')
+        return data.get("packaging") not in ("single", "multiple")

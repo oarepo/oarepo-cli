@@ -1,26 +1,25 @@
-import os
 import venv
-from pathlib import Path
 
 import click as click
 from colorama import Fore, Style
 
-from oarepo_cli.cli.model.utils import get_model_dir, load_model_repo
+from oarepo_cli.cli.model.utils import get_model_dir
+from oarepo_cli.cli.utils import with_config
 from oarepo_cli.ui.wizard import Wizard, WizardStep
 from oarepo_cli.ui.wizard.steps import RadioWizardStep
 from oarepo_cli.utils import run_cmdline
 
 
-@click.command(name="compile", help="Compile model yaml file to invenio sources")
-@click.option(
-    "-p",
-    "--project-dir",
-    type=click.Path(exists=False, file_okay=False),
-    default=lambda: os.getcwd(),
+@click.command(
+    name="compile",
+    help="""
+Compile model yaml file to invenio sources. Required arguments:
+    <name>   ... name of the already existing model
+""",
 )
-@click.argument("model-name", required=False)
-def compile_model(project_dir, model_name, *args, **kwargs):
-    cfg, project_dir = load_model_repo(model_name, project_dir)
+@click.argument("name", required=False)
+@with_config(config_section=lambda name, **kwargs: ["models", name])
+def compile_model(cfg, **kwargs):
     optional_steps = []
     if (get_model_dir(cfg) / "setup.cfg").exists():
         optional_steps.append(

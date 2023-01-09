@@ -1,13 +1,7 @@
 from __future__ import annotations
 
-import shutil
-import venv
-from pathlib import Path
-
 from oarepo_cli.ui.wizard import WizardStep
 from oarepo_cli.ui.wizard.steps import InputWizardStep
-
-from ...utils import run_cmdline, to_python_name
 
 
 class PrimarySiteNameStep(WizardStep):

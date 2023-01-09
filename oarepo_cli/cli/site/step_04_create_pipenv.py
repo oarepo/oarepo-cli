@@ -1,11 +1,10 @@
 from pathlib import Path
-from oarepo_cli.cli.site.utils import SiteWizardStepMixin
 
-from oarepo_cli.ui.radio import Radio
-from oarepo_cli.ui.wizard import WizardStep
-from pathlib import Path
 from pkg_resources import parse_requirements
 
+from oarepo_cli.cli.site.utils import SiteWizardStepMixin
+from oarepo_cli.ui.radio import Radio
+from oarepo_cli.ui.wizard import WizardStep
 
 from ...utils import run_cmdline
 

@@ -1,31 +1,25 @@
-import json
-import os
 import shutil
 import venv
-from pathlib import Path
 
 import click as click
-import tomlkit
 from colorama import Fore, Style
 
-from oarepo_cli.cli.model.utils import ModelWizardStep, get_model_dir, load_model_repo
-from oarepo_cli.cli.utils import PipenvInstallWizardStep
+from oarepo_cli.cli.model.utils import ModelWizardStep, get_model_dir
+from oarepo_cli.cli.utils import PipenvInstallWizardStep, with_config
 from oarepo_cli.ui.wizard import Wizard
 from oarepo_cli.ui.wizard.steps import RadioWizardStep, WizardStep
-from oarepo_cli.utils import add_to_pipfile_dependencies, run_cmdline
+from oarepo_cli.utils import run_cmdline
 
 
-@click.command(name="install", help="Install the model into the current site")
-@click.option(
-    "-p",
-    "--project-dir",
-    type=click.Path(exists=False, file_okay=False),
-    default=lambda: os.getcwd(),
+@click.command(
+    name="install",
+    help="""
+Install the model into the current site. Required arguments:
+    <name>   ... name of the already existing model""",
 )
-@click.argument("model-name", required=False)
-def install_model(project_dir, model_name, *args, **kwargs):
-    cfg, project_dir = load_model_repo(model_name, project_dir)
-
+@click.argument("name", required=False)
+@with_config(config_section=lambda name, **kwargs: ["models", name])
+def install_model(cfg, **kwargs):
     wizard = Wizard(
         RadioWizardStep(
             "run_tests",

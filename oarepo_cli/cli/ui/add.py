@@ -1,40 +1,25 @@
 import json
-import os
-import re
-from pathlib import Path
+from os.path import relpath
 
 import click as click
 from cookiecutter.main import cookiecutter
 
 from oarepo_cli.cli.model.utils import ProjectWizardMixin
-from oarepo_cli.config import MonorepoConfig
+from oarepo_cli.cli.utils import with_config
 from oarepo_cli.ui.wizard import StaticWizardStep, Wizard
 from oarepo_cli.ui.wizard.steps import InputWizardStep, RadioWizardStep, WizardStep
-from oarepo_cli.utils import print_banner, to_python_name
-from os.path import relpath
+from oarepo_cli.utils import to_python_name
 
 
 @click.command(
     name="add",
-    help="Generate a new UI. Invoke this command with the name of the user interface",
-)
-@click.option(
-    "-p",
-    "--project-dir",
-    type=click.Path(exists=False, file_okay=False),
-    default=lambda: os.getcwd(),
-    callback=lambda ctx, param, value: Path(value).absolute(),
+    help="""Generate a new UI. Required arguments:
+    <name>   ... name of the ui. The recommended pattern for it is <modelname>-ui
+    """,
 )
 @click.argument("name")
-def add_ui(project_dir, name, *args, **kwargs):
-    if not (name.endswith("ui") or name.endswith("app")):
-        name = name + "-ui"
-
-    oarepo_yaml_file = project_dir / "oarepo.yaml"
-    cfg = MonorepoConfig(oarepo_yaml_file, section=["ui", name])
-    cfg.load()
-    print_banner()
-
+@with_config(config_section=lambda name, **kwargs: ["ui", name])
+def add_ui(cfg, **kwargs):
     add_ui_wizard(cfg).run(cfg)
 
 
