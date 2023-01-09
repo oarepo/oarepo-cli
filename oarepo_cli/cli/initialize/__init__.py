@@ -2,6 +2,7 @@ from pathlib import Path
 
 import click
 from oarepo_cli.cli.site.add import add_site
+from oarepo_cli.cli.utils import with_config
 
 from oarepo_cli.config import MonorepoConfig
 
@@ -16,22 +17,19 @@ from .step_05_install_oarepo_cli import InstallIOARepoCliStep
 from .step_06_primary_site_name import PrimarySiteNameStep
 
 
-@click.command(name="initialize", help="Initialize the whole repository structure")
-@click.argument(
-    "project_dir", type=click.Path(exists=False, file_okay=False), required=True
+@click.command(
+    name="initialize",
+    help="""
+Initialize the whole repository structure. Required parameters:
+    <project_dir>   ... path to the output directory
+""",
 )
+@click.option("--no-site", default=False, is_flag=True, type=bool)
+@with_config(project_dir_as_argument=True)
 @click.pass_context
-def initialize(ctx, project_dir):
-    project_dir = Path(project_dir).absolute()
-    oarepo_yaml_file = project_dir / "oarepo.yaml"
-
-    cfg = MonorepoConfig(oarepo_yaml_file)
-
-    if project_dir.exists():
-        if oarepo_yaml_file.exists():
-            cfg.load()
-
-    print_banner()
+def initialize(ctx, project_dir, cfg, no_site):
+    if cfg.banner:
+        print_banner()
 
     initialize_wizard = Wizard(
         StaticWizardStep(
@@ -48,12 +46,13 @@ def initialize(ctx, project_dir):
         PrimarySiteNameStep(),
     )
     initialize_wizard.run(cfg)
-    ctx.invoke(
-        add_site,
-        project_dir=str(project_dir),
-        site_name=cfg["primary_site_name"],
-        no_banner=True,
-    )
+    if not no_site:
+        ctx.invoke(
+            add_site,
+            project_dir=str(project_dir),
+            site_name=cfg["primary_site_name"],
+            no_banner=True,
+        )
 
 
 if __name__ == "__main__":

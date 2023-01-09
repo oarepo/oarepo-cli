@@ -1,7 +1,112 @@
+import functools
+import sys
+from oarepo_cli.config import MonorepoConfig
 from oarepo_cli.ui.wizard.steps import RadioWizardStep, WizardStep
 from oarepo_cli.utils import run_cmdline
 from oarepo_cli.utils import add_to_pipfile_dependencies
 from colorama import Fore, Style
+import click
+from pathlib import Path
+import yaml
+from deepmerge import always_merger
+
+
+def with_config(
+    config_section="config", project_dir_as_argument=False, config_as_argument=False
+):
+    def wrapper(f):
+        @(
+            click.argument(
+                "project_dir",
+                type=click.Path(exists=False, file_okay=False),
+                required=True,
+            )
+            if project_dir_as_argument
+            else click.option(
+                "--project-dir",
+                type=click.Path(exists=True, file_okay=False),
+                required=False,
+                help="Directory containing an already initialized project. "
+                "If not set, current directory is used",
+            )
+        )
+        @click.option(
+            "--no-banner",
+            is_flag=True,
+            type=bool,
+            required=False,
+            help="Do not show the welcome banner",
+        )
+        @click.option(
+            "--no-input",
+            is_flag=True,
+            type=bool,
+            required=False,
+            help="Take options from the config file, skip user input",
+        )
+        @click.option(
+            "--silent",
+            is_flag=True,
+            type=bool,
+            required=False,
+            help="Do not output program's messages. "
+            "External program messages will still be displayed",
+        )
+        @(
+            click.argument(
+                "config",
+                type=click.Path(exists=True, file_okay=True, dir_okay=False),
+                required=True,
+            )
+            if config_as_argument
+            else click.option(
+                "--config",
+                type=click.Path(exists=True, file_okay=True, dir_okay=False),
+                required=False,
+                help="Merge this config to the main config in target directory and proceed",
+            )
+        )
+        @functools.wraps(f)
+        def wrapped(
+            project_dir=None,
+            no_banner=False,
+            no_input=False,
+            silent=False,
+            config=None,
+            **kwargs,
+        ):
+            if not project_dir:
+                project_dir = Path.cwd()
+            project_dir = Path(project_dir).absolute()
+            oarepo_yaml_file = project_dir / "oarepo.yaml"
+
+            if callable(config_section):
+                section = config_section(**kwargs)
+            else:
+                section = config_section
+
+            cfg = MonorepoConfig(oarepo_yaml_file, section=section)
+
+            if oarepo_yaml_file.exists():
+                cfg.load()
+
+            if config:
+                config_data = yaml.safe_load(config)
+                always_merger(cfg.config, config_data)
+
+            cfg.no_input = no_input
+            cfg.banner = not no_banner
+            cfg.silent = silent
+
+            try:
+                return f(project_dir, cfg=cfg, **kwargs)
+            except Exception as e:
+                print(str(e))
+                sys.exit(1)
+
+        return wrapped
+
+    return wrapper
 
 
 class ProjectWizardMixin:

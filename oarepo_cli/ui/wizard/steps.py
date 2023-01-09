@@ -82,7 +82,7 @@ class WizardStep(WizardBase):
 
     def run(self, data: Config):
         self.on_before_heading(data)
-        if self.heading:
+        if self.heading and not data.silent:
             heading = self.heading
             if callable(heading):
                 heading = heading(data)
@@ -94,6 +94,12 @@ class WizardStep(WizardBase):
         while not valid:
             widgets = self.get_widgets(data)
             for widget in widgets:
+                if data.no_input:
+                    if data.get(widget.name) is None:
+                        raise ValueError(
+                            f"Do not have a value for option {widget.name}, please specify it in the config"
+                        )
+                    continue
                 widget.value = data.get(widget.name)
                 if widget.value is None and widget.default:
                     if callable(widget.default):
@@ -109,9 +115,11 @@ class WizardStep(WizardBase):
                     continue
                 print(f"{Fore.RED}Error: {res}{Style.RESET_ALL}")
                 valid = False
+            if not valid and data.no_input:
+                raise ValueError(f"Config not valid and not running interactively")
         super().run(data)
         self.on_after_steps(data)
-        if self.pause:
+        if self.pause and not data.no_input:
             input(f"Press enter to continue ...")
         self.after_run(data)
 
