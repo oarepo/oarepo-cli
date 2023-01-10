@@ -2,7 +2,6 @@ import json
 from os.path import relpath
 
 import click as click
-from cookiecutter.main import cookiecutter
 
 from oarepo_cli.cli.model.utils import ProjectWizardMixin
 from oarepo_cli.cli.utils import with_config
@@ -19,7 +18,7 @@ from oarepo_cli.utils import to_python_name
 )
 @click.argument("name")
 @with_config(config_section=lambda name, **kwargs: ["ui", name])
-def add_ui(cfg, **kwargs):
+def add_ui(cfg=None, **kwargs):
     add_ui_wizard(cfg).run(cfg)
 
 
@@ -96,10 +95,11 @@ class AddUIWizardStep(UIWizardMixin, ProjectWizardMixin, WizardStep):
             "url_prefix": data["url_prefix"],
         }
 
-        cookiecutter(
-            "https://github.com/oarepo/cookiecutter-app",
+        self.run_cookiecutter(
+            data,
+            template="https://github.com/oarepo/cookiecutter-app",
+            config_file=f"ui-{ui_name}",
             checkout="v10.0",
-            no_input=True,
             output_dir=data.project_dir / "ui",
             extra_context=cookiecutter_data,
         )

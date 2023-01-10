@@ -61,13 +61,13 @@ and run the wizard again.
         site_dir = self.site_dir(data)
         if not site_dir.parent.exists():
             site_dir.parent.mkdir(parents=True)
+        
         with open(cookiecutter_config_file, "w") as f:
             print(
                 f"""
 [cookiecutter]
 project_name = {data['repository_name']}
-project_dir = {self.site_dir(data).name}
-project_shortname = {data['site_package']}
+¡project_shortname = {self.site_dir(data).name}
 project_site = {data['www']}
 github_repo = 
 description = {data['repository_name']} OARepo Instance

@@ -15,7 +15,7 @@ from oarepo_cli.ui.wizard.steps import WizardStep
 )
 @click.argument("name")
 @with_config(config_section=lambda name, **kwargs: ["ui", name])
-def install_ui(cfg, **kwargs):
+def install_ui(cfg=None, **kwargs):
     InstallWizard().run(cfg)
 
 

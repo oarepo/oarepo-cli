@@ -1,11 +1,11 @@
 import functools
+import shutil
 import sys
 from pathlib import Path
 
 import click
 import yaml
 from colorama import Fore, Style
-from deepmerge import always_merger
 
 from oarepo_cli.config import MonorepoConfig
 from oarepo_cli.ui.wizard.steps import RadioWizardStep, WizardStep
@@ -13,7 +13,7 @@ from oarepo_cli.utils import add_to_pipfile_dependencies, print_banner, run_cmdl
 
 
 def with_config(
-    config_section="config", project_dir_as_argument=False, config_as_argument=False
+    config_section=None, project_dir_as_argument=False, config_as_argument=False
 ):
     def wrapper(f):
         @(
@@ -53,6 +53,13 @@ def with_config(
             help="Do not output program's messages. "
             "External program messages will still be displayed",
         )
+        @click.option(
+            "--verbose",
+            is_flag=True,
+            type=bool,
+            required=False,
+            help="Verbose output",
+        )
         @(
             click.argument(
                 "config",
@@ -74,6 +81,7 @@ def with_config(
             no_input=False,
             silent=False,
             config=None,
+            verbose=False,
             **kwargs,
         ):
             if not project_dir:
@@ -84,7 +92,7 @@ def with_config(
             if callable(config_section):
                 section = config_section(**kwargs)
             else:
-                section = config_section
+                section = config_section or "config"
 
             cfg = MonorepoConfig(oarepo_yaml_file, section=section)
 
@@ -92,19 +100,26 @@ def with_config(
                 cfg.load()
 
             if config:
-                config_data = yaml.safe_load(config)
-                always_merger(cfg.config, config_data)
+                config_data = yaml.safe_load(Path(config).read_text())
+                cfg.merge_config(config_data, top=not config_section)
 
             cfg.no_input = no_input
             cfg.silent = silent
+            cfg.verbose = verbose
 
             if not no_banner:
                 print_banner()
-
+            kwargs.pop("cfg", None)
+            kwargs.pop("project_dir", None)
             try:
-                return f(project_dir, cfg=cfg, **kwargs)
+                return f(project_dir=project_dir, cfg=cfg, **kwargs)
             except Exception as e:
-                print(str(e))
+                if cfg.verbose:
+                    import traceback
+
+                    traceback.print_exc()
+                else:
+                    print(str(e))
                 sys.exit(1)
 
         return wrapped
@@ -120,6 +135,9 @@ class ProjectWizardMixin:
 
     def invenio_cli(self, data):
         return data.project_dir / data.get("config.invenio_cli")
+
+    def oarepo_cli(self, data):
+        return data.project_dir / data.get("config.oarepo_cli")
 
     def invenio_cli_command(self, data, *args, cwd=None, environ=None):
         return run_cmdline(
@@ -146,6 +164,46 @@ class ProjectWizardMixin:
             cwd=cwd or self.site_dir(data),
             environ={"PIPENV_IGNORE_VIRTUALENVS": "1", **(environ or {})},
         )
+
+    def run_cookiecutter(
+        self,
+        data,
+        template,
+        config_file,
+        checkout=None,
+        output_dir=None,
+        extra_context=None,
+        environ=None,
+    ):
+        config_dir: Path = data.project_dir / ".cookiecutters"
+        config_dir.mkdir(parents=True, exist_ok=True)
+        config_file = config_dir / f"{config_file}.yaml"
+        config_file.write_text(yaml.safe_dump({"default_context": extra_context}))
+        cookiecutter_command = (
+            Path(sys.executable or sys.argv[0]).absolute().parent / "cookiecutter"
+        )
+        output_dir_temp = f"{output_dir}-tmp"
+        output_dir = Path(output_dir)
+        output_dir_temp = Path(output_dir_temp)
+        args = [
+            template,
+            "--no-input",
+            "-o",
+            output_dir_temp,
+            "--config-file",
+            config_file,
+        ]
+        if checkout:
+            args.append("-c")
+            args.append(checkout)
+
+        run_cmdline(
+            cookiecutter_command,
+            *args,
+            cwd=data.project_dir,
+            environ={"PIPENV_IGNORE_VIRTUALENVS": "1", **(environ or {})},
+        )
+        merge_from_temp_to_target(output_dir_temp, output_dir)
 
 
 class SiteMixin(ProjectWizardMixin):
@@ -211,3 +269,19 @@ class PipenvInstallWizardStep(SiteMixin, ProjectWizardMixin, WizardStep):
 
     def should_run(self, data):
         return True
+
+
+def merge_from_temp_to_target(output_dir_temp, output_dir):
+    source: Path
+    for source in output_dir_temp.rglob("*"):
+        rel = source.relative_to(output_dir_temp)
+        dest: Path = output_dir / rel
+        if source.is_dir():
+            if not dest.exists():
+                dest.mkdir(parents=True)
+        elif source.is_file():
+            if not dest.exists():
+                if not dest.parent.exists():
+                    dest.parent.mkdir(parents=True)
+                shutil.copy(source, dest)
+    shutil.rmtree(output_dir_temp)

@@ -1,5 +1,4 @@
 import click as click
-from cookiecutter.main import cookiecutter
 
 from oarepo_cli.cli.model.utils import ModelWizardStep
 from oarepo_cli.cli.utils import with_config
@@ -16,12 +15,13 @@ Generate a new model. Required arguments:
 )
 @click.argument("name")
 @with_config(config_section=lambda name, **kwargs: ["models", name])
-def add_model(cfg, **kwargs):
+def add_model(cfg=None, **kwargs):
     add_model_wizard.run(cfg)
 
 
 class CreateModelWizardStep(ModelWizardStep, WizardStep):
     def after_run(self, data):
+        model_dir = self.model_dir(data)
         base_model_package = {
             "empty": "(none)",
             "common": "nr-common-metadata-model-builder",
@@ -29,19 +29,20 @@ class CreateModelWizardStep(ModelWizardStep, WizardStep):
             "data": "TODO",
         }.get(data["model_kind"])
         base_model_use = base_model_package.replace("-model-builder", "")
-        cookiecutter(
-            "https://github.com/oarepo/cookiecutter-model",
+        self.run_cookiecutter(
+            data,
+            template="https://github.com/oarepo/cookiecutter-model",
+            config_file=f"model-{model_dir.name}",
             checkout="v10.0",
-            no_input=True,
-            output_dir=str(self.model_dir(data).parent),
+            output_dir=str(model_dir.parent),
             extra_context={
                 **data,
-                "model_name": self.model_dir(data).name,
+                "model_name": model_dir.name,
                 "base_model_package": base_model_package,
                 "base_model_use": base_model_use,
             },
         )
-        data["model_dir"] = str(self.model_dir(data).relative_to(data.project_dir))
+        data["model_dir"] = str(model_dir.relative_to(data.project_dir))
 
     def should_run(self, data):
         return not self.model_dir(data).exists()

@@ -2,6 +2,7 @@ from io import StringIO
 from pathlib import Path
 
 import yaml
+from deepmerge import always_merger
 
 
 class Config:
@@ -44,7 +45,11 @@ class MonorepoConfig(Config):
         super().__init__()
         self.path = path
         self.existing = False
-        self.section_path = tuple(section or [])
+        if not section:
+            section = []
+        elif isinstance(section, str):
+            section = [section]
+        self.section_path = tuple(section)
         self.whole_data = {}
         self._load_section()
 
@@ -94,4 +99,12 @@ class MonorepoConfig(Config):
 
     @property
     def project_dir(self):
-        return self.path.parent
+        return self.path.parent.resolve()
+
+    def merge_config(self, config_data, top=False):
+        if top:
+            always_merger.merge(self.whole_data, config_data)
+            self._load_section()
+            self.save()
+        else:
+            always_merger.merge(self.config, config_data)

@@ -21,7 +21,7 @@ from .step_07_next_steps import NextStepsStep
 @click.argument("name")
 @with_config(config_section=lambda name, **kwargs: ["sites", name])
 @click.pass_context
-def add_site(ctx, cfg, name, **kwargs):
+def add_site(ctx, cfg=None, name=None, **kwargs):
     cfg["site_package"] = to_python_name(name)
     cfg["site_dir"] = f"sites/{name}"
 

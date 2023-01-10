@@ -2,7 +2,7 @@ import os
 import shutil
 from pathlib import Path
 
-from cookiecutter.main import cookiecutter
+from oarepo_cli.cli.utils import ProjectWizardMixin
 
 from oarepo_cli.templates import get_cookiecutter_template
 from oarepo_cli.ui.wizard import WizardStep
@@ -18,7 +18,7 @@ def keep_existing_copy(src, dst, *, follow_symlinks=True):
     return shutil.copy2(src, dst, follow_symlinks=follow_symlinks)
 
 
-class CreateMonorepoStep(WizardStep):
+class CreateMonorepoStep(ProjectWizardMixin, WizardStep):
     def __init__(self, **kwargs):
         super().__init__(
             heading="Now I will create the monorepo inside the selected directory.",
@@ -27,9 +27,10 @@ class CreateMonorepoStep(WizardStep):
 
     def after_run(self, data):
         project_dir, repo_name, repo_out = self._repo_params(data)
-        cookiecutter(
-            get_cookiecutter_template("repo"),
-            no_input=True,
+        self.run_cookiecutter(
+            data,
+            template=get_cookiecutter_template("repo"),
+            config_file="monorepo",
             output_dir=str(repo_out),
             extra_context={
                 **data,

@@ -19,4 +19,4 @@ class PrimarySiteNameStep(WizardStep):
         )
 
     def should_run(self, data):
-        return super().should_run(data)
+        return "primary_site_name" not in data

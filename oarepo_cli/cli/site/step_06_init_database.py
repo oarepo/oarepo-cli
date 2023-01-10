@@ -12,7 +12,7 @@ class InitDatabaseStep(SiteWizardStepMixin, WizardStep):
     def __init__(self, **kwargs):
         super().__init__(
             Radio(
-                "init_database_switch",
+                "init_database",
                 options={"yes": "Yes", "no": "No"},
                 default="yes",
             ),
@@ -26,7 +26,7 @@ Should I do it?
         )
 
     def after_run(self, data):
-        if data["init_database_switch"] == "yes":
+        if data["init_database"] == "yes":
             run_cmdline(
                 "pipenv",
                 "run",

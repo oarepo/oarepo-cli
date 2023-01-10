@@ -15,13 +15,10 @@ Import (sample) data. Required arguments:
 )
 @click.argument("name", required=False)
 @click.argument(
-    "data-path",
-    required=False,
-    type=click.Path(file_okay=True, dir_okay=False),
-    help="Path to the data. If not specified, import sample data",
+    "data-path", required=False, type=click.Path(file_okay=True, dir_okay=False)
 )
 @with_config(config_section=lambda name, **kwargs: ["models", name])
-def load_data(cfg, data_path, *args, **kwargs):
+def load_data(cfg=None, data_path=None, *args, **kwargs):
     if not data_path:
         data_path = cfg.project_dir / cfg["model_dir"] / "data" / "sample_data.yaml"
         cfg["data_path"] = "data" / "sample_data.yaml"

@@ -19,7 +19,7 @@ Install the model into the current site. Required arguments:
 )
 @click.argument("name", required=False)
 @with_config(config_section=lambda name, **kwargs: ["models", name])
-def install_model(cfg, **kwargs):
+def install_model(cfg=None, **kwargs):
     wizard = Wizard(
         RadioWizardStep(
             "run_tests",
@@ -77,7 +77,7 @@ class TestWizardStep(WizardStep):
 
 
 class InstallWizardStep(PipenvInstallWizardStep):
-    folder = "model"
+    folder = "models"
 
 
 class AlembicWizardStep(ModelWizardStep):

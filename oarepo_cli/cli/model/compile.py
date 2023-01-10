@@ -19,7 +19,7 @@ Compile model yaml file to invenio sources. Required arguments:
 )
 @click.argument("name", required=False)
 @with_config(config_section=lambda name, **kwargs: ["models", name])
-def compile_model(cfg, **kwargs):
+def compile_model(cfg=None, **kwargs):
     optional_steps = []
     if (get_model_dir(cfg) / "setup.cfg").exists():
         optional_steps.append(
