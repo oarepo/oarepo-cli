@@ -51,9 +51,10 @@ class CreateModelWizardStep(ModelWizardStep, WizardStep):
         return not self.model_dir(data).exists()
 
 
-def InstallCustomModelWizardStep(ModelWizardStep, WizardStep):
+class InstallCustomModelWizardStep(ModelWizardStep, WizardStep):
     def should_run(self, data):
-        return "custom_model" in data
+        custom_model = data.get("custom_model", None)
+        return not not custom_model
 
     def after_run(self, data):
         custom_model_path: Path = data.project_dir.join(data["custom_model"])
@@ -118,13 +119,13 @@ of the extension without 'model-builder-'. See the documentation of your custom 
         "custom_model",
         default="",
         heading="""
-If you already have a (custom) model file, p
-lease enter its path relative to the project directory.
+If you already have a (custom) model file, please 
+enter its path relative to the project directory.
 The file will be copied into the model and used together 
 with the base model selected in the previous step.
         """,
-        required=False
-    )
+        required=False,
+    ),
     StaticWizardStep(
         heading="""
 Now tell me something about you. The defaults are taken from the monorepo, feel free to use them.
