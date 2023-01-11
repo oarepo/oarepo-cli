@@ -1,3 +1,5 @@
+from pathlib import Path
+import shutil
 import click as click
 
 from oarepo_cli.cli.model.utils import ModelWizardStep
@@ -5,6 +7,7 @@ from oarepo_cli.cli.utils import with_config
 from oarepo_cli.ui.wizard import InputWizardStep, StaticWizardStep, Wizard, WizardStep
 from oarepo_cli.ui.wizard.steps import RadioWizardStep
 from oarepo_cli.utils import to_python_name
+import yaml
 
 
 @click.command(
@@ -46,6 +49,23 @@ class CreateModelWizardStep(ModelWizardStep, WizardStep):
 
     def should_run(self, data):
         return not self.model_dir(data).exists()
+
+
+def InstallCustomModelWizardStep(ModelWizardStep, WizardStep):
+    def should_run(self, data):
+        return "custom_model" in data
+
+    def after_run(self, data):
+        custom_model_path: Path = data.project_dir.join(data["custom_model"])
+        model_dir: Path = data.project_dir / data["model_dir"]
+        shutil.copy(custom_model_path, model_dir / custom_model_path.name)
+        # add to model
+        metadata_file = model_dir / "metadata.yaml"
+        model_data = yaml.safe_load(metadata_file.read_text())
+        use_section = model_data.setdefault("oarepo:use", [])
+        if custom_model_path.name not in use_section:
+            use_section.append(custom_model_path.name)
+            metadata_file.write_text(yaml.safe_dump(model_data))
 
 
 add_model_wizard = Wizard(
@@ -94,6 +114,17 @@ of the extension without 'model-builder-'. See the documentation of your custom 
         },
         default="common",
     ),
+    InputWizardStep(
+        "custom_model",
+        default="",
+        heading="""
+If you already have a (custom) model file, p
+lease enter its path relative to the project directory.
+The file will be copied into the model and used together 
+with the base model selected in the previous step.
+        """,
+        required=False
+    )
     StaticWizardStep(
         heading="""
 Now tell me something about you. The defaults are taken from the monorepo, feel free to use them.
@@ -114,6 +145,7 @@ Now tell me something about you. The defaults are taken from the monorepo, feel 
         pause=True,
     ),
     CreateModelWizardStep(),
+    InstallCustomModelWizardStep(),
     StaticWizardStep(
         heading=lambda data: f"""
 The model has been generated in the {data.section} directory.
