@@ -99,18 +99,22 @@ class WizardStep(WizardBase):
         while not valid:
             widgets = self.get_widgets()
             for widget in widgets:
+                widget_value = data.get(widget.name)
+                if widget_value is None and widget.default:
+                    if callable(widget.default):
+                        widget_value = widget.default(data)
+                    else:
+                        widget_value = copy.deepcopy(widget.default)
                 if data.no_input:
-                    if data.get(widget.name) is None:
+                    if widget_value is None:
                         raise ValueError(
                             f"Do not have a value for option {widget.name}, please specify it in the config"
                         )
+                    if widget.value != widget_value:
+                        data[widget.name] = widget_value
+                    # propagate default if needed
                     continue
-                widget.value = data.get(widget.name)
-                if widget.value is None and widget.default:
-                    if callable(widget.default):
-                        widget.value = widget.default(data)
-                    else:
-                        widget.value = copy.deepcopy(widget.default)
+                widget.value = widget_value
                 data[widget.name] = widget.run()
             valid = True
             validate_functions = self.get_validate_functions()
@@ -125,7 +129,7 @@ class WizardStep(WizardBase):
         super().run(data)
         if self.pause and not data.no_input:
             input(f"Press enter to continue ...")
-        self.after_run(data)
+        self.after_run()
 
     def on_before_heading(self):
         pass

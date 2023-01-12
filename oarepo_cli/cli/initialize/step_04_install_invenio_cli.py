@@ -55,4 +55,4 @@ https://inveniordm.docs.cern.ch/install/requirements/ .
         return Path(self.data.project_dir) / ".venv" / "invenio-cli"
 
     def should_run(self):
-        return not (self._invenio_cli_dir(self.data) / ".check.ok").exists()
+        return not (self._invenio_cli_dir / ".check.ok").exists()

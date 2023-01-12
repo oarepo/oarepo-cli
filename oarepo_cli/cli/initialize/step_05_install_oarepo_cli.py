@@ -50,4 +50,4 @@ To run them, invoke the "oarepo-cli" script from within the project directory.
         return self.data.project_dir / ".venv" / "oarepo-cli"
 
     def should_run(self):
-        return not (self._oarepo_cli_dir(self.data) / ".check.ok").exists()
+        return not (self._oarepo_cli_dir / ".check.ok").exists()

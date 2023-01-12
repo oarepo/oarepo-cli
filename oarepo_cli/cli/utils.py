@@ -120,6 +120,7 @@ def with_config(
                     traceback.print_exc()
                 else:
                     print(str(e))
+                raise
                 sys.exit(1)
 
         return wrapped
@@ -261,7 +262,7 @@ class PipenvInstallWizardStep(SiteMixin, ProjectWizardMixin, WizardStep):
         self.install_pipfile()
 
     def add_to_pipfile(self):
-        pipfile = self.site_dir(self.data) / "Pipfile"
+        pipfile = self.site_dir / "Pipfile"
         add_to_pipfile_dependencies(
             pipfile, self.data.section, f"../../{self.folder}/{self.data.section}"
         )
