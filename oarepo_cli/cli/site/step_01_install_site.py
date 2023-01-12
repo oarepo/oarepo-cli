@@ -69,7 +69,7 @@ and run the wizard again.
                 f"""
 [cookiecutter]
 project_name = {self.data['repository_name']}
-¡project_shortname = {self.site_dir.name}
+project_shortname = {self.site_dir.name}
 project_site = {self.data['www']}
 github_repo = 
 description = {self.data['repository_name']} OARepo Instance
