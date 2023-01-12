@@ -3,7 +3,7 @@ import venv
 import click as click
 from colorama import Fore, Style
 
-from oarepo_cli.cli.model.utils import get_model_dir
+from oarepo_cli.cli.model.utils import ModelWizardStep
 from oarepo_cli.cli.utils import with_config
 from oarepo_cli.ui.wizard import Wizard, WizardStep
 from oarepo_cli.ui.wizard.steps import RadioWizardStep
@@ -21,7 +21,8 @@ Compile model yaml file to invenio sources. Required arguments:
 @with_config(config_section=lambda name, **kwargs: ["models", name])
 def compile_model(cfg=None, **kwargs):
     optional_steps = []
-    if (get_model_dir(cfg) / "setup.cfg").exists():
+    model_dir = cfg.project_dir / "models" / cfg.section
+    if (model_dir / "setup.cfg").exists():
         optional_steps.append(
             RadioWizardStep(
                 "merge_changes",
@@ -45,7 +46,7 @@ so that you might recover them if the compilation process fails.{Style.RESET_ALL
     wizard.run(cfg)
 
 
-class CompileWizardStep(WizardStep):
+class CompileWizardStep(ModelWizardStep, WizardStep):
     def after_run(self, data):
         venv_dir = data.project_dir / ".venv" / "oarepo-model-builder"
         venv_dir = venv_dir.absolute()
@@ -73,7 +74,7 @@ class CompileWizardStep(WizardStep):
             *opts,
             "-vvv",
             "model.yaml",
-            cwd=get_model_dir(data),
+            cwd=self.model_dir(data),
         )
 
     def should_run(self, data):

@@ -4,7 +4,7 @@ import venv
 import click as click
 from colorama import Fore, Style
 
-from oarepo_cli.cli.model.utils import ModelWizardStep, get_model_dir
+from oarepo_cli.cli.model.utils import ModelWizardStep
 from oarepo_cli.cli.utils import PipenvInstallWizardStep, with_config
 from oarepo_cli.ui.wizard import Wizard
 from oarepo_cli.ui.wizard.steps import RadioWizardStep, WizardStep
@@ -42,11 +42,11 @@ def install_model(cfg=None, **kwargs):
     wizard.run(cfg)
 
 
-class TestWizardStep(WizardStep):
+class TestWizardStep(ModelWizardStep, WizardStep):
     def after_run(self, data):
         if data["run_tests"] == "skip":
             return
-        model_dir = get_model_dir(data)
+        model_dir = self.model_dir(data)
         venv_dir = model_dir / ".venv-test"
         if venv_dir.exists():
             shutil.rmtree(venv_dir)
