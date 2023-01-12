@@ -32,7 +32,6 @@ class UIWizardMixin:
         return self.data.project_dir / "ui" / self.ui_name
 
 
-@property
 def available_models(data):
     known_models = {
         # TODO: model description while adding models
@@ -106,7 +105,7 @@ class AddUIWizardStep(UIWizardMixin, ProjectWizardMixin, WizardStep):
             template="https://github.com/oarepo/cookiecutter-app",
             config_file=f"ui-{ui_name}",
             checkout="v10.0",
-            output_dir=data.project_dir / "ui",
+            output_dir=self.data.project_dir / "ui",
             extra_context=cookiecutter_data,
         )
         self.data["ui_dir"] = f"ui/{ui_name}"
