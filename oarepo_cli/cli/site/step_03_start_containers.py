@@ -16,25 +16,25 @@ If this step fails, please fix the problem and run the wizard again.
             **kwargs
         )
 
-    def after_run(self, data):
+    def after_run(self):
 
         run_cmdline(
-            data.project_dir / data.get("config.invenio_cli"),
+            self.data.project_dir / self.data.get("config.invenio_cli"),
             "services",
             "start",
-            cwd=self.site_dir(data),
+            cwd=self.site_dir,
             environ={"PIPENV_IGNORE_VIRTUALENVS": "1"},
         )
-        self._check_containers_running(data, False)
+        self._check_containers_running(False)
 
-    def _check_containers_running(self, data, check_only):
+    def _check_containers_running(self, check_only):
 
         try:
             stdout = run_cmdline(
-                data.project_dir / data.get("config.invenio_cli"),
+                self.data.project_dir / self.data.get("config.invenio_cli"),
                 "services",
                 "status",
-                cwd=self.site_dir(data),
+                cwd=self.site_dir,
                 environ={"PIPENV_IGNORE_VIRTUALENVS": "1"},
                 check_only=check_only,
                 grab_stdout=True,
@@ -45,5 +45,5 @@ If this step fails, please fix the problem and run the wizard again.
             return False
         return True
 
-    def should_run(self, data):
-        return not self._check_containers_running(data, True)
+    def should_run(self):
+        return not self._check_containers_running(True)

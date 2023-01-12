@@ -40,5 +40,5 @@ https://localhost:5000/<uiname>
             **kwargs,
         )
 
-    def should_run(self, data):
+    def should_run(self):
         return True

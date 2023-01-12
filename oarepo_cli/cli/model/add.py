@@ -23,42 +23,41 @@ def add_model(cfg=None, **kwargs):
 
 
 class CreateModelWizardStep(ModelWizardStep, WizardStep):
-    def after_run(self, data):
-        model_dir = self.model_dir(data)
+    def after_run(self):
+        model_dir = self.model_dir
         base_model_package = {
             "empty": "(none)",
             "common": "nr-common-metadata-model-builder",
             "documents": "nr-documents-records-model-builder",
             "data": "TODO",
-        }.get(data["model_kind"])
+        }.get(self.data["model_kind"])
         base_model_use = base_model_package.replace("-model-builder", "")
         self.run_cookiecutter(
-            data,
             template="https://github.com/oarepo/cookiecutter-model",
             config_file=f"model-{model_dir.name}",
             checkout="v10.0",
             output_dir=str(model_dir.parent),
             extra_context={
-                **data,
+                **self.data,
                 "model_name": model_dir.name,
                 "base_model_package": base_model_package,
                 "base_model_use": base_model_use,
             },
         )
-        data["model_dir"] = str(model_dir.relative_to(data.project_dir))
+        self.data["model_dir"] = str(model_dir.relative_to(self.data.project_dir))
 
-    def should_run(self, data):
-        return not self.model_dir(data).exists()
+    def should_run(self):
+        return not self.model_dir.exists()
 
 
 class InstallCustomModelWizardStep(ModelWizardStep, WizardStep):
-    def should_run(self, data):
-        custom_model = data.get("custom_model", None)
+    def should_run(self):
+        custom_model = self.data.get("custom_model", None)
         return not not custom_model
 
-    def after_run(self, data):
-        custom_model_path: Path = data.project_dir.join(data["custom_model"])
-        model_dir: Path = data.project_dir / data["model_dir"]
+    def after_run(self):
+        custom_model_path: Path = self.data.project_dir.join(self.data["custom_model"])
+        model_dir: Path = self.data.project_dir / self.data["model_dir"]
         shutil.copy(custom_model_path, model_dir / custom_model_path.name)
         # add to model
         metadata_file = model_dir / "metadata.yaml"

@@ -8,11 +8,14 @@ from oarepo_cli.utils import find_oarepo_project
 
 
 class ModelWizardStep(SiteMixin, ProjectWizardMixin, WizardStep):
-    def model_name(self, data):
-        return data.section
+    @property
+    def model_name(self):
+        return self.data.section
 
-    def model_dir(self, data):
-        return data.project_dir / "models" / self.model_name(data)
+    @property
+    def model_dir(self):
+        return self.data.project_dir / "models" / self.model_name
 
-    def model_package_dir(self, data):
-        return self.model_dir(data) / data["model_package"]
+    @property
+    def model_package_dir(self):
+        return self.model_dir / self.data["model_package"]

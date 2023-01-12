@@ -21,10 +21,12 @@ If not sure, keep the default values.""",
             **kwargs,
         )
 
-    def get_steps(self, data):
-        data.setdefault("transifex_project", data.get("config.project_package", ""))
+    def get_steps(self):
+        self.data.setdefault(
+            "transifex_project", self.data.get("config.project_package", "")
+        )
         # substeps of this step
-        site_dir_name = self.site_dir(data).name
+        site_dir_name = self.site_dir.name
         return [
             InputWizardStep(
                 "repository_name",
@@ -55,25 +57,25 @@ and run the wizard again.
             ),
         ]
 
-    def after_run(self, data):
+    def after_run(self):
         # create site config for invenio-cli
-        cookiecutter_config_file = data.project_dir / ".invenio"
-        site_dir = self.site_dir(data)
+        cookiecutter_config_file = self.data.project_dir / ".invenio"
+        site_dir = self.site_dir
         if not site_dir.parent.exists():
             site_dir.parent.mkdir(parents=True)
-        
+
         with open(cookiecutter_config_file, "w") as f:
             print(
                 f"""
 [cookiecutter]
-project_name = {data['repository_name']}
-¡project_shortname = {self.site_dir(data).name}
-project_site = {data['www']}
+project_name = {self.data['repository_name']}
+¡project_shortname = {self.site_dir.name}
+project_site = {self.data['www']}
 github_repo = 
-description = {data['repository_name']} OARepo Instance
-author_name = {data['author_name']}
-author_email = {data['author_email']}
-year = {data['year']}
+description = {self.data['repository_name']} OARepo Instance
+author_name = {self.data['author_name']}
+author_email = {self.data['author_email']}
+year = {self.data['year']}
 python_version = 3.9
 database = postgresql
 search = opensearch2
@@ -85,7 +87,7 @@ development_tools = yes
         # and run invenio-cli with our site template
         # (submodule from https://github.com/oarepo/cookiecutter-oarepo-instance)
         run_cmdline(
-            data.project_dir / data.get("config.invenio_cli"),
+            self.data.project_dir / self.data.get("config.invenio_cli"),
             "init",
             "rdm",
             "-t",
@@ -95,15 +97,15 @@ development_tools = yes
             "--no-input",
             "--config",
             str(cookiecutter_config_file),
-            cwd=data.project_dir / "sites",
+            cwd=self.data.project_dir / "sites",
             environ={
                 "PIPENV_IGNORE_VIRTUALENVS": "1",
                 # use our own cookiecutter, not the system one
-                "PATH": f"{data.get('config.project_dir')}/.bin:{os.environ['PATH']}",
+                "PATH": f"{self.data.get('config.project_dir')}/.bin:{os.environ['PATH']}",
             },
         )
-        with open(self.site_dir(data) / ".check.ok", "w") as f:
+        with open(self.site_dir / ".check.ok", "w") as f:
             f.write("oarepo check ok")
 
-    def should_run(self, data):
-        return not (self.site_dir(data) / ".check.ok").exists()
+    def should_run(self):
+        return not (self.site_dir / ".check.ok").exists()

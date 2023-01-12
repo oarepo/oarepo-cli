@@ -25,20 +25,20 @@ Should I do it?
             **kwargs,
         )
 
-    def after_run(self, data):
-        if data["init_database"] == "yes":
+    def after_run(self):
+        if self.data["init_database"] == "yes":
             run_cmdline(
                 "pipenv",
                 "run",
                 "invenio",
                 "db",
                 "create",
-                cwd=self.site_dir(data),
+                cwd=self.site_dir,
                 environ={"PIPENV_IGNORE_VIRTUALENVS": "1"},
             )
-        self.check_db_initialized(data, raise_error=True)
+        self.check_db_initialized(raise_error=True)
 
-    def check_db_initialized(self, data, raise_error=False):
+    def check_db_initialized(self, raise_error=False):
         try:
             output = run_cmdline(
                 "pipenv",
@@ -46,7 +46,7 @@ Should I do it?
                 "invenio",
                 "alembic",
                 "current",
-                cwd=self.site_dir(data),
+                cwd=self.site_dir,
                 environ={"PIPENV_IGNORE_VIRTUALENVS": "1"},
                 grab_stdout=True,
                 raise_exception=True,
@@ -66,5 +66,5 @@ Should I do it?
             )
         return False
 
-    def should_run(self, data):
-        return not self.check_db_initialized(data, raise_error=False)
+    def should_run(self):
+        return not self.check_db_initialized(raise_error=False)

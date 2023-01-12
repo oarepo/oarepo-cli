@@ -47,8 +47,8 @@ so that you might recover them if the compilation process fails.{Style.RESET_ALL
 
 
 class CompileWizardStep(ModelWizardStep, WizardStep):
-    def after_run(self, data):
-        venv_dir = data.project_dir / ".venv" / "oarepo-model-builder"
+    def after_run(self):
+        venv_dir = self.data.project_dir / ".venv" / "oarepo-model-builder"
         venv_dir = venv_dir.absolute()
         if not venv_dir.exists():
             venv.main([str(venv_dir)])
@@ -66,7 +66,7 @@ class CompileWizardStep(ModelWizardStep, WizardStep):
             )
 
         opts = []
-        if data.get("merge_changes", None) == "overwrite":
+        if self.data.get("merge_changes", None) == "overwrite":
             opts.append("--overwrite")
 
         run_cmdline(
@@ -74,9 +74,9 @@ class CompileWizardStep(ModelWizardStep, WizardStep):
             *opts,
             "-vvv",
             "model.yaml",
-            cwd=self.model_dir(data),
+            cwd=self.model_dir,
         )
 
-    def should_run(self, data):
+    def should_run(self):
         # always run as there is an optional step for merge/overwrite changes
         return True

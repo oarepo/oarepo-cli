@@ -25,15 +25,14 @@ class CreateMonorepoStep(ProjectWizardMixin, WizardStep):
             **kwargs
         )
 
-    def after_run(self, data):
-        project_dir, repo_name, repo_out = self._repo_params(data)
+    def after_run(self):
+        project_dir, repo_name, repo_out = self._repo_params
         self.run_cookiecutter(
-            data,
             template=get_cookiecutter_template("repo"),
             config_file="monorepo",
             output_dir=str(repo_out),
             extra_context={
-                **data,
+                **self.data,
                 "repo_name": repo_name,
                 "repo_human_name": repo_name,
             },
@@ -45,12 +44,13 @@ class CreateMonorepoStep(ProjectWizardMixin, WizardStep):
 
         return True
 
-    def _repo_params(self, data):
-        project_dir = data.project_dir
+    @property
+    def _repo_params(self):
+        project_dir = self.data.project_dir
         repo_name = project_dir.name
         repo_out = project_dir.parent / (project_dir.name + "-tmp")
         return project_dir, repo_name, repo_out
 
-    def should_run(self, data):
-        project_dir, repo_name, repo_out = self._repo_params(data)
+    def should_run(self):
+        project_dir, repo_name, repo_out = self._repo_params
         return not (project_dir / "invenio-cli").exists()

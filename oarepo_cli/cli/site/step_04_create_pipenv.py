@@ -30,9 +30,9 @@ What is your preference of pipenv virtual environment location?
             **kwargs,
         )
 
-    def after_run(self, data):
-        site_dir = self.site_dir(data)
-        if data.get("create_pipenv_in_site") == "yes":
+    def after_run(self):
+        site_dir = self.site_dir
+        if self.data.get("create_pipenv_in_site") == "yes":
             (site_dir / ".venv").mkdir(parents=True, exist_ok=True)
         run_cmdline(
             "pipenv", "lock", cwd=site_dir, environ={"PIPENV_IGNORE_VIRTUALENVS": "1"}
@@ -52,17 +52,16 @@ What is your preference of pipenv virtual environment location?
             environ={"PIPENV_IGNORE_VIRTUALENVS": "1"},
         )
 
-        pipenv_venv_dir = Path(self._get_pipenv_venv_dir(data)).relative_to(
-            data.project_dir
-        )
+        pipenv_venv_dir = Path(self._pipenv_venv_dir).relative_to(self.data.project_dir)
 
-        data["site_pipenv_dir"] = str(pipenv_venv_dir)
+        self.data["site_pipenv_dir"] = str(pipenv_venv_dir)
 
-    def _get_pipenv_venv_dir(self, data):
+    @property
+    def _pipenv_venv_dir(self):
         success = run_cmdline(
             "pipenv",
             "--venv",
-            cwd=self.site_dir(data),
+            cwd=self.site_dir,
             environ={"PIPENV_IGNORE_VIRTUALENVS": "1"},
             check_only=True,
             grab_stdout=True,
@@ -71,10 +70,10 @@ What is your preference of pipenv virtual environment location?
             return None
         return success.strip()
 
-    def should_run(self, data):
+    def should_run(self):
         should_run = (
-            "site_pipenv_dir" not in data
-            or not (data.project_dir / data["site_pipenv_dir"]).exists()
+            "site_pipenv_dir" not in self.data
+            or not (self.data.project_dir / self.data["site_pipenv_dir"]).exists()
         )
         if should_run:
             return should_run
@@ -84,7 +83,7 @@ What is your preference of pipenv virtual environment location?
             run_cmdline(
                 "pipenv",
                 "requirements",
-                cwd=self.site_dir(data),
+                cwd=self.site_dir,
                 environ={"PIPENV_IGNORE_VIRTUALENVS": "1"},
                 check_only=True,
                 grab_stdout=True,
@@ -97,7 +96,7 @@ What is your preference of pipenv virtual environment location?
                 "run",
                 "pip",
                 "freeze",
-                cwd=self.site_dir(data),
+                cwd=self.site_dir,
                 environ={"PIPENV_IGNORE_VIRTUALENVS": "1"},
                 check_only=True,
                 grab_stdout=True,

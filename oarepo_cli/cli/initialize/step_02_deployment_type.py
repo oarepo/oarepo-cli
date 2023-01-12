@@ -22,5 +22,5 @@ Single package is the preferred choice unless you plan to share parts of reposit
             validate=[required("packaging")],
         )
 
-    def should_run(self, data):
-        return data.get("packaging") not in ("single", "multiple")
+    def should_run(self):
+        return self.data.get("packaging") not in ("single", "multiple")

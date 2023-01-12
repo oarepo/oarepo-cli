@@ -23,14 +23,17 @@ def add_ui(cfg=None, **kwargs):
 
 
 class UIWizardMixin:
-    def ui_name(self, data):
-        return data.section
+    @property
+    def ui_name(self):
+        return self.data.section
 
-    def ui_dir(self, data):
-        return data.project_dir / "ui" / self.ui_name(data)
+    @property
+    def ui_dir(self):
+        return self.data.project_dir / "ui" / self.ui_name
 
 
-def get_available_models(data):
+@property
+def available_models(data):
     known_models = {
         # TODO: model description while adding models
         x: x
@@ -44,16 +47,16 @@ def snail_to_title(v):
 
 
 class AddUIWizardStep(UIWizardMixin, ProjectWizardMixin, WizardStep):
-    def after_run(self, data):
-        ui_name = self.ui_name(data)
+    def after_run(self):
+        ui_name = self.ui_name
 
         ui_package = to_python_name(ui_name)
         ui_base = snail_to_title(ui_package)
 
-        model_config = data.whole_data["models"][data["model_name"]]
+        model_config = self.data.whole_data["models"][self.data["model_name"]]
         model_package = model_config["model_package"]
 
-        model_path = data.project_dir / model_config["model_dir"]
+        model_path = self.data.project_dir / model_config["model_dir"]
         model_file = (
             (model_path / model_package / "models" / "model.json")
             .absolute()
@@ -69,47 +72,51 @@ class AddUIWizardStep(UIWizardMixin, ProjectWizardMixin, WizardStep):
             "proxies-current-service"
         ]
         cookiecutter_data = {
-            "model_name": data["model_name"],
-            "local_model_path": data.get(
-                "cookiecutter_local_model_path", relpath(model_path, self.ui_dir(data))
+            "model_name": self.data["model_name"],
+            "local_model_path": self.data.get(
+                "cookiecutter_local_model_path", relpath(model_path, self.ui_dir)
             ),
-            "model_package": data.get("cookiecutter_model_package", model_package),
-            "app_name": data.get("cookiecutter_app_name", ui_name),
-            "app_package": data.get("cookiecutter_app_package", ui_package),
-            "ext_name": data.get("cookiecutter_ext_name", f"{ui_base}AppExtension"),
-            "author": data.get(
+            "model_package": self.data.get("cookiecutter_model_package", model_package),
+            "app_name": self.data.get("cookiecutter_app_name", ui_name),
+            "app_package": self.data.get("cookiecutter_app_package", ui_package),
+            "ext_name": self.data.get(
+                "cookiecutter_ext_name", f"{ui_base}AppExtension"
+            ),
+            "author": self.data.get(
                 "cookiecutter_author", model_config.get("author_name", "")
             ),
-            "author_email": data.get(
+            "author_email": self.data.get(
                 "cookiecutter_author_email", model_config.get("author_email", "")
             ),
-            "repository_url": data.get("cookiecutter_repository_url", ""),
+            "repository_url": self.data.get("cookiecutter_repository_url", ""),
             # TODO: take this dynamically from the running model's Ext so that
             # TODO: it does not have to be specified here
-            "resource": data.get("cookiecutter_resource", f"{ui_base}Resource"),
-            "resource_config": data.get(
+            "resource": self.data.get("cookiecutter_resource", f"{ui_base}Resource"),
+            "resource_config": self.data.get(
                 "cookiecutter_resource_config", f"{ui_base}ResourceConfig"
             ),
-            "api_config": data.get("cookiecutter_api_config", model_resource_config),
-            "api_service": data.get("cookiecutter_api_service", model_service),
-            "url_prefix": data["url_prefix"],
+            "api_config": self.data.get(
+                "cookiecutter_api_config", model_resource_config
+            ),
+            "api_service": self.data.get("cookiecutter_api_service", model_service),
+            "url_prefix": self.data["url_prefix"],
         }
 
         self.run_cookiecutter(
-            data,
             template="https://github.com/oarepo/cookiecutter-app",
             config_file=f"ui-{ui_name}",
             checkout="v10.0",
             output_dir=data.project_dir / "ui",
             extra_context=cookiecutter_data,
         )
-        data["ui_dir"] = f"ui/{ui_name}"
+        self.data["ui_dir"] = f"ui/{ui_name}"
 
-    def should_run(self, data):
-        return not self.ui_dir(data).exists()
+    def should_run(self):
+        return not self.ui_dir.exists()
 
 
 def add_ui_wizard(data):
+    available = available_models(data)
     return Wizard(
         StaticWizardStep(
             heading="""
@@ -125,8 +132,8 @@ and then I'll ask you a couple of additional questions.
                     heading="""
     For which model do you want to generate the ui? 
     """,
-                    options=get_available_models(data),
-                    default=next(iter(get_available_models(data))),
+                    options=available,
+                    default=next(iter(available)),
                 ),
                 InputWizardStep(
                     "url_prefix",

@@ -11,11 +11,11 @@ class DirectoryStep(WizardStep):
     def __init__(self, *args, **kwargs):
         super().__init__(heading="Creating the target directory ...")
 
-    def after_run(self, data: Config):
-        data["project_package"] = to_python_name(data.project_dir.name)
-        p = data.project_dir
+    def after_run(self):
+        self.data["project_package"] = to_python_name(self.data.project_dir.name)
+        p = self.data.project_dir
         if not p.exists():
             p.mkdir(parents=True)
 
-    def should_run(self, data):
-        return not data.project_dir.exists()
+    def should_run(self):
+        return not self.data.project_dir.exists()

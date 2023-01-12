@@ -16,24 +16,25 @@ will be downloaded and installed and UI will be compiled.
             **kwargs
         )
 
-    def after_run(self, data):
+    def after_run(self):
         run_cmdline(
-            data.project_dir / data.get("config.invenio_cli"),
+            self.data.project_dir / self.data.get("config.invenio_cli"),
             "install",
-            cwd=self.site_dir(data),
+            cwd=self.site_dir,
             environ={"PIPENV_IGNORE_VIRTUALENVS": "1"},
         )
-        if not self._get_manifest_file(data).exists():
+        if not self._manifest_file.exists():
             raise Exception(
                 "invenio-cli install has not created var/instance/static/dist/manifest.json."
                 "Please check the output, correct errors and run this command again"
             )
 
-    def _get_pipenv_venv_dir(self, data):
+    @property
+    def _pipenv_venv_dir(self):
         success = run_cmdline(
             "pipenv",
             "--venv",
-            cwd=self.site_dir(data),
+            cwd=self.site_dir,
             environ={"PIPENV_IGNORE_VIRTUALENVS": "1"},
             check_only=True,
             grab_stdout=True,
@@ -42,12 +43,13 @@ will be downloaded and installed and UI will be compiled.
             return None
         return success.strip()
 
-    def should_run(self, data):
-        manifest_file = self._get_manifest_file(data)
+    def should_run(self):
+        manifest_file = self._manifest_file
         return not manifest_file.exists()
 
-    def _get_manifest_file(self, data):
-        pipenv_dir = data.project_dir / data["site_pipenv_dir"]
+    @property
+    def _manifest_file(self):
+        pipenv_dir = self.data.project_dir / self.data["site_pipenv_dir"]
         manifest_file = (
             pipenv_dir / "var" / "instance" / "static" / "dist" / "manifest.json"
         )

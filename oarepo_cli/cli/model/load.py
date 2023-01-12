@@ -30,6 +30,6 @@ def load_data(cfg=None, data_path=None, *args, **kwargs):
 
 
 class ImportDataWizardStep(ModelWizardStep):
-    def after_run(self, data):
-        data_path = self.model_dir.join(data["data_path"])
-        self.invenio_command(data, self.model_name, "load", data_path)
+    def after_run(self):
+        data_path = self.model_dir.join(self.data["data_path"])
+        self.invenio_command(self.model_name, "load", data_path)

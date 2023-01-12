@@ -18,5 +18,5 @@ class PrimarySiteNameStep(WizardStep):
             **kwargs,
         )
 
-    def should_run(self, data):
-        return "primary_site_name" not in data
+    def should_run(self):
+        return "primary_site_name" not in self.data

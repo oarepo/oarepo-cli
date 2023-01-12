@@ -14,9 +14,9 @@ In this step I'll patch them up to use the current invenio config.
             **kwargs,
         )
 
-    def get_service_health_file(self, data):
+    def get_service_health_file(self):
         invenio_cli_venv = (
-            data.project_dir / data.get("config.invenio_cli")
+            self.data.project_dir / self.data.get("config.invenio_cli")
         ).parent.parent
         for candidate in invenio_cli_venv.rglob("services_health.py"):
             if (
@@ -28,8 +28,8 @@ In this step I'll patch them up to use the current invenio config.
             "Can not find services_health.py - it seems that Invenio has changed its source files structure. Please report this issue to du-suppport@cestnet.cz"
         )
 
-    def after_run(self, data):
-        health_file = self.get_service_health_file(data)
+    def after_run(self):
+        health_file = self.get_service_health_file()
         contents = health_file.read_text()
         contents = contents.replace(
             '"localhost:9200/_cluster/health?wait_for_status=yellow"',
@@ -64,7 +64,7 @@ def oarepo_elasticsearch_patch():
         )
         health_file.write_text(contents)
 
-    def should_run(self, data):
-        health_file = self.get_service_health_file(data)
+    def should_run(self):
+        health_file = self.get_service_health_file()
         contents = health_file.read_text()
         return "oarepo_elasticsearch_patch" not in contents

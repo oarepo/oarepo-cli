@@ -24,15 +24,15 @@ class InstallWizardStep(PipenvInstallWizardStep):
 
 
 class CompileAssetsStep(SiteMixin, ProjectWizardMixin, WizardStep):
-    def should_run(self, data):
+    def should_run(self):
         return True
 
-    def after_run(self, data):
-        self.invenio_command(data, "webpack", "buildall")
+    def after_run(self):
+        self.invenio_command("webpack", "buildall")
 
 
 class InstallWizard(ProjectWizardMixin, Wizard):
     steps = [InstallWizardStep(), CompileAssetsStep()]
 
-    def should_run(self, data):
-        return super().should_run(data)
+    def should_run(self):
+        return super().should_run()

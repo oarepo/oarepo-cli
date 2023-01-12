@@ -11,12 +11,12 @@ class Wizard(WizardBase):
     def __init__(self, *steps: Union[WizardStep, Callable[[Dict], None], str]):
         super().__init__(steps)
 
-    def run(self, data: Config):
-        super().run(data)
-        self.after_run(data)
-
-    def after_run(self, data):
-        pass
-
     def should_run(self, data):
         return super().should_run(data)
+
+    def run(self, data):
+        super().run(data)
+        self.after_run()
+
+    def after_run(self):
+        pass

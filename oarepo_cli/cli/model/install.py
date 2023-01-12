@@ -43,10 +43,10 @@ def install_model(cfg=None, **kwargs):
 
 
 class TestWizardStep(ModelWizardStep, WizardStep):
-    def after_run(self, data):
-        if data["run_tests"] == "skip":
+    def after_run(self):
+        if self.data["run_tests"] == "skip":
             return
-        model_dir = self.model_dir(data)
+        model_dir = self.model_dir
         venv_dir = model_dir / ".venv-test"
         if venv_dir.exists():
             shutil.rmtree(venv_dir)
@@ -67,12 +67,14 @@ class TestWizardStep(ModelWizardStep, WizardStep):
             "tests",
             cwd=model_dir,
             environ={
-                "OPENSEARCH_HOST": data.get("config.TEST_OPENSEARCH_HOST", "localhost"),
-                "OPENSEARCH_PORT": data.get("config.TEST_OPENSEARCH_PORT", "9400"),
+                "OPENSEARCH_HOST": self.data.get(
+                    "config.TEST_OPENSEARCH_HOST", "localhost"
+                ),
+                "OPENSEARCH_PORT": self.data.get("config.TEST_OPENSEARCH_PORT", "9400"),
             },
         )
 
-    def should_run(self, data):
+    def should_run(self):
         return True
 
 
@@ -88,18 +90,17 @@ class AlembicWizardStep(ModelWizardStep):
                 """
     pause = True
 
-    def after_run(self, data):
-        model_package = data["model_package"]
-        model_package_dir = self.model_package_dir(data)
+    def after_run(self):
+        model_package = self.data["model_package"]
+        model_package_dir = self.model_package_dir
         alembic_path = model_package_dir / "alembic"
         filecount = len(list(alembic_path.iterdir()))
 
         if filecount < 2:
             # alembic has not been initialized yet ...
-            self.invenio_command(data, "alembic", "upgrade", "heads")
+            self.invenio_command("alembic", "upgrade", "heads")
             # create model branch
             self.invenio_command(
-                data,
                 "alembic",
                 "revision",
                 f"Create {model_package} branch.",
@@ -109,17 +110,16 @@ class AlembicWizardStep(ModelWizardStep):
                 "dbdbc1b19cf2",
                 "--empty",
             )
-            self.invenio_command(data, "alembic", "upgrade", "heads")
+            self.invenio_command("alembic", "upgrade", "heads")
             self.invenio_command(
-                data, "alembic", "revision", "Initial revision.", "-b", model_package
+                "alembic", "revision", "Initial revision.", "-b", model_package
             )
             self.fix_sqlalchemy_utils(alembic_path)
-            self.invenio_command(data, "alembic", "upgrade", "heads")
+            self.invenio_command("alembic", "upgrade", "heads")
         else:
             # alembic has been initialized, update heads and generate
-            self.invenio_command(data, "alembic", "upgrade", "heads")
+            self.invenio_command("alembic", "upgrade", "heads")
             self.invenio_command(
-                data,
                 "alembic",
                 "revision",
                 "oarepo-cli install revision.",
@@ -127,7 +127,7 @@ class AlembicWizardStep(ModelWizardStep):
                 model_package,
             )
             self.fix_sqlalchemy_utils(alembic_path)
-            self.invenio_command(data, "alembic", "upgrade", "heads")
+            self.invenio_command("alembic", "upgrade", "heads")
 
     def fix_sqlalchemy_utils(self, alembic_path):
         for fn in alembic_path.iterdir():
@@ -157,7 +157,7 @@ def upgrade():
             if modified:
                 fn.write_text(data)
 
-    def should_run(self, data):
+    def should_run(self):
         return True
 
 
@@ -180,9 +180,9 @@ the index?
         ),
     )
 
-    def after_run(self, data):
-        if data["update_opensearch"] == "run":
-            self.invenio_command(data, self.model_name(data), "reindex", "--recreate")
+    def after_run(self):
+        if self.data["update_opensearch"] == "run":
+            self.invenio_command(self.model_name, "reindex", "--recreate")
 
-    def should_run(self, data):
+    def should_run(self):
         return True
