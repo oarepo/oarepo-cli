@@ -1,15 +1,14 @@
 import os
-import signal
+import re
 import subprocess
 import sys
 from pathlib import Path
 
 import pyfiglet
+import tomlkit
 from colorama import Fore, Style
 
 from oarepo_cli.ui.utils import slow_print
-
-import tomlkit
 
 
 def print_banner():
@@ -24,7 +23,16 @@ def print_banner():
     slow_print(f"\n\n\n{Fore.GREEN}{intro_string}{Style.RESET_ALL}")
 
 
-def run_cmdline(*cmdline, cwd=".", environ=None):
+def run_cmdline(
+    *cmdline,
+    cwd=".",
+    environ=None,
+    check_only=False,
+    grab_stdout=False,
+    grab_stderr=False,
+    discard_output=False,
+    raise_exception=False,
+):
     env = os.environ.copy()
     env.update(environ or {})
     cwd = Path(cwd).absolute()
@@ -33,15 +41,45 @@ def run_cmdline(*cmdline, cwd=".", environ=None):
         f"{Fore.BLUE}Running {Style.RESET_ALL} {' '.join(cmdline)}", file=sys.__stderr__
     )
     print(f"{Fore.BLUE}    inside {Style.RESET_ALL} {cwd}", file=sys.__stderr__)
-    ret = subprocess.call(cmdline, cwd=cwd, env=env)
-    if ret:
+    try:
+        if grab_stdout or grab_stderr or discard_output:
+            kwargs = {}
+            if grab_stdout or discard_output:
+                kwargs["stdout"] = subprocess.PIPE
+            if grab_stderr or discard_output:
+                kwargs["stderr"] = subprocess.PIPE
+
+            ret = subprocess.run(
+                cmdline,
+                check=True,
+                cwd=cwd,
+                env=env,
+                **kwargs,
+            )
+            ret = (ret.stdout or b"") + b"\n" + (ret.stderr or b"")
+        else:
+            ret = subprocess.call(cmdline, cwd=cwd, env=env)
+            if ret:
+                raise subprocess.CalledProcessError(ret, cmdline)
+    except subprocess.CalledProcessError as e:
+        if check_only:
+            return False
         print(f"Error running {' '.join(cmdline)}", file=sys.__stderr__)
-        sys.exit(ret)
+        if e.stdout:
+            print(e.stdout)
+        if e.stderr:
+            print(e.stderr)
+        if raise_exception:
+            raise
+        sys.exit(e.returncode)
     print(
         f"{Fore.GREEN}Finished running {Style.RESET_ALL} {' '.join(cmdline)}",
         file=sys.__stderr__,
     )
     print(f"{Fore.GREEN}    inside {Style.RESET_ALL} {cwd}", file=sys.__stderr__)
+    if grab_stdout:
+        return ret.decode("utf-8").strip()
+    return True
 
 
 def find_oarepo_project(dirname, raises=False):
@@ -57,6 +95,7 @@ def find_oarepo_project(dirname, raises=False):
             f"or its 4 ancestors do not contain oarepo.yaml file"
         )
     return
+
 
 def add_to_pipfile_dependencies(pipfile, package_name, package_path):
     with open(pipfile, "r") as f:
@@ -74,3 +113,9 @@ def add_to_pipfile_dependencies(pipfile, package_name, package_path):
 
         with open(pipfile, "w") as f:
             tomlkit.dump(pipfile_data, f)
+
+
+def to_python_name(x):
+    x = re.sub(r"(?<!^)(?=[A-Z])", "_", x).lower()
+    x = x.replace("-", "_")
+    return re.sub("[^a-z_]", "", x)

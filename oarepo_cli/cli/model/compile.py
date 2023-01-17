@@ -1,30 +1,28 @@
-import os
 import venv
-from pathlib import Path
 
 import click as click
 from colorama import Fore, Style
 
-from oarepo_cli.cli.model.utils import get_model_dir, load_model_repo
+from oarepo_cli.cli.model.utils import ModelWizardStep
+from oarepo_cli.cli.utils import with_config
 from oarepo_cli.ui.wizard import Wizard, WizardStep
 from oarepo_cli.ui.wizard.steps import RadioWizardStep
 from oarepo_cli.utils import run_cmdline
 
 
-@click.command(name="compile", help="Compile model yaml file to invenio sources")
-@click.option(
-    "-p",
-    "--project-dir",
-    type=click.Path(exists=False, file_okay=False),
-    default=lambda: os.getcwd(),
+@click.command(
+    name="compile",
+    help="""
+Compile model yaml file to invenio sources. Required arguments:
+    <name>   ... name of the already existing model
+""",
 )
-@click.argument("model-name", required=False)
-def compile_model(project_dir, model_name, *args, **kwargs):
-    cfg, project_dir = load_model_repo(model_name, project_dir)
-    cfg.save_steps = False
-    cfg["project_dir"] = project_dir
+@click.argument("name", required=False)
+@with_config(config_section=lambda name, **kwargs: ["models", name])
+def compile_model(cfg=None, **kwargs):
     optional_steps = []
-    if (get_model_dir(cfg) / "setup.cfg").exists():
+    model_dir = cfg.project_dir / "models" / cfg.section
+    if (model_dir / "setup.cfg").exists():
         optional_steps.append(
             RadioWizardStep(
                 "merge_changes",
@@ -48,11 +46,9 @@ so that you might recover them if the compilation process fails.{Style.RESET_ALL
     wizard.run(cfg)
 
 
-class CompileWizardStep(WizardStep):
-    def after_run(self, data):
-        venv_dir = (
-            Path(data.get("config.project_dir")) / ".venv" / "oarepo-model-builder"
-        )
+class CompileWizardStep(ModelWizardStep, WizardStep):
+    def after_run(self):
+        venv_dir = self.data.project_dir / ".venv" / "oarepo-model-builder"
         venv_dir = venv_dir.absolute()
         if not venv_dir.exists():
             venv.main([str(venv_dir)])
@@ -70,7 +66,7 @@ class CompileWizardStep(WizardStep):
             )
 
         opts = []
-        if data.get("merge_changes", None) == "overwrite":
+        if self.data.get("merge_changes", None) == "overwrite":
             opts.append("--overwrite")
 
         run_cmdline(
@@ -78,5 +74,9 @@ class CompileWizardStep(WizardStep):
             *opts,
             "-vvv",
             "model.yaml",
-            cwd=get_model_dir(data),
+            cwd=self.model_dir,
         )
+
+    def should_run(self):
+        # always run as there is an optional step for merge/overwrite changes
+        return True

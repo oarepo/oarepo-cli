@@ -1,61 +1,75 @@
-import os
 from pathlib import Path
-
+import shutil
 import click as click
-from cookiecutter.main import cookiecutter
 
-from oarepo_cli.config import MonorepoConfig
+from oarepo_cli.cli.model.utils import ModelWizardStep
+from oarepo_cli.cli.utils import with_config
 from oarepo_cli.ui.wizard import InputWizardStep, StaticWizardStep, Wizard, WizardStep
 from oarepo_cli.ui.wizard.steps import RadioWizardStep
-from oarepo_cli.utils import print_banner
+from oarepo_cli.utils import to_python_name
+import yaml
 
 
-@click.command(name="add", help="Generate a new model")
-@click.option(
-    "-p",
-    "--project-dir",
-    type=click.Path(exists=False, file_okay=False),
-    default=lambda: os.getcwd(),
-    callback=lambda ctx, param, value: Path(value).absolute(),
+@click.command(
+    name="add",
+    help="""
+Generate a new model. Required arguments:
+    <name>   ... name of the model, can contain [a-z] and dash (-)""",
 )
 @click.argument("name")
-def add_model(project_dir, name, *args, **kwargs):
-    oarepo_yaml_file = project_dir / "oarepo.yaml"
-    cfg = MonorepoConfig(oarepo_yaml_file, section=["models", name])
-    cfg.load()
-    print_banner()
-    cfg["model_name"] = name
-
+@with_config(config_section=lambda name, **kwargs: ["models", name])
+def add_model(cfg=None, **kwargs):
     add_model_wizard.run(cfg)
 
 
-class CreateModelWizardStep(WizardStep):
-    step_name = "create_model_step"
-
-    def after_run(self, data):
+class CreateModelWizardStep(ModelWizardStep, WizardStep):
+    def after_run(self):
+        model_dir = self.model_dir
         base_model_package = {
             "empty": "(none)",
             "common": "nr-common-metadata-model-builder",
             "documents": "nr-documents-records-model-builder",
             "data": "TODO",
-        }.get(data["model_kind"])
+        }.get(self.data["model_kind"])
         base_model_use = base_model_package.replace("-model-builder", "")
-        cookiecutter(
-            "https://github.com/oarepo/cookiecutter-model",
+        self.run_cookiecutter(
+            template="https://github.com/oarepo/cookiecutter-model",
+            config_file=f"model-{model_dir.name}",
             checkout="v10.0",
-            no_input=True,
-            output_dir=Path(data.get("config.project_dir")) / "models",
+            output_dir=str(model_dir.parent),
             extra_context={
-                **data,
+                **self.data,
+                "model_name": model_dir.name,
                 "base_model_package": base_model_package,
                 "base_model_use": base_model_use,
             },
         )
+        self.data["model_dir"] = str(model_dir.relative_to(self.data.project_dir))
+
+    def should_run(self):
+        return not self.model_dir.exists()
+
+
+class InstallCustomModelWizardStep(ModelWizardStep, WizardStep):
+    def should_run(self):
+        custom_model = self.data.get("custom_model", None)
+        return not not custom_model
+
+    def after_run(self):
+        custom_model_path: Path = self.data.project_dir.join(self.data["custom_model"])
+        model_dir: Path = self.data.project_dir / self.data["model_dir"]
+        shutil.copy(custom_model_path, model_dir / custom_model_path.name)
+        # add to model
+        metadata_file = model_dir / "metadata.yaml"
+        model_data = yaml.safe_load(metadata_file.read_text())
+        use_section = model_data.setdefault("oarepo:use", [])
+        if custom_model_path.name not in use_section:
+            use_section.append(custom_model_path.name)
+            metadata_file.write_text(yaml.safe_dump(model_data))
 
 
 add_model_wizard = Wizard(
     StaticWizardStep(
-        "intro",
         heading="""
 Before creating the datamodel, I'll ask you a few questions.
 If unsure, use the default value.
@@ -64,7 +78,7 @@ If unsure, use the default value.
     InputWizardStep(
         "model_package",
         prompt="Enter the model package",
-        default=lambda data: data["model_name"].replace("-", "_"),
+        default=lambda data: to_python_name(data.section),
     ),
     RadioWizardStep(
         "model_kind",
@@ -100,8 +114,18 @@ of the extension without 'model-builder-'. See the documentation of your custom 
         },
         default="common",
     ),
+    InputWizardStep(
+        "custom_model",
+        default="",
+        heading="""
+If you already have a (custom) model file, please 
+enter its path relative to the project directory.
+The file will be copied into the model and used together 
+with the base model selected in the previous step.
+        """,
+        required=False,
+    ),
     StaticWizardStep(
-        "intro2",
         heading="""
 Now tell me something about you. The defaults are taken from the monorepo, feel free to use them.
     """,
@@ -109,26 +133,30 @@ Now tell me something about you. The defaults are taken from the monorepo, feel 
     InputWizardStep(
         "author_name",
         prompt="""Model author""",
-        default=lambda data: data.get("config.author_name"),
+        default=lambda data: get_site(data)["author_name"],
     ),
     InputWizardStep(
         "author_email",
         prompt="""Model author's email""",
-        default=lambda data: data.get("config.author_email"),
+        default=lambda data: get_site(data)["author_email"],
     ),
     StaticWizardStep(
-        "outro1",
         heading="Now I have all the information to generate your model. After pressing Enter, I will generate the sources",
         pause=True,
     ),
     CreateModelWizardStep(),
+    InstallCustomModelWizardStep(),
     StaticWizardStep(
-        "outro2",
         heading=lambda data: f"""
-The model has been generated in the {Path(data.get('config.project_dir')) / 'models' / data['model_name']} directory.
-At first, edit the metadata.yaml and then run "oarepo-cli model compile {data['model_name']}"
-and to install to the site run "oarepo-cli model install {data['model_name']}".
+The model has been generated in the {data.section} directory.
+At first, edit the metadata.yaml and then run "oarepo-cli model compile {data.section}"
+and to install to the site run "oarepo-cli model install {data.section}".
                      """,
         pause=True,
     ),
 )
+
+
+def get_site(data):
+    primary_site_name = data.get("config.primary_site_name")
+    return data.get(f"sites.{primary_site_name}")

@@ -1,8 +1,9 @@
 from __future__ import annotations
 
+import abc
 import copy
+from typing import Any, Callable, Dict, List, Union
 
-from typing import List, Union, Callable, Dict
 from colorama import Fore, Style
 
 from ...config import Config
@@ -12,46 +13,68 @@ from ..utils import slow_print
 from .validation import required as required_validation
 
 
-class WizardBase:
+class WizardBase(abc.ABC):
     steps: "List[Union[WizardStep, Callable[[Dict], None], str]]" = []
+    data: Dict[str, Any] = None
 
-    def __init__(self, steps: "List[Union[WizardStep, Callable[[Dict], None], str]]" = None):
+    def __init__(
+        self, steps: "List[Union[WizardStep, Callable[[Dict], None], str]]" = None
+    ):
         self.steps = steps or self.steps
 
     def run(self, data):
-        steps = self.get_steps(data)
+        self.data = data
+        steps = self.get_steps()
         for step in steps:
-            if isinstance(step, str):
-                getattr(self, step)(data)
-            elif callable(step):
-                step(data)
-            else:
-                if step.should_run(data):
-                    step.run(data)
+            step.data = data
+        for stepidx, step in enumerate(steps):
+            should_run = step.should_run()
+            if should_run is False:
+                continue
+            if should_run is None:
+                # only if one of the subsequent steps should run
+                for subsequent in steps[stepidx + 1 :]:
+                    subsequent_should_run = subsequent.should_run()
+                    if subsequent_should_run is not None:
+                        should_run = subsequent_should_run
+                        break
+                if should_run is False:
+                    continue
+            step.run(data)
+            data.save()
 
-    def get_steps(self, data):
+    def get_steps(self):
         return self.steps
+
+    @abc.abstractmethod
+    def should_run(self):
+        if self.steps:
+            steps = self.get_steps()
+            for step in steps:
+                if isinstance(step, str):
+                    getattr(self, step)()
+                should_run = step.should_run()
+                if should_run:
+                    return True
+            return False
 
 
 class WizardStep(WizardBase):
-    step_name = None
     widgets = ()
     validate_functions = ()
     heading = ""
     pause = None
 
     def __init__(
-            self,
-            *widgets,
-            validate=None,
-            heading=None,
-            pause=False,
-            step_name=None,
-            steps=None,
-            **kwargs,
+        self,
+        *widgets,
+        validate=None,
+        heading=None,
+        pause=False,
+        steps=None,
+        **kwargs,
     ):
         super().__init__(steps)
-        self.step_name = step_name or self.step_name
         self.widgets = tuple(widgets or self.widgets)
         if not validate:
             validate = []
@@ -61,82 +84,108 @@ class WizardStep(WizardBase):
         self.heading = heading or self.heading
         self.pause = pause or self.pause
 
-    def should_run(self, data):
-        return True
-
     def run(self, data: Config):
-        if data.is_step_ok(self.step_name):
-            return
-        self.on_before_heading(data)
-        if self.heading:
+        self.data = data
+        self.on_before_heading()
+        if self.heading and not data.silent:
             heading = self.heading
             if callable(heading):
                 heading = heading(data)
-            slow_print(f"\n\n{Fore.BLUE}{heading}{Style.RESET_ALL}")
+            if heading:
+                slow_print(f"\n\n{Fore.BLUE}{heading}{Style.RESET_ALL}")
             print()
-        self.on_after_heading(data)
+        self.on_after_heading()
         valid = False
         while not valid:
-            widgets = self.get_widgets(data)
+            widgets = self.get_widgets()
             for widget in widgets:
-                widget.value = data.get(widget.name)
-                if widget.value is None and widget.default:
+                widget_value = data.get(widget.name)
+                if widget_value is None and widget.default:
                     if callable(widget.default):
-                        widget.value = widget.default(data)
+                        widget_value = widget.default(data)
                     else:
-                        widget.value = copy.deepcopy(widget.default)
+                        widget_value = copy.deepcopy(widget.default)
+                if data.no_input:
+                    if widget_value is None:
+                        raise ValueError(
+                            f"Do not have a value for option {widget.name}, please specify it in the config"
+                        )
+                    if widget.value != widget_value:
+                        data[widget.name] = widget_value
+                    # propagate default if needed
+                    continue
+                widget.value = widget_value
                 data[widget.name] = widget.run()
             valid = True
-            validate_functions = self.get_validate_functions(data)
+            validate_functions = self.get_validate_functions()
             for v in validate_functions:
                 res = v(data)
                 if res is True or res is None:
                     continue
                 print(f"{Fore.RED}Error: {res}{Style.RESET_ALL}")
                 valid = False
+            if not valid and data.no_input:
+                raise ValueError(f"Config not valid and not running interactively")
         super().run(data)
-        self.on_after_steps(data)
-        if self.pause:
+        if self.pause and not data.no_input:
             input(f"Press enter to continue ...")
-        self.after_run(data)
-        data.set_step_ok(self.step_name)
+        self.after_run()
 
-    def on_before_heading(self, data):
+    def on_before_heading(self):
         pass
 
-    def on_after_heading(self, data):
+    def on_after_heading(self):
         pass
 
-    def get_widgets(self, data):
+    def get_widgets(self):
         return self.widgets
 
-    def get_validate_functions(self, data):
+    def get_validate_functions(self):
         return self.validate_functions
 
-    def on_after_steps(self, data):
+    def on_after_steps(self):
         pass
 
-    def after_run(self, data):
+    def after_run(self):
         pass
 
 
 class InputWizardStep(WizardStep):
-    def __init__(self, key, heading=None, required=True, default=None, prompt=None):
-        self.step_name = key
+    def __init__(
+        self,
+        key,
+        heading=None,
+        required=True,
+        default=None,
+        prompt=None,
+        force_run=False,
+    ):
         super().__init__(
             Input(key, default=default, prompt=prompt),
             heading=heading,
             validate=[required_validation(key)] if required else [],
         )
+        self.key = key
+        self.force_run = force_run
+
+    def should_run(self):
+        return self.force_run or self.key not in self.data
 
 
 class StaticWizardStep(WizardStep):
-    def __init__(self, key, heading, **kwargs):
-        self.step_name = key
+    def __init__(self, heading, **kwargs):
         super().__init__(heading=heading, **kwargs)
+
+    def should_run(self):
+        # do not know - should run only if one of the subsequent steps should run
+        return None
 
 
 class RadioWizardStep(WizardStep):
-    def __init__(self, key, heading, options=None, default=None):
-        self.step_name = key
+    def __init__(self, key, heading, options=None, default=None, force_run=False):
         super().__init__(Radio(key, default=default, options=options), heading=heading)
+        self.key = key
+        self.force_run = force_run
+
+    def should_run(self):
+        return self.force_run or self.key not in self.data

@@ -4,8 +4,6 @@ from oarepo_cli.ui.wizard.validation import required
 
 
 class DeploymentTypeStep(WizardStep):
-    step_name = "deployment-type"
-
     def __init__(self):
         super().__init__(
             Radio(
@@ -23,3 +21,6 @@ Single package is the preferred choice unless you plan to share parts of reposit
             """,
             validate=[required("packaging")],
         )
+
+    def should_run(self):
+        return self.data.get("packaging") not in ("single", "multiple")

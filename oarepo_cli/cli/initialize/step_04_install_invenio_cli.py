@@ -1,17 +1,16 @@
 from __future__ import annotations
 
+import os
 import shutil
 import venv
 from pathlib import Path
 
 from oarepo_cli.ui.wizard import WizardStep
 
-from ..utils import run_cmdline
+from ...utils import run_cmdline
 
 
 class InstallInvenioCliStep(WizardStep):
-    step_name = "install-invenio-cli"
-
     def __init__(self, **kwargs):
         super().__init__(
             heading="""I will install invenio command-line client. I will use the client to check that
@@ -24,10 +23,12 @@ https://inveniordm.docs.cern.ch/install/requirements/ .
             **kwargs,
         )
 
-    def after_run(self, data):
+    def after_run(self):
         print("Creating invenio-cli virtualenv")
-        invenio_cli_dir = Path(data["project_dir"]) / ".venv" / "invenio-cli"
-        data["invenio_cli"] = str(invenio_cli_dir / "bin" / "invenio-cli")
+        invenio_cli_dir = self._invenio_cli_dir
+        self.data["invenio_cli"] = str(
+            (invenio_cli_dir / "bin" / "invenio-cli").relative_to(self.data.project_dir)
+        )
         if invenio_cli_dir.exists():
             shutil.rmtree(invenio_cli_dir)
         venv.main([str(invenio_cli_dir)])
@@ -41,5 +42,17 @@ https://inveniordm.docs.cern.ch/install/requirements/ .
             invenio_cli_dir / "bin" / "invenio-cli",
             "check-requirements",
             "--development",
-            environ={"PIPENV_IGNORE_VIRTUALENVS": "1"},
+            environ={
+                "PIPENV_IGNORE_VIRTUALENVS": "1",
+                "PATH": f"{self.data.project_dir}/.bin:{os.environ['PATH']}",
+            },
         )
+        with open(invenio_cli_dir / ".check.ok", "w") as f:
+            f.write("invenio check ok")
+
+    @property
+    def _invenio_cli_dir(self):
+        return Path(self.data.project_dir) / ".venv" / "invenio-cli"
+
+    def should_run(self):
+        return not (self._invenio_cli_dir / ".check.ok").exists()

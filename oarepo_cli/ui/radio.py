@@ -1,7 +1,7 @@
 try:
-    import gnureadline as readline
+    pass
 except ImportError:
-    import readline
+    pass
 
 from typing import Dict
 
@@ -17,7 +17,6 @@ class Radio(Widget):
         self.default = default
 
     def run(self):
-        options = self.options
         displayed = [
             (str(idx + 1), key, label)
             for idx, (key, label) in enumerate(self.options.items())
@@ -26,7 +25,7 @@ class Radio(Widget):
         for d in displayed:
             print(f"{Fore.YELLOW}{d[0]}{Style.RESET_ALL}) {d[2]}")
 
-        value = self.value
+        value = self.value or self.default
         option = None
         for d in displayed:
             if d[1] == value:

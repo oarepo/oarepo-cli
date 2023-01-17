@@ -2,12 +2,12 @@ from io import StringIO
 from pathlib import Path
 
 import yaml
+from deepmerge import always_merger
 
 
 class Config:
     def __init__(self):
         self.config = {}
-        self.ok_steps = []
 
     def __getitem__(self, item):
         return self.config[item]
@@ -34,14 +34,6 @@ class Config:
     def setdefault(self, item, default):
         return self.config.setdefault(item, default)
 
-    def set_step_ok(self, step_name):
-        if step_name not in self.ok_steps:
-            self.ok_steps.append(step_name)
-        self.on_changed()
-
-    def is_step_ok(self, step_name):
-        return step_name in self.ok_steps
-
     def on_changed(self):
         pass
 
@@ -49,41 +41,44 @@ class Config:
 class MonorepoConfig(Config):
     type = "monorepo"
 
-    def __init__(self, path: Path, section=None):
+    def __init__(self, path: Path, section=["config"]):
         super().__init__()
         self.path = path
         self.existing = False
-        self.section = tuple(section or [])
+        if not section:
+            section = []
+        elif isinstance(section, str):
+            section = [section]
+        self.section_path = tuple(section)
         self.whole_data = {}
-        self.save_steps = True
+        self._load_section()
 
     def load(self):
         with open(self.path, "r") as f:
             data = yaml.safe_load(f)
             self.whole_data = data
-            for s in self.section:
-                data = data.get(s, {}) or {}
-            self.config = data.get("config", {}) or {}
-            self.ok_steps = data.get("ok_steps", []) or []
+            self._load_section()
             self.existing = True
+
+    def _load_section(self):
+        data = self.whole_data
+        for s in self.section_path:
+            data = data.setdefault(s, {})
+        self.config = data
 
     def save(self):
         data = {**self.whole_data, "type": self.type}
-        dd = data
-        for s in self.section:
-            dd = dd.setdefault(s, {})
-        dd["config"] = self.config
-        dd["ok_steps"] = self.ok_steps
         # just try to dump so that if that is not successful we do not overwrite the config
         sio = StringIO()
         yaml.safe_dump(data, sio)
 
         # and real dump here
-        with open(self.path, "w") as f:
-            f.write(sio.getvalue())
+        if self.path.parent.exists():
+            with open(self.path, "w") as f:
+                f.write(sio.getvalue())
 
     def on_changed(self):
-        if self.path.parent.exists() and self.save_steps:
+        if self.path.parent.exists():
             self.save()
 
     def _section(self, name, default=None):
@@ -91,9 +86,25 @@ class MonorepoConfig(Config):
         d = self.whole_data
         for n in name[:-1]:
             d = d.get(n, {})
-        return d.get(name[-1], None)
+        return d.get(name[-1], default)
 
     def get(self, item, default=None):
         if "." in item:
             return self._section(item, default)
         return super().get(item, default)
+
+    @property
+    def section(self):
+        return self.section_path[-1]
+
+    @property
+    def project_dir(self):
+        return self.path.parent.resolve()
+
+    def merge_config(self, config_data, top=False):
+        if top:
+            always_merger.merge(self.whole_data, config_data)
+            self._load_section()
+            self.save()
+        else:
+            always_merger.merge(self.config, config_data)

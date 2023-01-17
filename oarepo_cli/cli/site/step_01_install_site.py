@@ -2,18 +2,16 @@ from __future__ import annotations
 
 import datetime
 import os
-from pathlib import Path
+import re
 
-from oarepo_cli.templates import get_cookiecutter_template
+from oarepo_cli.cli.site.utils import SiteWizardStepMixin
 from oarepo_cli.ui.wizard import StaticWizardStep, WizardStep
 from oarepo_cli.ui.wizard.steps import InputWizardStep
 
-from ..utils import run_cmdline
+from ...utils import run_cmdline
 
 
-class InstallSiteStep(WizardStep):
-    step_name = "install-site"
-
+class InstallSiteStep(SiteWizardStepMixin, WizardStep):
     def __init__(self, **kwargs):
         super().__init__(
             heading="""
@@ -23,36 +21,35 @@ If not sure, keep the default values.""",
             **kwargs,
         )
 
-    def get_steps(self, data):
-        data.setdefault("site_dir", "site")
-        data.setdefault("site_package", "site")
-        data.setdefault("year", datetime.datetime.today().strftime("%Y"))
-        data.setdefault("transifex_project", data.get("project_package", ""))
-        data.setdefault(
-            "repository_name", data.get("project_package").replace("_", " ").title()
-        )
-        data.setdefault(
-            "author_name", os.environ.get("USERNAME") or os.environ.get("USERNAME")
+    def get_steps(self):
+        self.data.setdefault(
+            "transifex_project", self.data.get("config.project_package", "")
         )
         # substeps of this step
+        site_dir_name = self.site_dir.name
         return [
             InputWizardStep(
                 "repository_name",
                 prompt="""Enter the repository name ("title" of the HTML site)""",
+                default=re.sub("[_-]", " ", site_dir_name).title(),
             ),
             InputWizardStep(
                 "www",
                 prompt="""Enter the WWW address on which the repository will reside""",
             ),
             InputWizardStep(
-                "site_package", prompt="""Site package (keep the default if not sure)"""
+                "author_name",
+                prompt="""Author name""",
+                default=os.environ.get("USERNAME") or os.environ.get("USER"),
             ),
-            InputWizardStep("author_name", prompt="""Author name"""),
             InputWizardStep("author_email", prompt="""Author email"""),
-            InputWizardStep("year", prompt="""Year (for copyright)"""),
+            InputWizardStep(
+                "year",
+                prompt="""Year (for copyright)""",
+                default=datetime.datetime.today().strftime("%Y"),
+            ),
             InputWizardStep("copyright_holder", prompt="""Copyright holder"""),
             StaticWizardStep(
-                "install-site-before-generate",
                 heading="""I have all the information to generate the site.
 To do so, I'll call the invenio client. If anything goes wrong, please fix the problem
 and run the wizard again.
@@ -60,21 +57,25 @@ and run the wizard again.
             ),
         ]
 
-    def after_run(self, data):
+    def after_run(self):
         # create site config for invenio-cli
-        cookiecutter_config_file = Path(data["project_dir"]) / ".invenio"
+        cookiecutter_config_file = self.data.project_dir / ".invenio"
+        site_dir = self.site_dir
+        if not site_dir.parent.exists():
+            site_dir.parent.mkdir(parents=True)
+
         with open(cookiecutter_config_file, "w") as f:
             print(
                 f"""
 [cookiecutter]
-project_name = {data['repository_name']}
-project_shortname = {data['site_package']}
-project_site = {data['www']}
+project_name = {self.data['repository_name']}
+project_shortname = {self.site_dir.name}
+project_site = {self.data['www']}
 github_repo = 
-description = {data['repository_name']} OARepo Instance
-author_name = {data['author_name']}
-author_email = {data['author_email']}
-year = {data['year']}
+description = {self.data['repository_name']} OARepo Instance
+author_name = {self.data['author_name']}
+author_email = {self.data['author_email']}
+year = {self.data['year']}
 python_version = 3.9
 database = postgresql
 search = opensearch2
@@ -86,7 +87,7 @@ development_tools = yes
         # and run invenio-cli with our site template
         # (submodule from https://github.com/oarepo/cookiecutter-oarepo-instance)
         run_cmdline(
-            data["invenio_cli"],
+            self.data.project_dir / self.data.get("config.invenio_cli"),
             "init",
             "rdm",
             "-t",
@@ -96,6 +97,15 @@ development_tools = yes
             "--no-input",
             "--config",
             str(cookiecutter_config_file),
-            cwd=Path(data["project_dir"]),
-            environ={"PIPENV_IGNORE_VIRTUALENVS": "1"},
+            cwd=self.data.project_dir / "sites",
+            environ={
+                "PIPENV_IGNORE_VIRTUALENVS": "1",
+                # use our own cookiecutter, not the system one
+                "PATH": f"{self.data.get('config.project_dir')}/.bin:{os.environ['PATH']}",
+            },
         )
+        with open(self.site_dir / ".check.ok", "w") as f:
+            f.write("oarepo check ok")
+
+    def should_run(self):
+        return not (self.site_dir / ".check.ok").exists()
