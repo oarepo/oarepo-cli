@@ -34,7 +34,14 @@ To run them, invoke the "oarepo-cli" script from within the project directory.
             pip_binary, "install", "-U", "--no-input", "setuptools", "pip", "wheel"
         )
         # TODO: non-local path
-        run_cmdline(pip_binary, "install", "--no-input", "oarepo-cli")
+        # run_cmdline(pip_binary, "install", "--no-input", "oarepo-cli")
+        run_cmdline(
+            pip_binary,
+            "install",
+            "--no-input",
+            "git+https://github.com/oarepo/oarepo-cli",
+        )
+
         # run_cmdline(
         #     pip_binary,
         #     "install",
