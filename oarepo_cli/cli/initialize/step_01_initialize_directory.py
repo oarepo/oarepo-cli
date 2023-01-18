@@ -18,4 +18,4 @@ class DirectoryStep(WizardStep):
             p.mkdir(parents=True)
 
     def should_run(self):
-        return not self.data.project_dir.exists()
+        return True
