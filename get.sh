@@ -6,6 +6,7 @@ set -e
 PYTHON=python3.9
 
 PROJECT_DIR="$1"
+OAREPO_CLI_INITIAL_VENV="$PROJECT_DIR/.venv/oarepo-cli-initial"
 
 test -d "$PROJECT_DIR" || {
   mkdir "$PROJECT_DIR"
@@ -15,10 +16,10 @@ test -d "$PROJECT_DIR/.venv" || {
   mkdir "$PROJECT_DIR/.venv"
 }
 
-test -d "$PROJECT_DIR/.venv/oarepo-cli" || {
-  "$PYTHON" -m venv "$PROJECT_DIR/.venv/oarepo-cli"
-  "$PROJECT_DIR/.venv/oarepo-cli/bin/pip" install -U setuptools pip wheel
-  "$PROJECT_DIR/.venv/oarepo-cli/bin/pip" install "git+https://github.com/oarepo/oarepo-cli"
+test -d "$OAREPO_CLI_INITIAL_VENV" || {
+  "$PYTHON" -m venv "$OAREPO_CLI_INITIAL_VENV"
+  "$OAREPO_CLI_INITIAL_VENV/bin/pip" install -U setuptools pip wheel
+  "$OAREPO_CLI_INITIAL_VENV/bin/pip" install "git+https://github.com/oarepo/oarepo-cli"
 }
 
-"$PROJECT_DIR/.venv/oarepo-cli/bin/oarepo-cli" initialize "$PROJECT_DIR"
+"$OAREPO_CLI_INITIAL_VENV/bin/oarepo-cli" initialize "$PROJECT_DIR"
