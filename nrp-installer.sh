@@ -5,6 +5,11 @@ set -e
 # TODO: find python
 PYTHON=python3.9
 
+if [ x"$1" == "x" ] ; then
+  echo "Usage: $0 <target-project-directory>"
+  exit 1
+fi
+
 PROJECT_DIR="$1"
 OAREPO_CLI_INITIAL_VENV="$PROJECT_DIR/.venv/oarepo-cli-initial"
 
