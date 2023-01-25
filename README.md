@@ -5,12 +5,12 @@ Work in progress.
 ## Repository project initialization
 
 Download the file from 
-`https://raw.githubusercontent.com/oarepo/oarepo-cli/main/get.sh`,
-inspect it (always a good practice) and run `bash get.sh <project_dir>`
+`https://raw.githubusercontent.com/oarepo/oarepo-cli/main/nrp-installer.sh`,
+inspect it (always a good practice) and run `bash nrp-installer.sh <project_dir>`
 
 ## Roadmap
 
-OARepo client is meant to simplify:
+NRP client is meant to simplify:
 
 **Site:**
 
