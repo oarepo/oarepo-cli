@@ -101,10 +101,23 @@ class AlembicWizardStep(ModelWizardStep):
             ]
 
             model_dir = model_dir.replace(".", os.sep)
-            model_dir = self.model_dir() / model_dir
-            alembic_path = model_dir.parent / "alembic"
+            model_dir = self.model_dir / model_dir
+            alembic_path = self.get_alembic_path(model_dir)
+            if not alembic_path:
+                print(
+                    f"{Fore.RED}Alembic path not found for model in {model_dir}, "
+                    f"so can not set up alembic. You will have to do it manually{Style.RESET_ALL}"
+                )
+            else:
+                self.setup_alembic(branch, alembic_path)
 
-            self.setup_alembic(branch, alembic_path)
+    def get_alembic_path(self, model_dir):
+        md = model_dir
+        while md != self.model_dir:
+            ap = md / "alembic"
+            if ap.exists():
+                return ap
+            md = md.parent
 
     def setup_alembic(self, branch, alembic_path):
         filecount = len(list(alembic_path.iterdir()))
@@ -195,8 +208,13 @@ the index?
     )
 
     def after_run(self):
+        setup_cfg = read_configuration(self.model_dir / "setup.cfg")
+        for cmd_def in setup_cfg["options"]["entry_points"]["flask.commands"]:
+            cmd_name, _ = [x.strip() for x in cmd_def.split("=", maxsplit=1)]
+            break
+
         if self.data["update_opensearch"] == "run":
-            self.invenio_command(self.model_name, "reindex", "--recreate")
+            self.invenio_command(cmd_name, "reindex", "--recreate")
 
     def should_run(self):
         return True
