@@ -18,4 +18,4 @@ class ModelWizardStep(SiteMixin, ProjectWizardMixin, WizardStep):
 
     @property
     def model_package_dir(self):
-        return self.model_dir / self.data["model_package"]
+        return self.model_dir / os.sep.join(self.data["model_package"].split("."))

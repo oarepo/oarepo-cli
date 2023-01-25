@@ -16,7 +16,7 @@ import yaml
 Generate a new model. Required arguments:
     <name>   ... name of the model, can contain [a-z] and dash (-)""",
 )
-@click.argument("name")
+@click.argument("name", required=True)
 @with_config(config_section=lambda name, **kwargs: ["models", name])
 def add_model(cfg=None, **kwargs):
     add_model_wizard.run(cfg)

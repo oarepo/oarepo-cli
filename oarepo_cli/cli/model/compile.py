@@ -17,7 +17,7 @@ Compile model yaml file to invenio sources. Required arguments:
     <name>   ... name of the already existing model
 """,
 )
-@click.argument("name", required=False)
+@click.argument("name", required=True)
 @with_config(config_section=lambda name, **kwargs: ["models", name])
 def compile_model(cfg=None, **kwargs):
     optional_steps = []
@@ -64,7 +64,11 @@ class CompileWizardStep(ModelWizardStep, WizardStep):
                 "oarepo-model-builder>=1.0.0a5",
                 "oarepo-model-builder-tests",
             )
-
+        # TODO: install plugins - but note, there might be error parsing the file as some includes might be handled by the plugin
+        # TODO: support for files
+        # TODO: support for requests
+        # TODO: support for relations
+        # TODO: support for extended
         opts = []
         if self.data.get("merge_changes", None) == "overwrite":
             opts.append("--overwrite")

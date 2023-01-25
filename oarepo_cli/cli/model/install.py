@@ -1,3 +1,4 @@
+import os
 import shutil
 import venv
 
@@ -10,6 +11,8 @@ from oarepo_cli.ui.wizard import Wizard
 from oarepo_cli.ui.wizard.steps import RadioWizardStep, WizardStep
 from oarepo_cli.utils import run_cmdline
 
+from setuptools.config import read_configuration
+
 
 @click.command(
     name="install",
@@ -17,7 +20,7 @@ from oarepo_cli.utils import run_cmdline
 Install the model into the current site. Required arguments:
     <name>   ... name of the already existing model""",
 )
-@click.argument("name", required=False)
+@click.argument("name", required=True)
 @with_config(config_section=lambda name, **kwargs: ["models", name])
 def install_model(cfg=None, **kwargs):
     wizard = Wizard(
@@ -91,9 +94,19 @@ class AlembicWizardStep(ModelWizardStep):
     pause = True
 
     def after_run(self):
-        model_package = self.data["model_package"]
-        model_package_dir = self.model_package_dir
-        alembic_path = model_package_dir / "alembic"
+        setup_cfg = read_configuration(self.model_dir / "setup.cfg")
+        for alembic_config in setup_cfg["options"]["entry_points"]["invenio_db.models"]:
+            branch, model_dir = [
+                x.strip() for x in alembic_config.split("=", maxsplit=1)
+            ]
+
+            model_dir = model_dir.replace(".", os.sep)
+            model_dir = self.model_dir() / model_dir
+            alembic_path = model_dir.parent / "alembic"
+
+            self.setup_alembic(branch, alembic_path)
+
+    def setup_alembic(self, branch, alembic_path):
         filecount = len(list(alembic_path.iterdir()))
 
         if filecount < 2:
@@ -103,16 +116,17 @@ class AlembicWizardStep(ModelWizardStep):
             self.invenio_command(
                 "alembic",
                 "revision",
-                f"Create {model_package} branch.",
+                f"Create {branch} branch for {self.data['model_package']}.",
                 "-b",
-                model_package,
+                branch,
                 "-p",
                 "dbdbc1b19cf2",
                 "--empty",
             )
+            self.fix_sqlalchemy_utils(alembic_path)
             self.invenio_command("alembic", "upgrade", "heads")
             self.invenio_command(
-                "alembic", "revision", "Initial revision.", "-b", model_package
+                "alembic", "revision", "Initial revision.", "-b", branch
             )
             self.fix_sqlalchemy_utils(alembic_path)
             self.invenio_command("alembic", "upgrade", "heads")
@@ -124,7 +138,7 @@ class AlembicWizardStep(ModelWizardStep):
                 "revision",
                 "oarepo-cli install revision.",
                 "-b",
-                model_package,
+                branch,
             )
             self.fix_sqlalchemy_utils(alembic_path)
             self.invenio_command("alembic", "upgrade", "heads")
