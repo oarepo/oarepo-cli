@@ -62,7 +62,7 @@ class CompileWizardStep(ModelWizardStep, WizardStep):
                 "install",
                 "--no-input",
                 "oarepo-model-builder>=3.0.0",
-                "oarepo-model-builder-tests",
+                # "oarepo-model-builder-tests",
             )
         # TODO: install plugins - but note, there might be error parsing the file as some includes might be handled by the plugin
         # TODO: support for files
