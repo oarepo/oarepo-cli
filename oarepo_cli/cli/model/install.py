@@ -149,7 +149,7 @@ class AlembicWizardStep(ModelWizardStep):
             self.invenio_command(
                 "alembic",
                 "revision",
-                "oarepo-cli install revision.",
+                "nrp-cli install revision.",
                 "-b",
                 branch,
             )

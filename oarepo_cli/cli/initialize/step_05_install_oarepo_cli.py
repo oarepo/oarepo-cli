@@ -14,13 +14,13 @@ class InstallIOARepoCliStep(WizardStep):
         super().__init__(
             heading="""
 I will install oarepo command-line tools that make using the invenio easier.
-To run them, invoke the "oarepo-cli" script from within the project directory.            
+To run them, invoke the "nrp-cli" script from within the project directory.            
             """,
             **kwargs,
         )
 
     def after_run(self):
-        print("Creating oarepo-cli virtualenv")
+        print("Creating nrp-cli virtualenv")
         oarepo_cli_dir = self._oarepo_cli_dir
         self.data["oarepo_cli"] = str(
             (oarepo_cli_dir / "bin" / "oarepo-cli").relative_to(self.data.project_dir)

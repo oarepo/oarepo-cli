@@ -105,7 +105,7 @@ def add_to_pipfile_dependencies(pipfile, package_name, package_path):
             break
     else:
         t = tomlkit.inline_table()
-        t.comment("Added by oarepo-cli")
+        t.comment("Added by nrp-cli")
         t.update({"editable": True, "path": package_path})
         pipfile_data["packages"].add(tomlkit.nl())
         pipfile_data["packages"][package_name] = t

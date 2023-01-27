@@ -149,8 +149,8 @@ Now tell me something about you. The defaults are taken from the monorepo, feel 
     StaticWizardStep(
         heading=lambda data: f"""
 The model has been generated in the {data.section} directory.
-At first, edit the metadata.yaml and then run "oarepo-cli model compile {data.section}"
-and to install to the site run "oarepo-cli model install {data.section}".
+At first, edit the metadata.yaml and then run "nrp-cli model compile {data.section}"
+and to install to the site run "nrp-cli model install {data.section}".
                      """,
         pause=True,
     ),
