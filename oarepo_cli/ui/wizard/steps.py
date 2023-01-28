@@ -182,7 +182,7 @@ class StaticWizardStep(WizardStep):
 
 
 class RadioWizardStep(WizardStep):
-    def __init__(self, key, heading, options=None, default=None, force_run=False):
+    def __init__(self, key, heading=None, options=None, default=None, force_run=False):
         super().__init__(Radio(key, default=default, options=options), heading=heading)
         self.key = key
         self.force_run = force_run

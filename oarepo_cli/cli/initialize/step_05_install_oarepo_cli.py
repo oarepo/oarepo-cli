@@ -8,6 +8,8 @@ from oarepo_cli.ui.wizard import WizardStep
 
 from ...utils import run_cmdline
 
+import os
+
 
 class InstallIOARepoCliStep(WizardStep):
     def __init__(self, **kwargs):
@@ -33,22 +35,29 @@ To run them, invoke the "nrp-cli" script from within the project directory.
         run_cmdline(
             pip_binary, "install", "-U", "--no-input", "setuptools", "pip", "wheel"
         )
-        # TODO: non-local path
-        # run_cmdline(pip_binary, "install", "--no-input", "oarepo-cli")
-        run_cmdline(
-            pip_binary,
-            "install",
-            "--no-input",
-            "git+https://github.com/oarepo/oarepo-cli",
-        )
-
-        # run_cmdline(
-        #     pip_binary,
-        #     "install",
-        #     "--no-input",
-        #     "-e",
-        #     Path(__file__).parent.parent.parent.parent,
-        # )
+        installation_option = os.environ.get("OAREPO_INSTALL_VERSION", "release")
+        if installation_option == "release":
+            # TODO: non-local path
+            run_cmdline(pip_binary, "install", "--no-input", "oarepo-cli")
+        elif installation_option == "maintrunk":
+            run_cmdline(
+                pip_binary,
+                "install",
+                "--no-input",
+                "git+https://github.com/oarepo/oarepo-cli",
+            )
+        elif installation_option == "local":
+            run_cmdline(
+                pip_binary,
+                "install",
+                "--no-input",
+                "-e",
+                Path(__file__).parent.parent.parent.parent,
+            )
+        else:
+            raise ValueError(
+                "Please set the OAREPO_INSTALL_VERSION to release(default), maintrunk or local (local development)"
+            )
         with open(oarepo_cli_dir / ".check.ok", "w") as f:
             f.write("oarepo check ok")
 

@@ -6,7 +6,7 @@ import re
 
 from oarepo_cli.cli.site.utils import SiteWizardStepMixin
 from oarepo_cli.ui.wizard import StaticWizardStep, WizardStep
-from oarepo_cli.ui.wizard.steps import InputWizardStep
+from oarepo_cli.ui.wizard.steps import InputWizardStep, RadioWizardStep
 
 from ...utils import run_cmdline
 
@@ -28,6 +28,11 @@ If not sure, keep the default values.""",
         # substeps of this step
         site_dir_name = self.site_dir.name
         return [
+            InputWizardStep(
+                "invenio_version",
+                prompt="""Enter the Invenio version (advanced), keep the default if unsure""",
+                default="v11.0",
+            ),
             InputWizardStep(
                 "repository_name",
                 prompt="""Enter the repository name ("title" of the HTML site)""",
@@ -81,6 +86,7 @@ database = postgresql
 search = opensearch2
 file_storage = S3
 development_tools = yes
+site_code = yes
                 """,
                 file=f,
             )
@@ -93,7 +99,7 @@ development_tools = yes
             "-t",
             "https://github.com/oarepo/cookiecutter-site",
             "-c",
-            "v10.0",
+            self.data["invenio_version"],
             "--no-input",
             "--config",
             str(cookiecutter_config_file),
