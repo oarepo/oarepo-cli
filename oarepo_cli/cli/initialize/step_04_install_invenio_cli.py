@@ -38,21 +38,12 @@ https://inveniordm.docs.cern.ch/install/requirements/ .
             pip_binary, "install", "-U", "--no-input", "setuptools", "pip", "wheel"
         )
         run_cmdline(pip_binary, "install", "--no-input", "invenio-cli")
-        run_cmdline(
-            invenio_cli_dir / "bin" / "invenio-cli",
-            "check-requirements",
-            "--development",
-            environ={
-                "PIPENV_IGNORE_VIRTUALENVS": "1",
-                "PATH": f"{self.data.project_dir}/.bin:{os.environ['PATH']}",
-            },
-        )
-        with open(invenio_cli_dir / ".check.ok", "w") as f:
-            f.write("invenio check ok")
+        with open(invenio_cli_dir / ".install.ok", "w") as f:
+            f.write("invenio installation ok")
 
     @property
     def _invenio_cli_dir(self):
         return Path(self.data.project_dir) / ".venv" / "invenio-cli"
 
     def should_run(self):
-        return not (self._invenio_cli_dir / ".check.ok").exists()
+        return not (self._invenio_cli_dir / ".install.ok").exists()
