@@ -51,4 +51,4 @@ test -d "$OAREPO_CLI_INITIAL_VENV" || {
   "$OAREPO_CLI_INITIAL_VENV/bin/pip" install oarepo-cli=${OAREPO_CLI_VERSION}
 }
 
-"$OAREPO_CLI_INITIAL_VENV/bin/oarepo-cli" initialize --python ${RESOLVED_PYTHON} "$PROJECT_DIR"
+"$OAREPO_CLI_INITIAL_VENV/bin/oarepo-cli" initialize "$PROJECT_DIR"
