@@ -5,7 +5,7 @@ Work in progress.
 ## Repository project initialization
 
 Download the file from 
-`https://raw.githubusercontent.com/oarepo/oarepo-cli/main/nrp-installer.sh`,
+`https://raw.githubusercontent.com/oarepo/oarepo-cli/v11.0/nrp-installer.sh`,
 inspect it (always a good practice) and run `bash nrp-installer.sh <project_dir>`
 
 ## Roadmap
