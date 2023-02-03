@@ -35,7 +35,7 @@ To run them, invoke the "nrp-cli" script from within the project directory.
         run_cmdline(
             pip_binary, "install", "-U", "--no-input", "setuptools", "pip", "wheel"
         )
-        installation_option = os.environ.get("OAREPO_INSTALL_VERSION", "release")
+        installation_option = os.environ.get("OAREPO_CLI_VERSION", "release")
         if installation_option == "release":
             run_cmdline(pip_binary, "install", "--no-input", "oarepo-cli==11")
         elif installation_option == "maintrunk":

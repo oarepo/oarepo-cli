@@ -4,7 +4,7 @@ set -e
 
 COMMAND="$0"
 PYTHON=python3.9
-OAREPO_CLI_VERSION="^11.0.0"
+OAREPO_CLI_VERSION="release"
 
 print_usage() {
   echo "Usage: ${COMMAND} [-p <python_bin>] [-b <oarepo-client-version>] <target-project-directory>"
@@ -48,7 +48,16 @@ test -d "$PROJECT_DIR/.venv" || {
 test -d "$OAREPO_CLI_INITIAL_VENV" || {
   "$RESOLVED_PYTHON" -m venv "$OAREPO_CLI_INITIAL_VENV"
   "$OAREPO_CLI_INITIAL_VENV/bin/pip" install -U setuptools pip wheel
-  "$OAREPO_CLI_INITIAL_VENV/bin/pip" install oarepo-cli=${OAREPO_CLI_VERSION}
+
+  if [ ${OAREPO_CLI_VERSION} == "release" ] ; then
+    "$OAREPO_CLI_INITIAL_VENV/bin/pip" install "oarepo-cli==^11.0.0"
+  elif [ ${OAREPO_CLI_VERSION} == "maintrunk" ] ; then
+    "$OAREPO_CLI_INITIAL_VENV/bin/pip" install "git+https://github.com/oarepo/oarepo-cli"
+  else
+    "$OAREPO_CLI_INITIAL_VENV/bin/pip" install "${OAREPO_CLI_VERSION}"
+  fi
 }
+
+export OAREPO_CLI_VERSION=${OAREPO_CLI_VERSION}
 
 "$OAREPO_CLI_INITIAL_VENV/bin/oarepo-cli" initialize "$PROJECT_DIR"
