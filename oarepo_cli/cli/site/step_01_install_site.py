@@ -29,11 +29,6 @@ If not sure, keep the default values.""",
         site_dir_name = self.site_dir.name
         return [
             InputWizardStep(
-                "invenio_version",
-                prompt="""Enter the Invenio version (advanced), keep the default if unsure""",
-                default="v11.0",
-            ),
-            InputWizardStep(
                 "repository_name",
                 prompt="""Enter the repository name ("title" of the HTML site)""",
                 default=re.sub("[_-]", " ", site_dir_name).title(),
@@ -92,14 +87,32 @@ site_code = yes
             )
         # and run invenio-cli with our site template
         # (submodule from https://github.com/oarepo/cookiecutter-oarepo-instance)
+
+        installation_option = os.environ.get("OAREPO_SITE_COOKIECUTTER_VERSION", "release")
+
+        if installation_option == "release":
+            cookiecutter_path = "https://github.com/oarepo/cookiecutter-site"
+            cookiecutter_branch = "v11.0"
+        elif installation_option == "maintrunk":
+            cookiecutter_path = "https://github.com/oarepo/cookiecutter-site"
+            cookiecutter_branch = "master"
+        else:
+            cookiecutter_path = installation_option
+            cookiecutter_branch = None
+
+
         run_cmdline(
             self.data.project_dir / self.data.get("config.invenio_cli"),
             "init",
             "rdm",
             "-t",
-            "https://github.com/oarepo/cookiecutter-site",
-            "-c",
-            self.data["invenio_version"],
+            cookiecutter_path,
+            *(
+                [
+                    "-c",
+                    cookiecutter_branch,
+                ] if cookiecutter_branch else []
+            ),
             "--no-input",
             "--config",
             str(cookiecutter_config_file),

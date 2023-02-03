@@ -37,8 +37,7 @@ To run them, invoke the "nrp-cli" script from within the project directory.
         )
         installation_option = os.environ.get("OAREPO_INSTALL_VERSION", "release")
         if installation_option == "release":
-            # TODO: non-local path
-            run_cmdline(pip_binary, "install", "--no-input", "oarepo-cli")
+            run_cmdline(pip_binary, "install", "--no-input", "oarepo-cli==11")
         elif installation_option == "maintrunk":
             run_cmdline(
                 pip_binary,
@@ -46,17 +45,13 @@ To run them, invoke the "nrp-cli" script from within the project directory.
                 "--no-input",
                 "git+https://github.com/oarepo/oarepo-cli",
             )
-        elif installation_option == "local":
+        else:
             run_cmdline(
                 pip_binary,
                 "install",
                 "--no-input",
                 "-e",
-                Path(__file__).parent.parent.parent.parent,
-            )
-        else:
-            raise ValueError(
-                "Please set the OAREPO_INSTALL_VERSION to release(default), maintrunk or local (local development)"
+                Path(installation_option),
             )
         with open(oarepo_cli_dir / ".check.ok", "w") as f:
             f.write("oarepo check ok")

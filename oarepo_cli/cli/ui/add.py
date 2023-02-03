@@ -8,6 +8,7 @@ from oarepo_cli.cli.utils import with_config
 from oarepo_cli.ui.wizard import StaticWizardStep, Wizard
 from oarepo_cli.ui.wizard.steps import InputWizardStep, RadioWizardStep, WizardStep
 from oarepo_cli.utils import to_python_name
+import os
 
 
 @click.command(
@@ -101,10 +102,22 @@ class AddUIWizardStep(UIWizardMixin, ProjectWizardMixin, WizardStep):
             "url_prefix": self.data["url_prefix"],
         }
 
+        installation_option = os.environ.get("OAREPO_UI_COOKIECUTTER_VERSION", "release")
+
+        if installation_option == "release":
+            cookiecutter_path = "https://github.com/oarepo/cookiecutter-app"
+            cookiecutter_branch = "v11.0"
+        elif installation_option == "maintrunk":
+            cookiecutter_path = "https://github.com/oarepo/cookiecutter-app"
+            cookiecutter_branch = "master"
+        else:
+            cookiecutter_path = installation_option
+            cookiecutter_branch = None
+
         self.run_cookiecutter(
-            template="https://github.com/oarepo/cookiecutter-app",
+            template=cookiecutter_path,
             config_file=f"ui-{ui_name}",
-            checkout="v10.0",
+            checkout=cookiecutter_branch,
             output_dir=self.data.project_dir / "ui",
             extra_context=cookiecutter_data,
         )

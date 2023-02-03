@@ -8,6 +8,7 @@ from oarepo_cli.ui.wizard import InputWizardStep, StaticWizardStep, Wizard, Wiza
 from oarepo_cli.ui.wizard.steps import RadioWizardStep
 from oarepo_cli.utils import to_python_name
 import yaml
+import os
 
 
 @click.command(
@@ -32,10 +33,24 @@ class CreateModelWizardStep(ModelWizardStep, WizardStep):
             "data": "TODO",
         }.get(self.data["model_kind"])
         base_model_use = base_model_package.replace("-model-builder", "")
+
+        installation_option = os.environ.get("OAREPO_MODEL_COOKIECUTTER_VERSION", "release")
+
+        if installation_option == "release":
+            cookiecutter_path = "https://github.com/oarepo/cookiecutter-model"
+            cookiecutter_branch = "v11.0"
+        elif installation_option == "maintrunk":
+            cookiecutter_path = "https://github.com/oarepo/cookiecutter-model"
+            cookiecutter_branch = "master"
+        else:
+            cookiecutter_path = installation_option
+            cookiecutter_branch = None
+
+
         self.run_cookiecutter(
-            template="https://github.com/oarepo/cookiecutter-model",
+            template=cookiecutter_path,
             config_file=f"model-{model_dir.name}",
-            checkout="v10.0",
+            checkout=cookiecutter_branch,
             output_dir=str(model_dir.parent),
             extra_context={
                 **self.data,
