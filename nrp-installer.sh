@@ -2,12 +2,36 @@
 
 set -e
 
-# TODO: find python
+COMMAND="$0"
 PYTHON=python3.9
+OAREPO_CLI_VERSION="^11.0.0"
+
+print_usage() {
+  echo "Usage: ${COMMAND} [-p <python_bin>] [-b <oarepo-client-version>] <target-project-directory>"
+  exit 1
+}
+
+# process switches
+while getopts 'hp:b:' c
+do
+  case $c in
+    h) print_usage ;;
+    p) PYTHON=$OPTARG ;;
+    b) OAREPO_CLI_VERSION=$OPTARG ;;
+  esac
+done
+shift $((OPTIND-1))
+
+RESOLVED_PYTHON=$(readlink -f $(which "$PYTHON")) || true
+
+if ! [ -x "$RESOLVED_PYTHON" ] ; then
+  echo "The specified Python version (${PYTHON}) could not be found."
+  echo "To resolve this issue, either add Python 3.9 to your PATH environment variable, or specify the path to the Python binary using the '-p' option."
+  exit 1
+fi
 
 if [ x"$1" == "x" ] ; then
-  echo "Usage: $0 <target-project-directory>"
-  exit 1
+  print_usage
 fi
 
 PROJECT_DIR="$1"
@@ -22,9 +46,9 @@ test -d "$PROJECT_DIR/.venv" || {
 }
 
 test -d "$OAREPO_CLI_INITIAL_VENV" || {
-  "$PYTHON" -m venv "$OAREPO_CLI_INITIAL_VENV"
+  "$RESOLVED_PYTHON" -m venv "$OAREPO_CLI_INITIAL_VENV"
   "$OAREPO_CLI_INITIAL_VENV/bin/pip" install -U setuptools pip wheel
-  "$OAREPO_CLI_INITIAL_VENV/bin/pip" install "git+https://github.com/oarepo/oarepo-cli"
+  "$OAREPO_CLI_INITIAL_VENV/bin/pip" install oarepo-cli=${OAREPO_CLI_VERSION}
 }
 
-"$OAREPO_CLI_INITIAL_VENV/bin/oarepo-cli" initialize "$PROJECT_DIR"
+"$OAREPO_CLI_INITIAL_VENV/bin/oarepo-cli" initialize --python ${RESOLVED_PYTHON} "$PROJECT_DIR"
