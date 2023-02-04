@@ -22,12 +22,16 @@ do
 done
 shift $((OPTIND-1))
 
-RESOLVED_PYTHON=$(readlink -f $(which "$PYTHON")) || true
-
-if ! [ -x "$RESOLVED_PYTHON" ] ; then
+python_version_error() {
   echo "The specified Python version (${PYTHON}) could not be found."
   echo "To resolve this issue, either add Python 3.9 to your PATH environment variable, or specify the path to the Python binary using the '-p' option."
   exit 1
+}
+
+RESOLVED_PYTHON=$(readlink -f $(which "$PYTHON")) || python_version_error
+
+if ! [ -x "$RESOLVED_PYTHON" ] ; then
+  python_version_error
 fi
 
 if [ x"$1" == "x" ] ; then

@@ -13,7 +13,8 @@ from oarepo_cli.utils import add_to_pipfile_dependencies, print_banner, run_cmdl
 
 
 def with_config(
-    config_section=None, project_dir_as_argument=False, config_as_argument=False
+    config_section=None, project_dir_as_argument=False, config_as_argument=False,
+    force_no_banner=False
 ):
     def wrapper(f):
         @(
@@ -107,7 +108,7 @@ def with_config(
             cfg.silent = silent
             cfg.verbose = verbose
 
-            if not no_banner:
+            if not no_banner and not force_no_banner:
                 print_banner()
             kwargs.pop("cfg", None)
             kwargs.pop("project_dir", None)

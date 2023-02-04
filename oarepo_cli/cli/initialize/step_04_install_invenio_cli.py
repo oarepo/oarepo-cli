@@ -34,10 +34,13 @@ https://inveniordm.docs.cern.ch/install/requirements/ .
         venv.main([str(invenio_cli_dir)])
         pip_binary = invenio_cli_dir / "bin" / "pip"
 
+        invenio_cli_version=os.environ.get('INVENIO_CLI_VERSION', '1.0.16')
+
         run_cmdline(
             pip_binary, "install", "-U", "--no-input", "setuptools", "pip", "wheel"
         )
-        run_cmdline(pip_binary, "install", "--no-input", "invenio-cli")
+        run_cmdline(pip_binary, "install", "--no-input", f"invenio-cli=={invenio_cli_version}")
+        
         with open(invenio_cli_dir / ".install.ok", "w") as f:
             f.write("invenio installation ok")
 
