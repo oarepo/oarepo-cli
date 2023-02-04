@@ -1,0 +1,21 @@
+config:
+  invenio_cli: .venv/invenio-cli/bin/invenio-cli
+  oarepo_cli: .venv/oarepo-cli/bin/oarepo-cli
+  packaging: single
+  primary_site_name: repo-site
+  project_package: repo
+sites:
+  repo-site:
+    author_email: m@m.com
+    author_name: m
+    copyright_holder: cesnet
+    create_pipenv_in_site: 'yes'
+    init_database: 'yes'
+    repository_name: My Repo Site
+    site_dir: sites/repo-site
+    site_package: repo_site
+    site_pipenv_dir: sites/repo-site/.venv
+    transifex_project: repo
+    www: https://repo.cesnet.cz
+    year: '2023'
+type: monorepo
