@@ -39,6 +39,7 @@ if [ x"$1" == "x" ] ; then
 fi
 
 PROJECT_DIR="$1"
+shift
 OAREPO_CLI_INITIAL_VENV="$PROJECT_DIR/.venv/oarepo-cli-initial"
 
 test -d "$PROJECT_DIR" || {
