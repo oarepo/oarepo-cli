@@ -3,10 +3,10 @@
 set -e
 cd $(dirname $0)
 
-# download software
-./prepare_as_root.sh
+TEST_DATA_DIR=$(pwd)
 
-# install the repo and start it
-sudo -i -u repo -- bash ./install_repo.sh
+# root part
+./root.sh
 
-# run tests
+# repo user part
+sudo -i -u repo /bin/bash $TEST_DATA_DIR/repo.sh
