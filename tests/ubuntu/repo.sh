@@ -1,6 +1,10 @@
 #! /bin/bash
 set -e
 
+if [ -f ~/repo_env.sh ] ; then
+    source ~/repo_env.sh
+fi
+
 export TEST_DATA_DIR=$(dirname $0)
 
 echo "Installing the repo"

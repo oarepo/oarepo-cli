@@ -7,7 +7,7 @@ from oarepo_cli.cli.model.utils import ModelWizardStep
 from oarepo_cli.cli.utils import with_config
 from oarepo_cli.ui.wizard import Wizard, WizardStep
 from oarepo_cli.ui.wizard.steps import RadioWizardStep
-from oarepo_cli.utils import run_cmdline
+from oarepo_cli.utils import pip_install, run_cmdline
 
 
 @click.command(
@@ -52,19 +52,11 @@ class CompileWizardStep(ModelWizardStep, WizardStep):
         venv_dir = venv_dir.absolute()
         if not venv_dir.exists():
             venv.main([str(venv_dir)])
-            pip_binary = venv_dir / "bin" / "pip"
+            pip_install(venv_dir / "bin" / "pip", "OAREPO_MODEL_BUILDER_VERSION", "oarepo-model-builder==3.*", "https://github.com/oarepo/oarepo-model-builder")
+            # "oarepo-model-builder-tests",
 
-            run_cmdline(
-                pip_binary, "install", "-U", "--no-input", "setuptools", "pip", "wheel"
-            )
-            run_cmdline(
-                pip_binary,
-                "install",
-                "--no-input",
-                "oarepo-model-builder>=3.0.0",
-                # "oarepo-model-builder-tests",
-            )
         # TODO: install plugins - but note, there might be error parsing the file as some includes might be handled by the plugin
+        # TODO: support for tests
         # TODO: support for files
         # TODO: support for requests
         # TODO: support for relations

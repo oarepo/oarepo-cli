@@ -6,7 +6,7 @@ from pathlib import Path
 
 from oarepo_cli.ui.wizard import WizardStep
 
-from ...utils import run_cmdline
+from ...utils import pip_install, run_cmdline
 
 import os
 
@@ -30,29 +30,9 @@ To run them, invoke the "nrp-cli" script from within the project directory.
         if oarepo_cli_dir.exists():
             shutil.rmtree(oarepo_cli_dir)
         venv.main([str(oarepo_cli_dir)])
-        pip_binary = oarepo_cli_dir / "bin" / "pip"
 
-        run_cmdline(
-            pip_binary, "install", "-U", "--no-input", "setuptools", "pip", "wheel"
-        )
-        installation_option = os.environ.get("OAREPO_CLI_VERSION", "release")
-        if installation_option == "release":
-            run_cmdline(pip_binary, "install", "--no-input", "oarepo-cli==11")
-        elif installation_option == "maintrunk":
-            run_cmdline(
-                pip_binary,
-                "install",
-                "--no-input",
-                "git+https://github.com/oarepo/oarepo-cli",
-            )
-        else:
-            run_cmdline(
-                pip_binary,
-                "install",
-                "--no-input",
-                "-e",
-                Path(installation_option),
-            )
+        pip_install(oarepo_cli_dir / "bin" / "pip", "OAREPO_CLI_VERSION", "oarepo-cli==11", "https://github.com/oarepo/oarepo-cli")
+
         with open(oarepo_cli_dir / ".check.ok", "w") as f:
             f.write("oarepo check ok")
 

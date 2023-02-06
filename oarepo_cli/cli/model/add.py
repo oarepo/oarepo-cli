@@ -6,7 +6,7 @@ from oarepo_cli.cli.model.utils import ModelWizardStep
 from oarepo_cli.cli.utils import with_config
 from oarepo_cli.ui.wizard import InputWizardStep, StaticWizardStep, Wizard, WizardStep
 from oarepo_cli.ui.wizard.steps import RadioWizardStep
-from oarepo_cli.utils import to_python_name
+from oarepo_cli.utils import get_cookiecutter_source, to_python_name
 import yaml
 import os
 
@@ -34,18 +34,9 @@ class CreateModelWizardStep(ModelWizardStep, WizardStep):
         }.get(self.data["model_kind"])
         base_model_use = base_model_package.replace("-model-builder", "")
 
-        installation_option = os.environ.get("OAREPO_MODEL_COOKIECUTTER_VERSION", "release")
-
-        if installation_option == "release":
-            cookiecutter_path = "https://github.com/oarepo/cookiecutter-model"
-            cookiecutter_branch = "v11.0"
-        elif installation_option == "maintrunk":
-            cookiecutter_path = "https://github.com/oarepo/cookiecutter-model"
-            cookiecutter_branch = "master"
-        else:
-            cookiecutter_path = installation_option
-            cookiecutter_branch = None
-
+        cookiecutter_path, cookiecutter_branch = get_cookiecutter_source("OAREPO_MODEL_COOKIECUTTER_VERSION", 
+                                                                         "https://github.com/oarepo/cookiecutter-model", "v11.0", 
+                                                                         master_version="master")
 
         self.run_cookiecutter(
             template=cookiecutter_path,
