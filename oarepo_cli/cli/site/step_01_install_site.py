@@ -8,7 +8,7 @@ from oarepo_cli.cli.site.utils import SiteWizardStepMixin
 from oarepo_cli.ui.wizard import StaticWizardStep, WizardStep
 from oarepo_cli.ui.wizard.steps import InputWizardStep, RadioWizardStep
 
-from ...utils import run_cmdline
+from ...utils import get_cookiecutter_source, run_cmdline
 
 
 class InstallSiteStep(SiteWizardStepMixin, WizardStep):
@@ -88,18 +88,9 @@ site_code = yes
         # and run invenio-cli with our site template
         # (submodule from https://github.com/oarepo/cookiecutter-oarepo-instance)
 
-        installation_option = os.environ.get("OAREPO_SITE_COOKIECUTTER_VERSION", "release")
-
-        if installation_option == "release":
-            cookiecutter_path = "https://github.com/oarepo/cookiecutter-site"
-            cookiecutter_branch = "v11.0"
-        elif installation_option == "maintrunk":
-            cookiecutter_path = "https://github.com/oarepo/cookiecutter-site"
-            cookiecutter_branch = "master"
-        else:
-            cookiecutter_path = installation_option
-            cookiecutter_branch = None
-
+        cookiecutter_path, cookiecutter_branch = get_cookiecutter_source("OAREPO_SITE_COOKIECUTTER_VERSION", 
+                                                                         "https://github.com/oarepo/cookiecutter-site", "v11.0", 
+                                                                         master_version="master")
 
         run_cmdline(
             self.data.project_dir / self.data.get("config.invenio_cli"),
