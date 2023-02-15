@@ -53,15 +53,23 @@ class CompileWizardStep(ModelWizardStep, WizardStep):
         if not venv_dir.exists():
             venv.main([str(venv_dir)])
             pip_install(venv_dir / "bin" / "pip", "OAREPO_MODEL_BUILDER_VERSION", "oarepo-model-builder==3.*", "https://github.com/oarepo/oarepo-model-builder")
-            # "oarepo-model-builder-tests",
+            pip_install(venv_dir / "bin" / "pip", "OAREPO_MODEL_BUILDER_TESTS_VERSION", "oarepo-model-builder-tests==3.*", "https://github.com/oarepo/oarepo-model-builder-tests")
+            if self.data.get("use_requests", None) == "yes":
+                pip_install(venv_dir / "bin" / "pip", "OAREPO_MODEL_BUILDER_REQUESTS_VERSION", "oarepo-model-builder-requests==3.*", "https://github.com/oarepo/oarepo-model-builder-requests")
+            if self.data.get("use_expandable_fields", None) == "yes":
+                pip_install(venv_dir / "bin" / "pip", "OAREPO_MODEL_BUILDER_EXPANSIONS_VERSION", "oarepo-model-builder-expansions==3.*", "https://github.com/oarepo/oarepo-model-builder-expansions")
+            if self.data.get("use_files", None) == "yes":
+                pip_install(venv_dir / "bin" / "pip", "OAREPO_MODEL_BUILDER_FILES_VERSION", "oarepo-model-builder-files==3.*", "https://github.com/oarepo/oarepo-model-builder-files")
 
         # TODO: install plugins - but note, there might be error parsing the file as some includes might be handled by the plugin
-        # TODO: support for tests
-        # TODO: support for files
-        # TODO: support for requests
         # TODO: support for relations
         # TODO: support for extended
         opts = []
+
+        if self.data.get("use_files", None) == "yes":
+            opts.append("--profile")
+            opts.append("model,files")
+
         if self.data.get("merge_changes", None) == "overwrite":
             opts.append("--overwrite")
 
