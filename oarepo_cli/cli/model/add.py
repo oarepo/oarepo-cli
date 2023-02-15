@@ -146,6 +146,35 @@ Now tell me something about you. The defaults are taken from the monorepo, feel 
         prompt="""Model author's email""",
         default=lambda data: get_site(data)["author_email"],
     ),
+    StaticWizardStep(heading="Now you can choose which plugins you need in the repo.",
+                     pause=True),
+    RadioWizardStep(
+        "use_files",
+        heading="Install files plugin?",
+        options={
+            "yes": "yes",
+            "no": "no",
+        },
+        default="no"
+    ),
+    RadioWizardStep(
+        "use_requests",
+        heading="Install requests plugin?",
+        options={
+            "yes": "yes",
+            "no": "no",
+        },
+        default="no"
+    ),
+    RadioWizardStep(
+        "use_expandable_fields",
+        heading="Install expandable fields plugin?",
+        options={
+            "yes": "yes",
+            "no": "no",
+        },
+        default="no"
+    ),
     StaticWizardStep(
         heading="Now I have all the information to generate your model. After pressing Enter, I will generate the sources",
         pause=True,
