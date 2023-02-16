@@ -175,6 +175,24 @@ Now tell me something about you. The defaults are taken from the monorepo, feel 
         },
         default="no"
     ),
+    RadioWizardStep(
+        "use_custom_fields",
+        heading="Install custom fields plugin?",
+        options={
+            "yes": "yes",
+            "no": "no",
+        },
+        default="no"
+    ),
+    RadioWizardStep(
+        "use_relations",
+        heading="Install relations plugin?",
+        options={
+            "yes": "yes",
+            "no": "no",
+        },
+        default="no"
+    ),
     StaticWizardStep(
         heading="Now I have all the information to generate your model. After pressing Enter, I will generate the sources",
         pause=True,
