@@ -39,15 +39,27 @@ NRP client is meant to simplify:
 
 *Requests:*
 
-* [ ] installing requests
+* [x] installing requests
 * [ ] adding request type & actions
     * [ ] using approval process libraries
 
 *Expanded fields:*
 
-* [ ] installing support for expanded fields
+* [x] installing support for expanded fields
 * [ ] adding expanded fields
     * [ ] using libraries of expanded fields
+
+*Files:*
+
+* [x] installing support for files
+
+*Custom fields:*
+
+* [x] installing support for custom fields
+
+*Relations:*
+
+* [x] installing support for relations
 
 **User interface for a metadata model:**
 
