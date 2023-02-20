@@ -13,8 +13,10 @@ from oarepo_cli.utils import add_to_pipfile_dependencies, print_banner, run_cmdl
 
 
 def with_config(
-    config_section=None, project_dir_as_argument=False, config_as_argument=False,
-    force_no_banner=False
+    config_section=None,
+    project_dir_as_argument=False,
+    config_as_argument=False,
+    force_no_banner=False,
 ):
     def wrapper(f):
         @(

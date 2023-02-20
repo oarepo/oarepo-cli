@@ -2,8 +2,6 @@ from __future__ import annotations
 
 from typing import Callable, Dict, Union
 
-from oarepo_cli.config import Config
-
 from .steps import WizardBase, WizardStep
 
 

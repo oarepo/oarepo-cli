@@ -49,6 +49,17 @@ If not sure, keep the default values.""",
                 default=datetime.datetime.today().strftime("%Y"),
             ),
             InputWizardStep("copyright_holder", prompt="""Copyright holder"""),
+            RadioWizardStep(
+                "use_oarepo_vocabularies",
+                options={
+                    'yes': 'Yes',
+                    'no': 'No'
+                },
+                default='yes',
+                heading=f"""
+            Are you planning to use extended vocabularies (extra fields on vocabularies, hierarchy in vocabulary items)? If in doubt, select 'yes'.
+                """,
+            ),
             StaticWizardStep(
                 heading="""I have all the information to generate the site.
 To do so, I'll call the invenio client. If anything goes wrong, please fix the problem
@@ -82,15 +93,19 @@ search = opensearch2
 file_storage = S3
 development_tools = yes
 site_code = yes
+use_oarepo_vocabularies = {self.data['use_oarepo_vocabularies']}
                 """,
                 file=f,
             )
         # and run invenio-cli with our site template
         # (submodule from https://github.com/oarepo/cookiecutter-oarepo-instance)
 
-        cookiecutter_path, cookiecutter_branch = get_cookiecutter_source("OAREPO_SITE_COOKIECUTTER_VERSION", 
-                                                                         "https://github.com/oarepo/cookiecutter-site", "v11.0", 
-                                                                         master_version="master")
+        cookiecutter_path, cookiecutter_branch = get_cookiecutter_source(
+            "OAREPO_SITE_COOKIECUTTER_VERSION",
+            "https://github.com/oarepo/cookiecutter-site",
+            "v11.0",
+            master_version="master",
+        )
 
         run_cmdline(
             self.data.project_dir / self.data.get("config.invenio_cli"),
@@ -102,7 +117,9 @@ site_code = yes
                 [
                     "-c",
                     cookiecutter_branch,
-                ] if cookiecutter_branch else []
+                ]
+                if cookiecutter_branch
+                else []
             ),
             "--no-input",
             "--config",

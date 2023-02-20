@@ -1,14 +1,14 @@
-from pathlib import Path
 import shutil
+from pathlib import Path
+
 import click as click
+import yaml
 
 from oarepo_cli.cli.model.utils import ModelWizardStep
 from oarepo_cli.cli.utils import with_config
 from oarepo_cli.ui.wizard import InputWizardStep, StaticWizardStep, Wizard, WizardStep
 from oarepo_cli.ui.wizard.steps import RadioWizardStep
 from oarepo_cli.utils import get_cookiecutter_source, to_python_name
-import yaml
-import os
 
 
 @click.command(
@@ -34,9 +34,12 @@ class CreateModelWizardStep(ModelWizardStep, WizardStep):
         }.get(self.data["model_kind"])
         base_model_use = base_model_package.replace("-model-builder", "")
 
-        cookiecutter_path, cookiecutter_branch = get_cookiecutter_source("OAREPO_MODEL_COOKIECUTTER_VERSION", 
-                                                                         "https://github.com/oarepo/cookiecutter-model", "v11.0", 
-                                                                         master_version="master")
+        cookiecutter_path, cookiecutter_branch = get_cookiecutter_source(
+            "OAREPO_MODEL_COOKIECUTTER_VERSION",
+            "https://github.com/oarepo/cookiecutter-model",
+            "v11.0",
+            master_version="master",
+        )
 
         self.run_cookiecutter(
             template=cookiecutter_path,
@@ -150,16 +153,16 @@ Now tell me something about you. The defaults are taken from the monorepo, feel 
                      pause=True),
     RadioWizardStep(
         "use_files",
-        heading="Install files plugin?",
+        heading="Will you upload files the records in this model? If the repository is not metadata only, answer yes.",
         options={
             "yes": "yes",
             "no": "no",
         },
-        default="no"
+        default="yes"
     ),
     RadioWizardStep(
         "use_requests",
-        heading="Install requests plugin?",
+        heading="Do you need approval process for the records in this model? We recommend to use it, otherwise your changes would be immediately visible.",
         options={
             "yes": "yes",
             "no": "no",
@@ -168,12 +171,30 @@ Now tell me something about you. The defaults are taken from the monorepo, feel 
     ),
     RadioWizardStep(
         "use_expandable_fields",
-        heading="Install expandable fields plugin?",
+        heading="Will you use expandable fields? If in doubt, choose no.",
         options={
             "yes": "yes",
             "no": "no",
         },
         default="no"
+    ),
+    RadioWizardStep(
+        "use_relations",
+        heading="Will you use relations to different records? For example, if this model is dataset, relation to Article model.",
+        options={
+            "yes": "yes",
+            "no": "no",
+        },
+        default="yes"
+    ),
+    RadioWizardStep(
+        "use_vocabularies",
+        heading="Will you use extended vocabularies (that is, vocabularies that can have custom fields or vocabulary items with hierarchy) in your model?",
+        options={
+            "yes": "yes",
+            "no": "no",
+        },
+        default="yes"
     ),
     StaticWizardStep(
         heading="Now I have all the information to generate your model. After pressing Enter, I will generate the sources",

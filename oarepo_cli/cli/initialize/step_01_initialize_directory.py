@@ -1,6 +1,5 @@
 import logging
 
-from oarepo_cli.config import Config
 from oarepo_cli.ui.wizard import WizardStep
 from oarepo_cli.utils import to_python_name
 

@@ -3,7 +3,6 @@ import shutil
 from pathlib import Path
 
 from oarepo_cli.cli.utils import ProjectWizardMixin
-
 from oarepo_cli.templates import get_cookiecutter_template
 from oarepo_cli.ui.wizard import WizardStep
 

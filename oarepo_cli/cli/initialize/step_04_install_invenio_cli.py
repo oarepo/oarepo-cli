@@ -1,13 +1,12 @@
 from __future__ import annotations
 
-import os
 import shutil
 import venv
 from pathlib import Path
 
 from oarepo_cli.ui.wizard import WizardStep
 
-from ...utils import pip_install, run_cmdline
+from ...utils import pip_install
 
 
 class InstallInvenioCliStep(WizardStep):
@@ -33,8 +32,13 @@ https://inveniordm.docs.cern.ch/install/requirements/ .
             shutil.rmtree(invenio_cli_dir)
         venv.main([str(invenio_cli_dir)])
 
-        pip_install(invenio_cli_dir / "bin" / "pip", "INVENIO_CLI_VERSION", "invenio-cli==1.0.16", "https://github.com/inveniosoftware/invenio-cli")
-        
+        pip_install(
+            invenio_cli_dir / "bin" / "pip",
+            "INVENIO_CLI_VERSION",
+            "invenio-cli==1.0.16",
+            "https://github.com/inveniosoftware/invenio-cli",
+        )
+
         with open(invenio_cli_dir / ".install.ok", "w") as f:
             f.write("invenio installation ok")
 
