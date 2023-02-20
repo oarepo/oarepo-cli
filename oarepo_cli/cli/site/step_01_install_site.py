@@ -51,11 +51,8 @@ If not sure, keep the default values.""",
             InputWizardStep("copyright_holder", prompt="""Copyright holder"""),
             RadioWizardStep(
                 "use_oarepo_vocabularies",
-                options={
-                    'yes': 'Yes',
-                    'no': 'No'
-                },
-                default='yes',
+                options={"yes": "Yes", "no": "No"},
+                default="yes",
                 heading=f"""
             Are you planning to use extended vocabularies (extra fields on vocabularies, hierarchy in vocabulary items)? If in doubt, select 'yes'.
                 """,

@@ -149,8 +149,9 @@ Now tell me something about you. The defaults are taken from the monorepo, feel 
         prompt="""Model author's email""",
         default=lambda data: get_site(data)["author_email"],
     ),
-    StaticWizardStep(heading="Now you can choose which plugins you need in the repo.",
-                     pause=True),
+    StaticWizardStep(
+        heading="Now you can choose which plugins you need in the repo.", pause=True
+    ),
     RadioWizardStep(
         "use_files",
         heading="Will you upload files the records in this model? If the repository is not metadata only, answer yes.",
@@ -158,7 +159,7 @@ Now tell me something about you. The defaults are taken from the monorepo, feel 
             "yes": "yes",
             "no": "no",
         },
-        default="yes"
+        default="yes",
     ),
     RadioWizardStep(
         "use_requests",
@@ -167,7 +168,7 @@ Now tell me something about you. The defaults are taken from the monorepo, feel 
             "yes": "yes",
             "no": "no",
         },
-        default="no"
+        default="no",
     ),
     RadioWizardStep(
         "use_expandable_fields",
@@ -176,7 +177,7 @@ Now tell me something about you. The defaults are taken from the monorepo, feel 
             "yes": "yes",
             "no": "no",
         },
-        default="no"
+        default="no",
     ),
     RadioWizardStep(
         "use_relations",
@@ -185,7 +186,7 @@ Now tell me something about you. The defaults are taken from the monorepo, feel 
             "yes": "yes",
             "no": "no",
         },
-        default="yes"
+        default="yes",
     ),
     RadioWizardStep(
         "use_vocabularies",
@@ -194,7 +195,7 @@ Now tell me something about you. The defaults are taken from the monorepo, feel 
             "yes": "yes",
             "no": "no",
         },
-        default="yes"
+        default="yes",
     ),
     StaticWizardStep(
         heading="Now I have all the information to generate your model. After pressing Enter, I will generate the sources",
