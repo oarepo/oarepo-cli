@@ -123,9 +123,7 @@ def to_python_name(x):
 
 def pip_install(pip_binary, env_name, lib_name_and_version, lib_github):
     # run pip installation, taking env versions into account
-    run_cmdline(
-        pip_binary, "install", "-U", "--no-input", "setuptools", "pip", "wheel"
-    )
+    run_cmdline(pip_binary, "install", "-U", "--no-input", "setuptools", "pip", "wheel")
     installation_option = os.environ.get(env_name, "release")
     if installation_option == "release":
         # release
@@ -137,7 +135,7 @@ def pip_install(pip_binary, env_name, lib_name_and_version, lib_github):
             "--no-input",
             f"git+{lib_github}",
         )
-    elif installation_option.startswith('https://'):
+    elif installation_option.startswith("https://"):
         run_cmdline(
             pip_binary,
             "install",
@@ -162,9 +160,11 @@ def get_cookiecutter_source(env_name, lib_github, lib_version, master_version="m
     elif installation_option == "maintrunk":
         cookiecutter_path = lib_github
         cookiecutter_branch = master_version
-    elif installation_option.startswith('https://'):
+    elif installation_option.startswith("https://"):
         # something like https://github.com/oarepo/oarepo-model-builder/tree/datatypes
-        cookiecutter_path, cookiecutter_branch = installation_option.rsplit('/tree/', maxsplit=1)
+        cookiecutter_path, cookiecutter_branch = installation_option.rsplit(
+            "/tree/", maxsplit=1
+        )
     else:
         cookiecutter_path = installation_option
         cookiecutter_branch = None

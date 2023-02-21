@@ -4,14 +4,13 @@ import venv
 
 import click as click
 from colorama import Fore, Style
+from setuptools.config import read_configuration
 
 from oarepo_cli.cli.model.utils import ModelWizardStep
 from oarepo_cli.cli.utils import PipenvInstallWizardStep, with_config
 from oarepo_cli.ui.wizard import Wizard
 from oarepo_cli.ui.wizard.steps import RadioWizardStep, WizardStep
 from oarepo_cli.utils import run_cmdline
-
-from setuptools.config import read_configuration
 
 
 @click.command(

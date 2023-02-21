@@ -2,13 +2,10 @@ from __future__ import annotations
 
 import shutil
 import venv
-from pathlib import Path
 
 from oarepo_cli.ui.wizard import WizardStep
 
-from ...utils import pip_install, run_cmdline
-
-import os
+from ...utils import pip_install
 
 
 class InstallIOARepoCliStep(WizardStep):
@@ -31,7 +28,12 @@ To run them, invoke the "nrp-cli" script from within the project directory.
             shutil.rmtree(oarepo_cli_dir)
         venv.main([str(oarepo_cli_dir)])
 
-        pip_install(oarepo_cli_dir / "bin" / "pip", "OAREPO_CLI_VERSION", "oarepo-cli==11", "https://github.com/oarepo/oarepo-cli")
+        pip_install(
+            oarepo_cli_dir / "bin" / "pip",
+            "OAREPO_CLI_VERSION",
+            "oarepo-cli==11",
+            "https://github.com/oarepo/oarepo-cli",
+        )
 
         with open(oarepo_cli_dir / ".check.ok", "w") as f:
             f.write("oarepo check ok")
