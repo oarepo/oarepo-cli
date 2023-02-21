@@ -53,65 +53,65 @@ class CompileWizardStep(ModelWizardStep, WizardStep):
         if not venv_dir.exists():
             venv.main([str(venv_dir)])
 
-            # TODO: install plugins - but note, there might be error parsing the file as some includes might be handled by the plugin
+        # TODO: install plugins - but note, there might be error parsing the file as some includes might be handled by the plugin
+        pip_install(
+            venv_dir / "bin" / "pip",
+            "OAREPO_MODEL_BUILDER_VERSION",
+            "oarepo-model-builder==3.*",
+            "https://github.com/oarepo/oarepo-model-builder",
+        )
+        pip_install(
+            venv_dir / "bin" / "pip",
+            "OAREPO_MODEL_BUILDER_TESTS_VERSION",
+            "oarepo-model-builder-tests==3.*",
+            "https://github.com/oarepo/oarepo-model-builder-tests",
+        )
+        if self.data.get("use_requests", None) == "yes":
             pip_install(
                 venv_dir / "bin" / "pip",
-                "OAREPO_MODEL_BUILDER_VERSION",
-                "oarepo-model-builder==3.*",
-                "https://github.com/oarepo/oarepo-model-builder",
+                "OAREPO_MODEL_BUILDER_REQUESTS_VERSION",
+                "oarepo-model-builder-requests==3.*",
+                "https://github.com/oarepo/oarepo-model-builder-requests",
             )
+        if self.data.get("use_expandable_fields", None) == "yes":
             pip_install(
                 venv_dir / "bin" / "pip",
-                "OAREPO_MODEL_BUILDER_TESTS_VERSION",
-                "oarepo-model-builder-tests==3.*",
-                "https://github.com/oarepo/oarepo-model-builder-tests",
+                "OAREPO_MODEL_BUILDER_EXPANSIONS_VERSION",
+                "oarepo-model-builder-expansions==3.*",
+                "https://github.com/oarepo/oarepo-model-builder-expansions",
             )
-            if self.data.get("use_requests", None) == "yes":
-                pip_install(
-                    venv_dir / "bin" / "pip",
-                    "OAREPO_MODEL_BUILDER_REQUESTS_VERSION",
-                    "oarepo-model-builder-requests==3.*",
-                    "https://github.com/oarepo/oarepo-model-builder-requests",
-                )
-            if self.data.get("use_expandable_fields", None) == "yes":
-                pip_install(
-                    venv_dir / "bin" / "pip",
-                    "OAREPO_MODEL_BUILDER_EXPANSIONS_VERSION",
-                    "oarepo-model-builder-expansions==3.*",
-                    "https://github.com/oarepo/oarepo-model-builder-expansions",
-                )
-            if self.data.get("use_files", None) == "yes":
-                pip_install(
-                    venv_dir / "bin" / "pip",
-                    "OAREPO_MODEL_BUILDER_FILES_VERSION",
-                    "oarepo-model-builder-files==3.*",
-                    "https://github.com/oarepo/oarepo-model-builder-files",
-                )
+        if self.data.get("use_files", None) == "yes":
+            pip_install(
+                venv_dir / "bin" / "pip",
+                "OAREPO_MODEL_BUILDER_FILES_VERSION",
+                "oarepo-model-builder-files==3.*",
+                "https://github.com/oarepo/oarepo-model-builder-files",
+            )
 
-            if (
-                self.data.get("use_relations", None) == "yes"
-                or self.data.get("use_vocabularies", None) == "yes"
-            ):
-                pip_install(
-                    venv_dir / "bin" / "pip",
-                    "OAREPO_MODEL_BUILDER_RELATIONS_VERSION",
-                    "oarepo-model-builder-relations==1.*",
-                    "https://github.com/oarepo/oarepo-model-builder-relations",
-                )
-            if self.data.get("use_vocabularies", None) == "yes":
-                pip_install(
-                    venv_dir / "bin" / "pip",
-                    "OAREPO_MODEL_BUILDER_VOCABULARIES_VERSION",
-                    "oarepo-model-builder-vocabularies==1.*",
-                    "https://github.com/oarepo/oarepo-model-builder-vocabularies",
-                )
-            if self.data.get("use_custom_fields", None) == "yes":
-                pip_install(
-                    venv_dir / "bin" / "pip",
-                    "OAREPO_MODEL_BUILDER_FILES_VERSION",
-                    "oarepo-model-builder-cf==1.*",
-                    "https://github.com/oarepo/oarepo-model-builder-cf",
-                )
+        if (
+            self.data.get("use_relations", None) == "yes"
+            or self.data.get("use_vocabularies", None) == "yes"
+        ):
+            pip_install(
+                venv_dir / "bin" / "pip",
+                "OAREPO_MODEL_BUILDER_RELATIONS_VERSION",
+                "oarepo-model-builder-relations==1.*",
+                "https://github.com/oarepo/oarepo-model-builder-relations",
+            )
+        if self.data.get("use_vocabularies", None) == "yes":
+            pip_install(
+                venv_dir / "bin" / "pip",
+                "OAREPO_MODEL_BUILDER_VOCABULARIES_VERSION",
+                "oarepo-model-builder-vocabularies==1.*",
+                "https://github.com/oarepo/oarepo-model-builder-vocabularies",
+            )
+        if self.data.get("use_custom_fields", None) == "yes":
+            pip_install(
+                venv_dir / "bin" / "pip",
+                "OAREPO_MODEL_BUILDER_FILES_VERSION",
+                "oarepo-model-builder-cf==1.*",
+                "https://github.com/oarepo/oarepo-model-builder-cf",
+            )
 
         # TODO: install plugins - but note, there might be error parsing the file as some includes might be handled by the plugin
         opts = []

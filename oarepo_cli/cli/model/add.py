@@ -8,7 +8,10 @@ from oarepo_cli.cli.model.utils import ModelWizardStep
 from oarepo_cli.cli.utils import with_config
 from oarepo_cli.ui.wizard import InputWizardStep, StaticWizardStep, Wizard, WizardStep
 from oarepo_cli.ui.wizard.steps import RadioWizardStep
-from oarepo_cli.utils import get_cookiecutter_source, to_python_name
+from oarepo_cli.utils import get_cookiecutter_source, pip_install, to_python_name
+import subprocess
+
+import venv
 
 
 @click.command(
@@ -18,9 +21,65 @@ Generate a new model. Required arguments:
     <name>   ... name of the model, can contain [a-z] and dash (-)""",
 )
 @click.argument("name", required=True)
+@click.option(
+    "--merge",
+    multiple=True,
+    help="""
+Use this option to merge your code into the generated model.
+
+--merge my_dir              will merge my_dir with the generated sources
+
+--merge my_dir=gen_subdir   will merge my_dir into the subdir(relative path to models/<model>)
+
+--merge my_file=<rel_path_to_file>   will merge single file
+
+Normally, user file is merged at the end of the generated file - that is, the content of generated file goes first (includes, classes, arrays).
+
+Use '-' before the dir/file to reverse the order - the content of your file will be prepended to an existing file
+""",
+)
 @with_config(config_section=lambda name, **kwargs: ["models", name])
-def add_model(cfg=None, **kwargs):
+def add_model(cfg=None, merge=None, **kwargs):
+    if merge:
+        venv_dir: Path = cfg.project_dir / ".venv" / "oarepo-model-builder"
+        venv_dir = venv_dir.absolute()
+        if not venv_dir.exists():
+            venv_dir.parent.mkdir(parents=True, exist_ok=True)
+            venv.main([str(venv_dir)])
+
+            pip_install(
+                venv_dir / "bin" / "pip",
+                "OAREPO_MODEL_BUILDER_VERSION",
+                "oarepo-model-builder==3.*",
+                "https://github.com/oarepo/oarepo-model-builder",
+            )
+
     add_model_wizard.run(cfg)
+
+    if merge:
+        for merge_def in merge:
+            opts = []
+            merge_def = merge_def.split("=", maxsplit=1)
+
+            merge_source: Path = merge_def[0]
+            if merge_source[0] == "-":
+                merge_source = merge_source[1:]
+                opts.append("--destination-first")
+
+            merge_target: Path = cfg.project_dir
+            for p in cfg.section_path:
+                merge_target = merge_target / p
+            if len(merge_def) == 2:
+                merge_target = merge_target.joinpath(merge_def[1])
+
+            subprocess.call(
+                [
+                    venv_dir / "bin" / "oarepo-merge",
+                    Path(merge_source).absolute(),
+                    Path(merge_target).absolute(),
+                    *opts,
+                ]
+            )
 
 
 class CreateModelWizardStep(ModelWizardStep, WizardStep):
@@ -142,12 +201,12 @@ Now tell me something about you. The defaults are taken from the monorepo, feel 
     InputWizardStep(
         "author_name",
         prompt="""Model author""",
-        default=lambda data: get_site(data)["author_name"],
+        default=lambda data: (get_site(data) or {}).get("author_name"),
     ),
     InputWizardStep(
         "author_email",
         prompt="""Model author's email""",
-        default=lambda data: get_site(data)["author_email"],
+        default=lambda data: (get_site(data) or {}).get("author_email"),
     ),
     StaticWizardStep(
         heading="Now you can choose which plugins you need in the repo.", pause=True
@@ -166,7 +225,7 @@ Now tell me something about you. The defaults are taken from the monorepo, feel 
         heading="Do you need approval process for the records in this model? We recommend to use it, otherwise your changes would be immediately visible.",
         options={
             "yes": "yes",
-            "no": "no",
+            "no": "yes",
         },
         default="no",
     ),
@@ -177,7 +236,7 @@ Now tell me something about you. The defaults are taken from the monorepo, feel 
             "yes": "yes",
             "no": "no",
         },
-        default="no",
+        default="yes",
     ),
     RadioWizardStep(
         "use_relations",
