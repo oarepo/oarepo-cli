@@ -2,6 +2,7 @@ import logging
 
 from oarepo_cli.ui.wizard import WizardStep
 from oarepo_cli.utils import to_python_name
+from git import Repo
 
 log = logging.getLogger("step_01_initialize_directory")
 
@@ -15,6 +16,8 @@ class DirectoryStep(WizardStep):
         p = self.data.project_dir
         if not p.exists():
             p.mkdir(parents=True)
+        if not (p / ".git").exists():
+            Repo.init(p)
 
     def should_run(self):
         return True

@@ -5,7 +5,7 @@ import venv
 
 from oarepo_cli.ui.wizard import WizardStep
 
-from ...utils import pip_install
+from ...utils import commit_git, pip_install
 
 
 class InstallIOARepoCliStep(WizardStep):
@@ -22,7 +22,7 @@ To run them, invoke the "nrp-cli" script from within the project directory.
         print("Creating nrp-cli virtualenv")
         oarepo_cli_dir = self._oarepo_cli_dir
         self.data["oarepo_cli"] = str(
-            (oarepo_cli_dir / "bin" / "oarepo-cli").relative_to(self.data.project_dir)
+            (oarepo_cli_dir / "bin" / "nrp-cli").relative_to(self.data.project_dir)
         )
         if oarepo_cli_dir.exists():
             shutil.rmtree(oarepo_cli_dir)
@@ -37,10 +37,15 @@ To run them, invoke the "nrp-cli" script from within the project directory.
 
         with open(oarepo_cli_dir / ".check.ok", "w") as f:
             f.write("oarepo check ok")
+        commit_git(
+            self.data.project_dir,
+            "after-install-oarepo-cli",
+            "Committed automatically after oarepo-cli has been installed",
+        )
 
     @property
     def _oarepo_cli_dir(self):
-        return self.data.project_dir / ".venv" / "oarepo-cli"
+        return self.data.project_dir / ".venv" / "nrp-cli"
 
     def should_run(self):
         return not (self._oarepo_cli_dir / ".check.ok").exists()

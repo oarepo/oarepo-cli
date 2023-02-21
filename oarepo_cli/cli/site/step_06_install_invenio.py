@@ -1,7 +1,7 @@
 from oarepo_cli.cli.site.utils import SiteWizardStepMixin
 from oarepo_cli.ui.wizard import WizardStep
 
-from ...utils import run_cmdline
+from ...utils import commit_git, run_cmdline
 
 
 class InstallInvenioStep(SiteWizardStepMixin, WizardStep):
@@ -13,7 +13,7 @@ Now I'll install invenio site.
 Note that this can take a lot of time as UI dependencies
 will be downloaded and installed and UI will be compiled.
             """,
-            **kwargs
+            **kwargs,
         )
 
     def after_run(self):
@@ -24,10 +24,15 @@ will be downloaded and installed and UI will be compiled.
             environ={"PIPENV_IGNORE_VIRTUALENVS": "1"},
         )
         if not self._manifest_file.exists():
-            raise Exception(
+            raise FileNotFoundError(
                 "invenio-cli install has not created var/instance/static/dist/manifest.json."
                 "Please check the output, correct errors and run this command again"
             )
+        commit_git(
+            self.data.project_dir,
+            f"after-site-invenio-cli-install-{self.data.section}",
+            f"Committed automatically after site {self.data.section} has been installed",
+        )
 
     @property
     def _pipenv_venv_dir(self):

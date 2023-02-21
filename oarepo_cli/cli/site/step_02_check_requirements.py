@@ -6,7 +6,7 @@ from pathlib import Path
 from oarepo_cli.cli.site.utils import SiteWizardStepMixin
 from oarepo_cli.ui.wizard import WizardStep
 
-from ...utils import run_cmdline
+from ...utils import commit_git, run_cmdline
 
 
 class CheckRequirementsStep(SiteWizardStepMixin, WizardStep):

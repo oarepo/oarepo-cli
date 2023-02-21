@@ -6,6 +6,8 @@ from oarepo_cli.cli.utils import ProjectWizardMixin
 from oarepo_cli.templates import get_cookiecutter_template
 from oarepo_cli.ui.wizard import WizardStep
 
+from oarepo_cli.utils import commit_git
+
 
 def keep_existing_copy(src, dst, *, follow_symlinks=True):
     if os.path.isdir(dst):
@@ -40,7 +42,11 @@ class CreateMonorepoStep(ProjectWizardMixin, WizardStep):
             shutil.move(f, project_dir, copy_function=keep_existing_copy)
         os.rmdir(repo_out / repo_name)
         os.rmdir(repo_out)
-
+        commit_git(
+            project_dir,
+            "after-monorepo",
+            "Committed automatically after monorepo has been created",
+        )
         return True
 
     @property

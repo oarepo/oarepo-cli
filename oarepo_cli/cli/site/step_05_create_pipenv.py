@@ -6,7 +6,7 @@ from oarepo_cli.cli.site.utils import SiteWizardStepMixin
 from oarepo_cli.ui.radio import Radio
 from oarepo_cli.ui.wizard import WizardStep
 
-from ...utils import run_cmdline
+from ...utils import commit_git, run_cmdline
 
 
 class CreatePipenvStep(SiteWizardStepMixin, WizardStep):
@@ -55,6 +55,11 @@ What is your preference of pipenv virtual environment location?
         pipenv_venv_dir = Path(self._pipenv_venv_dir).relative_to(self.data.project_dir)
 
         self.data["site_pipenv_dir"] = str(pipenv_venv_dir)
+        commit_git(
+            self.data.project_dir,
+            f"after-site-pipenv-{self.data.section}",
+            f"Committed automatically after site {self.data.section} pipenv has been called",
+        )
 
     @property
     def _pipenv_venv_dir(self):

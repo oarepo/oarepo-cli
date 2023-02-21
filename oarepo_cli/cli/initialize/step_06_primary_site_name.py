@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from oarepo_cli.ui.wizard import WizardStep
 from oarepo_cli.ui.wizard.steps import InputWizardStep
+from oarepo_cli.utils import commit_git
 
 
 class PrimarySiteNameStep(WizardStep):
@@ -16,6 +17,14 @@ class PrimarySiteNameStep(WizardStep):
                 )
             ],
             **kwargs,
+        )
+
+    def after_run(self):
+        super().after_run()
+        commit_git(
+            self.data.project_dir,
+            "after-primary-site-name",
+            "Committed automatically after primary site name has been selected",
         )
 
     def should_run(self):

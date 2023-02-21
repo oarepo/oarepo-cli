@@ -2,7 +2,7 @@
 
 set -e
 
-cli_directory=$(dirname $0)/../.venv/oarepo-cli
+cli_directory=$(dirname $0)/../.venv/nrp-cli
 
 test -d $cli_directory || {
   echo "OARepo client not found, see the webpage for tutorial on initializing OA Repository"

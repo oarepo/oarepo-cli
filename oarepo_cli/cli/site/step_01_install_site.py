@@ -8,7 +8,7 @@ from oarepo_cli.cli.site.utils import SiteWizardStepMixin
 from oarepo_cli.ui.wizard import StaticWizardStep, WizardStep
 from oarepo_cli.ui.wizard.steps import InputWizardStep, RadioWizardStep
 
-from ...utils import get_cookiecutter_source, run_cmdline
+from ...utils import commit_git, get_cookiecutter_source, run_cmdline
 
 
 class InstallSiteStep(SiteWizardStepMixin, WizardStep):
@@ -130,6 +130,11 @@ use_oarepo_vocabularies = {self.data['use_oarepo_vocabularies']}
         )
         with open(self.site_dir / ".check.ok", "w") as f:
             f.write("oarepo check ok")
+        commit_git(
+            self.data.project_dir,
+            f"after-site-cookiecutter-{self.data.section}",
+            f"Committed automatically after site {self.data.section} cookiecutter has been called",
+        )
 
     def should_run(self):
         return not (self.site_dir / ".check.ok").exists()

@@ -10,7 +10,7 @@ from oarepo_cli.cli.model.utils import ModelWizardStep
 from oarepo_cli.cli.utils import PipenvInstallWizardStep, with_config
 from oarepo_cli.ui.wizard import Wizard
 from oarepo_cli.ui.wizard.steps import RadioWizardStep, WizardStep
-from oarepo_cli.utils import run_cmdline
+from oarepo_cli.utils import commit_git, run_cmdline
 
 
 @click.command(
@@ -22,6 +22,11 @@ Install the model into the current site. Required arguments:
 @click.argument("name", required=True)
 @with_config(config_section=lambda name, **kwargs: ["models", name])
 def install_model(cfg=None, **kwargs):
+    commit_git(
+        cfg.project_dir,
+        f"before-model-install-{cfg.section}",
+        f"Committed automatically before model {cfg.section} has been installed",
+    )
     wizard = Wizard(
         RadioWizardStep(
             "run_tests",
@@ -42,6 +47,11 @@ def install_model(cfg=None, **kwargs):
         UpdateIndexWizardStep(),
     )
     wizard.run(cfg)
+    commit_git(
+        cfg.project_dir,
+        f"after-model-install-{cfg.section}",
+        f"Committed automatically after model {cfg.section} has been installed",
+    )
 
 
 class TestWizardStep(ModelWizardStep, WizardStep):
