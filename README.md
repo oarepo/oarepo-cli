@@ -5,7 +5,7 @@ Work in progress.
 ## Repository project initialization
 
 Download the file from 
-`https://raw.githubusercontent.com/oarepo/oarepo-cli/main/nrp-installer.sh`,
+`https://raw.githubusercontent.com/oarepo/oarepo-cli/v11.0/nrp-installer.sh`,
 inspect it (always a good practice) and run `bash nrp-installer.sh <project_dir>`
 
 ## Roadmap
@@ -39,15 +39,27 @@ NRP client is meant to simplify:
 
 *Requests:*
 
-* [ ] installing requests
+* [x] installing requests
 * [ ] adding request type & actions
     * [ ] using approval process libraries
 
 *Expanded fields:*
 
-* [ ] installing support for expanded fields
+* [x] installing support for expanded fields
 * [ ] adding expanded fields
     * [ ] using libraries of expanded fields
+
+*Files:*
+
+* [x] installing support for files
+
+*Custom fields:*
+
+* [x] installing support for custom fields
+
+*Relations:*
+
+* [x] installing support for relations
 
 **User interface for a metadata model:**
 

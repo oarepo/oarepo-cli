@@ -154,7 +154,7 @@ Now tell me something about you. The defaults are taken from the monorepo, feel 
     ),
     RadioWizardStep(
         "use_files",
-        heading="Will you upload files the records in this model? If the repository is not metadata only, answer yes.",
+        heading="Will you upload files to the records in this model? If the repository is not metadata only, answer yes.",
         options={
             "yes": "yes",
             "no": "no",
@@ -181,7 +181,7 @@ Now tell me something about you. The defaults are taken from the monorepo, feel 
     ),
     RadioWizardStep(
         "use_relations",
-        heading="Will you use relations to different records? For example, if this model is dataset, relation to Article model.",
+        heading="Will you use relations to different records? For example, if this model represents a Dataset, relation to Article model.",
         options={
             "yes": "yes",
             "no": "no",
@@ -189,8 +189,17 @@ Now tell me something about you. The defaults are taken from the monorepo, feel 
         default="yes",
     ),
     RadioWizardStep(
+        "use_custom_fields",
+        heading="Would you like to make your model extensible during deployment via custom fields?",
+        options={
+            "yes": "yes",
+            "no": "no",
+        },
+        default="no",
+    ),
+    RadioWizardStep(
         "use_vocabularies",
-        heading="Will you use extended vocabularies (that is, vocabularies that can have custom fields or vocabulary items with hierarchy) in your model?",
+        heading="Will you use vocabularies in your model?",
         options={
             "yes": "yes",
             "no": "no",

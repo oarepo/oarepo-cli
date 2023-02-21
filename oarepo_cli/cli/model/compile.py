@@ -52,6 +52,8 @@ class CompileWizardStep(ModelWizardStep, WizardStep):
         venv_dir = venv_dir.absolute()
         if not venv_dir.exists():
             venv.main([str(venv_dir)])
+
+            # TODO: install plugins - but note, there might be error parsing the file as some includes might be handled by the plugin
             pip_install(
                 venv_dir / "bin" / "pip",
                 "OAREPO_MODEL_BUILDER_VERSION",
@@ -103,9 +105,15 @@ class CompileWizardStep(ModelWizardStep, WizardStep):
                     "oarepo-model-builder-vocabularies==1.*",
                     "https://github.com/oarepo/oarepo-model-builder-vocabularies",
                 )
+            if self.data.get("use_custom_fields", None) == "yes":
+                pip_install(
+                    venv_dir / "bin" / "pip",
+                    "OAREPO_MODEL_BUILDER_FILES_VERSION",
+                    "oarepo-model-builder-cf==1.*",
+                    "https://github.com/oarepo/oarepo-model-builder-cf",
+                )
 
         # TODO: install plugins - but note, there might be error parsing the file as some includes might be handled by the plugin
-        # TODO: support for relations
         opts = []
 
         if self.data.get("use_files", None) == "yes":
