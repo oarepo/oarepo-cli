@@ -34,7 +34,6 @@ Initialize the whole repository structure. Required arguments:
 @with_config(project_dir_as_argument=True)
 @click.pass_context
 def initialize(ctx, cfg=None, no_site=None, **kwargs):
-
     initialize_wizard = Wizard(
         StaticWizardStep(
             """

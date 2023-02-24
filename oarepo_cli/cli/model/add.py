@@ -1,17 +1,14 @@
-import shutil
+import subprocess
+import venv
 from pathlib import Path
 
 import click as click
-import yaml
 
 from oarepo_cli.cli.model.utils import ModelWizardStep
 from oarepo_cli.cli.utils import with_config
 from oarepo_cli.ui.wizard import InputWizardStep, StaticWizardStep, Wizard, WizardStep
 from oarepo_cli.ui.wizard.steps import RadioWizardStep
 from oarepo_cli.utils import get_cookiecutter_source, pip_install, to_python_name
-import subprocess
-
-import venv
 
 
 @click.command(
@@ -36,6 +33,7 @@ Use this option to merge your code into the generated model.
 Normally, user file is merged at the end of the generated file - that is, the content of generated file goes first (includes, classes, arrays).
 
 Use '-' before the dir/file to reverse the order - the content of your file will be prepended to an existing file
+Use '!' before the dir/file to copy the file to destination without merging it
 """,
 )
 @with_config(config_section=lambda name, **kwargs: ["models", name])
@@ -65,6 +63,9 @@ def add_model(cfg=None, merge=None, **kwargs):
             if merge_source[0] == "-":
                 merge_source = merge_source[1:]
                 opts.append("--destination-first")
+            if merge_source[0] == "!":
+                merge_source = merge_source[1:]
+                opts.append("--overwrite")
 
             merge_target: Path = cfg.project_dir
             for p in cfg.section_path:
@@ -118,24 +119,6 @@ class CreateModelWizardStep(ModelWizardStep, WizardStep):
         return not self.model_dir.exists()
 
 
-class InstallCustomModelWizardStep(ModelWizardStep, WizardStep):
-    def should_run(self):
-        custom_model = self.data.get("custom_model", None)
-        return not not custom_model
-
-    def after_run(self):
-        custom_model_path: Path = self.data.project_dir.join(self.data["custom_model"])
-        model_dir: Path = self.data.project_dir / self.data["model_dir"]
-        shutil.copy(custom_model_path, model_dir / custom_model_path.name)
-        # add to model
-        metadata_file = model_dir / "metadata.yaml"
-        model_data = yaml.safe_load(metadata_file.read_text())
-        use_section = model_data.setdefault("oarepo:use", [])
-        if custom_model_path.name not in use_section:
-            use_section.append(custom_model_path.name)
-            metadata_file.write_text(yaml.safe_dump(model_data))
-
-
 add_model_wizard = Wizard(
     StaticWizardStep(
         heading="""
@@ -182,17 +165,6 @@ of the extension without 'model-builder-'. See the documentation of your custom 
         },
         default="common",
     ),
-    InputWizardStep(
-        "custom_model",
-        default="",
-        heading="""
-If you already have a (custom) model file, please 
-enter its path relative to the project directory.
-The file will be copied into the model and used together 
-with the base model selected in the previous step.
-        """,
-        required=False,
-    ),
     StaticWizardStep(
         heading="""
 Now tell me something about you. The defaults are taken from the monorepo, feel free to use them.
@@ -225,9 +197,9 @@ Now tell me something about you. The defaults are taken from the monorepo, feel 
         heading="Do you need approval process for the records in this model? We recommend to use it, otherwise your changes would be immediately visible.",
         options={
             "yes": "yes",
-            "no": "yes",
+            "no": "no",
         },
-        default="no",
+        default="yes",
     ),
     RadioWizardStep(
         "use_expandable_fields",
@@ -236,7 +208,7 @@ Now tell me something about you. The defaults are taken from the monorepo, feel 
             "yes": "yes",
             "no": "no",
         },
-        default="yes",
+        default="no",
     ),
     RadioWizardStep(
         "use_relations",
@@ -254,7 +226,7 @@ Now tell me something about you. The defaults are taken from the monorepo, feel 
             "yes": "yes",
             "no": "no",
         },
-        default="no",
+        default="yes",
     ),
     RadioWizardStep(
         "use_vocabularies",
@@ -270,7 +242,6 @@ Now tell me something about you. The defaults are taken from the monorepo, feel 
         pause=True,
     ),
     CreateModelWizardStep(),
-    InstallCustomModelWizardStep(),
     StaticWizardStep(
         heading=lambda data: f"""
 The model has been generated in the {data.section} directory.

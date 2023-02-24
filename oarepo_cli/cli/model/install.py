@@ -188,7 +188,6 @@ def upgrade():
 
 
 class UpdateIndexWizardStep(ModelWizardStep):
-
     steps = (
         RadioWizardStep(
             "update_opensearch",

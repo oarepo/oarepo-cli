@@ -17,7 +17,6 @@ If this step fails, please fix the problem and run the wizard again.
         )
 
     def after_run(self):
-
         run_cmdline(
             self.data.project_dir / self.data.get("config.invenio_cli"),
             "services",
@@ -28,7 +27,6 @@ If this step fails, please fix the problem and run the wizard again.
         self._check_containers_running(False)
 
     def _check_containers_running(self, check_only):
-
         try:
             stdout = run_cmdline(
                 self.data.project_dir / self.data.get("config.invenio_cli"),
