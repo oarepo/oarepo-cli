@@ -1,17 +1,14 @@
-import shutil
+import subprocess
+import venv
 from pathlib import Path
 
 import click as click
-import yaml
 
 from oarepo_cli.cli.model.utils import ModelWizardStep
 from oarepo_cli.cli.utils import with_config
 from oarepo_cli.ui.wizard import InputWizardStep, StaticWizardStep, Wizard, WizardStep
 from oarepo_cli.ui.wizard.steps import RadioWizardStep
 from oarepo_cli.utils import get_cookiecutter_source, pip_install, to_python_name
-import subprocess
-
-import venv
 
 
 @click.command(
