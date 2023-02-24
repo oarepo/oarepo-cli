@@ -55,7 +55,7 @@ test -d "$OAREPO_CLI_INITIAL_VENV" || {
   "$OAREPO_CLI_INITIAL_VENV/bin/pip" install -U setuptools pip wheel
 
   if [ ${OAREPO_CLI_VERSION} == "release" ] ; then
-    "$OAREPO_CLI_INITIAL_VENV/bin/pip" install "oarepo-cli==11.*"
+    "$OAREPO_CLI_INITIAL_VENV/bin/pip" install "oarepo-cli>=11.0.7,<12"
   elif [ ${OAREPO_CLI_VERSION} == "maintrunk" ] ; then
     "$OAREPO_CLI_INITIAL_VENV/bin/pip" install "git+https://github.com/oarepo/oarepo-cli"
   else
@@ -65,6 +65,6 @@ test -d "$OAREPO_CLI_INITIAL_VENV" || {
 
 export OAREPO_CLI_VERSION=${OAREPO_CLI_VERSION}
 
-echo "Running $OAREPO_CLI_INITIAL_VENV/bin/oarepo-cli initialize $PROJECT_DIR $@"
+echo "Running $OAREPO_CLI_INITIAL_VENV/bin/nrp-cli initialize $PROJECT_DIR $@"
 
-"$OAREPO_CLI_INITIAL_VENV/bin/oarepo-cli" initialize "$PROJECT_DIR" $@
+"$OAREPO_CLI_INITIAL_VENV/bin/nrp-cli" initialize "$PROJECT_DIR" $@

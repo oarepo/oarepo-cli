@@ -31,7 +31,7 @@ To run them, invoke the "nrp-cli" script from within the project directory.
         pip_install(
             oarepo_cli_dir / "bin" / "pip",
             "OAREPO_CLI_VERSION",
-            "oarepo-cli==11",
+            "oarepo-cli>=11.0.8,<12",
             "https://github.com/oarepo/oarepo-cli",
         )
 
