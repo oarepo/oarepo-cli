@@ -7,7 +7,7 @@ from oarepo_cli.cli.model.utils import ModelWizardStep
 from oarepo_cli.cli.utils import with_config
 from oarepo_cli.ui.wizard import Wizard, WizardStep
 from oarepo_cli.ui.wizard.steps import RadioWizardStep
-from oarepo_cli.utils import pip_install, run_cmdline
+from oarepo_cli.utils import commit_git, pip_install, run_cmdline
 
 
 @click.command(
@@ -20,6 +20,11 @@ Compile model yaml file to invenio sources. Required arguments:
 @click.argument("name", required=True)
 @with_config(config_section=lambda name, **kwargs: ["models", name])
 def compile_model(cfg=None, **kwargs):
+    commit_git(
+        cfg.project_dir,
+        f"before-model-compile-{cfg.section}",
+        f"Committed automatically before model {cfg.section} has been compiled",
+    )
     optional_steps = []
     model_dir = cfg.project_dir / "models" / cfg.section
     if (model_dir / "setup.cfg").exists():
@@ -44,6 +49,11 @@ so that you might recover them if the compilation process fails.{Style.RESET_ALL
         )
     wizard = Wizard(*optional_steps, CompileWizardStep())
     wizard.run(cfg)
+    commit_git(
+        cfg.project_dir,
+        f"after-model-compile-{cfg.section}",
+        f"Committed automatically after model {cfg.section} has been compiled",
+    )
 
 
 class CompileWizardStep(ModelWizardStep, WizardStep):

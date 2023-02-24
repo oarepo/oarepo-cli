@@ -10,6 +10,8 @@ from oarepo_cli.ui.wizard import InputWizardStep, StaticWizardStep, Wizard, Wiza
 from oarepo_cli.ui.wizard.steps import RadioWizardStep
 from oarepo_cli.utils import get_cookiecutter_source, pip_install, to_python_name
 
+from ...utils import commit_git, must_be_committed
+
 
 @click.command(
     name="add",
@@ -38,6 +40,11 @@ Use '!' before the dir/file to copy the file to destination without merging it
 )
 @with_config(config_section=lambda name, **kwargs: ["models", name])
 def add_model(cfg=None, merge=None, **kwargs):
+    commit_git(
+        cfg.project_dir,
+        f"before-model-add-{cfg.section}",
+        f"Committed automatically before model {cfg.section} has been added",
+    )
     if merge:
         venv_dir: Path = cfg.project_dir / ".venv" / "oarepo-model-builder"
         venv_dir = venv_dir.absolute()
@@ -81,6 +88,11 @@ def add_model(cfg=None, merge=None, **kwargs):
                     *opts,
                 ]
             )
+    commit_git(
+        cfg.project_dir,
+        f"after-model-add-{cfg.section}",
+        f"Committed automatically after model {cfg.section} has been added",
+    )
 
 
 class CreateModelWizardStep(ModelWizardStep, WizardStep):

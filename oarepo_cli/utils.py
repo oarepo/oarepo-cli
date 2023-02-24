@@ -9,6 +9,8 @@ import tomlkit
 from colorama import Fore, Style
 
 from oarepo_cli.ui.utils import slow_print
+import git
+import pydriller
 
 
 def print_banner():
@@ -169,3 +171,31 @@ def get_cookiecutter_source(env_name, lib_github, lib_version, master_version="m
         cookiecutter_path = installation_option
         cookiecutter_branch = None
     return cookiecutter_path, cookiecutter_branch
+
+
+def commit_git(repo_dir, tag_name, message):
+    tag_index = 1
+    try:
+        for commit in pydriller.Repository(str(repo_dir)).traverse_commits():
+            for m in commit.msg.split("\n"):
+                if m.startswith("omb-"):
+                    tag_index += 1
+    except git.exc.GitCommandError:
+        pass
+    repo = git.Repo(repo_dir)
+    tag_name = f"omb-{tag_index:05d}-{tag_name}"
+    index = repo.index
+    repo.git.add(repo_dir)
+    index.commit(message + "\n\n" + tag_name)
+
+
+def must_be_committed(repo_dir):
+    repo = git.Repo(repo_dir)
+    if repo.is_dirty() or repo.untracked_files:
+        for f in repo.untracked_files:
+            print("    ", f)
+
+        print(
+            "The repository contains untracked or dirty files. Please commit/ignore them before continuing."
+        )
+        sys.exit(1)

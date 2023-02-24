@@ -6,7 +6,7 @@ from pathlib import Path
 
 from oarepo_cli.ui.wizard import WizardStep
 
-from ...utils import pip_install
+from ...utils import commit_git, pip_install
 
 
 class InstallInvenioCliStep(WizardStep):
@@ -41,6 +41,11 @@ https://inveniordm.docs.cern.ch/install/requirements/ .
 
         with open(invenio_cli_dir / ".install.ok", "w") as f:
             f.write("invenio installation ok")
+        commit_git(
+            self.data.project_dir,
+            "after-install-invenio-cli",
+            "Committed automatically after invenio-cli has been installed",
+        )
 
     @property
     def _invenio_cli_dir(self):
