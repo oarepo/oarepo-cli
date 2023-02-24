@@ -65,6 +65,6 @@ test -d "$OAREPO_CLI_INITIAL_VENV" || {
 
 export OAREPO_CLI_VERSION=${OAREPO_CLI_VERSION}
 
-echo "Running $OAREPO_CLI_INITIAL_VENV/bin/oarepo-cli initialize $PROJECT_DIR $@"
+echo "Running $OAREPO_CLI_INITIAL_VENV/bin/nrp-cli initialize $PROJECT_DIR $@"
 
-"$OAREPO_CLI_INITIAL_VENV/bin/oarepo-cli" initialize "$PROJECT_DIR" $@
+"$OAREPO_CLI_INITIAL_VENV/bin/nrp-cli" initialize "$PROJECT_DIR" $@
