@@ -55,7 +55,7 @@ test -d "$OAREPO_CLI_INITIAL_VENV" || {
   "$OAREPO_CLI_INITIAL_VENV/bin/pip" install -U setuptools pip wheel
 
   if [ ${OAREPO_CLI_VERSION} == "release" ] ; then
-    "$OAREPO_CLI_INITIAL_VENV/bin/pip" install "oarepo-cli==11.*"
+    "$OAREPO_CLI_INITIAL_VENV/bin/pip" install "oarepo-cli>=11.0.7,<12"
   elif [ ${OAREPO_CLI_VERSION} == "maintrunk" ] ; then
     "$OAREPO_CLI_INITIAL_VENV/bin/pip" install "git+https://github.com/oarepo/oarepo-cli"
   else
