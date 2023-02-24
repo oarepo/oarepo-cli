@@ -149,6 +149,16 @@ Now tell me something about you. The defaults are taken from the monorepo, feel 
         prompt="""Model author's email""",
         default=lambda data: get_site(data)["author_email"],
     ),
+    RadioWizardStep(
+        "permissions_presets",
+        heading="Would you like to set up permissions",
+        options={
+            "no": "no",
+            "read_only": "read only access to records, no one can create or edit them",
+            "everyone": "every user (both authenticated or anonymous) can create, edit and delete any record"
+        },
+        default="yes",
+    ),
     StaticWizardStep(
         heading="Now you can choose which plugins you need in the repo.", pause=True
     ),
