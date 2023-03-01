@@ -11,7 +11,8 @@ from .step_04_start_containers import StartContainersStep
 from .step_05_create_pipenv import CreatePipenvStep
 from .step_06_install_invenio import InstallInvenioStep
 from .step_07_init_database import InitDatabaseStep
-from .step_08_next_steps import NextStepsStep
+from .step_08_init_files import InitFilesStep
+from .step_09_next_steps import NextStepsStep
 
 
 @click.command(
@@ -39,6 +40,7 @@ def add_site(ctx, cfg=None, name=None, **kwargs):
         CreatePipenvStep(),
         InstallInvenioStep(pause=True),
         InitDatabaseStep(),
+        InitFilesStep(),
         NextStepsStep(pause=True),
     )
     initialize_wizard.run(cfg)
