@@ -74,9 +74,7 @@ class AddUIWizardStep(UIWizardMixin, ProjectWizardMixin, WizardStep):
             "model_package": self.data.get("cookiecutter_model_package", model_package),
             "app_name": self.data.get("cookiecutter_app_name", ui_name),
             "app_package": self.data.get("cookiecutter_app_package", ui_package),
-            "ext_name": self.data.get(
-                "cookiecutter_ext_name", f"{ui_base}AppExtension"
-            ),
+            "ext_name": self.data.get("cookiecutter_ext_name", f"{ui_base}Extension"),
             "author": self.data.get(
                 "cookiecutter_author", model_config.get("author_name", "")
             ),
