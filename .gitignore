@@ -30,3 +30,6 @@ var/
 *.egg
 
 .DS_Store
+
+.cookiecutters
+.env

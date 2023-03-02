@@ -64,12 +64,8 @@ class AddUIWizardStep(UIWizardMixin, ProjectWizardMixin, WizardStep):
         with open(model_file) as f:
             model_description = json.load(f)
 
-        model_resource_config = model_description["settings"]["python"][
-            "record-resource-config-class"
-        ]
-        model_service = model_description["settings"]["python"][
-            "proxies-current-service"
-        ]
+        model_service = model_description["model"]["service-id"]
+        ui_serializer_class = model_description["model"]["record-ui-serializer-class"]
         cookiecutter_data = {
             "model_name": self.data["model_name"],
             "local_model_path": self.data.get(
@@ -94,10 +90,10 @@ class AddUIWizardStep(UIWizardMixin, ProjectWizardMixin, WizardStep):
             "resource_config": self.data.get(
                 "cookiecutter_resource_config", f"{ui_base}ResourceConfig"
             ),
-            "api_config": self.data.get(
-                "cookiecutter_api_config", model_resource_config
-            ),
             "api_service": self.data.get("cookiecutter_api_service", model_service),
+            "ui_serializer_class": self.data.get(
+                "cookiecutter_ui_record_serializer_class", ui_serializer_class
+            ),
             "url_prefix": self.data["url_prefix"],
         }
 

@@ -9,14 +9,11 @@ from colorama import Fore, Style
 
 from oarepo_cli.config import MonorepoConfig
 from oarepo_cli.ui.wizard.steps import RadioWizardStep, WizardStep
-from oarepo_cli.utils import add_to_pipfile_dependencies, print_banner, run_cmdline
+from oarepo_cli.utils import add_to_pipfile_dependencies, run_cmdline
 
 
 def with_config(
-    config_section=None,
-    project_dir_as_argument=False,
-    config_as_argument=False,
-    force_no_banner=False,
+    config_section=None, project_dir_as_argument=False, config_as_argument=False
 ):
     def wrapper(f):
         @(
@@ -80,7 +77,6 @@ def with_config(
         @functools.wraps(f)
         def wrapped(
             project_dir=None,
-            no_banner=False,
             no_input=False,
             silent=False,
             config=None,
@@ -110,8 +106,6 @@ def with_config(
             cfg.silent = silent
             cfg.verbose = verbose
 
-            if not no_banner and not force_no_banner:
-                print_banner()
             kwargs.pop("cfg", None)
             kwargs.pop("project_dir", None)
             try:
