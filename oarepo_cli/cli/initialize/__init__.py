@@ -1,12 +1,8 @@
 import click
 
-from oarepo_cli.cli.model.add import add_model
-from oarepo_cli.cli.model.compile import compile_model
-from oarepo_cli.cli.model.install import install_model
 from oarepo_cli.cli.site.add import add_site
-from oarepo_cli.cli.ui.add import add_ui
-from oarepo_cli.cli.ui.install import install_ui
 from oarepo_cli.cli.utils import with_config
+from oarepo_cli.utils import print_banner
 
 from ...ui.wizard import StaticWizardStep, Wizard
 from .step_01_initialize_directory import DirectoryStep
@@ -15,7 +11,6 @@ from .step_03_create_monorepo import CreateMonorepoStep
 from .step_04_install_invenio_cli import InstallInvenioCliStep
 from .step_05_install_oarepo_cli import InstallIOARepoCliStep
 from .step_06_primary_site_name import PrimarySiteNameStep
-from oarepo_cli.utils import print_banner
 
 
 @click.command(

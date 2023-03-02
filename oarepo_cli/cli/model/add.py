@@ -10,7 +10,7 @@ from oarepo_cli.ui.wizard import InputWizardStep, StaticWizardStep, Wizard, Wiza
 from oarepo_cli.ui.wizard.steps import RadioWizardStep
 from oarepo_cli.utils import get_cookiecutter_source, pip_install, to_python_name
 
-from ...utils import commit_git, must_be_committed
+from ...utils import commit_git
 
 
 @click.command(
@@ -198,7 +198,7 @@ Now tell me something about you. The defaults are taken from the monorepo, feel 
         options={
             "no": "no",
             "read_only": "read only access to records, no one can create or edit them",
-            "everyone": "every user (both authenticated or anonymous) can create, edit and delete any record"
+            "everyone": "every user (both authenticated or anonymous) can create, edit and delete any record",
         },
         default="yes",
     ),
