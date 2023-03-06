@@ -4,13 +4,13 @@ import subprocess
 import sys
 from pathlib import Path
 
+import git
+import pydriller
 import pyfiglet
 import tomlkit
 from colorama import Fore, Style
 
 from oarepo_cli.ui.utils import slow_print
-import git
-import pydriller
 
 
 def print_banner():

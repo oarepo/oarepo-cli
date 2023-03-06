@@ -1,7 +1,5 @@
 import subprocess
 
-from minio import Minio
-
 from oarepo_cli.cli.site.utils import SiteWizardStepMixin
 from oarepo_cli.ui.wizard import WizardStep
 
@@ -18,8 +16,17 @@ class InitFilesStep(SiteWizardStepMixin, WizardStep):
         )
 
     def after_run(self):
-        client = Minio("localhost:9000", access_key="CHANGE_ME", secret_key="CHANGE_ME", secure=False)
-        bucket_name = self.data["site_package"].replace("_", "") #bucket names with underscores are not allowed
+        from minio import Minio
+
+        client = Minio(
+            "localhost:9000",
+            access_key="CHANGE_ME",
+            secret_key="CHANGE_ME",
+            secure=False,
+        )
+        bucket_name = self.data["site_package"].replace(
+            "_", ""
+        )  # bucket names with underscores are not allowed
         if not client.bucket_exists(bucket_name):
             client.make_bucket(bucket_name)
         run_cmdline(
@@ -52,9 +59,7 @@ class InitFilesStep(SiteWizardStepMixin, WizardStep):
             )
             print(f"initialization check:\n{output}\n")
         except subprocess.CalledProcessError:
-            raise Exception(
-                "Checking if file location exists failed."
-            )
+            raise Exception("Checking if file location exists failed.")
         if output:
             return True
         else:

@@ -5,7 +5,7 @@ from oarepo_cli.cli.site.utils import SiteWizardStepMixin
 from oarepo_cli.ui.radio import Radio
 from oarepo_cli.ui.wizard import WizardStep
 
-from ...utils import commit_git, run_cmdline
+from ...utils import run_cmdline
 
 
 class InitDatabaseStep(SiteWizardStepMixin, WizardStep):

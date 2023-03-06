@@ -1,8 +1,9 @@
 import logging
 
+from git import Repo
+
 from oarepo_cli.ui.wizard import WizardStep
 from oarepo_cli.utils import to_python_name
-from git import Repo
 
 log = logging.getLogger("step_01_initialize_directory")
 

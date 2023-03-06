@@ -1,12 +1,8 @@
 import click
 
-from oarepo_cli.cli.model.add import add_model
-from oarepo_cli.cli.model.compile import compile_model
-from oarepo_cli.cli.model.install import install_model
 from oarepo_cli.cli.site.add import add_site
-from oarepo_cli.cli.ui.add import add_ui
-from oarepo_cli.cli.ui.install import install_ui
 from oarepo_cli.cli.utils import with_config
+from oarepo_cli.utils import print_banner
 
 from ...ui.wizard import StaticWizardStep, Wizard
 from .step_01_initialize_directory import DirectoryStep
@@ -34,6 +30,8 @@ Initialize the whole repository structure. Required arguments:
 @with_config(project_dir_as_argument=True)
 @click.pass_context
 def initialize(ctx, cfg=None, no_site=None, **kwargs):
+    if not kwargs["no_banner"]:
+        print_banner()
     initialize_wizard = Wizard(
         StaticWizardStep(
             """
@@ -72,66 +70,7 @@ def initialize(ctx, cfg=None, no_site=None, **kwargs):
             no_input=cfg.no_input,
             silent=cfg.silent,
         )
-
-    # install all models from the config file
-    models = cfg.whole_data.get("models", {})
-    for model in models:
-        ctx.invoke(
-            add_model,
-            project_dir=str(cfg.project_dir),
-            name=model,
-            no_banner=True,
-            no_input=cfg.no_input,
-            silent=cfg.silent,
-        )
-    for model in models:
-        ctx.invoke(
-            compile_model,
-            project_dir=str(cfg.project_dir),
-            name=model,
-            no_banner=True,
-            no_input=cfg.no_input,
-            silent=cfg.silent,
-        )
-    for model in models:
-        ctx.invoke(
-            install_model,
-            project_dir=str(cfg.project_dir),
-            name=model,
-            no_banner=True,
-            no_input=cfg.no_input,
-            silent=cfg.silent,
-        )
-
-    # install all uis from the config file
-    uis = cfg.whole_data.get("ui", {})
-    for ui in uis:
-        ctx.invoke(
-            add_ui,
-            project_dir=str(cfg.project_dir),
-            name=ui,
-            no_banner=True,
-            no_input=cfg.no_input,
-            silent=cfg.silent,
-        )
-    # for ui in uis:
-    #     ctx.invoke(
-    #         compile_ui,
-    #         project_dir=str(cfg.project_dir),
-    #         name=ui,
-    #         no_banner=True,
-    #         no_input=cfg.no_input,
-    #         silent=cfg.silent,
-    #     )
-    for ui in uis:
-        ctx.invoke(
-            install_ui,
-            project_dir=str(cfg.project_dir),
-            name=ui,
-            no_banner=True,
-            no_input=cfg.no_input,
-            silent=cfg.silent,
-        )
+    # do not install model nor uis as user might (and will) modify them
 
 
 if __name__ == "__main__":
