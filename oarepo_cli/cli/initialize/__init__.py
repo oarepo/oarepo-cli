@@ -27,11 +27,13 @@ Initialize the whole repository structure. Required arguments:
     type=bool,
     help="Do not create default site",
 )
+@click.option("--python", required=False)
 @with_config(project_dir_as_argument=True)
 @click.pass_context
-def initialize(ctx, cfg=None, no_site=None, **kwargs):
+def initialize(ctx, cfg=None, no_site=None, python=None, **kwargs):
     if not kwargs["no_banner"]:
         print_banner()
+    cfg["python"] = python or "python3.9"
     initialize_wizard = Wizard(
         StaticWizardStep(
             """

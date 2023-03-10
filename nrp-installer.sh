@@ -67,4 +67,4 @@ export OAREPO_CLI_VERSION=${OAREPO_CLI_VERSION}
 
 echo "Running $OAREPO_CLI_INITIAL_VENV/bin/nrp-cli initialize $PROJECT_DIR $@"
 
-"$OAREPO_CLI_INITIAL_VENV/bin/nrp-cli" initialize "$PROJECT_DIR" $@
+"$OAREPO_CLI_INITIAL_VENV/bin/nrp-cli" initialize "$PROJECT_DIR" --python $PYTHON $@

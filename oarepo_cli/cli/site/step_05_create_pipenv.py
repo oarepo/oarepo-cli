@@ -1,4 +1,5 @@
 from pathlib import Path
+import shutil
 
 from pkg_resources import parse_requirements
 
@@ -34,12 +35,20 @@ What is your preference of pipenv virtual environment location?
         site_dir = self.site_dir
         if self.data.get("create_pipenv_in_site") == "yes":
             (site_dir / ".venv").mkdir(parents=True, exist_ok=True)
+        python_binary = shutil.which(self.data.whole_data["config"]["python"])
         run_cmdline(
-            "pipenv", "lock", cwd=site_dir, environ={"PIPENV_IGNORE_VIRTUALENVS": "1"}
+            "pipenv",
+            "lock",
+            "--python",
+            python_binary,
+            cwd=site_dir,
+            environ={"PIPENV_IGNORE_VIRTUALENVS": "1"},
         )
         run_cmdline(
             "pipenv",
             "install",
+            "--python",
+            python_binary,
             cwd=site_dir,
             environ={"PIPENV_IGNORE_VIRTUALENVS": "1"},
         )
