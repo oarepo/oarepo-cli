@@ -2,6 +2,7 @@ import venv
 
 import click as click
 from colorama import Fore, Style
+import yaml
 
 from oarepo_cli.cli.model.utils import ModelWizardStep
 from oarepo_cli.cli.utils import with_config
@@ -124,6 +125,17 @@ class CompileWizardStep(ModelWizardStep, WizardStep):
             )
 
         # TODO: install plugins - but note, there might be error parsing the file as some includes might be handled by the plugin
+        with open(self.model_dir / "model.yaml") as f:
+            model_data = yaml.safe_load(f)
+        plugins = model_data.get("model", {}).get("plugins", {}).get("packages", [])
+        for package in plugins:
+            run_cmdline(
+                venv_dir / "bin" / "pip",
+                "install",
+                package,
+                cwd=self.model_dir,
+            )
+
         opts = []
 
         if self.data.get("use_files", None) == "yes":
