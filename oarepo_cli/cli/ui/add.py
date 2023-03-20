@@ -294,9 +294,9 @@ class CreateJinjaStep(ModelMixin, WizardStep):
         self, macro_definitions: List[Any], processed_components
     ):
         for definition in macro_definitions:
-            if "detail" not in definition:
+            if definition.get("detail"):
                 continue
-            component = re.sub("\W", replace_non_variable_signs, definition["detail"])
+            component = re.sub(r"\W", replace_non_variable_signs, definition["detail"])
 
             if component in processed_components:
                 _, children = self._generate_macro_children(definition)

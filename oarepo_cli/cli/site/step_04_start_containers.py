@@ -37,6 +37,8 @@ If this step fails, please fix the problem and run the wizard again.
                 check_only=check_only,
                 grab_stdout=True,
             )
+            if not isinstance(stdout, str):
+                return False
             if "unable to connect" in stdout:
                 return False
         except subprocess.CalledProcessError:
