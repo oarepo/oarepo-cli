@@ -236,6 +236,7 @@ class CreateJinjaStep(ModelMixin, WizardStep):
             ui_dir
             / self.data.config["cookiecutter_app_package"]
             / "templates"
+            / "semantic-ui"
             / self.data.config["cookiecutter_app_package"]
             / "main.html"
         )
@@ -247,6 +248,7 @@ class CreateJinjaStep(ModelMixin, WizardStep):
                 ui_dir
                 / self.data.config["cookiecutter_app_package"]
                 / "templates"
+                / "semantic-ui"
                 / "oarepo_ui"
                 / "components"
                 / "100-macros.html"
