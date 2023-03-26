@@ -6,7 +6,6 @@ from oarepo_cli.cli.run import run_server
 from oarepo_cli.cli.site import site
 from oarepo_cli.cli.ui import ui
 from oarepo_cli.cli.upgrade import upgrade
-from oarepo_cli.cli.repository import repository
 
 
 @click.group()
@@ -20,7 +19,6 @@ run.add_command(model)
 run.add_command(ui)
 run.add_command(run_server)
 run.add_command(upgrade)
-run.add_command(repository)
 
 if __name__ == "__main__":
     run()
