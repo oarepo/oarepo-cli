@@ -28,7 +28,7 @@ class CompileAssetsStep(SiteMixin, ProjectWizardMixin, WizardStep):
         return True
 
     def after_run(self):
-        self.invenio_command("webpack", "buildall")
+        self.invenio_cli_command("assets", "build")
 
 
 class InstallWizard(ProjectWizardMixin, Wizard):
