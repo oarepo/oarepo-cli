@@ -11,6 +11,7 @@ from oarepo_cli.cli.utils import with_config
 from oarepo_cli.ui.wizard import StaticWizardStep, Wizard
 from oarepo_cli.ui.wizard.steps import InputWizardStep, RadioWizardStep, WizardStep
 from oarepo_cli.utils import get_cookiecutter_source, run_cmdline, to_python_name
+from ...utils import commit_git
 
 
 @click.command(
@@ -22,7 +23,17 @@ from oarepo_cli.utils import get_cookiecutter_source, run_cmdline, to_python_nam
 @click.argument("name")
 @with_config(config_section=lambda name, **kwargs: ["ui", name])
 def add_ui(cfg=None, **kwargs):
+    commit_git(
+        cfg.project_dir,
+        f"before-ui-add-{cfg.section}",
+        f"Committed automatically before ui {cfg.section} has been added",
+    )
     add_ui_wizard(cfg).run(cfg)
+    commit_git(
+        cfg.project_dir,
+        f"after-ui-add-{cfg.section}",
+        f"Committed automatically after ui {cfg.section} has been added",
+    )
 
 
 class UIWizardMixin:
@@ -243,18 +254,17 @@ class CreateJinjaStep(ModelMixin, WizardStep):
         template = main_jinja_path.read_text() + "\n\n" + template
         main_jinja_path.write_text(template)
 
-        if macros:
-            macros_jinja_path: Path = (
-                ui_dir
-                / self.data.config["cookiecutter_app_package"]
-                / "templates"
-                / "semantic-ui"
-                / "oarepo_ui"
-                / "components"
-                / "100-macros.html"
-            )
-            macros_jinja_path.parent.mkdir(exist_ok=True, parents=True)
-            macros_jinja_path.write_text(macros)
+        macros_jinja_path: Path = (
+            ui_dir
+            / self.data.config["cookiecutter_app_package"]
+            / "templates"
+            / "semantic-ui"
+            / "oarepo_ui"
+            / "components"
+            / "100-macros.html"
+        )
+        macros_jinja_path.parent.mkdir(exist_ok=True, parents=True)
+        macros_jinja_path.write_text(macros or "")
 
     def _select(self, fields, *keys):
         for k in keys:
@@ -306,7 +316,10 @@ class CreateJinjaStep(ModelMixin, WizardStep):
                 processed_components.add(component)
 
                 children_def, children = self._generate_macro_children(definition)
-                yield f"\n\n{{%- macro render_{component}(arg) -%}}\n<dl class='detail-subfields'>\n{children_def}\n</dl>\n{{%- endmacro -%}}"
+                if children_def:
+                    yield f"\n\n{{%- macro render_{component}(arg) -%}}\n<dl class='detail-subfields'>\n{children_def}\n</dl>\n{{%- endmacro -%}}"
+                else:
+                    yield f"\n\n{{%- macro render_{component}(arg) -%}}{'{{'}arg{'}}'}{{%- endmacro -%}}"
 
             yield from self.generate_macro_definitions(children, processed_components)
 
