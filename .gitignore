@@ -28,7 +28,6 @@ var/
 *.egg-info/
 .installed.cfg
 *.egg
-
 .DS_Store
 
 .cookiecutters
