@@ -32,8 +32,7 @@ var/
 *.egg-info/
 .installed.cfg
 *.egg
-Pipfile
-Pipfile.lock
+__pycache__/*
 
 # PyInstaller
 #  Usually these files are written by a python script from a template
@@ -55,9 +54,6 @@ nosetests.xml
 coverage.xml
 *,cover
 
-# Translations
-*.mo
-
 # Django stuff:
 *.log
 
@@ -69,6 +65,3 @@ target/
 
 # Vim swapfiles
 .*.sw?
-.DS_Store
-
-.venv-*/
