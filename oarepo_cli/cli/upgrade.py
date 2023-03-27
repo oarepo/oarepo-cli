@@ -51,6 +51,9 @@ def upgrade_venv(venv_dir):
 
 
 def upgrade_site(site_dir):
+    venv_dir = site_dir / ".venv"
+    if not venv_dir.exists():
+        venv_dir.mkdir(parents=True)
     run_cmdline(
         "pipenv",
         "update",
