@@ -145,11 +145,30 @@ class AlembicWizardStep(ModelWizardStep):
                 "dbdbc1b19cf2",
                 "--empty",
             )
+            def rewrite_revision_file(file_suffix, new_id_number):
+                files = list(alembic_path.iterdir())
+                target_file = str([file_name for file_name in files if file_suffix in str(file_name)][0])
+                id_start_index = target_file.rfind("/") + 1
+                id_end_index = target_file.find(file_suffix)
+                old_id = target_file[id_start_index:id_end_index]
+                new_id = f"{self.data['model_package']}_{new_id_number}"
+                with open(target_file, 'r') as f:
+                    file_text = f.read()
+                    file_text = file_text.replace(f"revision = '{old_id}'", f"revision = '{new_id}'")
+                with open(target_file.replace(old_id, new_id), 'w') as f:
+                    f.write(file_text)
+                os.remove(target_file)
+
+            rewrite_revision_file("_create_", "0001")
+
             self.fix_sqlalchemy_utils(alembic_path)
             self.invenio_command("alembic", "upgrade", "heads")
             self.invenio_command(
                 "alembic", "revision", "Initial revision.", "-b", branch
             )
+
+            rewrite_revision_file("_initial_revision", "0002") # the link to down-revision is created correctly after alembic upgrade heads on the corrected file, explicit rewrite of down-revision is not needed
+
             self.fix_sqlalchemy_utils(alembic_path)
             self.invenio_command("alembic", "upgrade", "heads")
         else:
