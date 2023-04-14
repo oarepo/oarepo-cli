@@ -1,6 +1,7 @@
 import os
 import shutil
 import venv
+import re
 
 import click as click
 from colorama import Fore, Style
@@ -130,6 +131,21 @@ class AlembicWizardStep(ModelWizardStep):
 
     def setup_alembic(self, branch, alembic_path):
         filecount = len(list(alembic_path.iterdir()))
+        revision_id_prefix = self.data['model_package']
+
+        def rewrite_revision_file(file_suffix, new_id_number):
+            files = list(alembic_path.iterdir())
+            target_file = str([file_name for file_name in files if file_suffix in str(file_name)][0])
+            id_start_index = target_file.rfind("/") + 1
+            id_end_index = target_file.find(file_suffix)
+            old_id = target_file[id_start_index:id_end_index]
+            new_id = f"{revision_id_prefix}_{new_id_number}"
+            with open(target_file, 'r') as f:
+                file_text = f.read()
+                file_text = file_text.replace(f"revision = '{old_id}'", f"revision = '{new_id}'")
+            with open(target_file.replace(old_id, new_id), 'w') as f:
+                f.write(file_text)
+            os.remove(target_file)
 
         if filecount < 2:
             # alembic has not been initialized yet ...
@@ -145,15 +161,31 @@ class AlembicWizardStep(ModelWizardStep):
                 "dbdbc1b19cf2",
                 "--empty",
             )
+
+
+            rewrite_revision_file("_create_", "1")
+
             self.fix_sqlalchemy_utils(alembic_path)
             self.invenio_command("alembic", "upgrade", "heads")
             self.invenio_command(
                 "alembic", "revision", "Initial revision.", "-b", branch
             )
+
+            rewrite_revision_file("_initial_revision", "2") # the link to down-revision is created correctly after alembic upgrade heads on the corrected file, explicit rewrite of down-revision is not needed
+
             self.fix_sqlalchemy_utils(alembic_path)
             self.invenio_command("alembic", "upgrade", "heads")
         else:
             # alembic has been initialized, update heads and generate
+            files = [file_path.name for file_path in alembic_path.iterdir()]
+
+            file_numbers = []
+            for file in files:
+                file_number_regex = re.findall(f"(?<={revision_id_prefix}_)\d+", file)
+                if file_number_regex:
+                    file_numbers.append(int(file_number_regex[0]))
+            new_file_number = max(file_numbers) + 1
+            
             self.invenio_command("alembic", "upgrade", "heads")
             self.invenio_command(
                 "alembic",
@@ -162,6 +194,9 @@ class AlembicWizardStep(ModelWizardStep):
                 "-b",
                 branch,
             )
+
+            rewrite_revision_file("_nrp_cli_install", new_file_number)
+
             self.fix_sqlalchemy_utils(alembic_path)
             self.invenio_command("alembic", "upgrade", "heads")
 
