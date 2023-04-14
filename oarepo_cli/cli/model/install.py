@@ -163,7 +163,7 @@ class AlembicWizardStep(ModelWizardStep):
             )
 
 
-            rewrite_revision_file("_create_", "0001")
+            rewrite_revision_file("_create_", "1")
 
             self.fix_sqlalchemy_utils(alembic_path)
             self.invenio_command("alembic", "upgrade", "heads")
@@ -171,7 +171,7 @@ class AlembicWizardStep(ModelWizardStep):
                 "alembic", "revision", "Initial revision.", "-b", branch
             )
 
-            rewrite_revision_file("_initial_revision", "0002") # the link to down-revision is created correctly after alembic upgrade heads on the corrected file, explicit rewrite of down-revision is not needed
+            rewrite_revision_file("_initial_revision", "2") # the link to down-revision is created correctly after alembic upgrade heads on the corrected file, explicit rewrite of down-revision is not needed
 
             self.fix_sqlalchemy_utils(alembic_path)
             self.invenio_command("alembic", "upgrade", "heads")
