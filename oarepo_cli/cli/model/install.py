@@ -185,8 +185,7 @@ class AlembicWizardStep(ModelWizardStep):
                 if file_number_regex:
                     file_numbers.append(int(file_number_regex[0]))
             new_file_number = max(file_numbers) + 1
-            import pdb
-            pdb.set_trace()
+            
             self.invenio_command("alembic", "upgrade", "heads")
             self.invenio_command(
                 "alembic",
