@@ -209,6 +209,15 @@ Now tell me something about you. The defaults are taken from the monorepo, feel 
         default="",
         required=False,
     ),
+    RadioWizardStep(
+        "use_drafts",
+        heading="Should records be first uploaded as editable drafts before they are published?",
+        options={
+            "yes": "yes",
+            "no": "no",
+        },
+        default="yes",
+    ),
     StaticWizardStep(
         heading="Now you can choose which plugins you need in the repo.", pause=True
     ),
