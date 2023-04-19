@@ -99,6 +99,23 @@ class CompileWizardStep(ModelWizardStep, WizardStep):
                 "https://github.com/oarepo/oarepo-model-builder-files",
             )
 
+        if self.data.get("use_drafts", None) == "yes":
+            pip_install(
+                venv_dir / "bin" / "pip",
+                "OAREPO_MODEL_BUILDER_DRAFTS_VERSION",
+                "oarepo-model-builder-drafts==1.*",
+                "https://github.com/oarepo/oarepo-model-builder-drafts",
+            )
+
+        if not self.data.get("use_drafts", None) == "yes":
+            run_cmdline(
+                venv_dir / "bin" / "pip",
+                "uninstall",
+                "-y",
+                "oarepo-model-builder-drafts",
+                cwd=self.model_dir,
+            )
+
         if (
             self.data.get("use_relations", None) == "yes"
             or self.data.get("use_vocabularies", None) == "yes"
@@ -141,6 +158,10 @@ class CompileWizardStep(ModelWizardStep, WizardStep):
         if self.data.get("use_files", None) == "yes":
             opts.append("--profile")
             opts.append("model,files")
+
+        if self.data.get("use_drafts", None) == "yes":
+            opts.append("--profile")
+            opts.append("model,drafts")
 
         if self.data.get("merge_changes", None) == "overwrite":
             opts.append("--overwrite")
