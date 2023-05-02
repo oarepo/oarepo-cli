@@ -7,6 +7,7 @@ from oarepo_cli.cli.site import site
 from oarepo_cli.cli.ui import ui
 from oarepo_cli.cli.upgrade import upgrade
 from oarepo_cli.cli.develop_docker import docker_develop
+from oarepo_cli.cli.develop import develop
 
 
 @click.group()
@@ -21,6 +22,7 @@ run.add_command(ui)
 run.add_command(run_server)
 run.add_command(upgrade)
 run.add_command(docker_develop)
+run.add_command(develop)
 
 if __name__ == "__main__":
     run()
