@@ -2,7 +2,6 @@ import click as click
 from pathlib import Path
 import yaml
 import subprocess
-from distutils.dir_util import copy_tree
 import os
 import errno
 import time
@@ -228,19 +227,25 @@ class Runner:
                     break
                 if l == "server":
                     self.stop_server()
+                    subprocess.call(["ps", "-A"])
                     self.start_server()
+                    subprocess.call(["ps", "-A"])
                     continue
                 if l == "ui":
                     self.stop_ui()
+                    subprocess.call(["ps", "-A"])
                     self.start_ui()
+                    subprocess.call(["ps", "-A"])
                     continue
                 if l == "build":
                     self.stop_ui()
                     self.stop_server()
+                    subprocess.call(["ps", "-A"])
                     build_assets(virtualenv=self.venv, invenio=self.invenio)
                     self.start_server()
                     time.sleep(10)
                     self.start_ui()
+                    subprocess.call(["ps", "-A"])
 
             except InterruptedError:
                 self.stop_server()
@@ -290,6 +295,7 @@ class Runner:
                 handle.kill()
             except:
                 pass
+            time.sleep(5)
 
     def start_ui(self):
         print("Starting ui watcher")
@@ -335,3 +341,65 @@ def input_with_timeout(timeout):
 
     if i:
         return sys.stdin.readline().strip()
+
+
+def path_type(path):
+    if os.path.isdir(path):
+        return "dir"
+    elif os.path.isfile(path):
+        return "file"
+    elif os.path.islink(path):
+        return "link"
+    else:
+        return "unknown"
+
+
+def copy_tree(src, dest):
+    to_copy = [(src, dest)]
+    copied_files = []
+    while to_copy:
+        source, destination = to_copy.pop()
+        if os.path.isdir(source):
+            print(f"Will copy directory {source} -> {destination}")
+            if os.path.exists(destination):
+                print("    ... already exists")
+                if not os.path.isdir(destination):
+                    raise AttributeError(
+                        f"Destination {destination} should be a directory but is {path_type(destination)}"
+                    )
+            else:
+                print("    ... creating and testing directory")
+                os.makedirs(destination)
+                if not os.path.isdir(destination):
+                    raise AttributeError(
+                        f"I've just created a {destination} directory but it failed and I've got {path_type(destination)}"
+                    )
+            for fn in reversed(os.listdir(source)):
+                to_copy.append(
+                    (os.path.join(source, fn), os.path.join(destination, fn))
+                )
+        else:
+            print(f"Will copy file {source} -> {destination}")
+            if os.path.exists(destination):
+                print("    ... already exists, removing")
+                os.unlink(destination)
+            if os.path.exists(destination):
+                raise AttributeError(
+                    f"I've just deleted {destination}, but it still exists and is {path_type(destination)}"
+                )
+
+            shutil.copy(source, destination, follow_symlinks=True)
+            if not os.path.isfile(destination):
+                raise AttributeError(
+                    f"I've just copied file {source} into {destination}, but the destination is not a file, it is {path_type(destination)}"
+                )
+            if (
+                os.stat(source, follow_symlinks=True).st_size
+                != os.stat(destination).st_size
+            ):
+                raise AttributeError(
+                    f"I've just copied file {source} into {destination}, but the sizes do not match. "
+                    f"Source size {os.stat(source).st_size}, destination size {os.stat(destination).st_size}"
+                )
+            copied_files.append(destination)
+    return copied_files
