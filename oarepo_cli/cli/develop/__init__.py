@@ -83,26 +83,15 @@ def develop(
     )
     input()
 
-    print(f"Now run the docker inside {cfg.project_dir / 'sites' / site}:")
-    print()
-    print(
-        f"(cd \"{cfg.project_dir / 'sites' / site}\"; docker compose -f docker-compose.development.yml up app)"
-    )
-    print()
-    # TODO
-    """
-    app = subprocess.Popen(
-        ["docker", "compose", "-f", "docker-compose.development.yml", "up", "app"],
+    app = subprocess.call(
+        [
+            "docker",
+            "compose",
+            "-f",
+            "docker-compose.development.yml",
+            "run",
+            "-i",
+            "app",
+        ],
         cwd=cfg.project_dir / "sites" / site,
-        stdin=subprocess.PIPE,
     )
-    while True:
-        try:
-            line = input().strip()
-            app.stdin.write(line)
-        except InterruptedError:
-            app.terminate()
-            time.sleep(5)
-            app.kill()
-            break
-    """
