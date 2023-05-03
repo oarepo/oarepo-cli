@@ -9,6 +9,8 @@ import traceback
 import sys
 import select
 import shutil
+from oarepo_cli.utils import copy_tree
+from ..watch import load_watched_paths, copy_watched_paths
 
 
 @click.command(
@@ -123,12 +125,22 @@ def build_assets(*, virtualenv, invenio, **kwargs):
     Path(f"{invenio}/assets").mkdir(parents=True)
     Path(f"{invenio}/static").mkdir(parents=True)
 
-    check_call([f"{virtualenv}/bin/invenio", "collect", "--verbose"])
+    check_call(
+        [
+            f"{virtualenv}/bin/invenio",
+            "oarepo",
+            "assets",
+            "collect",
+            f"{invenio}/watch.list.json",
+        ]
+    )
     check_call([f"{virtualenv}/bin/invenio", "webpack", "clean", "create"])
     check_call([f"{virtualenv}/bin/invenio", "webpack", "install"])
 
-    copied_files = copy_statics_and_assets(invenio)
-    symlink_assets_templates(copied_files, invenio)
+    watched_paths = load_watched_paths(
+        f"{invenio}/watch.list.json", ["assets=assets", "static=static"]
+    )
+    copy_watched_paths(watched_paths, Path(invenio))
 
     check_call([f"{virtualenv}/bin/invenio", "webpack", "build"])
 
@@ -138,82 +150,23 @@ def build_assets(*, virtualenv, invenio, **kwargs):
     Path(f"{invenio}/assets/build/webpack.config.js").write_text(webpack_config)
 
 
-def copy_statics_and_assets(invenio):
-    rdm_static_dir_exists = os.path.exists("static")
-    rdm_assets_dir_exists = os.path.exists("assets")
-
-    if rdm_static_dir_exists:
-        src_dir = "static"
-        dst_dir = f"{invenio}/static"
-        for i in range(5):
-            try:
-                copy_tree(src_dir, dst_dir)
-                break
-            except:
-                traceback.print_exc()
-                time.sleep(10)
-        else:
-            raise Exception("Could not copy tree, see the log above")
-
-    if rdm_assets_dir_exists:
-        src_dir = "assets"
-        dst_dir = f"{invenio}/assets"
-        # The full path to the files that were copied is returned
-        for i in range(5):
-            try:
-                ret = copy_tree(src_dir, dst_dir)
-                break
-            except:
-                traceback.print_exc()
-                time.sleep(10)
-        else:
-            raise Exception("Could not copy tree, see log above")
-        return ret
-    return []
-
-
-def symlink_assets_templates(files_to_link, invenio):
-    """Symlink the assets folder."""
-    assets = "assets"
-    click.secho("Symlinking {}...".format(assets), fg="green")
-
-    instance_path = Path(invenio)
-    project_dir = Path.cwd()
-    for file_path in files_to_link:
-        file_path = Path(file_path)
-        relative_path = file_path.relative_to(instance_path)
-        target_path = project_dir / relative_path
-        force_symlink(target_path, file_path)
-
-
-def force_symlink(target, link_name):
-    """Forcefully create symlink at link_name pointing to target."""
-    output = f"Symlinked {target} successfully."
-    try:
-        os.symlink(target, link_name)
-    except OSError as e:
-        if e.errno == errno.EEXIST:
-            os.remove(link_name)
-            os.symlink(target, link_name)
-            output = output + "Deleted already existing link."
-
-    print(target, output)
-
-
 class Runner:
     def __init__(self, venv, invenio):
         self.venv = venv
         self.invenio = invenio
         self.server_handle = None
         self.ui_handle = None
+        self.watch_handle = None
 
     def run(self):
         try:
             self.start_server()
             time.sleep(10)
+            self.start_watch()
             self.start_ui()
         except:
             traceback.print_exc()
+            self.stop_watch()
             self.stop_server()
             self.stop_ui()
             return
@@ -240,14 +193,17 @@ class Runner:
                 if l == "build":
                     self.stop_ui()
                     self.stop_server()
+                    self.stop_watch()
                     subprocess.call(["ps", "-A"])
                     build_assets(virtualenv=self.venv, invenio=self.invenio)
                     self.start_server()
                     time.sleep(10)
+                    self.start_watch()
                     self.start_ui()
                     subprocess.call(["ps", "-A"])
 
             except InterruptedError:
+                self.stop_watch()
                 self.stop_server()
                 self.stop_ui()
                 return
@@ -255,6 +211,7 @@ class Runner:
                 traceback.print_exc()
         self.stop_server()
         self.stop_ui()
+        self.stop_watch()
 
     def start_server(self):
         print("Starting server")
@@ -283,6 +240,25 @@ class Runner:
         print("Stopping server")
         self.stop(self.server_handle)
         self.server_handle = None
+
+    def start_watch(self):
+        print("Starting file watcher")
+        self.watch_handle = subprocess.Popen(
+            [
+                "/nrp-cli/bin/nrp-cli",
+                "docker-watch",
+                f"{self.invenio}/watch.list.json",
+                self.invenio,
+                "assets=assets",
+                "static=static",
+            ],
+        )
+        time.sleep(5)
+
+    def stop_watch(self):
+        print("Stopping file watcher")
+        self.stop(self.watch_handle)
+        self.watch_handle = None
 
     def stop(self, handle):
         if handle:
@@ -352,54 +328,3 @@ def path_type(path):
         return "link"
     else:
         return "unknown"
-
-
-def copy_tree(src, dest):
-    to_copy = [(src, dest)]
-    copied_files = []
-    while to_copy:
-        source, destination = to_copy.pop()
-        if os.path.isdir(source):
-            print(f"Will copy directory {source} -> {destination}")
-            if os.path.exists(destination):
-                print("    ... already exists")
-                if not os.path.isdir(destination):
-                    raise AttributeError(
-                        f"Destination {destination} should be a directory but is {path_type(destination)}"
-                    )
-            else:
-                print("    ... creating and testing directory")
-                os.makedirs(destination)
-                if not os.path.isdir(destination):
-                    raise AttributeError(
-                        f"I've just created a {destination} directory but it failed and I've got {path_type(destination)}"
-                    )
-            for fn in reversed(os.listdir(source)):
-                to_copy.append(
-                    (os.path.join(source, fn), os.path.join(destination, fn))
-                )
-        else:
-            print(f"Will copy file {source} -> {destination}")
-            if os.path.exists(destination):
-                print("    ... already exists, removing")
-                os.unlink(destination)
-            if os.path.exists(destination):
-                raise AttributeError(
-                    f"I've just deleted {destination}, but it still exists and is {path_type(destination)}"
-                )
-
-            shutil.copy(source, destination, follow_symlinks=True)
-            if not os.path.isfile(destination):
-                raise AttributeError(
-                    f"I've just copied file {source} into {destination}, but the destination is not a file, it is {path_type(destination)}"
-                )
-            if (
-                os.stat(source, follow_symlinks=True).st_size
-                != os.stat(destination).st_size
-            ):
-                raise AttributeError(
-                    f"I've just copied file {source} into {destination}, but the sizes do not match. "
-                    f"Source size {os.stat(source).st_size}, destination size {os.stat(destination).st_size}"
-                )
-            copied_files.append(destination)
-    return copied_files

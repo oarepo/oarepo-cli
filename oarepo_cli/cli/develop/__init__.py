@@ -90,7 +90,7 @@ def develop(
             "-f",
             "docker-compose.development.yml",
             "run",
-            "-p 127.0.0.1:5000:5000",
+            "--service-ports",
             "-i",
             "app",
         ],
