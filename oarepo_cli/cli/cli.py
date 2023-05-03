@@ -8,6 +8,7 @@ from oarepo_cli.cli.ui import ui
 from oarepo_cli.cli.upgrade import upgrade
 from oarepo_cli.cli.develop_docker import docker_develop
 from oarepo_cli.cli.develop import develop
+from oarepo_cli.cli.watch import docker_watch
 
 
 @click.group()
@@ -23,6 +24,7 @@ run.add_command(run_server)
 run.add_command(upgrade)
 run.add_command(docker_develop)
 run.add_command(develop)
+run.add_command(docker_watch)
 
 if __name__ == "__main__":
     run()

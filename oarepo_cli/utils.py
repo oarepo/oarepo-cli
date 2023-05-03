@@ -3,6 +3,7 @@ import re
 import subprocess
 import sys
 from pathlib import Path
+import shutil
 
 import git
 import pydriller
@@ -199,3 +200,53 @@ def must_be_committed(repo_dir):
             "The repository contains untracked or dirty files. Please commit/ignore them before continuing."
         )
         sys.exit(1)
+
+
+def copy_tree(src, dest):
+    to_copy = [(src, dest)]
+    copied_files = []
+    while to_copy:
+        source, destination = to_copy.pop()
+        if os.path.isdir(source):
+            print(f"Copying directory {source} -> {destination}")
+            if os.path.exists(destination):
+                print("    ... already exists")
+                if not os.path.isdir(destination):
+                    raise AttributeError(
+                        f"Destination {destination} should be a directory but is {path_type(destination)}"
+                    )
+            else:
+                print("    ... creating and testing directory")
+                os.makedirs(destination)
+                if not os.path.isdir(destination):
+                    raise AttributeError(
+                        f"I've just created a {destination} directory but it failed and I've got {path_type(destination)}"
+                    )
+            for fn in reversed(os.listdir(source)):
+                to_copy.append(
+                    (os.path.join(source, fn), os.path.join(destination, fn))
+                )
+        else:
+            print(f"Copying file {source} -> {destination}")
+            if os.path.exists(destination):
+                os.unlink(destination)
+            if os.path.exists(destination):
+                raise AttributeError(
+                    f"I've just deleted {destination}, but it still exists and is {path_type(destination)}"
+                )
+
+            shutil.copy(source, destination, follow_symlinks=True)
+            if not os.path.isfile(destination):
+                raise AttributeError(
+                    f"I've just copied file {source} into {destination}, but the destination is not a file, it is {path_type(destination)}"
+                )
+            if (
+                os.stat(source, follow_symlinks=True).st_size
+                != os.stat(destination).st_size
+            ):
+                raise AttributeError(
+                    f"I've just copied file {source} into {destination}, but the sizes do not match. "
+                    f"Source size {os.stat(source).st_size}, destination size {os.stat(destination).st_size}"
+                )
+            copied_files.append(destination)
+    return copied_files
