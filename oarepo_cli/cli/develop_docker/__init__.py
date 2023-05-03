@@ -146,13 +146,29 @@ def copy_statics_and_assets(invenio):
     if rdm_static_dir_exists:
         src_dir = "static"
         dst_dir = f"{invenio}/static"
-        copy_tree(src_dir, dst_dir)
+        for i in range(5):
+            try:
+                copy_tree(src_dir, dst_dir)
+                break
+            except:
+                traceback.print_exc()
+                time.sleep(10)
+        else:
+            raise Exception("Could not copy tree, see the log above")
 
     if rdm_assets_dir_exists:
         src_dir = "assets"
         dst_dir = f"{invenio}/assets"
         # The full path to the files that were copied is returned
-        ret = copy_tree(src_dir, dst_dir)
+        for i in range(5):
+            try:
+                ret = copy_tree(src_dir, dst_dir)
+                break
+            except:
+                traceback.print_exc()
+                time.sleep(10)
+        else:
+            raise Exception("Could not copy tree, see log above")
         return ret
     return []
 
