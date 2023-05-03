@@ -208,7 +208,6 @@ class Runner:
                 l = input_with_timeout(60)
                 if not l:
                     continue
-                print(f"Processing {l}")
                 if l == "stop":
                     break
                 if l == "server":
@@ -316,14 +315,7 @@ def input_with_timeout(timeout):
     print("                          call ui build, then start again")
     print("    stop <enter>      --- stop the server and ui and exit")
     print()
-    start = time.time()
-    while True:
-        i, o, e = select.select([sys.stdin], [], [], timeout)
+    i, o, e = select.select([sys.stdin], [], [], timeout)
 
-        if i:
-            ret = sys.stdin.readline().strip()
-            if ret:
-                return ret
-            if time.time() - start > timeout:
-                return ret
-            time.sleep(0.5)
+    if i:
+        return sys.stdin.readline().strip()
