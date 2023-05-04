@@ -245,7 +245,7 @@ class Runner:
         print("Starting file watcher")
         self.watch_handle = subprocess.Popen(
             [
-                "/nrp-cli/bin/nrp-cli",
+                os.environ.get("NRP_CLI", "nrp-cli"),
                 "docker-watch",
                 f"{self.invenio}/watch.list.json",
                 self.invenio,
