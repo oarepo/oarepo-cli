@@ -46,7 +46,7 @@ def develop(
                 "build",
                 ".",
                 "-f",
-                f"sites/{site}/docker/Dockerfile.dev",
+                f"sites/{site}/docker/Dockerfile.development",
                 "-t",
                 f"{site}:devel",
                 "--build-arg",
