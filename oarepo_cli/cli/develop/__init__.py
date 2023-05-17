@@ -48,7 +48,7 @@ def develop(
                 "-f",
                 f"sites/{site}/docker/Dockerfile.development",
                 "-t",
-                f"{site}-development:latest",
+                f"{site}:devel",
                 "--build-arg",
                 f"REPOSITORY_SITE_NAME={site}",
                 "--no-cache",
