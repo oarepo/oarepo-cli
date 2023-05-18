@@ -89,8 +89,8 @@ class AddUIWizardStep(ModelMixin, UIWizardMixin, ProjectWizardMixin, WizardStep)
             model_config,
         ) = self.get_model_definition()
 
-        model_service = model_description["model"]["service-id"]
-        ui_serializer_class = model_description["model"]["record-ui-serializer-class"]
+        model_service = model_description["model"]["service-config"]["service-id"]
+        ui_serializer_class = model_description["model"]["json-serializer"]["class"]
 
         self.data.setdefault(
             "cookiecutter_local_model_path", relpath(model_path, self.ui_dir)

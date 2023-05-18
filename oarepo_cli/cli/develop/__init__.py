@@ -12,7 +12,15 @@ import os
     help="Start a development docker-compose",
 )
 @click.option("--site", help="Name of the site to start")
-@click.option("--rebuild/--no-rebuild", help="Rebuild the container", default=True)
+@click.option(
+    "--rebuild/--no-rebuild", help="Rebuild the container", default=True, is_flag=True
+)
+@click.option(
+    "--rebuild-requirements/--no-rebuild-requirements",
+    help="Rebuild the requirements, requires pipenv to be installed",
+    is_flag=True,
+    default=True,
+)
 @click.option(
     "--nrp-cli-directory",
     help="Use this directory for nrp-cli (nrp-cli development only)",
@@ -23,6 +31,7 @@ def develop(
     cfg: MonorepoConfig = None,
     site=None,
     rebuild=True,
+    rebuild_requirements=True,
     nrp_cli_directory=None,
     **kwargs,
 ):
@@ -30,16 +39,19 @@ def develop(
         site = list(cfg.whole_data["sites"].keys())[0]
 
     if rebuild:
-        with open(cfg.project_dir / "sites" / site / "requirements.txt", "w") as file:
-            subprocess.check_call(
-                [
-                    "pipenv",
-                    "requirements",
-                ],
-                cwd=cfg.project_dir / "sites" / site,
-                stdout=file,
-                env={**os.environ, "PIPENV_IGNORE_VIRTUALENVS": "1"},
-            )
+        if rebuild_requirements:
+            with open(
+                cfg.project_dir / "sites" / site / "requirements.txt", "w"
+            ) as file:
+                subprocess.check_call(
+                    [
+                        "pipenv",
+                        "requirements",
+                    ],
+                    cwd=cfg.project_dir / "sites" / site,
+                    stdout=file,
+                    env={**os.environ, "PIPENV_IGNORE_VIRTUALENVS": "1"},
+                )
         subprocess.check_call(
             [
                 "docker",
