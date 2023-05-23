@@ -103,7 +103,7 @@ class CompileWizardStep(ModelWizardStep, WizardStep):
             pip_install(
                 venv_dir / "bin" / "pip",
                 "OAREPO_MODEL_BUILDER_DRAFTS_VERSION",
-                "oarepo-model-builder-drafts==1.*",
+                "oarepo-model-builder-drafts==4.*",
                 "https://github.com/oarepo/oarepo-model-builder-drafts",
             )
 
@@ -123,21 +123,21 @@ class CompileWizardStep(ModelWizardStep, WizardStep):
             pip_install(
                 venv_dir / "bin" / "pip",
                 "OAREPO_MODEL_BUILDER_RELATIONS_VERSION",
-                "oarepo-model-builder-relations==1.*",
+                "oarepo-model-builder-relations==4.*",
                 "https://github.com/oarepo/oarepo-model-builder-relations",
             )
         if self.data.get("use_vocabularies", None) == "yes":
             pip_install(
                 venv_dir / "bin" / "pip",
                 "OAREPO_MODEL_BUILDER_VOCABULARIES_VERSION",
-                "oarepo-model-builder-vocabularies==1.*",
+                "oarepo-model-builder-vocabularies==4.*",
                 "https://github.com/oarepo/oarepo-model-builder-vocabularies",
             )
         if self.data.get("use_custom_fields", None) == "yes":
             pip_install(
                 venv_dir / "bin" / "pip",
                 "OAREPO_MODEL_BUILDER_FILES_VERSION",
-                "oarepo-model-builder-cf==1.*",
+                "oarepo-model-builder-cf==4.*",
                 "https://github.com/oarepo/oarepo-model-builder-cf",
             )
 
