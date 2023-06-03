@@ -2,7 +2,7 @@ import re
 import subprocess
 
 from oarepo_cli.cli.site.utils import SiteWizardStepMixin
-from oarepo_cli.wizard import WizardStep
+from oarepo_cli.wizard import WizardStep, RadioStep
 
 from ...utils import run_cmdline
 
@@ -10,7 +10,7 @@ from ...utils import run_cmdline
 class InitDatabaseStep(SiteWizardStepMixin, WizardStep):
     def __init__(self, **kwargs):
         super().__init__(
-            Radio(
+            RadioStep(
                 "init_database",
                 options={"yes": "Yes", "no": "No"},
                 default="yes",
