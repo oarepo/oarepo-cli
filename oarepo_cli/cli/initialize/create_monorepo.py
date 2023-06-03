@@ -4,7 +4,7 @@ from pathlib import Path
 
 from oarepo_cli.cli.utils import ProjectWizardMixin
 from oarepo_cli.templates import get_cookiecutter_template
-from oarepo_cli.ui.wizard import WizardStep
+from oarepo_cli.wizard import WizardStep
 from oarepo_cli.utils import commit_git
 
 
@@ -19,11 +19,6 @@ def keep_existing_copy(src, dst, *, follow_symlinks=True):
 
 
 class CreateMonorepoStep(ProjectWizardMixin, WizardStep):
-    def __init__(self, **kwargs):
-        super().__init__(
-            heading="Now I will create the monorepo inside the selected directory.",
-            **kwargs
-        )
 
     def after_run(self):
         project_dir, repo_name, repo_out = self._repo_params
@@ -57,4 +52,4 @@ class CreateMonorepoStep(ProjectWizardMixin, WizardStep):
 
     def should_run(self):
         project_dir, repo_name, repo_out = self._repo_params
-        return not (project_dir / "invenio-cli").exists()
+        return not (project_dir / "nrp-cli").exists()

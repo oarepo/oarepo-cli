@@ -3,16 +3,17 @@ from __future__ import annotations
 import shutil
 import venv
 
-from oarepo_cli.ui.wizard import WizardStep
+from oarepo_cli.wizard import WizardStep
+from ...package_versions import NRP_CLI
 
 from ...utils import commit_git, pip_install
 
 
-class InstallIOARepoCliStep(WizardStep):
+class InstallINRPCliStep(WizardStep):
     def __init__(self, **kwargs):
         super().__init__(
             heading="""
-I will install oarepo command-line tools that make using the invenio easier.
+I will install nrp command-line tools that make using the invenio easier.
 To run them, invoke the "nrp-cli" script from within the project directory.            
             """,
             **kwargs,
@@ -20,22 +21,20 @@ To run them, invoke the "nrp-cli" script from within the project directory.
 
     def after_run(self):
         print("Creating nrp-cli virtualenv")
-        oarepo_cli_dir = self._oarepo_cli_dir
         self.data["oarepo_cli"] = str(
-            (oarepo_cli_dir / "bin" / "nrp-cli").relative_to(self.data.project_dir)
+            (self.nrp_cli_dir / "bin" / "nrp-cli").relative_to(self.data.project_dir)
         )
-        if oarepo_cli_dir.exists():
-            shutil.rmtree(oarepo_cli_dir)
-        venv.main([str(oarepo_cli_dir)])
+        if self.nrp_cli_dir.exists():
+            shutil.rmtree(self.nrp_cli_dir)
+        venv.main([str(self.nrp_cli_dir)])
 
         pip_install(
-            oarepo_cli_dir / "bin" / "pip",
-            "OAREPO_CLI_VERSION",
-            "oarepo-cli>=11.0.8,<12",
+            self.nrp_cli_dir / "bin" / "pip",
+            "NRP_CLI_VERSION", NRP_CLI,
             "https://github.com/oarepo/oarepo-cli",
         )
 
-        with open(oarepo_cli_dir / ".check.ok", "w") as f:
+        with open(self.nrp_cli_dir / ".check.ok", "w") as f:
             f.write("oarepo check ok")
         commit_git(
             self.data.project_dir,
@@ -44,8 +43,8 @@ To run them, invoke the "nrp-cli" script from within the project directory.
         )
 
     @property
-    def _oarepo_cli_dir(self):
+    def nrp_cli_dir(self):
         return self.data.project_dir / ".venv" / "nrp-cli"
 
     def should_run(self):
-        return not (self._oarepo_cli_dir / ".check.ok").exists()
+        return not (self.nrp_cli_dir / ".check.ok").exists()

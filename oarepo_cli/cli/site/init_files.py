@@ -1,7 +1,7 @@
 import subprocess
 
 from oarepo_cli.cli.site.utils import SiteWizardStepMixin
-from oarepo_cli.ui.wizard import WizardStep
+from oarepo_cli.wizard import WizardStep
 
 from ...utils import run_cmdline
 

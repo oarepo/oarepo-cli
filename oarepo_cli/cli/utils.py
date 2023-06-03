@@ -1,16 +1,13 @@
 import functools
 import shutil
 import sys
-import os
 from pathlib import Path
 
 import click
 import yaml
-from colorama import Fore, Style
 
 from oarepo_cli.config import MonorepoConfig
-from oarepo_cli.ui.wizard.steps import RadioWizardStep, WizardStep
-from oarepo_cli.utils import add_to_pipfile_dependencies, run_cmdline
+from oarepo_cli.utils import run_cmdline
 
 
 def with_config(
@@ -31,13 +28,6 @@ def with_config(
                 help="Directory containing an already initialized project. "
                 "If not set, current directory is used",
             )
-        )
-        @click.option(
-            "--no-banner",
-            is_flag=True,
-            type=bool,
-            required=False,
-            help="Do not show the welcome banner",
         )
         @click.option(
             "--no-input",
@@ -61,6 +51,18 @@ def with_config(
             required=False,
             help="Verbose output",
         )
+        @click.option(
+            "--step",
+            required=False,
+            help="Run only this step",
+        )
+        @click.option(
+            "--steps",
+            is_flag=True,
+            type=bool,
+            required=False,
+            help="List all steps and exit",
+        )
         @(
             click.argument(
                 "config",
@@ -78,10 +80,7 @@ def with_config(
         @functools.wraps(f)
         def wrapped(
             project_dir=None,
-            no_input=False,
-            silent=False,
             config=None,
-            verbose=False,
             **kwargs,
         ):
             if not project_dir:
@@ -103,23 +102,18 @@ def with_config(
                 config_data = yaml.safe_load(Path(config).read_text())
                 cfg.merge_config(config_data, top=not config_section)
 
-            cfg.no_input = no_input
-            cfg.silent = silent
-            cfg.verbose = verbose
-
             kwargs.pop("cfg", None)
             kwargs.pop("project_dir", None)
             try:
                 return f(project_dir=project_dir, cfg=cfg, **kwargs)
             except Exception as e:
-                if cfg.verbose:
+                if kwargs.get('verbose'):
                     import traceback
 
                     traceback.print_exc()
                 else:
                     print(str(e))
                 raise
-                sys.exit(1)
 
         return wrapped
 
@@ -134,10 +128,6 @@ class ProjectWizardMixin:
         return self.data.project_dir / self.site["site_dir"]
 
     @property
-    def invenio_cli(self):
-        return self.data.project_dir / self.data.get("config.invenio_cli")
-
-    @property
     def oarepo_cli(self):
         return self.data.project_dir / self.data.get("config.oarepo_cli")
 
@@ -146,25 +136,16 @@ class ProjectWizardMixin:
             self.invenio_cli,
             *args,
             cwd=cwd or self.site_dir,
-            environ={"PIPENV_IGNORE_VIRTUALENVS": "1", **(environ or {})},
+            environ={**(environ or {})},
         )
 
-    def pipenv_command(self, *args, cwd=None, environ=None):
-        return run_cmdline(
-            "pipenv",
-            *args,
-            cwd=cwd or self.site_dir,
-            environ={"PIPENV_IGNORE_VIRTUALENVS": "1", **(environ or {})},
-        )
 
     def invenio_command(self, *args, cwd=None, environ=None):
         return run_cmdline(
-            "pipenv",
-            "run",
-            "invenio",
+            ".venv/bin/invenio",
             *args,
             cwd=cwd or self.site_dir,
-            environ={"PIPENV_IGNORE_VIRTUALENVS": "1", **(environ or {})},
+            environ={**(environ or {})},
         )
 
     def run_cookiecutter(
@@ -202,7 +183,7 @@ class ProjectWizardMixin:
             cookiecutter_command,
             *args,
             cwd=self.data.project_dir,
-            environ={"PIPENV_IGNORE_VIRTUALENVS": "1", **(environ or {})},
+            environ={**(environ or {})},
         )
         merge_from_temp_to_target(output_dir_temp, output_dir)
 
@@ -219,58 +200,6 @@ class SiteMixin(ProjectWizardMixin):
                 f"Unexpected error: Site with name {site_name} does not exist"
             )
         return self.data.project_dir / site["site_dir"]
-
-
-class PipenvInstallWizardStep(SiteMixin, ProjectWizardMixin, WizardStep):
-    folder = None
-
-    def get_steps(self):
-        sites = self.data.whole_data.get("sites", {})
-        if len(sites) == 1:
-            self.data["installation_site"] = next(iter(sites))
-            steps = []
-        else:
-            steps = [
-                RadioWizardStep(
-                    "installation_site",
-                    options={
-                        x: f"{Fore.GREEN}{x}{Style.RESET_ALL}"
-                        for x in self.data.whole_data["sites"]
-                    },
-                    default=next(iter(self.data.whole_data["sites"])),
-                    heading=f"""
-            Select the site where you want to install the model to.
-                """,
-                    force_run=True,
-                )
-            ]
-        return steps
-
-    def heading(self, data):
-        return f"""
-    Now I will add the {self.folder} to site's Pipfile (if it is not there yet)
-    and will run pipenv lock & install.
-        """
-
-    pause = True
-
-    def after_run(self):
-        # add package to pipfile
-        self.add_to_pipfile()
-        self.install_pipfile()
-
-    def add_to_pipfile(self):
-        pipfile = self.site_dir / "Pipfile"
-        add_to_pipfile_dependencies(
-            pipfile, self.data.section, f"../../{self.folder}/{self.data.section}"
-        )
-
-    def install_pipfile(self):
-        self.pipenv_command("lock")
-        self.pipenv_command("install")
-
-    def should_run(self):
-        return True
 
 
 def merge_from_temp_to_target(output_dir_temp, output_dir):

@@ -7,23 +7,8 @@ import shutil
 
 import git
 import pydriller
-import pyfiglet
 import tomlkit
 from colorama import Fore, Style
-
-from oarepo_cli.ui.utils import slow_print
-
-
-def print_banner():
-    intro_string = "\n".join(
-        [
-            "        " + x
-            for x in pyfiglet.figlet_format(
-                "O A R e p o", font="slant", width=120
-            ).split("\n")
-        ]
-    )
-    slow_print(f"\n\n\n{Fore.GREEN}{intro_string}{Style.RESET_ALL}")
 
 
 def run_cmdline(
@@ -250,3 +235,14 @@ def copy_tree(src, dest):
                 )
             copied_files.append(destination)
     return copied_files
+
+
+def path_type(path):
+    if os.path.isdir(path):
+        return "dir"
+    elif os.path.isfile(path):
+        return "file"
+    elif os.path.islink(path):
+        return "link"
+    else:
+        return "unknown"

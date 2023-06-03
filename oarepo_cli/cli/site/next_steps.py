@@ -1,5 +1,5 @@
 from oarepo_cli.cli.site.utils import SiteWizardStepMixin
-from oarepo_cli.ui.wizard import WizardStep
+from oarepo_cli.wizard import WizardStep
 
 
 class NextStepsStep(SiteWizardStepMixin, WizardStep):

@@ -1,7 +1,7 @@
 import os
 
 from oarepo_cli.cli.utils import ProjectWizardMixin, SiteMixin
-from oarepo_cli.ui.wizard import WizardStep
+from oarepo_cli.wizard import WizardStep
 
 
 class ModelWizardStep(SiteMixin, ProjectWizardMixin, WizardStep):

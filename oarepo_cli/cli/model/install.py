@@ -8,9 +8,9 @@ from colorama import Fore, Style
 from setuptools.config import read_configuration
 
 from oarepo_cli.cli.model.utils import ModelWizardStep
-from oarepo_cli.cli.utils import PipenvInstallWizardStep, with_config
-from oarepo_cli.ui.wizard import Wizard
-from oarepo_cli.ui.wizard.steps import RadioWizardStep, WizardStep
+from oarepo_cli.cli.utils import with_config
+from oarepo_cli.wizard import Wizard
+from oarepo_cli.wizard.steps import RadioStep, WizardStep
 from oarepo_cli.utils import commit_git, run_cmdline
 
 
@@ -91,8 +91,8 @@ class TestWizardStep(ModelWizardStep, WizardStep):
         return True
 
 
-class InstallWizardStep(PipenvInstallWizardStep):
-    folder = "models"
+# class InstallWizardStep(PipenvInstallWizardStep):
+#     folder = "models"
 
 
 class AlembicWizardStep(ModelWizardStep):
@@ -234,7 +234,7 @@ def upgrade():
 
 class UpdateIndexWizardStep(ModelWizardStep):
     steps = (
-        RadioWizardStep(
+        RadioStep(
             "update_opensearch",
             options={
                 "run": f"{Fore.GREEN}Update opensearch index{Style.RESET_ALL}",

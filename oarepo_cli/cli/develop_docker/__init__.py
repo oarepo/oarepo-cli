@@ -317,14 +317,3 @@ def input_with_timeout(timeout):
 
     if i:
         return sys.stdin.readline().strip()
-
-
-def path_type(path):
-    if os.path.isdir(path):
-        return "dir"
-    elif os.path.isfile(path):
-        return "file"
-    elif os.path.islink(path):
-        return "link"
-    else:
-        return "unknown"

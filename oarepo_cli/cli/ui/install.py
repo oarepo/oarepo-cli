@@ -1,9 +1,9 @@
 import click as click
 
 from oarepo_cli.cli.model.utils import ProjectWizardMixin
-from oarepo_cli.cli.utils import PipenvInstallWizardStep, SiteMixin, with_config
-from oarepo_cli.ui.wizard import Wizard
-from oarepo_cli.ui.wizard.steps import WizardStep
+from oarepo_cli.cli.utils import SiteMixin, with_config
+from oarepo_cli.wizard import Wizard
+from oarepo_cli.wizard.steps import WizardStep
 
 
 @click.command(
@@ -19,8 +19,8 @@ def install_ui(cfg=None, **kwargs):
     InstallWizard().run(cfg)
 
 
-class InstallWizardStep(PipenvInstallWizardStep):
-    folder = "ui"
+# class InstallWizardStep(PipenvInstallWizardStep):
+#     folder = "ui"
 
 
 class CompileAssetsStep(SiteMixin, ProjectWizardMixin, WizardStep):
@@ -32,7 +32,7 @@ class CompileAssetsStep(SiteMixin, ProjectWizardMixin, WizardStep):
 
 
 class InstallWizard(ProjectWizardMixin, Wizard):
-    steps = [InstallWizardStep(), CompileAssetsStep()]
+#    steps = [InstallWizardStep(), CompileAssetsStep()]
 
     def should_run(self):
         return super().should_run()

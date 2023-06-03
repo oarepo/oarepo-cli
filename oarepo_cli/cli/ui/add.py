@@ -8,8 +8,7 @@ import click as click
 
 from oarepo_cli.cli.model.utils import ProjectWizardMixin
 from oarepo_cli.cli.utils import with_config
-from oarepo_cli.ui.wizard import StaticWizardStep, Wizard
-from oarepo_cli.ui.wizard.steps import InputWizardStep, RadioWizardStep, WizardStep
+from oarepo_cli.wizard import Wizard, WizardStep
 from oarepo_cli.utils import get_cookiecutter_source, run_cmdline, to_python_name
 from ...utils import commit_git
 

@@ -2,7 +2,7 @@ import click as click
 
 from oarepo_cli.cli.model.utils import ModelWizardStep
 from oarepo_cli.cli.utils import with_config
-from oarepo_cli.ui.wizard import Wizard
+from oarepo_cli.wizard import Wizard
 
 
 @click.command(

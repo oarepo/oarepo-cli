@@ -1,0 +1,1 @@
+NRP_CLI="oarepo-cli>=11.0.8,<12"

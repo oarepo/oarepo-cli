@@ -6,8 +6,8 @@ import yaml
 
 from oarepo_cli.cli.model.utils import ModelWizardStep
 from oarepo_cli.cli.utils import with_config
-from oarepo_cli.ui.wizard import Wizard, WizardStep
-from oarepo_cli.ui.wizard.steps import RadioWizardStep
+from oarepo_cli.wizard import Wizard, WizardStep
+from oarepo_cli.wizard.steps import RadioStep
 from oarepo_cli.utils import commit_git, pip_install, run_cmdline
 
 
@@ -30,7 +30,7 @@ def compile_model(cfg=None, **kwargs):
     model_dir = cfg.project_dir / "models" / cfg.section
     if (model_dir / "setup.cfg").exists():
         optional_steps.append(
-            RadioWizardStep(
+            RadioStep(
                 "merge_changes",
                 options={
                     "merge": "Merge changes into the previously generated files",

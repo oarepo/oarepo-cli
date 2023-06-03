@@ -5,13 +5,13 @@ import os
 import re
 
 from oarepo_cli.cli.site.utils import SiteWizardStepMixin
-from oarepo_cli.ui.wizard import StaticWizardStep, WizardStep
-from oarepo_cli.ui.wizard.steps import InputWizardStep, RadioWizardStep
+from oarepo_cli.wizard import WizardStep
+from ..utils import ProjectWizardMixin
 
-from ...utils import commit_git, get_cookiecutter_source, run_cmdline
+from ...utils import commit_git, get_cookiecutter_source
 
 
-class InstallSiteStep(SiteWizardStepMixin, WizardStep):
+class InstallSiteStep(SiteWizardStepMixin, ProjectWizardMixin, WizardStep):
     def __init__(self, **kwargs):
         super().__init__(
             heading="""
@@ -59,43 +59,16 @@ If not sure, keep the default values.""",
             ),
             StaticWizardStep(
                 heading="""I have all the information to generate the site.
-To do so, I'll call the invenio client. If anything goes wrong, please fix the problem
+To do so, I'll call the cookiecutter to install the size template. If anything goes wrong, please fix the problem
 and run the wizard again.
             """,
             ),
         ]
 
     def after_run(self):
-        # create site config for invenio-cli
-        cookiecutter_config_file = self.data.project_dir / ".invenio"
         site_dir = self.site_dir
         if not site_dir.parent.exists():
             site_dir.parent.mkdir(parents=True)
-
-        with open(cookiecutter_config_file, "w") as f:
-            print(
-                f"""
-[cookiecutter]
-project_name = {self.data['repository_name']}
-project_shortname = {self.site_dir.name}
-project_site = {self.data['www']}
-github_repo = 
-description = {self.data['repository_name']} OARepo Instance
-author_name = {self.data['author_name']}
-author_email = {self.data['author_email']}
-year = {self.data['year']}
-python_version = 3.9
-database = postgresql
-search = opensearch2
-file_storage = S3
-development_tools = yes
-site_code = yes
-use_oarepo_vocabularies = {self.data['use_oarepo_vocabularies']}
-                """,
-                file=f,
-            )
-        # and run invenio-cli with our site template
-        # (submodule from https://github.com/oarepo/cookiecutter-oarepo-instance)
 
         cookiecutter_path, cookiecutter_branch = get_cookiecutter_source(
             "OAREPO_SITE_COOKIECUTTER_VERSION",
@@ -104,30 +77,30 @@ use_oarepo_vocabularies = {self.data['use_oarepo_vocabularies']}
             master_version="master",
         )
 
-        run_cmdline(
-            self.data.project_dir / self.data.get("config.invenio_cli"),
-            "init",
-            "rdm",
-            "-t",
-            cookiecutter_path,
-            *(
-                [
-                    "-c",
-                    cookiecutter_branch,
-                ]
-                if cookiecutter_branch
-                else []
+        self.run_cookiecutter(
+            template=cookiecutter_path,
+            checkout=cookiecutter_branch,
+            config_file="monorepo",
+            output_dir=str(site_dir.parent),
+            extra_context=dict(
+                project_name = self.data['repository_name'],
+                project_shortname = self.site_dir.name,
+                project_site = self.data['www'],
+                github_repo = '',
+                description = f"{self.data['repository_name']} OARepo Instance",
+                author_name = self.data['author_name'],
+                author_email = self.data['author_email'],
+                year = self.data['year'],
+                python_version = '3.9',
+                database = 'postgresql',
+                search = 'opensearch2',
+                file_storage = 'S3',
+                development_tools = 'yes',
+                site_code = 'yes',
+                use_oarepo_vocabularies = self.data['use_oarepo_vocabularies']
             ),
-            "--no-input",
-            "--config",
-            str(cookiecutter_config_file),
-            cwd=self.data.project_dir / "sites",
-            environ={
-                "PIPENV_IGNORE_VIRTUALENVS": "1",
-                # use our own cookiecutter, not the system one
-                "PATH": f"{self.data.get('config.project_dir')}/.bin:{os.environ['PATH']}",
-            },
         )
+
         with open(self.site_dir / ".check.ok", "w") as f:
             f.write("oarepo check ok")
         commit_git(
