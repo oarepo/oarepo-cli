@@ -1,5 +1,6 @@
 from oarepo_cli.model.gen.base import GeneratedFile
 from oarepo_cli.model.utils import ModelWizardStep
+from oarepo_cli.package_versions import OAREPO_MODEL_BUILDER_CF_VERSION
 from oarepo_cli.utils import unique_merger
 from oarepo_cli.wizard import RadioStep
 
@@ -15,7 +16,7 @@ class AddCustomFieldsWizardStep(ModelWizardStep):
                     "no": "No, the metadata schema should be fixed",
                 },
             ),
-            **kwargs
+            **kwargs,
         )
 
     def after_run(self):
@@ -28,7 +29,11 @@ class AddCustomFieldsWizardStep(ModelWizardStep):
             yaml,
             {
                 "record": {"use": ["./custom_fields.yaml"]},
-                "plugins": {"packages": ["oarepo-model-builder-cf"]},
+                "plugins": {
+                    "packages": [
+                        f"oarepo-model-builder-cf{OAREPO_MODEL_BUILDER_CF_VERSION}"
+                    ]
+                },
             },
         )
         yaml_file.save()

@@ -1,5 +1,6 @@
 from oarepo_cli.model.gen.base import GeneratedFile
 from oarepo_cli.model.utils import ModelWizardStep
+from oarepo_cli.package_versions import OAREPO_MODEL_BUILDER_FILES_VERSION
 from oarepo_cli.utils import unique_merger
 from oarepo_cli.wizard import RadioStep
 
@@ -15,7 +16,7 @@ class AddFilesWizardStep(ModelWizardStep):
                     "no": "No, this is metadata-only repository",
                 },
             ),
-            **kwargs
+            **kwargs,
         )
 
     def after_run(self):
@@ -28,7 +29,12 @@ class AddFilesWizardStep(ModelWizardStep):
             yaml,
             {
                 "record": {"use": ["./files.yaml"]},
-                "plugins": {"packages": ["oarepo-model-builder-files"]},
+                "plugins": {
+                    "packages": [
+                        f"oarepo-model-builder-files{OAREPO_MODEL_BUILDER_FILES_VERSION}"
+                    ]
+                },
+                "profiles": ["files"],
             },
         )
         yaml_file.save()

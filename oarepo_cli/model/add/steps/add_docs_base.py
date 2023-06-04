@@ -1,5 +1,11 @@
 from oarepo_cli.model.gen.base import GeneratedFile
 from oarepo_cli.model.utils import ModelWizardStep
+from oarepo_cli.package_versions import (
+    NR_METADATA_VERSION,
+    NR_OAIPMH_HARVESTERS_VERSION,
+    NR_VOCABULARIES_VERSION,
+    OAREPO_MODEL_BUILDER_NR_VERSION,
+)
 from oarepo_cli.utils import unique_merger
 from oarepo_cli.wizard import RadioStep
 
@@ -12,7 +18,7 @@ class AddDocsBaseWizardStep(ModelWizardStep):
                 heading="Should I base the model on nr-docs?",
                 options={"yes": "Yes", "no": "No"},
             ),
-            **kwargs
+            **kwargs,
         )
 
     def after_run(self):
@@ -31,12 +37,14 @@ class AddDocsBaseWizardStep(ModelWizardStep):
                 },
                 "plugins": {
                     "builder": {"disable": ["script_sample_data"]},
-                    "packages": ["oarepo-model-builder-nr"],
+                    "packages": [
+                        f"oarepo-model-builder-nr{OAREPO_MODEL_BUILDER_NR_VERSION}"
+                    ],
                 },
                 "runtime-dependencies": {
-                    "nr-metadata": ">=1.0.0,<2",
-                    "nr-oaipmh-harvesters": ">=1.0.0,<2",
-                    "nr-vocabularies": ">=1.0.0,<2",
+                    "nr-metadata": NR_METADATA_VERSION,
+                    "nr-oaipmh-harvesters": NR_OAIPMH_HARVESTERS_VERSION,
+                    "nr-vocabularies": NR_VOCABULARIES_VERSION,
                 },
                 "settings": {
                     "i18n-languages": ["cs", "en"],

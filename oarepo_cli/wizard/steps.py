@@ -23,7 +23,8 @@ class WizardStep(WizardBase):
         self.pause = pause or self.pause
 
     def run(self, single_step=None):
-        self.on_before_run()
+        if not self.on_before_run():
+            return
         self.on_before_heading()
         self._print_heading()
         self.on_after_heading()
@@ -42,7 +43,7 @@ class WizardStep(WizardBase):
             print()
 
     def on_before_run(self):
-        pass
+        return True
 
     def on_before_heading(self):
         pass

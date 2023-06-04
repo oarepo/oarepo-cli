@@ -1,5 +1,6 @@
 from oarepo_cli.model.gen.base import GeneratedFile
 from oarepo_cli.model.utils import ModelWizardStep
+from oarepo_cli.package_versions import OAREPO_MODEL_BUILDER_VOCABULARIES_VERSION
 from oarepo_cli.utils import unique_merger
 from oarepo_cli.wizard import RadioStep
 
@@ -15,7 +16,7 @@ class AddVocabulariesWizardStep(ModelWizardStep):
                     "no": "No, I will not have controlled vocabularies in the model",
                 },
             ),
-            **kwargs
+            **kwargs,
         )
 
     def after_run(self):
@@ -28,7 +29,11 @@ class AddVocabulariesWizardStep(ModelWizardStep):
         unique_merger.merge(
             yaml,
             {
-                "plugins": {"packages": ["oarepo-model-builder-vocabularies"]},
+                "plugins": {
+                    "packages": [
+                        f"oarepo-model-builder-vocabularies{OAREPO_MODEL_BUILDER_VOCABULARIES_VERSION}"
+                    ]
+                },
             },
         )
         yaml_file.save()

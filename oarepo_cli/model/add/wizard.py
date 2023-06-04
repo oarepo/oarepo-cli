@@ -9,6 +9,7 @@ from .steps.add_nr_vocabularies import AddNRVocabulariesWizardStep
 from .steps.add_permissions import AddPermissionsWizardStep
 from .steps.add_pid_type import AddPIDTypeWizardStep
 from .steps.add_relations import AddRelationsWizardStep
+from .steps.add_tests import AddTestsWizardStep
 from .steps.add_vocabularies import AddVocabulariesWizardStep
 from .steps.create_model import EmptyModelWizardStep
 
@@ -32,6 +33,7 @@ class AddModelWizard(Wizard):
             AddMetadataWizardStep(),
             AddPermissionsWizardStep(),
             AddPIDTypeWizardStep(),
+            AddTestsWizardStep(),
         )
 
     def run_wizard(

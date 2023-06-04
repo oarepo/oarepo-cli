@@ -27,7 +27,11 @@ class EmptyModelWizardStep(ModelWizardStep):
                         "qualified": self.data["model_package"],
                     },
                     "properties": {},
-                }
+                },
+                "settings": {
+                    'i18n-languages': ['en']
+                },
+                "profiles": ["record"],
             },
         )
         yaml_file.save()
