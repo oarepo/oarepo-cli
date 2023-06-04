@@ -1,9 +1,9 @@
 import subprocess
 
+from minio import Minio
+
 from oarepo_cli.cli.site.utils import SiteWizardStepMixin
 from oarepo_cli.wizard import WizardStep
-
-from ...utils import run_cmdline
 
 
 class InitFilesStep(SiteWizardStepMixin, WizardStep):
@@ -16,44 +16,37 @@ class InitFilesStep(SiteWizardStepMixin, WizardStep):
         )
 
     def after_run(self):
-        from minio import Minio
+        host, port, access_key, secret_key = \
+            self.get_invenio_configuration('INVENIO_S3_HOST', 'INVENIO_S3_PORT',
+                                           'INVENIO_S3_ACCESS_KEY', 'INVENIO_S3_SECRET_KEY')
 
         client = Minio(
-            "localhost:9000",
-            access_key="CHANGE_ME",
-            secret_key="CHANGE_ME",
+            f"{host}:{port}",
+            access_key=access_key,
+            secret_key=secret_key,
             secure=False,
         )
+
         bucket_name = self.data["site_package"].replace(
             "_", ""
         )  # bucket names with underscores are not allowed
         if not client.bucket_exists(bucket_name):
             client.make_bucket(bucket_name)
-        run_cmdline(
-            "pipenv",
-            "run",
-            "invenio",
+        self.call_invenio(
             "files",
             "location",
             "default",
             f"s3://{bucket_name}",
-            "--default",
-            cwd=self.site_dir,
-            environ={"PIPENV_IGNORE_VIRTUALENVS": "1"},
+            "--default"
         )
         self.check_file_location_initialized(raise_error=True)
 
     def check_file_location_initialized(self, raise_error=False):
         try:
-            output = run_cmdline(
-                "pipenv",
-                "run",
-                "invenio",
+            output = self.call_invenio(
                 "files",
                 "location",
                 "list",
-                cwd=self.site_dir,
-                environ={"PIPENV_IGNORE_VIRTUALENVS": "1"},
                 grab_stdout=True,
                 raise_exception=True,
             )

@@ -118,7 +118,7 @@ def development_script(**kwargs):
 # is used - it gets broken with each release.
 
 
-def build_assets(*, virtualenv, invenio, **kwargs):
+def build_assets(*, virtualenv, invenio, cwd=None, **kwargs):
     shutil.rmtree(f"{invenio}/assets", ignore_errors=True)
     shutil.rmtree(f"{invenio}/static", ignore_errors=True)
 
@@ -132,17 +132,27 @@ def build_assets(*, virtualenv, invenio, **kwargs):
             "assets",
             "collect",
             f"{invenio}/watch.list.json",
-        ]
+        ],
+        cwd=cwd
     )
-    check_call([f"{virtualenv}/bin/invenio", "webpack", "clean", "create"])
-    check_call([f"{virtualenv}/bin/invenio", "webpack", "install"])
+    check_call([f"{virtualenv}/bin/invenio", "webpack", "clean", "create"], cwd=cwd)
+    check_call([f"{virtualenv}/bin/invenio", "webpack", "install"], cwd=cwd)
+
+    assets = 'assets'
+    static = 'static'
+    if cwd:
+        assets = str(cwd / assets)
+        static = str(cwd / static)
 
     watched_paths = load_watched_paths(
-        f"{invenio}/watch.list.json", ["assets=assets", "static=static"]
+        f"{invenio}/watch.list.json", [f"{assets}=assets", f"{static}=static"]
     )
+    import json
+    Path('/tmp/blah.json').write_text(json.dumps(watched_paths, indent=4))
     copy_watched_paths(watched_paths, Path(invenio))
 
-    check_call([f"{virtualenv}/bin/invenio", "webpack", "build"])
+    check_call([f"{virtualenv}/bin/invenio", "webpack", "build"],
+        cwd=cwd)
 
     # do not allow Clean plugin to remove files
     webpack_config = Path(f"{invenio}/assets/build/webpack.config.js").read_text()

@@ -23,6 +23,7 @@ class WizardStep(WizardBase):
         self.pause = pause or self.pause
 
     def run(self, single_step=None):
+        self.on_before_run()
         self.on_before_heading()
         self._print_heading()
         self.on_after_heading()
@@ -37,8 +38,11 @@ class WizardStep(WizardBase):
             if callable(heading):
                 heading = heading(self.data)
             if heading:
-                print(f"\n\n{Fore.BLUE}{heading}{Style.RESET_ALL}")
+                print(f"\n\n{Fore.BLUE}{heading.strip()}{Style.RESET_ALL}")
             print()
+
+    def on_before_run(self):
+        pass
 
     def on_before_heading(self):
         pass
@@ -125,6 +129,7 @@ class RadioStep(WizardStep):
         return self._default
 
     def run(self, **kwargs):
+        super().run(**kwargs)
         value = self.data.get(self.key, self.default)
 
         displayed = [

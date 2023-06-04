@@ -4,7 +4,7 @@ import shutil
 import venv
 
 from oarepo_cli.wizard import WizardStep
-from ...package_versions import NRP_CLI
+from ...package_versions import NRP_CLI_VERSION
 
 from ...utils import commit_git, pip_install
 
@@ -30,7 +30,7 @@ To run them, invoke the "nrp-cli" script from within the project directory.
 
         pip_install(
             self.nrp_cli_dir / "bin" / "pip",
-            "NRP_CLI_VERSION", NRP_CLI,
+            "NRP_CLI_VERSION", NRP_CLI_VERSION,
             "https://github.com/oarepo/oarepo-cli",
         )
 

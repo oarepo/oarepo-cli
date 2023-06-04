@@ -1,7 +1,49 @@
+import json
 from pathlib import Path
+
+from dotenv import dotenv_values
+
+from oarepo_cli.utils import run_cmdline
 
 
 class SiteWizardStepMixin:
     @property
     def site_dir(self):
         return Path(self.data.project_dir) / self.data["site_dir"]
+
+    def call_pip(self, *args, **kwargs):
+        pip_cmd = self.site_dir / '.venv' / 'bin' / 'pip'
+        return run_cmdline(pip_cmd, *args, **kwargs, cwd=self.site_dir)
+
+    def call_invenio(self, *args, **kwargs):
+        invenio_cmd = self.site_dir / '.venv' / 'bin' / 'invenio'
+        return run_cmdline(invenio_cmd, *args, **kwargs, cwd=self.site_dir)
+
+    def get_invenio_configuration(self, *keys):
+        values = dotenv_values(self.site_dir / '.env')
+        def convert(x):
+            try:
+                if x == 'False':
+                    return False
+                if x == 'True':
+                    return True
+                return json.loads(x)
+            except:
+                return x
+
+        try:
+            return [convert(values[x]) for x in keys]
+        except KeyError as e:
+            raise KeyError(f'Configuration key not found in defaults: {values.keys()}: {e}')
+
+
+def get_site_local_packages(data):
+    models = [
+        model_name for model_name, model_section in data.whole_data.get('models', {}).items()
+        if model_section['installation_site'] == data.section
+    ]
+    uis = [
+        ui_name for ui_name, ui_section in data.whole_data.get('ui', {}).items()
+        if ui_section['installation_site'] == data.section
+    ]
+    return models, uis

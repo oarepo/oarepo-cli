@@ -5,8 +5,9 @@ import os
 import re
 
 from oarepo_cli.cli.site.utils import SiteWizardStepMixin
-from oarepo_cli.wizard import WizardStep
+from oarepo_cli.wizard import WizardStep, InputStep, RadioStep, StaticStep
 from ..utils import ProjectWizardMixin
+from ...package_versions import SITE_COOKIECUTTER_REPO, SITE_COOKIECUTTER_VERSION
 
 from ...utils import commit_git, get_cookiecutter_source
 
@@ -14,56 +15,53 @@ from ...utils import commit_git, get_cookiecutter_source
 class InstallSiteStep(SiteWizardStepMixin, ProjectWizardMixin, WizardStep):
     def __init__(self, **kwargs):
         super().__init__(
-            heading="""
-Now I will add site sources, that can be used to change the overall CSS style and
-configure your repository. Please fill in the following values. 
-If not sure, keep the default values.""",
-            **kwargs,
-        )
-
-    def get_steps(self):
-        self.data.setdefault(
-            "transifex_project", self.data.get("config.project_package", "")
-        )
-        # substeps of this step
-        site_dir_name = self.site_dir.name
-        return [
-            InputWizardStep(
+            InputStep(
                 "repository_name",
                 prompt="""Enter the repository name ("title" of the HTML site)""",
-                default=re.sub("[_-]", " ", site_dir_name).title(),
+                default=lambda data: re.sub("[_-]", " ", self.site_dir.name).title(),
             ),
-            InputWizardStep(
+            InputStep(
                 "www",
                 prompt="""Enter the WWW address on which the repository will reside""",
             ),
-            InputWizardStep(
+            InputStep(
                 "author_name",
                 prompt="""Author name""",
                 default=os.environ.get("USERNAME") or os.environ.get("USER"),
             ),
-            InputWizardStep("author_email", prompt="""Author email"""),
-            InputWizardStep(
+            InputStep("author_email", prompt="""Author email"""),
+            InputStep(
                 "year",
                 prompt="""Year (for copyright)""",
                 default=datetime.datetime.today().strftime("%Y"),
             ),
-            InputWizardStep("copyright_holder", prompt="""Copyright holder"""),
-            RadioWizardStep(
+            InputStep("copyright_holder", prompt="""Copyright holder"""),
+            RadioStep(
                 "use_oarepo_vocabularies",
                 options={"yes": "Yes", "no": "No"},
                 default="yes",
                 heading=f"""
-            Are you planning to use extended vocabularies (extra fields on vocabularies, hierarchy in vocabulary items)? If in doubt, select 'yes'.
-                """,
+                    Are you planning to use extended vocabularies (extra fields on vocabularies, hierarchy in vocabulary items)? If in doubt, select 'yes'.
+                        """,
             ),
-            StaticWizardStep(
+            StaticStep(
                 heading="""I have all the information to generate the site.
-To do so, I'll call the cookiecutter to install the size template. If anything goes wrong, please fix the problem
-and run the wizard again.
-            """,
+        To do so, I'll call the cookiecutter to install the size template. If anything goes wrong, please fix the problem
+        and run the wizard again.
+                    """,
             ),
-        ]
+
+            heading="""
+Now I will add site sources, that can be used to change the overall CSS style and
+configure your repository. Please fill in the required values. 
+If not sure, keep the default values.""",
+            **kwargs,
+        )
+
+    def on_before_run(self):
+        self.data.setdefault(
+            "transifex_project", self.data.get("config.project_package", "")
+        )
 
     def after_run(self):
         site_dir = self.site_dir
@@ -72,8 +70,8 @@ and run the wizard again.
 
         cookiecutter_path, cookiecutter_branch = get_cookiecutter_source(
             "OAREPO_SITE_COOKIECUTTER_VERSION",
-            "https://github.com/oarepo/cookiecutter-site",
-            "v11.0",
+            SITE_COOKIECUTTER_REPO,
+            SITE_COOKIECUTTER_VERSION,
             master_version="master",
         )
 
@@ -101,8 +99,6 @@ and run the wizard again.
             ),
         )
 
-        with open(self.site_dir / ".check.ok", "w") as f:
-            f.write("oarepo check ok")
         commit_git(
             self.data.project_dir,
             f"after-site-cookiecutter-{self.data.section}",
@@ -110,4 +106,4 @@ and run the wizard again.
         )
 
     def should_run(self):
-        return not (self.site_dir / ".check.ok").exists()
+        return not (self.site_dir / "variables").exists()

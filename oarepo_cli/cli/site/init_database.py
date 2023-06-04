@@ -26,27 +26,14 @@ Should I do it?
 
     def after_run(self):
         if self.data["init_database"] == "yes":
-            run_cmdline(
-                "pipenv",
-                "run",
-                "invenio",
-                "db",
-                "create",
-                cwd=self.site_dir,
-                environ={"PIPENV_IGNORE_VIRTUALENVS": "1"},
-            )
+            self.call_invenio("db", "create")
         self.check_db_initialized(raise_error=True)
 
     def check_db_initialized(self, raise_error=False):
         try:
-            output = run_cmdline(
-                "pipenv",
-                "run",
-                "invenio",
+            output = self.call_invenio(
                 "alembic",
                 "current",
-                cwd=self.site_dir,
-                environ={"PIPENV_IGNORE_VIRTUALENVS": "1"},
                 grab_stdout=True,
                 raise_exception=True,
             )

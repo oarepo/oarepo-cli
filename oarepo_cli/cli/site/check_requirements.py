@@ -32,19 +32,19 @@ I will check the requirements for Invenio site installation.
         return not (self.site_dir / ".check.ok").exists()
 
     def _check_docker_callable(self):
-        run_cmdline('docker', 'ps')
+        run_cmdline('docker', 'ps', grab_stdout=True)
 
     def _check_pdm_callable(self):
         run_cmdline('pdm', '--version', environ={
             'PDM_IGNORE_ACTIVE_VENV': '1'
-        })
+        }, grab_stdout=True)
 
     def _check_imagemagick_callable(self):
-        run_cmdline('convert', '--version')
+        run_cmdline('convert', '--version', grab_stdout=True)
 
     def check_version(self, *args, expected_major, expected_minor=None, strict=False):
         result = run_cmdline(*args, grab_stdout=True)
-        print(f"Version string is: {result}")
+        self.vprint(f"Version string is: {result}")
         version_result = re.search(r".*?([0-9]+)\.([0-9]+)\.([0-9]+)", result)
         major = int(version_result.groups()[0])
         minor = int(version_result.groups()[1])

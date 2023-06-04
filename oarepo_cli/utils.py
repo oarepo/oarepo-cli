@@ -85,23 +85,6 @@ def find_oarepo_project(dirname, raises=False):
     return
 
 
-def add_to_pipfile_dependencies(pipfile, package_name, package_path):
-    with open(pipfile, "r") as f:
-        pipfile_data = tomlkit.load(f)
-    for pkg in pipfile_data["packages"]:
-        if pkg == package_name:
-            break
-    else:
-        t = tomlkit.inline_table()
-        t.comment("Added by nrp-cli")
-        t.update({"editable": True, "path": package_path})
-        pipfile_data["packages"].add(tomlkit.nl())
-        pipfile_data["packages"][package_name] = t
-        pipfile_data["packages"].add(tomlkit.nl())
-
-        with open(pipfile, "w") as f:
-            tomlkit.dump(pipfile_data, f)
-
 
 def to_python_name(x):
     x = re.sub(r"(?<!^)(?=[A-Z])", "_", x).lower()

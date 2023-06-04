@@ -1,7 +1,9 @@
-from oarepo_cli.cli.site.utils import SiteWizardStepMixin
+import shutil
+
+from oarepo_cli.cli.site.utils import SiteWizardStepMixin, get_site_local_packages
 from oarepo_cli.wizard import WizardStep
 
-from ...utils import commit_git, run_cmdline
+from ...utils import run_cmdline
 
 
 class InstallInvenioStep(SiteWizardStepMixin, WizardStep):
@@ -9,54 +11,57 @@ class InstallInvenioStep(SiteWizardStepMixin, WizardStep):
         super().__init__(
             heading="""
 Now I'll install invenio site.
-
-Note that this can take a lot of time as UI dependencies
-will be downloaded and installed and UI will be compiled.
             """,
             **kwargs,
         )
 
     def after_run(self):
-        run_cmdline(
-            self.data.project_dir / self.data.get("config.invenio_cli"),
-            "install",
-            cwd=self.site_dir,
-            environ={"PIPENV_IGNORE_VIRTUALENVS": "1"},
-        )
-        if not self._manifest_file.exists():
-            raise FileNotFoundError(
-                "invenio-cli install has not created var/instance/static/dist/manifest.json."
-                "Please check the output, correct errors and run this command again"
+        if not (self.site_dir / '.venv').exists():
+            run_cmdline(
+                "pdm",
+                "venv",
+                "create",
+                "--with-pip",
+                cwd=self.site_dir,
+                environ={
+                    'PDM_IGNORE_ACTIVE_VENV': '1'
+                }
             )
-        commit_git(
-            self.data.project_dir,
-            f"after-site-invenio-cli-install-{self.data.section}",
-            f"Committed automatically after site {self.data.section} has been installed",
-        )
+        self.call_pip("install", "-U", "--no-input", "setuptools", "pip", "wheel")
+        oarepo = (self.site_dir / 'requirements.txt').read_text().splitlines()[0]
+        self.call_pip("install", "-U", "--no-input", oarepo)
+        self.call_pip("install", "-U", "--no-input", "--no-deps", "-r",
+                    str(self.site_dir / 'requirements.txt'))
+        instance_dir = self.site_dir / '.venv' / 'var' / 'instance'
+        if not instance_dir.exists():
+            instance_dir.mkdir(parents=True)
+        if not (instance_dir / 'invenio.cfg').exists():
+            (instance_dir / 'invenio.cfg').symlink_to(self.site_dir / 'invenio.cfg')
+        if not (instance_dir / 'variables').exists():
+            (instance_dir / 'variables').symlink_to(self.site_dir / 'variables')
 
-    @property
-    def _pipenv_venv_dir(self):
-        success = run_cmdline(
-            "pipenv",
-            "--venv",
-            cwd=self.site_dir,
-            environ={"PIPENV_IGNORE_VIRTUALENVS": "1"},
-            check_only=True,
-            grab_stdout=True,
-        )
-        if not success:
-            return None
-        return success.strip()
+        # now install all the local packages without dependencies as these were already
+        # collected in the requirements.txt
+
+        # main site
+        site_package_dir = self.site_dir.absolute() / 'site'
+        for f in site_package_dir.glob('*.egg-info'):
+            shutil.rmtree(f)
+        self.call_pip("install", "-U", "--no-input", "--no-deps", "-e",
+                    str(site_package_dir))
+
+        # models and uis
+        models, uis = get_site_local_packages(self.data)
+        self.install_package(models, 'models')
+        self.install_package(uis, 'ui')
+
+    def install_package(self, packages, package_folder):
+        for package in packages:
+            package_dir = self.site_dir.absolute().parent.parent / package_folder / package
+            for f in package_dir.glob('*.egg-info'):
+                shutil.rmtree(f)
+            self.call_pip("install", "-U", "--no-input", "--no-deps", "-e",
+                        str(package_dir))
 
     def should_run(self):
-        manifest_file = self._manifest_file
-        return not manifest_file.exists()
-
-    @property
-    def _manifest_file(self):
-        pipenv_dir = self.data.project_dir / self.data["site_pipenv_dir"]
-        manifest_file = (
-            pipenv_dir / "var" / "instance" / "static" / "dist" / "manifest.json"
-        )
-
-        return manifest_file
+        return True

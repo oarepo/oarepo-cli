@@ -3,6 +3,8 @@ import click
 from oarepo_cli.cli.utils import with_config
 
 from oarepo_cli.wizard import Wizard
+from .compile_gui import CompileGUIStep
+from .link_env import LinkEnvStep
 from ...utils import commit_git, to_python_name
 from .install_site import InstallSiteStep
 from .check_requirements import CheckRequirementsStep
@@ -32,11 +34,13 @@ def add_site(ctx, cfg=None, name=None, no_input=False, silent=False, step=None, 
     cfg["site_dir"] = f"sites/{name}"
 
     initialize_wizard = Wizard(
-        InstallSiteStep(pause=True),
+        InstallSiteStep(),
+        LinkEnvStep(),
         CheckRequirementsStep(),
-        StartContainersStep(pause=True),
+        StartContainersStep(),
         ResolveDependenciesStep(),
-        InstallInvenioStep(pause=True),
+        InstallInvenioStep(),
+        CompileGUIStep(),
         InitDatabaseStep(),
         InitFilesStep(),
         NextStepsStep(pause=True),
