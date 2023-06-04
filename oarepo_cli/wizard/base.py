@@ -28,9 +28,7 @@ class WizardBase:
         if self.root.verbose:
             print(*args, **kwargs, file=sys.__stderr__)
 
-    def __init__(
-        self, steps: "Tuple[WizardBase]" = None
-    ):
+    def __init__(self, steps: "Tuple[WizardBase]" = None):
         self.steps = steps or self.steps
         for step in self.steps:
             step.parent = self

@@ -1,0 +1,69 @@
+import click
+
+from oarepo_cli.old_cli.utils import with_config
+from oarepo_cli.utils import commit_git, to_python_name
+from oarepo_cli.wizard import Wizard
+
+from .check_requirements import CheckRequirementsStep
+from .compile_gui import CompileGUIStep
+from .init_database import InitDatabaseStep
+from .init_files import InitFilesStep
+from .install_invenio import InstallInvenioStep
+from .install_site import InstallSiteStep
+from .link_env import LinkEnvStep
+from .next_steps import NextStepsStep
+from .resolve_dependencies import ResolveDependenciesStep
+from .start_containers import StartContainersStep
+
+
+@click.command(
+    name="add",
+    help="""Generate a new site.  Required arguments:
+    <name>   ... name of the site. The recommended pattern for it is <something>-site""",
+)
+@click.argument("name")
+@with_config(config_section=lambda name, **kwargs: ["sites", name])
+@click.pass_context
+def add_site(
+    ctx,
+    cfg=None,
+    name=None,
+    no_input=False,
+    silent=False,
+    step=None,
+    verbose=False,
+    steps=False,
+    **kwargs,
+):
+    commit_git(
+        cfg.project_dir,
+        f"before-site-install-{cfg.section}",
+        f"Committed automatically before site {cfg.section} has been added",
+    )
+    cfg["site_package"] = to_python_name(name)
+    cfg["site_dir"] = f"sites/{name}"
+
+    initialize_wizard = Wizard(
+        InstallSiteStep(),
+        LinkEnvStep(),
+        CheckRequirementsStep(),
+        StartContainersStep(),
+        ResolveDependenciesStep(),
+        InstallInvenioStep(),
+        CompileGUIStep(),
+        InitDatabaseStep(),
+        InitFilesStep(),
+        NextStepsStep(),
+    )
+    if steps:
+        initialize_wizard.list_steps()
+        return
+
+    initialize_wizard.run_wizard(
+        cfg, no_input=no_input, silent=silent, single_step=step, verbose=verbose
+    )
+    commit_git(
+        cfg.project_dir,
+        f"after-site-install-{cfg.section}",
+        f"Committed automatically after site {cfg.section} has been added",
+    )

@@ -1,9 +1,7 @@
 from __future__ import annotations
 
-from typing import Callable, Dict, Union, List
-
-from .steps import WizardStep
 from . import WizardBase
+from .steps import WizardStep
 
 
 class Wizard(WizardBase):
@@ -21,7 +19,9 @@ class Wizard(WizardBase):
     def data(self):
         return self._data
 
-    def run_wizard(self, data, *, no_input=False, silent=False, single_step=None, verbose=False):
+    def run_wizard(
+        self, data, *, no_input=False, silent=False, single_step=None, verbose=False
+    ):
         self._data = data
         self.no_input = no_input
         self.silent = silent

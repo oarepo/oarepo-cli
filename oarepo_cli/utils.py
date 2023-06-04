@@ -1,13 +1,13 @@
 import os
 import re
+import shutil
 import subprocess
 import sys
 from pathlib import Path
-import shutil
 
+import deepmerge
 import git
 import pydriller
-import tomlkit
 from colorama import Fore, Style
 
 
@@ -83,7 +83,6 @@ def find_oarepo_project(dirname, raises=False):
             f"or its 4 ancestors do not contain oarepo.yaml file"
         )
     return
-
 
 
 def to_python_name(x):
@@ -229,3 +228,14 @@ def path_type(path):
         return "link"
     else:
         return "unknown"
+
+
+unique_merger = deepmerge.Merger(
+    [(list, ["append_unique"]), (dict, ["merge"]), (set, ["union"])],
+    # next, choose the fallback strategies,
+    # applied to all other types:
+    ["override"],
+    # finally, choose the strategies in
+    # the case where the types conflict:
+    ["override"],
+)

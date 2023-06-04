@@ -89,7 +89,7 @@ class InputStep(WizardStep):
             try:
                 prompt = self.prompt or "Enter value"
                 if self.default:
-                    prompt += f' [{self.default}]'
+                    prompt += f" [{self.default}]"
                 line = input(f"{Fore.BLUE}{prompt}: {Style.RESET_ALL}")
                 line = line.strip() or value
                 if line or not self.required:
@@ -105,9 +105,6 @@ class InputStep(WizardStep):
 class StaticStep(WizardStep):
     def __init__(self, heading, **kwargs):
         super().__init__(heading=heading, **kwargs)
-
-    def run(self, **kwargs):
-        pass
 
     def should_run(self):
         # do not know - should run only if one of the subsequent steps should run
