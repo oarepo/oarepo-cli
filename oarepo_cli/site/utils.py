@@ -44,11 +44,11 @@ def get_site_local_packages(data):
     models = [
         model_name
         for model_name, model_section in data.whole_data.get("models", {}).items()
-        if model_section["installation_site"] == data.section
+        if data.section in model_section.get("sites")
     ]
     uis = [
         ui_name
         for ui_name, ui_section in data.whole_data.get("ui", {}).items()
-        if ui_section["installation_site"] == data.section
+        if data.section in ui_section.get("sites")
     ]
     return models, uis

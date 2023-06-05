@@ -108,3 +108,6 @@ class MonorepoConfig(Config):
             self.save()
         else:
             always_merger.merge(self.config, config_data)
+
+    def __str__(self):
+        return f"MonorepoConfig[{self.config}]"

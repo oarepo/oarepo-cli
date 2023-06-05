@@ -28,9 +28,7 @@ class EmptyModelWizardStep(ModelWizardStep):
                     },
                     "properties": {},
                 },
-                "settings": {
-                    'i18n-languages': ['en']
-                },
+                "settings": {"i18n-languages": ["en"]},
                 "profiles": ["record"],
             },
         )

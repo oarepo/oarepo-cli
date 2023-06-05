@@ -1,19 +1,8 @@
 import click
 
 from oarepo_cli.old_cli.utils import with_config
+from oarepo_cli.site.add.wizard import AddSiteWizard
 from oarepo_cli.utils import commit_git, to_python_name
-from oarepo_cli.wizard import Wizard
-
-from .check_requirements import CheckRequirementsStep
-from .compile_gui import CompileGUIStep
-from .init_database import InitDatabaseStep
-from .init_files import InitFilesStep
-from .install_invenio import InstallInvenioStep
-from .install_site import InstallSiteStep
-from .link_env import LinkEnvStep
-from .next_steps import NextStepsStep
-from .resolve_dependencies import ResolveDependenciesStep
-from .start_containers import StartContainersStep
 
 
 @click.command(
@@ -43,18 +32,7 @@ def add_site(
     cfg["site_package"] = to_python_name(name)
     cfg["site_dir"] = f"sites/{name}"
 
-    initialize_wizard = Wizard(
-        InstallSiteStep(),
-        LinkEnvStep(),
-        CheckRequirementsStep(),
-        StartContainersStep(),
-        ResolveDependenciesStep(),
-        InstallInvenioStep(),
-        CompileGUIStep(),
-        InitDatabaseStep(),
-        InitFilesStep(),
-        NextStepsStep(),
-    )
+    initialize_wizard = AddSiteWizard()
     if steps:
         initialize_wizard.list_steps()
         return

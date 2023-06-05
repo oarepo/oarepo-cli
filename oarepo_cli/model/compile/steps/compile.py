@@ -15,23 +15,23 @@ class CompileWizardStep(ModelWizardStep, WizardStep):
         if not venv_dir.exists():
             venv.main([str(venv_dir)])
 
-        # pip_install(
-        #     venv_dir / "bin" / "pip",
-        #     "OAREPO_MODEL_BUILDER_VERSION",
-        #     f"oarepo-model-builder{OAREPO_MODEL_BUILDER_VERSION}",
-        #     "https://github.com/oarepo/oarepo-model-builder",
-        # )
+        pip_install(
+            venv_dir / "bin" / "pip",
+            "OAREPO_MODEL_BUILDER_VERSION",
+            f"oarepo-model-builder{OAREPO_MODEL_BUILDER_VERSION}",
+            "https://github.com/oarepo/oarepo-model-builder",
+        )
 
-        # with open(self.model_dir / "model.yaml") as f:
-        #     model_data = yaml.safe_load(f)
-        # plugins = model_data.get("plugins", {}).get("packages", [])
-        # for package in plugins:
-        #     run_cmdline(
-        #         venv_dir / "bin" / "pip",
-        #         "install",
-        #         package,
-        #         cwd=self.model_dir,
-        #     )
+        with open(self.model_dir / "model.yaml") as f:
+            model_data = yaml.safe_load(f)
+        plugins = model_data.get("plugins", {}).get("packages", [])
+        for package in plugins:
+            run_cmdline(
+                venv_dir / "bin" / "pip",
+                "install",
+                package,
+                cwd=self.model_dir,
+            )
 
         run_cmdline(
             venv_dir / "bin" / "oarepo-compile-model",

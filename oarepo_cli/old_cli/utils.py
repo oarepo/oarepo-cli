@@ -190,13 +190,13 @@ class ProjectWizardMixin:
 class SiteMixin(ProjectWizardMixin):
     @property
     def site_dir(self):
-        site_name = self.data.get("installation_site", None)
+        site_name = self.data.get("sites", [])
         if not site_name:
             raise Exception("Unexpected error: No installation site specified")
-        site = self.data.get(f"sites.{site_name}")
+        site = self.data.get(f"sites.{site_name[0]}")
         if not site:
             raise Exception(
-                f"Unexpected error: Site with name {site_name} does not exist"
+                f"Unexpected error: Site with name {site_name[0]} does not exist"
             )
         return self.data.project_dir / site["site_dir"]
 

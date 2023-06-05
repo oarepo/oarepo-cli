@@ -36,7 +36,11 @@ so that you might recover them if the compilation process fails.{Style.RESET_ALL
 
             def _rm(x):
                 if x.exists():
-                    shutil.rmtree(x)
+                    if x.is_dir():
+                        shutil.rmtree(x)
+                    else:
+                        x.unlink()
+
 
             _rm(self.model_package_dir)
             _rm(self.model_dir / "setup.cfg")
