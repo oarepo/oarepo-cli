@@ -3,7 +3,6 @@ import os
 import re
 
 from colorama import Fore, Style
-from setuptools.config import read_configuration
 
 from oarepo_cli.model.utils import ModelWizardStep
 
@@ -17,13 +16,15 @@ class CreateAlembicModelStep(ModelWizardStep):
     pause = True
 
     def after_run(self):
-        model_file = self.model_package_dir / 'models' / 'records.json'
+        model_file = self.model_package_dir / "models" / "records.json"
 
         with open(model_file) as f:
             model_data = json.load(f)
 
-        alembic_path = self.model_dir / model_data['model']['record-metadata']['alembic'].replace('.', '/')
-        branch = model_data['model']['record-metadata']['alias']
+        alembic_path = self.model_dir / model_data["model"]["record-metadata"][
+            "alembic"
+        ].replace(".", "/")
+        branch = model_data["model"]["record-metadata"]["alias"]
         self.setup_alembic(branch, alembic_path)
 
     def get_alembic_path(self, model_dir):
@@ -35,7 +36,13 @@ class CreateAlembicModelStep(ModelWizardStep):
             md = md.parent
 
     def setup_alembic(self, branch, alembic_path):
-        filecount = len([x for x in alembic_path.iterdir() if x.is_file() and x.name.endswith('.py')])
+        filecount = len(
+            [
+                x
+                for x in alembic_path.iterdir()
+                if x.is_file() and x.name.endswith(".py")
+            ]
+        )
         revision_id_prefix = branch
 
         def rewrite_revision_file(file_suffix, new_id_number):
@@ -69,7 +76,7 @@ class CreateAlembicModelStep(ModelWizardStep):
                 "-p",
                 "dbdbc1b19cf2",
                 "--empty",
-                cwd = self.site_dir
+                cwd=self.site_dir,
             )
 
             rewrite_revision_file("_create_", "1")
@@ -77,7 +84,12 @@ class CreateAlembicModelStep(ModelWizardStep):
             self.fix_sqlalchemy_utils(alembic_path)
             self.invenio_command("alembic", "upgrade", "heads", cwd=self.site_dir)
             self.invenio_command(
-                "alembic", "revision", "Initial revision.", "-b", branch, cwd=self.site_dir
+                "alembic",
+                "revision",
+                "Initial revision.",
+                "-b",
+                branch,
+                cwd=self.site_dir,
             )
 
             rewrite_revision_file(
@@ -113,7 +125,7 @@ class CreateAlembicModelStep(ModelWizardStep):
 
     def fix_sqlalchemy_utils(self, alembic_path):
         for fn in alembic_path.iterdir():
-            if not fn.name.endswith('.py'):
+            if not fn.name.endswith(".py"):
                 continue
             data = fn.read_text()
 

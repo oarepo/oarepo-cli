@@ -2,8 +2,7 @@ import sys
 
 import click as click
 
-from oarepo_cli.old_cli.utils import with_config
-from oarepo_cli.utils import run_cmdline
+from oarepo_cli.utils import run_cmdline, with_config
 
 
 @click.command(name="run", help="Run the server")

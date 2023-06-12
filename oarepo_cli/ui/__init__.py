@@ -1,8 +1,6 @@
 import click as click
 
 from .add import add_ui
-
-# from .compile import compile_ui
 from .install import install_ui
 from .list import list_uis
 
@@ -13,6 +11,5 @@ def ui():
 
 
 ui.add_command(add_ui)
-# ui.add_command(compile_ui)
 ui.add_command(install_ui)
 ui.add_command(list_uis)

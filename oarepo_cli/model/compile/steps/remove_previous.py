@@ -41,7 +41,6 @@ so that you might recover them if the compilation process fails.{Style.RESET_ALL
                     else:
                         x.unlink()
 
-
             _rm(self.model_package_dir)
             _rm(self.model_dir / "setup.cfg")
             _rm(self.model_dir / "data")

@@ -11,8 +11,7 @@ class ResolveDependenciesStep(SiteWizardStepMixin, WizardStep):
     def __init__(self, **kwargs):
         super().__init__(
             heading="""
-I am going to resolve the python dependencies. You can re-run this action
-anytime by calling nrp-cli upgrade --lock-only.
+I am going to resolve the python dependencies.
             """,
             **kwargs,
         )

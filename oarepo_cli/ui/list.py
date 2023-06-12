@@ -1,6 +1,6 @@
 import click as click
 
-from oarepo_cli.old_cli.utils import with_config
+from oarepo_cli.utils import with_config
 
 
 @click.command(name="list", help="List installed user interfaces")

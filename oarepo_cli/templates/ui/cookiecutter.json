@@ -1,0 +1,18 @@
+{
+  "model_name": "my-model",
+  "local_model_path": "",
+  "model_package": "{{cookiecutter.model_name | replace('-', '_') }}",
+  "app_name": "{{cookiecutter.model_name}}-app",
+  "app_package": "{{cookiecutter.model_package}}_app",
+  "ext_name": "{{cookiecutter.model_package | snail_to_title }}AppExtension",
+  "author": "",
+  "author_email": "",
+  "repository_url": "",
+  "resource": "{{cookiecutter.model_package | snail_to_title }}Resource",
+  "resource_config": "{{cookiecutter.model_package | snail_to_title }}ResourceConfig",
+  "api_service": "",
+  "ui_serializer_class": "",
+  "url_prefix": "/{{cookiecutter.model_name}}/",
+
+  "_extensions": ["local_extensions.snail_to_title"]
+}

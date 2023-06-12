@@ -1,6 +1,6 @@
 import click
 
-from oarepo_cli.old_cli.utils import with_config
+from oarepo_cli.utils import with_config
 from oarepo_cli.site import add_site
 from oarepo_cli.wizard import StaticStep, Wizard
 
@@ -68,8 +68,9 @@ def initialize(
                 add_site,
                 project_dir=str(cfg.project_dir),
                 name=site,
-                no_input=cfg.no_input,
-                silent=cfg.silent,
+                no_input=no_input,
+                silent=silent,
+                verbose=verbose
             )
     elif not no_site:
         # if there is no site, install the default one
@@ -77,8 +78,9 @@ def initialize(
             add_site,
             project_dir=str(cfg.project_dir),
             name=cfg["primary_site_name"],
-            no_input=cfg.no_input,
-            silent=cfg.silent,
+            no_input=no_input,
+            silent=silent,
+            verbose=verbose
         )
     # do not install model nor uis as user might (and will) modify them
 

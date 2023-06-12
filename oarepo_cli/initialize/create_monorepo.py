@@ -2,9 +2,8 @@ import os
 import shutil
 from pathlib import Path
 
-from oarepo_cli.old_cli.utils import ProjectWizardMixin
 from oarepo_cli.templates import get_cookiecutter_template
-from oarepo_cli.utils import commit_git
+from oarepo_cli.utils import commit_git, ProjectWizardMixin
 from oarepo_cli.wizard import WizardStep
 
 

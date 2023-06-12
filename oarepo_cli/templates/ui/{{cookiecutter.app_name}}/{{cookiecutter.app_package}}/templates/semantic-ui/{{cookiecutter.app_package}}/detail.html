@@ -1,0 +1,7 @@
+{{ '{' }}% extends "oarepo_ui/detail.html" %{{ '}' }}
+
+{{ '{' }}%- block head_links %{{ '}' }}
+{{ '{' }}{{ '{' }} super() {{ '}' }}{{ '}' }}
+{{ '{' }}{{ '{' }} webpack['{{cookiecutter.app_package}}_components.js']{{ '}' }}{{ '}' }}
+{{ '{' }}{{ '{' }} webpack['{{cookiecutter.app_package}}_components.css']{{ '}' }}{{ '}' }}
+{{ '{' }}%- endblock %{{ '}' }}

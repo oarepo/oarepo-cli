@@ -4,13 +4,12 @@ import datetime
 import os
 import re
 
-from oarepo_cli.old_cli.utils import ProjectWizardMixin
 from oarepo_cli.package_versions import (
     SITE_COOKIECUTTER_REPO,
     SITE_COOKIECUTTER_VERSION,
 )
 from oarepo_cli.site.utils import SiteWizardStepMixin
-from oarepo_cli.utils import commit_git, get_cookiecutter_source
+from oarepo_cli.utils import commit_git, get_cookiecutter_source, ProjectWizardMixin
 from oarepo_cli.wizard import InputStep, RadioStep, StaticStep, WizardStep
 
 
@@ -63,6 +62,7 @@ If not sure, keep the default values.""",
         self.data.setdefault(
             "transifex_project", self.data.get("config.project_package", "")
         )
+        return True
 
     def after_run(self):
         site_dir = self.site_dir

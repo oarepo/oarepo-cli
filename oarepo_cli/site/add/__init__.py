@@ -1,8 +1,7 @@
 import click
 
-from oarepo_cli.old_cli.utils import with_config
 from oarepo_cli.site.add.wizard import AddSiteWizard
-from oarepo_cli.utils import commit_git, to_python_name
+from oarepo_cli.utils import commit_git, to_python_name, with_config
 
 
 @click.command(

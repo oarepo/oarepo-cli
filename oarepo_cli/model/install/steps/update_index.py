@@ -1,5 +1,4 @@
 from colorama import Fore, Style
-from setuptools.config import read_configuration
 
 from oarepo_cli.model.utils import ModelWizardStep
 from oarepo_cli.wizard import RadioStep

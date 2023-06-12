@@ -130,9 +130,13 @@ class RadioStep(WizardStep):
         super().run(**kwargs)
         value = self.data.get(self.key, self.default)
 
+        options = self.options
+        if callable(options):
+            options = options()
+
         displayed = [
             (str(idx + 1), key, label)
-            for idx, (key, label) in enumerate(self.options.items())
+            for idx, (key, label) in enumerate(options.items())
         ]
         print()
         for d in displayed:

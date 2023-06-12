@@ -1,6 +1,6 @@
 import os
 
-from oarepo_cli.old_cli.utils import ProjectWizardMixin, SiteMixin
+from oarepo_cli.utils import ProjectWizardMixin, SiteMixin
 from oarepo_cli.wizard import WizardStep
 
 

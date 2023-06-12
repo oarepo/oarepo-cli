@@ -1,7 +1,6 @@
 import click as click
 
-from oarepo_cli.old_cli.utils import with_config
-from oarepo_cli.utils import commit_git
+from oarepo_cli.utils import commit_git, with_config
 
 from .wizard import AddModelWizard
 

@@ -9,7 +9,7 @@ class AddPermissionsWizardStep(ModelWizardStep):
         super().__init__(
             InputStep(
                 "permissions_preset",
-                heading="""
+                prompt="""
 Which permission presets do you want to use? Pre-defined values are
 "'read-only' and 'everyone' but note that you may define your own presets.
 Enter 'none' to not define permission preset at all (and use vanilla invenio 
@@ -33,7 +33,7 @@ permission classes).
                     "permissions": {
                         "presets": [
                             x.strip()
-                            for x in self.data["use_permissions_preset"].split(",")
+                            for x in self.data["permissions_preset"].split(",")
                             if x.strip()
                         ]
                     }
