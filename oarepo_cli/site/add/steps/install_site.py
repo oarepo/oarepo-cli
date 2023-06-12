@@ -4,12 +4,9 @@ import datetime
 import os
 import re
 
-from oarepo_cli.package_versions import (
-    SITE_COOKIECUTTER_REPO,
-    SITE_COOKIECUTTER_VERSION,
-)
 from oarepo_cli.site.utils import SiteWizardStepMixin
-from oarepo_cli.utils import commit_git, get_cookiecutter_source, ProjectWizardMixin
+from oarepo_cli.templates import get_cookiecutter_template
+from oarepo_cli.utils import commit_git, ProjectWizardMixin
 from oarepo_cli.wizard import InputStep, RadioStep, StaticStep, WizardStep
 
 
@@ -65,26 +62,20 @@ If not sure, keep the default values.""",
         return True
 
     def after_run(self):
+        site_name = self.site_dir.name
         site_dir = self.site_dir
         if not site_dir.parent.exists():
             site_dir.parent.mkdir(parents=True)
 
-        cookiecutter_path, cookiecutter_branch = get_cookiecutter_source(
-            "OAREPO_SITE_COOKIECUTTER_VERSION",
-            SITE_COOKIECUTTER_REPO,
-            SITE_COOKIECUTTER_VERSION,
-            master_version="master",
-        )
-
         self.run_cookiecutter(
-            template=cookiecutter_path,
-            checkout=cookiecutter_branch,
-            config_file="monorepo",
+            template=get_cookiecutter_template('site'),
+            config_file=f"site-{site_name}",
             output_dir=str(site_dir.parent),
             extra_context=dict(
                 project_name=self.data["repository_name"],
                 project_shortname=self.site_dir.name,
                 project_site=self.data["www"],
+                jsonschemas_host=get_host_name(self.data["www"]),
                 github_repo="",
                 description=f"{self.data['repository_name']} OARepo Instance",
                 author_name=self.data["author_name"],
@@ -108,3 +99,11 @@ If not sure, keep the default values.""",
 
     def should_run(self):
         return not (self.site_dir / "variables").exists()
+
+
+def get_host_name(url):
+    if url.startswith('http://'):
+        url = url[7:]
+    if url.startswith('https://'):
+        url = url[8:]
+    return url.split('/', maxsplit=1)[0]

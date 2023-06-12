@@ -1,6 +1,7 @@
 import sys
 from os.path import relpath
 
+from oarepo_cli.templates import get_cookiecutter_template
 from oarepo_cli.ui.add.mixins import UIWizardMixin, AssociatedModelMixin
 from oarepo_cli.utils import get_cookiecutter_source, to_python_name, snail_to_title, ProjectWizardMixin
 from oarepo_cli.wizard import WizardStep, RadioStep, InputStep
@@ -98,20 +99,13 @@ class AddUIWizardStep(AssociatedModelMixin, UIWizardMixin, ProjectWizardMixin, W
             "url_prefix": self.data["url_prefix"],
         }
 
-        cookiecutter_path, cookiecutter_branch = get_cookiecutter_source(
-            "OAREPO_UI_COOKIECUTTER_VERSION",
-            "https://github.com/oarepo/cookiecutter-app",
-            "v11.0",
-            master_version="master",
-        )
-
         self.run_cookiecutter(
-            template=cookiecutter_path,
+            template=get_cookiecutter_template("ui"),
             config_file=f"ui-{ui_name}",
-            checkout=cookiecutter_branch,
             output_dir=self.data.project_dir / "ui",
             extra_context=cookiecutter_data,
         )
+
         self.data["ui_dir"] = f"ui/{ui_name}"
 
     def should_run(self):

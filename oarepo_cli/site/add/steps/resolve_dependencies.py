@@ -22,9 +22,12 @@ I am going to resolve the python dependencies.
         extras = [
             *[
                 f"{model} @ file:///${{PROJECT_ROOT}}/../../models/{model}"
-                for model in models
+                for model in models if (self.site_dir.parent.parent / 'models' / model).exists()
             ],
-            *[f"{ui} @ file:///${{PROJECT_ROOT}}/../../ui/{ui}" for ui in uis],
+            *[
+                f"{ui} @ file:///${{PROJECT_ROOT}}/../../ui/{ui}"
+                for ui in uis if (self.site_dir.parent.parent / 'models' / ui).exists()
+            ],
             "site @ file:///${PROJECT_ROOT}/site",
         ]
         # generate requirements just for oarepo package

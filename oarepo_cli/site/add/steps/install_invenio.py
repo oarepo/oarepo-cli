@@ -64,6 +64,8 @@ Now I'll install invenio site.
             package_dir = (
                 self.site_dir.absolute().parent.parent / package_folder / package
             )
+            if not package_dir.exists():
+                continue
             for f in package_dir.glob("*.egg-info"):
                 shutil.rmtree(f)
             self.call_pip(
