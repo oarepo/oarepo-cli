@@ -25,36 +25,16 @@ def run_server(cfg=None, celery=False, site=None, **kwargs):
                 f"Site with name {site} not found in repository sites {list(sites.keys())}"
             )
             sys.exit(1)
-    if celery:
-        run_invenio_cli(cfg, sites[site])
-    else:
-        run_pipenv_server(cfg, sites[site])
 
+    site = sites[site]
+    site_dir = cfg.project_dir.absolute() / site["site_dir"]
 
-def run_invenio_cli(config, site):
-    invenio_cli = config.project_dir / config.get("invenio_cli")
-    site_dir = config.project_dir.absolute() / site["site_dir"]
-    run_cmdline(
-        "pipenv",
-        "run",
-        invenio_cli,
-        "run",
-        cwd=site_dir,
-        environ={"PIPENV_IGNORE_VIRTUALENVS": "1"},
-    )
-
-
-def run_pipenv_server(config, site):
-    site_dir = config.project_dir.absolute() / site["site_dir"]
-    run_cmdline(
-        "pipenv",
-        "run",
-        "invenio",
+    return run_cmdline(
+        ".venv/bin/invenio",
         "run",
         "--cert",
         "docker/nginx/test.crt",
         "--key",
         "docker/nginx/test.key",
-        cwd=site_dir,
-        environ={"PIPENV_IGNORE_VIRTUALENVS": "1"},
+        cwd = site_dir,
     )
