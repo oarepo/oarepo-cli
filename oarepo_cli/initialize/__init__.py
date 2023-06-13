@@ -1,7 +1,7 @@
 import click
 
-from oarepo_cli.utils import with_config
 from oarepo_cli.site import add_site
+from oarepo_cli.utils import with_config
 from oarepo_cli.wizard import StaticStep, Wizard
 
 from .create_monorepo import CreateMonorepoStep
@@ -70,7 +70,7 @@ def initialize(
                 name=site,
                 no_input=no_input,
                 silent=silent,
-                verbose=verbose
+                verbose=verbose,
             )
     elif not no_site:
         # if there is no site, install the default one
@@ -80,7 +80,7 @@ def initialize(
             name=cfg["primary_site_name"],
             no_input=no_input,
             silent=silent,
-            verbose=verbose
+            verbose=verbose,
         )
     # do not install model nor uis as user might (and will) modify them
 

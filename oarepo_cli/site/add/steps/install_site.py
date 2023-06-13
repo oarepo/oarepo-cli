@@ -6,7 +6,7 @@ import re
 
 from oarepo_cli.site.utils import SiteWizardStepMixin
 from oarepo_cli.templates import get_cookiecutter_template
-from oarepo_cli.utils import commit_git, ProjectWizardMixin
+from oarepo_cli.utils import ProjectWizardMixin, commit_git
 from oarepo_cli.wizard import InputStep, RadioStep, StaticStep, WizardStep
 
 
@@ -68,7 +68,7 @@ If not sure, keep the default values.""",
             site_dir.parent.mkdir(parents=True)
 
         self.run_cookiecutter(
-            template=get_cookiecutter_template('site'),
+            template=get_cookiecutter_template("site"),
             config_file=f"site-{site_name}",
             output_dir=str(site_dir.parent),
             extra_context=dict(
@@ -102,8 +102,8 @@ If not sure, keep the default values.""",
 
 
 def get_host_name(url):
-    if url.startswith('http://'):
+    if url.startswith("http://"):
         url = url[7:]
-    if url.startswith('https://'):
+    if url.startswith("https://"):
         url = url[8:]
-    return url.split('/', maxsplit=1)[0]
+    return url.split("/", maxsplit=1)[0]

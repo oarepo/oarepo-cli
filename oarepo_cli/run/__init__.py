@@ -36,5 +36,5 @@ def run_server(cfg=None, celery=False, site=None, **kwargs):
         "docker/nginx/test.crt",
         "--key",
         "docker/nginx/test.key",
-        cwd = site_dir,
+        cwd=site_dir,
     )

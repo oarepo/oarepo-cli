@@ -72,4 +72,4 @@ def load_watched_paths(paths_json, extra_paths):
 def copy_watched_paths(watched_paths, destination):
     destination.mkdir(parents=True, exist_ok=True)
     for source, target in watched_paths.items():
-        copy_tree(source, destination / target)
+        copy_tree(Path(source).absolute(), destination.absolute() / target)

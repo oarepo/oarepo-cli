@@ -1,7 +1,8 @@
 import click as click
 
-from .wizard import InstallWizard
 from oarepo_cli.utils import with_config
+
+from .wizard import InstallWizard
 
 
 @click.command(
@@ -13,13 +14,15 @@ from oarepo_cli.utils import with_config
 )
 @click.argument("name")
 @with_config(config_section=lambda name, **kwargs: ["ui", name])
-def install_ui(cfg=None, step=None,
+def install_ui(
+    cfg=None,
+    step=None,
     no_input=False,
     silent=False,
     verbose=False,
     steps=False,
-               **kwargs):
-
+    **kwargs
+):
     wizard = InstallWizard()
     if steps:
         wizard.list_steps()
@@ -28,6 +31,3 @@ def install_ui(cfg=None, step=None,
     wizard.run_wizard(
         cfg, single_step=step, no_input=no_input, silent=silent, verbose=verbose
     )
-
-
-

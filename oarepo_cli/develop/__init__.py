@@ -1,5 +1,5 @@
-import os
 import subprocess
+import sys
 import time
 
 import click as click
@@ -18,12 +18,6 @@ from oarepo_cli.utils import with_config
     "--rebuild/--no-rebuild", help="Rebuild the container", default=True, is_flag=True
 )
 @click.option(
-    "--rebuild-requirements/--no-rebuild-requirements",
-    help="Rebuild the requirements, requires pipenv to be installed",
-    is_flag=True,
-    default=True,
-)
-@click.option(
     "--nrp-cli-directory",
     help="Use this directory for nrp-cli (nrp-cli development only)",
     hidden=True,
@@ -33,7 +27,6 @@ def develop(
     cfg: MonorepoConfig = None,
     site=None,
     rebuild=True,
-    rebuild_requirements=True,
     nrp_cli_directory=None,
     **kwargs,
 ):
@@ -41,19 +34,6 @@ def develop(
         site = list(cfg.whole_data["sites"].keys())[0]
 
     if rebuild:
-        if rebuild_requirements:
-            with open(
-                cfg.project_dir / "sites" / site / "requirements.txt", "w"
-            ) as file:
-                subprocess.check_call(
-                    [
-                        "pipenv",
-                        "requirements",
-                    ],
-                    cwd=cfg.project_dir / "sites" / site,
-                    stdout=file,
-                    env={**os.environ, "PIPENV_IGNORE_VIRTUALENVS": "1"},
-                )
         subprocess.check_call(
             [
                 "docker",
@@ -93,9 +73,10 @@ def develop(
     time.sleep(5)
     print(
         "Please make sure that the containers (cache, db, mq, search, s3) are up and running. "
-        "The future version will check for this automatically. Press Enter when ok"
+        "The future version will check for this automatically. "
     )
-    input()
+    sys.stdout.flush()
+    input("Press Enter when ok")
 
     app = subprocess.call(
         [

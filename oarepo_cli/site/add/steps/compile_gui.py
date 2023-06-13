@@ -1,4 +1,4 @@
-from oarepo_cli.old_cli.develop_docker import build_assets
+from oarepo_cli.assets import build_assets
 from oarepo_cli.site.utils import SiteWizardStepMixin
 from oarepo_cli.wizard import WizardStep
 
@@ -19,7 +19,7 @@ will be downloaded and installed and UI will be compiled.
         build_assets(
             virtualenv=self.site_dir / ".venv",
             invenio=self.site_dir / ".venv" / "var" / "instance",
-            cwd=self.site_dir,
+            site_dir=self.site_dir,
         )
 
     def should_run(self):

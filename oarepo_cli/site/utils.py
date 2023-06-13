@@ -51,4 +51,9 @@ def get_site_local_packages(data):
         for ui_name, ui_section in data.whole_data.get("ui", {}).items()
         if data.section in ui_section.get("sites")
     ]
-    return models, uis
+    local_packages = [
+        local_name
+        for local_name, local_section in data.whole_data.get("local", {}).items()
+        if data.section in local_section.get("sites")
+    ]
+    return models, uis, local_packages

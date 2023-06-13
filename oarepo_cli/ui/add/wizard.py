@@ -1,6 +1,7 @@
+from oarepo_cli.wizard import StaticStep, Wizard
+
 from .steps.add_ui import AddUIWizardStep
 from .steps.jinja import CreateJinjaStep
-from oarepo_cli.wizard import StaticStep, Wizard
 
 
 class AddUIWizard(Wizard):

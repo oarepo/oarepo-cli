@@ -1,5 +1,6 @@
 from oarepo_ui.resources.config import RecordsUIResourceConfig
 
+
 class {{cookiecutter.resource_config}}(RecordsUIResourceConfig):
     template_folder = "../templates"
     url_prefix = "{{cookiecutter.url_prefix}}"

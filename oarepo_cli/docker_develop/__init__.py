@@ -10,7 +10,9 @@ from pathlib import Path
 import click as click
 import yaml
 
-from ..watch import copy_watched_paths, load_watched_paths
+from oarepo_cli.assets import build_assets
+from oarepo_cli.config import MonorepoConfig
+from oarepo_cli.utils import check_call, with_config
 
 
 @click.command(
@@ -20,18 +22,45 @@ from ..watch import copy_watched_paths, load_watched_paths
     "Do not call from outside as it will not work. "
     "Call from the directory containing the oarepo.yaml",
 )
-@click.option("--virtualenv", help="Path to invenio virtualenv")
-@click.option("--invenio", help="Path to invenio instance directory")
-def docker_develop(**kwargs):
-    call_task(install_editable_sources, **kwargs)
-    call_task(db_init, **kwargs)
-    call_task(search_init, **kwargs)
-    call_task(create_custom_fields, **kwargs)
-    call_task(import_fixtures, **kwargs)
-    call_task(build_assets, **kwargs)
-    call_task(development_script, **kwargs)
+@click.option(
+    "--virtualenv",
+    help="Path to invenio virtualenv",
+    type=click.Path(exists=True, file_okay=False, path_type=Path),
+)
+@click.option(
+    "--invenio",
+    help="Path to invenio instance directory",
+    type=click.Path(file_okay=False, path_type=Path),
+)
+@click.option(
+    "--skip-initialization",
+    help="Skip the database/es initialization and loading fixtures",
+    is_flag=True,
+)
+@click.option("--site", help="Name of the site to run the development in")
+@click.option("--host", help="Bind host", default="127.0.0.1")
+@click.option("--port", help="Bind port", default="5000")
+@with_config(config_section=lambda site=None, **kwargs: ["sites", site])
+def docker_develop(
+    cfg, *, virtualenv: Path, invenio: Path, skip_initialization, host, port, **kwargs
+):
+    if not invenio:
+        invenio = virtualenv / "var" / "instance"
+        if not invenio.exists():
+            invenio.mkdir(parents=True)
+    site_dir = cfg.project_dir / cfg["site_dir"]
 
-    runner = Runner(kwargs["virtualenv"], kwargs["invenio"])
+    call_task(install_editable_sources, cfg=cfg, virtualenv=virtualenv, invenio=invenio)
+    if not skip_initialization:
+        call_task(copy_invenio_cfg, cfg=cfg, virtualenv=virtualenv, invenio=invenio)
+        call_task(db_init, virtualenv=virtualenv, invenio=invenio)
+        call_task(search_init, virtualenv=virtualenv, invenio=invenio)
+        call_task(create_custom_fields, virtualenv=virtualenv, invenio=invenio)
+        call_task(import_fixtures, virtualenv=virtualenv, invenio=invenio)
+    # call_task(build_assets, virtualenv=virtualenv, invenio=invenio, site_dir=site_dir)
+    # call_task(development_script, virtualenv=virtualenv, invenio=invenio)
+
+    runner = Runner(virtualenv, invenio, site_dir, host, port)
     runner.run()
 
 
@@ -51,19 +80,38 @@ def call_task(task_func, **kwargs):
         yaml.safe_dump(status, f)
 
 
-def install_editable_sources(*, virtualenv, **kwargs):
-    """
-    Editable sources are stored at virtualenv/requirements-editable.txt
-    """
+def install_editable_sources(*, cfg: MonorepoConfig, virtualenv, **kwargs):
+    site_name = cfg.section_path[-1]
+    # 1. go through all models and install them
+    for model_name, model in cfg.whole_data.get("models", {}).items():
+        if site_name in model.get("sites"):
+            install_dir(cfg.project_dir / model["model_dir"], virtualenv)
+    # 2. go through all uis and install them
+    for ui_name, ui in cfg.whole_data.get("ui", {}).items():
+        if site_name in ui.get("sites"):
+            install_dir(cfg.project_dir / ui["ui_dir"], virtualenv)
+    # 3. install site's site folder
+    install_dir(cfg.project_dir / cfg["site_dir"] / "site", virtualenv)
+
+
+def install_dir(dirname, virtualenv):
+    if not dirname.exists():
+        return
     check_call(
         [
             f"{virtualenv}/bin/pip",
             "install",
             "--no-deps",  # do not install dependencies as they were installed during container build
-            "-r",
-            f"{virtualenv}/requirements-editable.txt",
+            "-e",
+            str(dirname),
         ]
     )
+
+
+def copy_invenio_cfg(*, cfg, invenio, **kwargs):
+    site_dir = cfg.project_dir / cfg["site_dir"]
+    shutil.copy(site_dir / "invenio.cfg", invenio / "invenio.cfg")
+    shutil.copy(site_dir / "variables", invenio / "variables")
 
 
 def db_init(*, virtualenv, **kwargs):
@@ -101,72 +149,16 @@ def development_script(**kwargs):
         check_call(["/bin/sh", "development/initialize.sh"])
 
 
-# region Taken from Invenio-cli
-#
-# this and the following were taken from:
-# https://github.com/inveniosoftware/invenio-cli/blob/0a49d438dc3c5ace872ce27f8555b401c5afc6e7/invenio_cli/commands/local.py#L45
-# and must be called from the site directory
-#
-# The reason is that symlinking functionality is only part of invenio-cli
-# and that is dependent on pipenv, which can not be used inside alpine
-# (because we want to keep the image as small as possible, we do not install gcc
-# and can only use compiled native python packages - like cairocffi or uwsgi). The
-# version of these provided in alpine is slightly lower than the one created by Pipenv
-# - that's why we use plain invenio & pip here.
-#
-# Another reason is that invenio-cli is inherently unstable when non-rdm version
-# is used - it gets broken with each release.
-
-
-def build_assets(*, virtualenv, invenio, cwd=None, **kwargs):
-    shutil.rmtree(f"{invenio}/assets", ignore_errors=True)
-    shutil.rmtree(f"{invenio}/static", ignore_errors=True)
-
-    Path(f"{invenio}/assets").mkdir(parents=True)
-    Path(f"{invenio}/static").mkdir(parents=True)
-
-    check_call(
-        [
-            f"{virtualenv}/bin/invenio",
-            "oarepo",
-            "assets",
-            "collect",
-            f"{invenio}/watch.list.json",
-        ],
-        cwd=cwd,
-    )
-    check_call([f"{virtualenv}/bin/invenio", "webpack", "clean", "create"], cwd=cwd)
-    check_call([f"{virtualenv}/bin/invenio", "webpack", "install"], cwd=cwd)
-
-    assets = "assets"
-    static = "static"
-    if cwd:
-        assets = str(cwd / assets)
-        static = str(cwd / static)
-
-    watched_paths = load_watched_paths(
-        f"{invenio}/watch.list.json", [f"{assets}=assets", f"{static}=static"]
-    )
-    import json
-
-    Path("/tmp/blah.json").write_text(json.dumps(watched_paths, indent=4))
-    copy_watched_paths(watched_paths, Path(invenio))
-
-    check_call([f"{virtualenv}/bin/invenio", "webpack", "build"], cwd=cwd)
-
-    # do not allow Clean plugin to remove files
-    webpack_config = Path(f"{invenio}/assets/build/webpack.config.js").read_text()
-    webpack_config = webpack_config.replace("dry: false", "dry: true")
-    Path(f"{invenio}/assets/build/webpack.config.js").write_text(webpack_config)
-
-
 class Runner:
-    def __init__(self, venv, invenio):
+    def __init__(self, venv, invenio, site_dir, host, port):
         self.venv = venv
         self.invenio = invenio
         self.server_handle = None
         self.ui_handle = None
         self.watch_handle = None
+        self.site_dir = site_dir
+        self.host = host
+        self.port = port
 
     def run(self):
         try:
@@ -205,7 +197,11 @@ class Runner:
                     self.stop_server()
                     self.stop_watch()
                     subprocess.call(["ps", "-A"])
-                    build_assets(virtualenv=self.venv, invenio=self.invenio)
+                    build_assets(
+                        virtualenv=self.venv,
+                        invenio=self.invenio,
+                        site_dir=self.site_dir,
+                    )
                     self.start_server()
                     time.sleep(10)
                     self.start_watch()
@@ -230,13 +226,13 @@ class Runner:
                 f"{self.venv}/bin/invenio",
                 "run",
                 "--cert",
-                "docker/nginx/test.crt",
+                str(self.site_dir / "docker" / "nginx" / "test.crt"),
                 "--key",
-                "docker/nginx/test.key",
+                str(self.site_dir / "docker" / "nginx" / "test.key"),
                 "-h",
-                "0.0.0.0",
+                self.host,
                 "-p",
-                "5000",
+                self.port,
             ],
             env={
                 "INVENIO_TEMPLATES_AUTO_RELOAD": "1",
@@ -244,6 +240,7 @@ class Runner:
                 **os.environ,
             },
             stdin=subprocess.DEVNULL,
+            cwd=self.site_dir,
         )
 
     def stop_server(self):
@@ -259,9 +256,10 @@ class Runner:
                 "docker-watch",
                 f"{self.invenio}/watch.list.json",
                 self.invenio,
-                "assets=assets",
-                "static=static",
+                f"{self.site_dir}/assets=assets",
+                f"{self.site_dir}/static=static",
             ],
+            cwd=self.site_dir,
         )
         time.sleep(5)
 
@@ -298,12 +296,6 @@ class Runner:
 #
 # end of code taken from invenio-cli
 # endregion
-
-
-def check_call(*args, **kwargs):
-    cmdline = " ".join(args[0])
-    print(f"Calling command {cmdline} with kwargs {kwargs}")
-    return subprocess.check_call(*args, **kwargs)
 
 
 def call(*args, **kwargs):

@@ -1,35 +1,33 @@
-import sys
 from os.path import relpath
 
 from oarepo_cli.templates import get_cookiecutter_template
-from oarepo_cli.ui.add.mixins import UIWizardMixin, AssociatedModelMixin
-from oarepo_cli.utils import get_cookiecutter_source, to_python_name, snail_to_title, ProjectWizardMixin
-from oarepo_cli.wizard import WizardStep, RadioStep, InputStep
+from oarepo_cli.ui.add.mixins import AssociatedModelMixin, UIWizardMixin
+from oarepo_cli.utils import ProjectWizardMixin, snail_to_title, to_python_name
+from oarepo_cli.wizard import InputStep, RadioStep, WizardStep
 
 
-class AddUIWizardStep(AssociatedModelMixin, UIWizardMixin, ProjectWizardMixin, WizardStep):
+class AddUIWizardStep(
+    AssociatedModelMixin, UIWizardMixin, ProjectWizardMixin, WizardStep
+):
     def __init__(self):
         super().__init__(
-                    RadioStep(
-                        "model_name",
-                        heading="""
+            RadioStep(
+                "model_name",
+                heading="""
                 For which model do you want to generate the ui?
                 """,
-                        options=self.available_models,
-                        default=lambda data: next(iter(self.available_models())),
-                    ),
-                    InputStep(
-                        "url_prefix",
-                        prompt="On which url prefix will the UI reside? The prefix should like /something/: ",
-                        default=lambda data: f"/{data.section}/",
-                    ),
+                options=self.available_models,
+                default=lambda data: next(iter(self.available_models())),
+            ),
+            InputStep(
+                "url_prefix",
+                prompt="On which url prefix will the UI reside? The prefix should like /something/: ",
+                default=lambda data: f"/{data.section}/",
+            ),
         )
 
     def available_models(self):
-        known_models = {
-            x: x
-            for x in self.data.whole_data.get("models", {}).keys()
-        }
+        known_models = {x: x for x in self.data.whole_data.get("models", {}).keys()}
         return known_models
 
     def available_sites(self):
@@ -48,15 +46,15 @@ class AddUIWizardStep(AssociatedModelMixin, UIWizardMixin, ProjectWizardMixin, W
             model_config,
         ) = self.get_model_definition()
 
-        if not self.data['url_prefix'].startswith('/'):
-            self.data['url_prefix'] = '/' + self.data['url_prefix']
-        if not self.data['url_prefix'].endswith('/'):
-            self.data['url_prefix'] += '/'
+        if not self.data["url_prefix"].startswith("/"):
+            self.data["url_prefix"] = "/" + self.data["url_prefix"]
+        if not self.data["url_prefix"].endswith("/"):
+            self.data["url_prefix"] += "/"
 
         model_service = model_description["model"]["service-config"]["service-id"]
         ui_serializer_class = model_description["model"]["json-serializer"]["class"]
 
-        self.data.setdefault('sites', self.available_sites())
+        self.data.setdefault("sites", self.available_sites())
 
         self.data.setdefault(
             "cookiecutter_local_model_path", relpath(model_path, self.ui_dir)

@@ -18,15 +18,22 @@ I am going to resolve the python dependencies.
 
     def after_run(self):
         # create pyproject.toml file
-        models, uis = get_site_local_packages(self.data)
+        models, uis, local_packages = get_site_local_packages(self.data)
         extras = [
             *[
                 f"{model} @ file:///${{PROJECT_ROOT}}/../../models/{model}"
-                for model in models if (self.site_dir.parent.parent / 'models' / model).exists()
+                for model in models
+                if (self.site_dir.parent.parent / "models" / model).exists()
             ],
             *[
                 f"{ui} @ file:///${{PROJECT_ROOT}}/../../ui/{ui}"
-                for ui in uis if (self.site_dir.parent.parent / 'models' / ui).exists()
+                for ui in uis
+                if (self.site_dir.parent.parent / "models" / ui).exists()
+            ],
+            *[
+                f"{local} @ file:///${{PROJECT_ROOT}}/../../local/{local}"
+                for local in local_packages
+                if (self.site_dir.parent.parent / "local" / local).exists()
             ],
             "site @ file:///${PROJECT_ROOT}/site",
         ]

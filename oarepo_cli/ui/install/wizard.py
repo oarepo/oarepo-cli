@@ -6,7 +6,4 @@ from oarepo_cli.wizard import Wizard
 
 class InstallWizard(ProjectWizardMixin, Wizard):
     def __init__(self):
-        super().__init__(
-            InstallUIStep(),
-            BuildAssetsUIStep()
-        )
+        super().__init__(InstallUIStep(), BuildAssetsUIStep())

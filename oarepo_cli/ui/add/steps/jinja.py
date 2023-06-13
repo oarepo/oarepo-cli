@@ -3,10 +3,10 @@ import re
 from pathlib import Path
 from typing import Any, List
 
-from ..mixins import AssociatedModelMixin
-from oarepo_cli.utils import run_cmdline, ProjectWizardMixin, SiteMixin
+from oarepo_cli.utils import ProjectWizardMixin, SiteMixin, run_cmdline
 from oarepo_cli.wizard import WizardStep
 
+from ..mixins import AssociatedModelMixin
 
 
 def replace_non_variable_signs(x):
@@ -141,12 +141,11 @@ class CreateJinjaStep(SiteMixin, AssociatedModelMixin, ProjectWizardMixin, Wizar
             children.append(cdef)
         return "\n".join(fields), children
 
-
     def invenio_command(self, *args, cwd=None, environ=None, **kwargs):
         return run_cmdline(
             ".venv/bin/invenio",
             *args,
             cwd=cwd or self.site_dir,
             environ={**(environ or {})},
-            **kwargs
+            **kwargs,
         )

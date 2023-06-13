@@ -55,9 +55,10 @@ Now I'll install invenio site.
         )
 
         # models and uis
-        models, uis = get_site_local_packages(self.data)
+        models, uis, local_packages = get_site_local_packages(self.data)
         self.install_package(models, "models")
         self.install_package(uis, "ui")
+        self.install_package(local_packages, "local")
 
     def install_package(self, packages, package_folder):
         for package in packages:

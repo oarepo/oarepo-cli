@@ -245,6 +245,7 @@ unique_merger = deepmerge.Merger(
     ["override"],
 )
 
+
 def snail_to_title(v):
     return "".join(ele.title() for ele in v.split("_"))
 
@@ -454,3 +455,9 @@ def merge_from_temp_to_target(output_dir_temp, output_dir):
                     dest.parent.mkdir(parents=True)
                 shutil.copy(source, dest)
     shutil.rmtree(output_dir_temp)
+
+
+def check_call(*args, **kwargs):
+    cmdline = " ".join(str(x) for x in args[0])
+    print(f"Calling command {cmdline} with kwargs {kwargs}")
+    return subprocess.check_call(*args, **kwargs)

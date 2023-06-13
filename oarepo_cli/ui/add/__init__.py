@@ -39,5 +39,3 @@ def add_ui(
         f"after-ui-add-{cfg.section}",
         f"Committed automatically after ui {cfg.section} has been added",
     )
-
-

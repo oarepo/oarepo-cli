@@ -3,9 +3,10 @@
 # This software is released under the MIT License.
 # https://opensource.org/licenses/MIT
 
-from {{cookiecutter.app_package}} import config as config
-from invenio_base.utils import obj_or_import_string
 import re
+
+from invenio_base.utils import obj_or_import_string
+from {{cookiecutter.app_package}} import config as config
 
 
 class {{cookiecutter.ext_name}}:

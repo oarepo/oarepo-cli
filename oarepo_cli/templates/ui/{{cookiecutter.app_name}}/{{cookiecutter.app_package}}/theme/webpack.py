@@ -9,12 +9,9 @@ theme = WebpackThemeBundle(
             entry={
                 "{{cookiecutter.app_package}}_components": "./js/{{cookiecutter.app_package}}/custom-components.js"
             },
-            dependencies={
-            },
-            devDependencies={
-            },
-            aliases={
-            }
+            dependencies={},
+            devDependencies={},
+            aliases={},
         )
     },
 )

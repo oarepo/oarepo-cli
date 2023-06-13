@@ -1,7 +1,7 @@
 from __future__ import annotations
 
-from oarepo_cli.utils import ProjectWizardMixin
 from oarepo_cli.site.utils import SiteWizardStepMixin
+from oarepo_cli.utils import ProjectWizardMixin
 from oarepo_cli.wizard import WizardStep
 
 
