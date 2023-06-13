@@ -57,8 +57,8 @@ def docker_develop(
         call_task(search_init, virtualenv=virtualenv, invenio=invenio)
         call_task(create_custom_fields, virtualenv=virtualenv, invenio=invenio)
         call_task(import_fixtures, virtualenv=virtualenv, invenio=invenio)
-    # call_task(build_assets, virtualenv=virtualenv, invenio=invenio, site_dir=site_dir)
-    # call_task(development_script, virtualenv=virtualenv, invenio=invenio)
+    call_task(build_assets, virtualenv=virtualenv, invenio=invenio, site_dir=site_dir)
+    call_task(development_script, virtualenv=virtualenv, invenio=invenio)
 
     runner = Runner(virtualenv, invenio, site_dir, host, port)
     runner.run()

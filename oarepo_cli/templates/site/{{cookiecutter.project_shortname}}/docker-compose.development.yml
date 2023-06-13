@@ -50,6 +50,7 @@ services:
       - "INVENIO_SQLALCHEMY_DATABASE_URI=mysql+pymysql://{{cookiecutter.project_shortname}}:{{cookiecutter.project_shortname}}@db/{{cookiecutter.project_shortname}}"
       {%- endif %}
       - 'INVENIO_RATELIMIT_STORAGE_URL=redis://cache:6379/3'
+      - 'REPOSITORY_SITE_NAME={{cookiecutter.project_shortname}}'
     stdin_open: true
     tty: true
     volumes:
