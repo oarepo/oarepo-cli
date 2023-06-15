@@ -52,6 +52,7 @@ class MonorepoConfig(Config):
         self.section_path = tuple(section)
         self.whole_data = {}
         self._load_section()
+        self.readonly = False
 
     def load(self):
         with open(self.path, "r") as f:
@@ -67,6 +68,9 @@ class MonorepoConfig(Config):
         self.config = data
 
     def save(self):
+        if self.readonly:
+            return
+
         data = {**self.whole_data, "type": self.type}
         # just try to dump so that if that is not successful we do not overwrite the config
         sio = StringIO()

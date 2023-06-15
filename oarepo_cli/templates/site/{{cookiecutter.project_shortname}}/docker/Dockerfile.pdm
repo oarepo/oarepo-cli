@@ -1,0 +1,19 @@
+FROM oarepo/oarepo-base-development:11
+ARG REPOSITORY_SITE_NAME
+
+RUN apk add curl
+
+# install PDM
+RUN curl -sSL https://raw.githubusercontent.com/pdm-project/pdm/main/install-pdm.py | python3
+
+ARG PDM_BINARY=/root/.local/bin/pdm
+ENV PDM_BINARY=$PDM_BINARY
+
+# configure PDM and create virtualenv outisde of project sources
+RUN $PDM_BINARY config venv.in_project false
+
+WORKDIR /repository/sites/${REPOSITORY_SITE_NAME}
+RUN $PDM_BINARY venv create --name for-dependency-build 3.10
+
+# get dependencies; repository source code is mounted at /repository
+CMD $NRP_CLI generate_dependencies --pdm-name for-dependency-build --pdm-binary ${PDM_BINARY}

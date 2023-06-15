@@ -1,5 +1,6 @@
 import click
 
+from oarepo_cli.dependencies import dependencies
 from oarepo_cli.develop import develop
 from oarepo_cli.docker_develop import docker_develop
 from oarepo_cli.initialize import initialize
@@ -27,6 +28,7 @@ run.add_command(upgrade)
 run.add_command(docker_develop)
 run.add_command(develop)
 run.add_command(docker_watch)
+run.add_command(dependencies)
 
 if __name__ == "__main__":
     run()

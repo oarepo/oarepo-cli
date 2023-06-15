@@ -67,6 +67,9 @@ I am going to resolve the python dependencies.
         (self.site_dir / "requirements.txt").write_text(resolved_requirements)
 
     def generate_requirements(self, extras):
+        pdm_binary = self.data.get("pdm_binary", "pdm")
+        pdm_name = self.data.get("pdm_name")
+
         pdm_file = {
             "project": {
                 "name": f"{self.data.section}-repository",
@@ -85,32 +88,53 @@ I am going to resolve the python dependencies.
         }
         with open(self.site_dir / "pyproject.toml", "wb") as f:
             tomli_w.dump(pdm_file, f)
-        if not (self.site_dir / ".venv").exists():
+        if not (self.site_dir / ".venv").exists() or pdm_name:
             run_cmdline(
-                "pdm",
+                pdm_binary,
                 "venv",
                 "create",
                 "--with-pip",
+                *(["--name", pdm_name] if pdm_name else []),
                 cwd=self.site_dir,
                 environ={"PDM_IGNORE_ACTIVE_VENV": "1"},
             )
-        run_cmdline(
-            "pdm",
+        lock_command = [
+            pdm_binary,
             "lock",
             *(["-v"] if self.root.verbose else []),
+        ]
+        if pdm_name:
+            lock_command = [pdm_binary, "run", "--venv", pdm_name, *lock_command]
+        run_cmdline(
+            *lock_command,
             cwd=self.site_dir,
             environ={"PDM_IGNORE_ACTIVE_VENV": "1"},
         )
-        requirements = run_cmdline(
+        export_command = [
             "pdm",
             "export",
             "-f",
             "requirements",
             "--without-hashes",
+        ]
+        if pdm_name:
+            export_command = [pdm_binary, "run", "--venv", pdm_name, *export_command]
+        requirements = run_cmdline(
+            *export_command,
             cwd=self.site_dir,
             environ={"PDM_IGNORE_ACTIVE_VENV": "1"},
             grab_stdout=True,
         )
+        if pdm_name:
+            run_cmdline(
+                pdm_binary,
+                "venv",
+                "remove",
+                pdm_name,
+                "-y",
+                cwd=self.site_dir,
+                environ={"PDM_IGNORE_ACTIVE_VENV": "1"},
+            )
         return requirements
 
     def should_run(self):
