@@ -10,10 +10,8 @@ from oarepo_cli.utils import commit_git, to_python_name, with_config
     <name>   ... name of the site. The recommended pattern for it is <something>-site""",
 )
 @click.argument("name")
-@with_config(config_section=lambda name, **kwargs: ["sites", name])
-@click.pass_context
+@with_config(config_section=lambda name, **kwargs: ["sites", name], allow_docker=True, run_in_docker=False)
 def add_site(
-    ctx,
     cfg=None,
     name=None,
     no_input=False,
@@ -31,7 +29,7 @@ def add_site(
     cfg["site_package"] = to_python_name(name)
     cfg["site_dir"] = f"sites/{name}"
 
-    initialize_wizard = AddSiteWizard()
+    initialize_wizard = AddSiteWizard(running_in_container=cfg.running_in_docker, use_container=cfg.use_docker)
     if steps:
         initialize_wizard.list_steps()
         return

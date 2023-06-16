@@ -25,10 +25,10 @@ Initialize the whole repository structure. Required arguments:
     help="Do not create default site",
 )
 @click.option("--python", required=False)
-@with_config(project_dir_as_argument=True)
-@click.pass_context
+@with_config(project_dir_as_argument=True, allow_docker=False)
 def initialize(
-    ctx,
+    *,
+    context=None,
     cfg=None,
     no_site=False,
     python=None,
@@ -50,7 +50,7 @@ def initialize(
         MonorepoDirectoryStep(),
         CreateMonorepoStep(),
         InstallINRPCliStep(pause=True),
-        PrimarySiteNameStep(),
+        *([PrimarySiteNameStep()] if not no_site else [])
     )
     if steps:
         initialize_wizard.list_steps()
@@ -64,7 +64,7 @@ def initialize(
     sites = cfg.whole_data.get("sites", {})
     if sites:
         for site in sites:
-            ctx.invoke(
+            context.invoke(
                 add_site,
                 project_dir=str(cfg.project_dir),
                 name=site,
@@ -74,7 +74,7 @@ def initialize(
             )
     elif not no_site:
         # if there is no site, install the default one
-        ctx.invoke(
+        context.invoke(
             add_site,
             project_dir=str(cfg.project_dir),
             name=cfg["primary_site_name"],

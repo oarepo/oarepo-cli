@@ -4,6 +4,8 @@ FROM oarepo/oarepo-base-development:11
 # site name is at REPOSITORY_SITE_NAME environment variable
 # invenio instance path is at INVENIO_INSTANCE_PATH
 
+ENV DOCKER_AROUND=1
+
 ARG REPOSITORY_SITE_NAME
 COPY sites/${REPOSITORY_SITE_NAME}/requirements.txt ${INVENIO_VENV}/requirements-orig.txt
 COPY sites/${REPOSITORY_SITE_NAME}/invenio.cfg ${INVENIO_INSTANCE_PATH}

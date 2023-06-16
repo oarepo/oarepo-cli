@@ -251,7 +251,11 @@ def snail_to_title(v):
 
 
 def with_config(
-    config_section=None, project_dir_as_argument=False, config_as_argument=False
+    config_section=None,
+    project_dir_as_argument=False,
+    config_as_argument=False,
+    allow_docker=True,
+    run_in_docker=True
 ):
     def wrapper(f):
         @(
@@ -317,8 +321,17 @@ def with_config(
                 help="Merge this config to the main config in target directory and proceed",
             )
         )
+        @(
+            click.option(
+                "--use-docker/--outside-docker",
+                default=None,
+                help="Run the command inside docker or outside od docker container",
+            )
+        )
+        @click.pass_context
         @functools.wraps(f)
         def wrapped(
+            context,
             project_dir=None,
             config=None,
             **kwargs,
@@ -327,6 +340,17 @@ def with_config(
                 project_dir = Path.cwd()
             project_dir = Path(project_dir).absolute()
             oarepo_yaml_file = project_dir / "oarepo.yaml"
+
+            use_docker = kwargs.pop("use_docker", None)
+            local_user_config = load_user_config(project_dir)
+
+            if use_docker is None:
+                use_docker = local_user_config.get("use_docker", False)
+
+            if use_docker and allow_docker and run_in_docker:
+                return run_this_command_in_docker(
+                    context, project_dir=project_dir, config=config, **kwargs
+                )
 
             if callable(config_section):
                 section = config_section(**kwargs)
@@ -344,8 +368,12 @@ def with_config(
 
             kwargs.pop("cfg", None)
             kwargs.pop("project_dir", None)
+
+            cfg.running_in_docker = 'DOCKER_AROUND' in os.environ
+            cfg.use_docker = use_docker
+
             try:
-                return f(project_dir=project_dir, cfg=cfg, **kwargs)
+                return f(context=context, project_dir=project_dir, cfg=cfg, **kwargs)
             except Exception as e:
                 if kwargs.get("verbose"):
                     import traceback
@@ -358,6 +386,33 @@ def with_config(
         return wrapped
 
     return wrapper
+
+
+def load_user_config(project_dir):
+    if not project_dir.exists():
+        return {}
+
+    local_user_config = {}
+    local_user_config_file = project_dir / ".oarepo-local.yaml"
+    if local_user_config_file.exists():
+        with open(local_user_config_file) as f:
+            local_user_config = yaml.safe_load(f)
+
+    if "use_docker" not in local_user_config:
+        click.secho(
+            """I can isolate all the commands into a docker container.
+    The advantage is that only python and docker are needed, disadvantage is a slight performance
+    penalty.
+    
+    Should I do so? (y/n)
+            """
+        )
+        yn = input().strip().lower()
+        if yn == "y":
+            local_user_config["use_docker"] = True
+            with open(local_user_config_file, "w") as f:
+                yaml.safe_dump(local_user_config, f)
+    return local_user_config
 
 
 class ProjectWizardMixin:
@@ -461,3 +516,7 @@ def check_call(*args, **kwargs):
     cmdline = " ".join(str(x) for x in args[0])
     print(f"Calling command {cmdline} with kwargs {kwargs}")
     return subprocess.check_call(*args, **kwargs)
+
+
+def run_this_command_in_docker(*arguments):
+    raise NotImplemented("Can not run in docker now")

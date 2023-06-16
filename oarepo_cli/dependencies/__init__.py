@@ -16,7 +16,7 @@ from oarepo_cli.wizard import Wizard
 @click.argument("name")
 @click.option("--pdm-name")
 @click.option("--pdm-binary")
-@click.option('--use-docker', is_flag=True)
+@click.option("--use-docker", is_flag=True)
 @with_config(config_section=lambda name, **kwargs: ["sites", name])
 def dependencies(
     cfg: MonorepoConfig = None,
@@ -59,8 +59,8 @@ def dependencies(
             [
                 "docker",
                 "run",
-                '--mount',
-                f'type=bind,source=.,target=/repository',
+                "--mount",
+                f"type=bind,source=.,target=/repository",
                 f"{site}:pdm",
             ],
             cwd=cfg.project_dir,
