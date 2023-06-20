@@ -184,6 +184,8 @@ def get_cookiecutter_source(env_name, lib_github, lib_version, master_version="m
 
 
 def commit_git(repo_dir, tag_name, message):
+    if 'DOCKER_AROUND' in os.environ:
+        return
     tag_index = 1
     try:
         for commit in pydriller.Repository(str(repo_dir)).traverse_commits():
@@ -200,6 +202,8 @@ def commit_git(repo_dir, tag_name, message):
 
 
 def must_be_committed(repo_dir):
+    if 'DOCKER_AROUND' in os.environ:
+        return
     repo = git.Repo(repo_dir)
     if repo.is_dirty() or repo.untracked_files:
         for f in repo.untracked_files:
@@ -546,7 +550,6 @@ def check_call(*args, **kwargs):
 
 
 def run_nrp_in_docker_compose(site_dir, *arguments):
-    # TODO: user id
     run_cmdline(
         "docker",
         "compose",
@@ -559,14 +562,14 @@ def run_nrp_in_docker_compose(site_dir, *arguments):
         *arguments
     )
 
-def run_nrp_in_docker(repo_dir, *arguments):
-    # TODO: user id
+def run_nrp_in_docker(repo_dir: Path, *arguments):
     run_cmdline(
         "docker",
         "run",
         "-it",
-        '-v', '.:/repository',
+        '-v', f'{str(repo_dir.parent)}:/repository-parent',
         '--user', f"{os.getuid()}:{os.getgid()}",
+        '-e', f'REPOSITORY_DIR={repo_dir.name}',
         "oarepo/oarepo-base-development:11",
         *arguments,
         cwd=repo_dir,

@@ -15,18 +15,17 @@ class RunInContainerStep(WizardStep):
 
     def run(self, single_step=None):
         cmd = sys.argv[1:]
+        # remove project dir as it is added by docker itself
         for idx, c in enumerate(cmd):
             if c == '--project-dir':
-                cmd[idx+1] = '/repository'
+                cmd.pop(idx)
+                cmd.pop(idx)
                 break
-        else:
-            cmd.extend(['--project-dir', '/repository'])
         for step in self.steps:
             if single_step and step != single_step:
                 continue
             cmd.append('--step')
             cmd.append(step.name)
-        print(cmd)
         if self.in_compose:
             run_nrp_in_docker_compose(self.data.project_dir / self.data['site_dir'],
                                       *cmd)
