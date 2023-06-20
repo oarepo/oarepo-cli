@@ -30,8 +30,8 @@ services:
     extends:
       file: docker-services.yml
       service: s3
-  app:
-    image: {{cookiecutter.project_shortname}}:devel
+  repo:
+    image: oarepo/oarepo-base-development:11
     ports:
       - '127.0.0.1:5000:5000'
     # restart: 'unless-stopped'
@@ -44,19 +44,17 @@ services:
       - 'INVENIO_CELERY_RESULT_BACKEND=redis://cache:6379/2'
       - "INVENIO_SEARCH_HOSTS=['search:9200']"
       - 'INVENIO_SECRET_KEY=CHANGE_ME'
-      {%- if cookiecutter.database == 'postgresql'%}
       - "INVENIO_SQLALCHEMY_DATABASE_URI=postgresql+psycopg2://{{cookiecutter.project_shortname}}:{{cookiecutter.project_shortname}}@db/{{cookiecutter.project_shortname}}"
-      {%- elif cookiecutter.database == 'mysql'%}
-      - "INVENIO_SQLALCHEMY_DATABASE_URI=mysql+pymysql://{{cookiecutter.project_shortname}}:{{cookiecutter.project_shortname}}@db/{{cookiecutter.project_shortname}}"
-      {%- endif %}
       - 'INVENIO_RATELIMIT_STORAGE_URL=redis://cache:6379/3'
       - 'REPOSITORY_SITE_NAME={{cookiecutter.project_shortname}}'
+    entrypoint: run
     stdin_open: true
     tty: true
     volumes:
       - type: bind
         source: ../../
         target: /repository
+
 volumes:
   data:
     driver: local

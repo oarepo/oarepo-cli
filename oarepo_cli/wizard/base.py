@@ -13,7 +13,7 @@ class WizardBase:
     def name(self):
         return type(self).__name__
 
-    @cached_property
+    @property
     def root(self):
         n = self
         while n.parent:
@@ -22,6 +22,8 @@ class WizardBase:
 
     @property
     def data(self):
+        if self.root == self:
+            raise RuntimeError('Parent not initialized, should not access data at this time!')
         return self.root.data
 
     def vprint(self, *args, **kwargs):

@@ -1,9 +1,14 @@
 import functools
 import os
+import pty
 import re
+import select
 import shutil
 import subprocess
 import sys
+import termios
+import time
+import tty
 from pathlib import Path
 
 import click
@@ -51,7 +56,7 @@ def run_cmdline(
             )
             ret = (ret.stdout or b"") + b"\n" + (ret.stderr or b"")
         else:
-            ret = subprocess.call(cmdline, cwd=cwd, env=env)
+            ret = run_with_tty(cmdline, cwd=cwd, env=env)
             if ret:
                 raise subprocess.CalledProcessError(ret, cmdline)
     except subprocess.CalledProcessError as e:
@@ -74,6 +79,38 @@ def run_cmdline(
         return ret.decode("utf-8").strip()
     return True
 
+
+def run_with_tty(cmd, cwd=None, env=None):
+    # https://stackoverflow.com/questions/41542960/run-interactive-bash-with-popen-and-a-dedicated-tty-python
+
+    # save original tty setting then set it to raw mode
+    old_tty = termios.tcgetattr(sys.stdin)
+    tty.setraw(sys.stdin.fileno())
+
+    # open pseudo-terminal to interact with subprocess
+    master_fd, slave_fd = pty.openpty()
+    try:
+        # use os.setsid() make it run in a new process group, or bash job control will not be enabled
+        p = subprocess.Popen(cmd,
+                  preexec_fn=os.setsid,
+                  stdin=slave_fd,
+                  stdout=slave_fd,
+                  stderr=slave_fd,
+                  universal_newlines=True)
+
+        while p.poll() is None:
+            r, w, e = select.select([sys.stdin, master_fd], [], [], 1)
+            if sys.stdin in r:
+                d = os.read(sys.stdin.fileno(), 10240)
+                os.write(master_fd, d)
+            elif master_fd in r:
+                o = os.read(master_fd, 10240)
+                if o:
+                    os.write(sys.stdout.fileno(), o)
+        return p.returncode
+    finally:
+        # restore tty settings back
+        termios.tcsetattr(sys.stdin, termios.TCSADRAIN, old_tty)
 
 def find_oarepo_project(dirname, raises=False):
     dirname = Path(dirname).absolute()
@@ -253,9 +290,7 @@ def snail_to_title(v):
 def with_config(
     config_section=None,
     project_dir_as_argument=False,
-    config_as_argument=False,
-    allow_docker=True,
-    run_in_docker=True
+    config_as_argument=False
 ):
     def wrapper(f):
         @(
@@ -321,12 +356,14 @@ def with_config(
                 help="Merge this config to the main config in target directory and proceed",
             )
         )
-        @(
-            click.option(
-                "--use-docker/--outside-docker",
+        @click.option(
+                "--use-docker", 'use_docker', flag_value=True,
                 default=None,
-                help="Run the command inside docker or outside od docker container",
-            )
+                help="Run the command inside docker",
+        )
+        @click.option(
+                "--outside-docker", 'use_docker', flag_value=False,
+                help="Run the command outside of docker container",
         )
         @click.pass_context
         @functools.wraps(f)
@@ -334,23 +371,13 @@ def with_config(
             context,
             project_dir=None,
             config=None,
+            use_docker=None,
             **kwargs,
         ):
             if not project_dir:
                 project_dir = Path.cwd()
             project_dir = Path(project_dir).absolute()
             oarepo_yaml_file = project_dir / "oarepo.yaml"
-
-            use_docker = kwargs.pop("use_docker", None)
-            local_user_config = load_user_config(project_dir)
-
-            if use_docker is None:
-                use_docker = local_user_config.get("use_docker", False)
-
-            if use_docker and allow_docker and run_in_docker:
-                return run_this_command_in_docker(
-                    context, project_dir=project_dir, config=config, **kwargs
-                )
 
             if callable(config_section):
                 section = config_section(**kwargs)
@@ -518,5 +545,29 @@ def check_call(*args, **kwargs):
     return subprocess.check_call(*args, **kwargs)
 
 
-def run_this_command_in_docker(*arguments):
-    raise NotImplemented("Can not run in docker now")
+def run_nrp_in_docker_compose(site_dir, *arguments):
+    # TODO: user id
+    run_cmdline(
+        "docker",
+        "compose",
+        "-f",
+        site_dir / "docker-compose.development.yml",
+        "run",
+        "--service-ports",
+        "-i",
+        "repo",
+        *arguments
+    )
+
+def run_nrp_in_docker(repo_dir, *arguments):
+    # TODO: user id
+    run_cmdline(
+        "docker",
+        "run",
+        "-it",
+        '-v', '.:/repository',
+        '--user', f"{os.getuid()}:{os.getgid()}",
+        "oarepo/oarepo-base-development:11",
+        *arguments,
+        cwd=repo_dir,
+    )

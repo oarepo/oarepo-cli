@@ -1,4 +1,7 @@
-from oarepo_cli.wizard import Wizard
+import os
+import sys
+
+from oarepo_cli.wizard import Wizard, WizardStep
 
 from .steps.check_requirements import CheckRequirementsStep
 from .steps.compile_gui import CompileGUIStep
@@ -9,38 +12,30 @@ from .steps.install_site import InstallSiteStep
 from .steps.link_env import LinkEnvStep
 from .steps.next_steps import NextStepsStep
 from .steps.resolve_dependencies import ResolveDependenciesStep
-from .steps.run_in_container import RunInContainerStep
 from .steps.start_containers import StartContainersStep
+from ...wizard.docker import DockerRunner
 
 
 class AddSiteWizard(Wizard):
-    def __init__(self, running_in_container, use_container):
+    def __init__(self, runner: DockerRunner):
+
         steps = []
-        if not use_container:
-            steps.extend([
-                InstallSiteStep(),  # runs in userspace
-            ])
-        else:
-            steps.extend([
-                steps.append(RunInContainerStep('--step', 'InstallSiteStep'))
-            ])
-        if not running_in_container:
-            steps.extend([
-                LinkEnvStep(),              # runs in userspace
-            ])
-        if running_in_container or not use_container:
-            steps.extend([
-                CheckRequirementsStep(),    # runs in docker
-                StartContainersStep(),      # runs in userspace
-                ResolveDependenciesStep(),  # runs in docker
-                InstallInvenioStep(),       # runs in docker
-                CompileGUIStep(),           # runs in docker
-                InitDatabaseStep(),         # runs in docker
-                InitFilesStep(),            # runs in docker
-                NextStepsStep(),            # in docker or in userspace
-            ])
-        if use_container and not running_in_container:
-            steps.append(RunInContainerStep())
+        steps.extend(
+            runner.wrap_docker_steps(InstallSiteStep(), in_compose=False)         # can run in plain docker
+        )
+        steps.append(LinkEnvStep())     # runs in userspace
+        steps.extend(runner.wrap_docker_steps(
+            CheckRequirementsStep(),    # can run in docker compose
+        ))
+        steps.append(StartContainersStep())      # runs in userspace
+        steps.extend(runner.wrap_docker_steps(
+            ResolveDependenciesStep(),  # can run in docker compose
+            InstallInvenioStep(),       # can run in docker compose
+            CompileGUIStep(),           # can run in docker compose
+            InitDatabaseStep(),         # can run in docker compose
+            InitFilesStep(),            # can run in docker compose
+        ))
+        steps.extend([NextStepsStep()])      # runs in userspace
         super().__init__(
             *steps
         )

@@ -1,7 +1,10 @@
+import os
+
 import click
 
 from oarepo_cli.site.add.wizard import AddSiteWizard
 from oarepo_cli.utils import commit_git, to_python_name, with_config
+from oarepo_cli.wizard.docker import DockerRunner
 
 
 @click.command(
@@ -10,7 +13,7 @@ from oarepo_cli.utils import commit_git, to_python_name, with_config
     <name>   ... name of the site. The recommended pattern for it is <something>-site""",
 )
 @click.argument("name")
-@with_config(config_section=lambda name, **kwargs: ["sites", name], allow_docker=True, run_in_docker=False)
+@with_config(config_section=lambda name, **kwargs: ["sites", name])
 def add_site(
     cfg=None,
     name=None,
@@ -21,6 +24,9 @@ def add_site(
     steps=False,
     **kwargs,
 ):
+
+    print(f'Current user {os.getuid()}:{os.getgid()}')
+
     commit_git(
         cfg.project_dir,
         f"before-site-install-{cfg.section}",
@@ -29,7 +35,8 @@ def add_site(
     cfg["site_package"] = to_python_name(name)
     cfg["site_dir"] = f"sites/{name}"
 
-    initialize_wizard = AddSiteWizard(running_in_container=cfg.running_in_docker, use_container=cfg.use_docker)
+    runner = DockerRunner(running_in_container=cfg.running_in_docker, use_container=cfg.use_docker)
+    initialize_wizard = AddSiteWizard(runner)
     if steps:
         initialize_wizard.list_steps()
         return

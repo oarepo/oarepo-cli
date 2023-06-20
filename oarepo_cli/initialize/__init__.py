@@ -25,7 +25,7 @@ Initialize the whole repository structure. Required arguments:
     help="Do not create default site",
 )
 @click.option("--python", required=False)
-@with_config(project_dir_as_argument=True, allow_docker=False)
+@with_config(project_dir_as_argument=True)
 def initialize(
     *,
     context=None,
