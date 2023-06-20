@@ -1,1 +1,1 @@
-recursive-include oarepo_cli/templates/repo *
+recursive-include oarepo_cli/templates *
