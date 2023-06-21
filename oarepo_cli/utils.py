@@ -553,13 +553,16 @@ def run_nrp_in_docker_compose(site_dir, *arguments):
     run_cmdline(
         "docker",
         "compose",
-        "-f",
-        site_dir / "docker-compose.development.yml",
         "run",
         "--service-ports",
         "-i",
         "repo",
-        *arguments
+        *arguments,
+        cwd=site_dir,
+        environ={
+            **os.environ,
+            'INVENIO_DOCKER_USER_ID': os.getuid()
+        }
     )
 
 def run_nrp_in_docker(repo_dir: Path, *arguments):
@@ -567,7 +570,7 @@ def run_nrp_in_docker(repo_dir: Path, *arguments):
         "docker",
         "run",
         "-it",
-        '-v', f'{str(repo_dir.parent)}:/repository-parent',
+        '-v', f'{str(repo_dir)}:/repository',
         '--user', f"{os.getuid()}:{os.getgid()}",
         '-e', f'REPOSITORY_DIR={repo_dir.name}',
         "oarepo/oarepo-base-development:11",

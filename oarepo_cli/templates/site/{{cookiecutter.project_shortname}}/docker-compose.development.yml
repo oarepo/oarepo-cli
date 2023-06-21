@@ -49,11 +49,12 @@ services:
       - 'REPOSITORY_SITE_NAME={{cookiecutter.project_shortname}}'
     entrypoint: run
     stdin_open: true
+    user: ${USER}
     tty: true
     volumes:
       - type: bind
-        source: ../../
-        target: /repository
+        source: ../../../
+        target: /repository-parent
 
 volumes:
   data:

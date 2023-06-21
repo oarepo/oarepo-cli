@@ -25,8 +25,6 @@ def add_site(
     **kwargs,
 ):
 
-    print(f'Current user {os.getuid()}:{os.getgid()}')
-
     commit_git(
         cfg.project_dir,
         f"before-site-install-{cfg.section}",
