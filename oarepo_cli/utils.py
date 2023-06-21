@@ -361,12 +361,13 @@ def with_config(
             )
         )
         @click.option(
-                "--use-docker", 'use_docker', flag_value=True,
+                "--use-docker", 'use_docker',
+                flag_value='docker',
                 default=None,
                 help="Run the command inside docker",
         )
         @click.option(
-                "--outside-docker", 'use_docker', flag_value=False,
+                "--outside-docker", 'use_docker', flag_value='no docker',
                 help="Run the command outside of docker container",
         )
         @click.pass_context
@@ -401,7 +402,10 @@ def with_config(
             kwargs.pop("project_dir", None)
 
             cfg.running_in_docker = 'DOCKER_AROUND' in os.environ
-            cfg.use_docker = use_docker
+            if not use_docker:
+                cfg.use_docker = None
+            else:
+                cfg.use_docker = use_docker == 'docker'
 
             try:
                 return f(context=context, project_dir=project_dir, cfg=cfg, **kwargs)
@@ -555,6 +559,7 @@ def run_nrp_in_docker_compose(site_dir, *arguments):
         "compose",
         "run",
         "--service-ports",
+        "--rm",
         "-i",
         "repo",
         *arguments,
@@ -573,6 +578,7 @@ def run_nrp_in_docker(repo_dir: Path, *arguments):
         '-v', f'{str(repo_dir)}:/repository',
         '--user', f"{os.getuid()}:{os.getgid()}",
         '-e', f'REPOSITORY_DIR={repo_dir.name}',
+        "--rm",
         "oarepo/oarepo-base-development:11",
         *arguments,
         cwd=repo_dir,

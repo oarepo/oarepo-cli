@@ -68,13 +68,12 @@ services:
       - "INVENIO_SQLALCHEMY_DATABASE_URI=postgresql+psycopg2://test:test@db/test"
       - 'INVENIO_RATELIMIT_STORAGE_URL=redis://cache:6379/3'
       - 'REPOSITORY_SITE_NAME=test'
-    entrypoint: run
     stdin_open: true
     tty: true
     volumes:
       - type: bind
-        source: ../../../
-        target: /repository-parent
+        source: ../..
+        target: /repository
       - type: volume
         source: invenio
         target: /invenio

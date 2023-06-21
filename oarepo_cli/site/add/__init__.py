@@ -33,7 +33,7 @@ def add_site(
     cfg["site_package"] = to_python_name(name)
     cfg["site_dir"] = f"sites/{name}"
 
-    runner = DockerRunner(running_in_container=cfg.running_in_docker, use_container=cfg.use_docker)
+    runner = DockerRunner(cfg, no_input)
     initialize_wizard = AddSiteWizard(runner)
     if steps:
         initialize_wizard.list_steps()
