@@ -11,6 +11,7 @@ from oarepo_cli.site import site
 from oarepo_cli.ui import ui
 from oarepo_cli.upgrade import upgrade
 from oarepo_cli.watch import docker_watch
+from oarepo_cli.format import format_sources
 
 
 @click.group()
@@ -29,6 +30,7 @@ run.add_command(docker_develop)
 run.add_command(develop)
 run.add_command(docker_watch)
 run.add_command(dependencies)
+run.add_command(format_sources)
 
 if __name__ == "__main__":
     run()

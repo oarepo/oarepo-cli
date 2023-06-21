@@ -31,6 +31,8 @@ I will check the requirements for Invenio site installation.
         return not (self.site_dir / ".check.ok").exists()
 
     def _check_docker_callable(self):
+        if self.data.running_in_docker:
+            return
         run_cmdline("docker", "ps", grab_stdout=True)
 
     def _check_pdm_callable(self):
@@ -68,6 +70,8 @@ I will check the requirements for Invenio site installation.
             raise Exception("Expected docker compose version ")
 
     def _check_docker_compose_version(self, expected_major, expected_minor):
+        if self.data.running_in_docker:
+            return
         self.check_version(
             "docker-compose",
             "--version",
