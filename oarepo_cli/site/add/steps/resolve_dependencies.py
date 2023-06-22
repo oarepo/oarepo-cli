@@ -85,11 +85,11 @@ I am going to resolve the python dependencies.
         with open(self.site_dir / "pyproject.toml", "wb") as f:
             tomli_w.dump(pdm_file, f)
 
-        self.call_pdm(
+        self.site_support.call_pdm(
             "lock",
             *(["-v"] if self.root.verbose else []),
         )
-        return self.call_pdm(
+        return self.site_support.call_pdm(
             "export", "-f", "requirements", "--without-hashes", grab_stdout=True
         )
 

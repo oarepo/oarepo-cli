@@ -1,9 +1,8 @@
-import os
 import shutil
 from pathlib import Path
 
 from oarepo_cli.config import MonorepoConfig
-from oarepo_cli.utils import check_call
+from oarepo_cli.site.site_support import SiteSupport
 from oarepo_cli.watch import copy_watched_paths, load_watched_paths
 
 # Taken from Invenio-cli
@@ -23,79 +22,52 @@ from oarepo_cli.watch import copy_watched_paths, load_watched_paths
 # is used - it gets broken with each release.
 
 
-def build_assets(*, cfg: MonorepoConfig, site, **kwargs):
-    site_dir = cfg.project_dir / site["site_dir"]
-    invenio = os.environ.get(
-        "INVENIO_INSTANCE_PATH", site_dir / ".venv" / "var" / "instance"
+def build_assets(*, cfg: MonorepoConfig, site_name, **kwargs):
+    site = SiteSupport(cfg, site_name)
+    invenio_instance_path = site.invenio_instance_path
+
+    shutil.rmtree(invenio_instance_path / "assets", ignore_errors=True)
+    shutil.rmtree(invenio_instance_path / "static", ignore_errors=True)
+
+    Path(invenio_instance_path / "assets").mkdir(parents=True)
+    Path(invenio_instance_path / "static").mkdir(parents=True)
+
+    site.call_invenio(
+        "oarepo",
+        "assets",
+        "collect",
+        f"{invenio_instance_path}/watch.list.json",
     )
-    if not isinstance(invenio, Path):
-        invenio = Path(invenio)
-
-    pdm_name = site["pdm_name"]
-
-    shutil.rmtree(invenio / "assets", ignore_errors=True)
-    shutil.rmtree(invenio / "static", ignore_errors=True)
-
-    Path(invenio / "assets").mkdir(parents=True)
-    Path(invenio / "static").mkdir(parents=True)
-
-    check_call(
-        [
-            "pdm",
-            "run",
-            *(["--venv", pdm_name] if pdm_name else []),
-            "invenio",
-            "oarepo",
-            "assets",
-            "collect",
-            f"{invenio}/watch.list.json",
-        ],
-        cwd=site_dir,
+    site.call_invenio(
+        "webpack",
+        "clean",
+        "create",
     )
-    check_call(
-        [
-            "pdm",
-            "invenio",
-            *(["--venv", pdm_name] if pdm_name else []),
-            "webpack",
-            "clean",
-            "create",
-        ],
-        cwd=site_dir,
-    )
-    check_call(
-        [
-            "pdm",
-            "invenio",
-            *(["--venv", pdm_name] if pdm_name else []),
-            "webpack",
-            "install",
-        ],
-        cwd=site_dir,
+    site.call_invenio(
+        "webpack",
+        "install",
     )
 
-    assets = site_dir / "assets"
-    static = site_dir / "static"
+    assets = invenio_instance_path / "assets"
+    static = invenio_instance_path / "static"
 
     watched_paths = load_watched_paths(
-        invenio / "watch.list.json", [f"{assets}=assets", f"{static}=static"]
+        invenio_instance_path / "watch.list.json",
+        [f"{assets}=assets", f"{static}=static"],
     )
 
-    copy_watched_paths(watched_paths, invenio)
+    copy_watched_paths(watched_paths, invenio_instance_path)
 
-    check_call(
-        [
-            "pdm",
-            "run",
-            *(["--venv", pdm_name] if pdm_name else []),
-            "invenio",
-            "webpack",
-            "build",
-        ],
-        cwd=site_dir,
+    site.call_invenio(
+        "webpack",
+        "build",
     )
 
     # do not allow Clean plugin to remove files
-    webpack_config = (invenio / "assets" / "build" / "webpack.config.js").read_text()
+    webpack_config = (
+        invenio_instance_path / "assets" / "build" / "webpack.config.js"
+    ).read_text()
     webpack_config = webpack_config.replace("dry: false", "dry: true")
-    (invenio / "assets" / "build" / "webpack.config.js").write_text(webpack_config)
+    (invenio_instance_path / "assets" / "build" / "webpack.config.js").write_text(
+        webpack_config
+    )

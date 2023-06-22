@@ -18,7 +18,7 @@ will be downloaded and installed and UI will be compiled.
     def after_run(self):
         build_assets(
             cfg=self.data,
-            site=self.data,
+            site_name=self.data.section_path[-1],
         )
 
     def should_run(self):

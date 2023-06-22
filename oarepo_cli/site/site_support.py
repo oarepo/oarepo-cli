@@ -39,20 +39,17 @@ class SiteSupport:
             **kwargs,
         )
 
-    def call_pdm_run(self, *args, **kwargs):
-        pdm_name = self.config["pdm_name"]
-
-        venv = ["--venv", pdm_name] if pdm_name else []
-        return self.call_pdm(
-            "run",
-            *venv,
-            *args,
-            **kwargs,
-        )
-
     @property
     def virtualenv(self):
         return Path(os.environ.get("INVENIO_VENV", self.site_dir / ".venv"))
+
+    @property
+    def invenio_instance_path(self):
+        return Path(
+            os.environ.get(
+                "INVENIO_INSTANCE_PATH", self.virtualenv / "var" / "instance"
+            )
+        )
 
     def call_pip(self, *args, **kwargs):
         return run_cmdline(
@@ -60,28 +57,38 @@ class SiteSupport:
             *args,
             **{
                 "cwd": self.site_dir,
-                "environ": {"PDM_IGNORE_ACTIVE_VENV": "1"},
                 **kwargs,
             },
         )
 
     def call_invenio(self, *args, **kwargs):
-        return self.call_pdm_run("invenio", *args, **kwargs)
+        return run_cmdline(
+            self.virtualenv / "bin" / "invenio",
+            *args,
+            **{
+                "cwd": self.site_dir,
+                **kwargs,
+            },
+        )
 
     def get_site_local_packages(self):
         models = [
             model_name
-            for model_name, model_section in self.data.whole_data.get("models", {}).items()
-            if self.data.section in model_section.get("sites")
+            for model_name, model_section in self.config.whole_data.get(
+                "models", {}
+            ).items()
+            if self.config.section in model_section.get("sites")
         ]
         uis = [
             ui_name
-            for ui_name, ui_section in self.data.whole_data.get("ui", {}).items()
-            if self.data.section in ui_section.get("sites")
+            for ui_name, ui_section in self.config.whole_data.get("ui", {}).items()
+            if self.config.section in ui_section.get("sites")
         ]
         local_packages = [
             local_name
-            for local_name, local_section in self.data.whole_data.get("local", {}).items()
-            if self.data.section in local_section.get("sites")
+            for local_name, local_section in self.config.whole_data.get(
+                "local", {}
+            ).items()
+            if self.config.section in local_section.get("sites")
         ]
         return models, uis, local_packages

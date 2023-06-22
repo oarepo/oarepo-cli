@@ -34,4 +34,3 @@ class SiteWizardStepMixin:
             raise KeyError(
                 f"Configuration key not found in defaults: {values.keys()}: {e}"
             )
-

@@ -20,7 +20,7 @@ Now I'll install invenio site.
         # if running in docker, the virtualenv is already there
         if not self.data.running_in_docker:
             cmdline = [
-                self.python,
+                self.site_support.python,
                 "-m",
                 "venv",
             ]
@@ -29,14 +29,16 @@ Now I'll install invenio site.
 
             run_cmdline(
                 *cmdline,
-                str(self.virtualenv),
+                str(self.site_support.virtualenv),
                 cwd=self.site_dir,
             )
-            self.call_pip("install", "-U", "--no-input", "setuptools", "pip", "wheel")
+            self.site_support.call_pip(
+                "install", "-U", "--no-input", "setuptools", "pip", "wheel"
+            )
 
         oarepo = (self.site_dir / "requirements.txt").read_text().splitlines()[0]
         self.install_oarepo_dependencies(oarepo)
-        self.call_pip(
+        self.site_support.call_pip(
             "install",
             "-U",
             "--no-input",
@@ -59,7 +61,7 @@ Now I'll install invenio site.
         site_package_dir = self.site_dir.absolute() / "site"
         for f in site_package_dir.glob("*.egg-info"):
             shutil.rmtree(f)
-        self.call_pip(
+        self.site_support.call_pip(
             "install", "-U", "--no-input", "--no-deps", "-e", str(site_package_dir)
         )
 
@@ -70,7 +72,9 @@ Now I'll install invenio site.
         self.install_package(local_packages, "local")
 
     def get_oarepo_dependencies(self, oarepo):
-        self.call_pip("download", "--no-deps", "--no-binary=:all:", oarepo, cwd="/tmp")
+        self.site_support.call_pip(
+            "download", "--no-deps", "--no-binary=:all:", oarepo, cwd="/tmp"
+        )
         tar_name = "/tmp/" + oarepo.replace("==", "-") + ".tar.gz"
         # extract the tar
         with tempfile.TemporaryDirectory() as temp_dir:
@@ -79,7 +83,9 @@ Now I'll install invenio site.
             tf = tarfile.open(tar_name, mode="r:gz")
             tf.extractall(path=temp_dir)
             content_dir = temp_dir + "/" + oarepo.replace("==", "-")
-            run_cmdline(self.python, "setup.py", "egg_info", cwd=content_dir)
+            run_cmdline(
+                self.site_support.python, "setup.py", "egg_info", cwd=content_dir
+            )
             requires = (
                 Path(content_dir) / "oarepo.egg-info" / "requires.txt"
             ).read_text()
@@ -93,7 +99,7 @@ Now I'll install invenio site.
         ) as temp_file:
             temp_file.write(requires)
             temp_file.flush()
-            self.call_pip("install", "--no-deps", "-r", temp_file.name)
+            self.site_support.call_pip("install", "--no-deps", "-r", temp_file.name)
 
     def install_package(self, packages, package_folder):
         for package in packages:
@@ -104,7 +110,7 @@ Now I'll install invenio site.
                 continue
             for f in package_dir.glob("*.egg-info"):
                 shutil.rmtree(f)
-            self.call_pip(
+            self.site_support.call_pip(
                 "install", "-U", "--no-input", "--no-deps", "-e", str(package_dir)
             )
 
