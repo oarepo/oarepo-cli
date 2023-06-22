@@ -3,7 +3,7 @@ import sys
 import yaml
 
 from oarepo_cli.config import MonorepoConfig
-from oarepo_cli.utils import run_nrp_in_docker_compose, run_nrp_in_docker
+from oarepo_cli.utils import run_nrp_in_docker, run_nrp_in_docker_compose
 from oarepo_cli.wizard import WizardStep
 
 
@@ -19,18 +19,19 @@ class RunInContainerStep(WizardStep):
         cmd = sys.argv[1:]
         # remove project dir as it is added by docker itself
         for idx, c in enumerate(cmd):
-            if c == '--project-dir':
+            if c == "--project-dir":
                 cmd.pop(idx)
                 cmd.pop(idx)
                 break
         for step in self.steps:
             if single_step and step != single_step:
                 continue
-            cmd.append('--step')
+            cmd.append("--step")
             cmd.append(step.name)
         if self.in_compose:
-            run_nrp_in_docker_compose(self.data.project_dir / self.data['site_dir'],
-                                      *cmd)
+            run_nrp_in_docker_compose(
+                self.data.project_dir / self.data["site_dir"], *cmd
+            )
         else:
             run_nrp_in_docker(self.data.project_dir, *cmd)
 
@@ -45,23 +46,28 @@ class DockerRunner:
         self.no_input = no_input
 
         # load user config
-        user_config_path = cfg.path.parent / '.oarepo-user.yaml'
+        user_config_path = cfg.path.parent / ".oarepo-user.yaml"
         if user_config_path.exists():
-            with open(user_config_path, 'r') as f:
+            with open(user_config_path, "r") as f:
                 user_config = yaml.safe_load(f)
         else:
             user_config = {}
 
         # if not overriden by user, load from user config file
         if self.use_docker is None:
-            cfg.use_docker = user_config.get('use_docker', None)
+            cfg.use_docker = user_config.get("use_docker", None)
 
         # if user has not yet selected if running through docker, force
         if self.use_docker is None and not self.running_in_docker and not self.no_input:
-            cfg.use_docker = input('I can run all the steps inside a container. Should I do so? [y/n]') == 'y'
-            user_config['use_docker'] = cfg.use_docker
+            cfg.use_docker = (
+                input(
+                    "I can run all the steps inside a container. Should I do so? [y/n]"
+                )
+                == "y"
+            )
+            user_config["use_docker"] = cfg.use_docker
             # write
-            with open(user_config_path, 'w') as f:
+            with open(user_config_path, "w") as f:
                 yaml.safe_dump(user_config, f)
 
     @property

@@ -17,9 +17,8 @@ will be downloaded and installed and UI will be compiled.
 
     def after_run(self):
         build_assets(
-            virtualenv=self.site_dir / ".venv",
-            invenio=self.site_dir / ".venv" / "var" / "instance",
-            site_dir=self.site_dir,
+            cfg=self.data,
+            site=self.data,
         )
 
     def should_run(self):

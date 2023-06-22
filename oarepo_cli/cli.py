@@ -3,6 +3,7 @@ import click
 from oarepo_cli.dependencies import dependencies
 from oarepo_cli.develop import develop
 from oarepo_cli.docker_develop import docker_develop
+from oarepo_cli.format import format_sources
 from oarepo_cli.initialize import initialize
 from oarepo_cli.local import local
 from oarepo_cli.model import model
@@ -11,7 +12,6 @@ from oarepo_cli.site import site
 from oarepo_cli.ui import ui
 from oarepo_cli.upgrade import upgrade
 from oarepo_cli.watch import docker_watch
-from oarepo_cli.format import format_sources
 
 
 @click.group()

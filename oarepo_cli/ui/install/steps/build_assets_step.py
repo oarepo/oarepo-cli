@@ -11,8 +11,4 @@ class BuildAssetsUIStep(SiteMixin, ProjectWizardMixin, WizardStep):
         sites = self.data["sites"]
         for site in sites:
             site_dir = self.data.project_dir / "sites" / site
-            build_assets(
-                virtualenv=site_dir / ".venv",
-                invenio=site_dir / ".venv" / "var" / "instance",
-                site_dir=site_dir,
-            )
+            build_assets(cfg=self.data, site=site)

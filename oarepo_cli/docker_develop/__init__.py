@@ -57,7 +57,9 @@ def docker_develop(
         call_task(search_init, virtualenv=virtualenv, invenio=invenio)
         call_task(create_custom_fields, virtualenv=virtualenv, invenio=invenio)
         call_task(import_fixtures, virtualenv=virtualenv, invenio=invenio)
-    call_task(build_assets, virtualenv=virtualenv, invenio=invenio, site_dir=site_dir)
+    call_task(
+        build_assets, pdm_name=cfg["pdm_name"], invenio=invenio, site_dir=site_dir
+    )
     call_task(development_script, virtualenv=virtualenv, invenio=invenio)
 
     runner = Runner(virtualenv, invenio, site_dir, host, port)
@@ -150,8 +152,8 @@ def development_script(**kwargs):
 
 
 class Runner:
-    def __init__(self, venv, invenio, site_dir, host, port):
-        self.venv = venv
+    def __init__(self, pdm_name, invenio, site_dir, host, port):
+        self.pdm_name = pdm_name
         self.invenio = invenio
         self.server_handle = None
         self.ui_handle = None
@@ -198,7 +200,7 @@ class Runner:
                     self.stop_watch()
                     subprocess.call(["ps", "-A"])
                     build_assets(
-                        virtualenv=self.venv,
+                        pdm_name=self.pdm_name,
                         invenio=self.invenio,
                         site_dir=self.site_dir,
                     )

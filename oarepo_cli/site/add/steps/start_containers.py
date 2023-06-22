@@ -23,7 +23,21 @@ If this step fails, please fix the problem and run the wizard again.
         )
 
     def after_run(self):
-        run_cmdline("docker", "compose", "up", "-d", "cache", "db", "mq", "search", "opensearch-dashboards", "pgadmin", "s3", cwd=self.site_dir, with_tty=False)
+        run_cmdline(
+            "docker",
+            "compose",
+            "up",
+            "-d",
+            "cache",
+            "db",
+            "mq",
+            "search",
+            "opensearch-dashboards",
+            "pgadmin",
+            "s3",
+            cwd=self.site_dir,
+            with_tty=False,
+        )
         self._check_containers_running(False)
 
     def _check_containers_running(self, check_only):

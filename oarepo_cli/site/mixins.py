@@ -1,21 +1,19 @@
 import json
-from pathlib import Path
+from functools import cached_property
 
 from dotenv import dotenv_values
 
-from oarepo_cli.utils import run_cmdline
+from oarepo_cli.site.site_support import SiteSupport
 
 
 class SiteWizardStepMixin:
+    @cached_property
+    def site_support(self):
+        return SiteSupport(self.data)
+
     @property
     def site_dir(self):
-        return Path(self.data.project_dir) / self.data["site_dir"]
-
-    def call_pip(self, *args, **kwargs):
-        return run_cmdline(['pdm', 'run', 'pip'], *args, **kwargs, cwd=self.site_dir)
-
-    def call_invenio(self, *args, **kwargs):
-        return run_cmdline(['pdm', 'run', 'invenio'], *args, **kwargs, cwd=self.site_dir)
+        return self.site_support.site_dir
 
     def get_invenio_configuration(self, *keys):
         values = dotenv_values(self.site_dir / ".env")

@@ -28,7 +28,7 @@ class WizardStep(WizardBase):
         self.on_before_heading()
         self._print_heading()
         self.on_after_heading()
-        super().run(single_step=single_step)
+        super().run(selected_steps=single_step)
         if self.pause and not self.root.no_input:
             input(f"Press enter to continue ...")
         self.after_run()

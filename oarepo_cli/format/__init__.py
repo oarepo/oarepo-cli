@@ -1,7 +1,7 @@
 import click
 
 from oarepo_cli.format.wizard import FormatWizard
-from oarepo_cli.utils import commit_git, to_python_name, with_config
+from oarepo_cli.utils import commit_git, with_config
 from oarepo_cli.wizard.docker import DockerRunner
 
 
@@ -32,7 +32,7 @@ def format_sources(
         return
 
     initialize_wizard.run_wizard(
-        cfg, no_input=no_input, silent=silent, single_step=step, verbose=verbose
+        cfg, no_input=no_input, silent=silent, selected_steps=step, verbose=verbose
     )
     commit_git(
         cfg.project_dir,

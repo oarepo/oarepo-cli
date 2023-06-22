@@ -68,10 +68,20 @@ class MonorepoConfig(Config):
         self.config = data
 
     def save(self):
+        # import locally to prevent circular dependencies
+        from oarepo_cli.utils import unique_merger
+
         if self.readonly:
             return
 
         data = {**self.whole_data, "type": self.type}
+
+        # merge with filesystem
+        if self.path.exists():
+            with open(self.path, "r") as f:
+                fs_data = yaml.safe_load(f)
+        data = unique_merger.merge(fs_data, data)
+
         # just try to dump so that if that is not successful we do not overwrite the config
         sio = StringIO()
         yaml.safe_dump(data, sio)
@@ -80,6 +90,9 @@ class MonorepoConfig(Config):
         if self.path.parent.exists():
             with open(self.path, "w") as f:
                 f.write(sio.getvalue())
+
+        # and reload the changes
+        self.load()
 
     def on_changed(self):
         if self.path.parent.exists():

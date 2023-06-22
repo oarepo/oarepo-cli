@@ -11,6 +11,12 @@ theme = WebpackThemeBundle(
             entry={
                 # Add your webpack entrypoints
             },
+            devDependencies={
+                "eslint": ">=8.0.0",
+                "eslint-config-react-app": ">=7.0.0",
+                "prettier": ">=2.8.0",
+                "eslint-config-prettier": ">=8.8.0",
+            },
         ),
     },
 )

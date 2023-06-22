@@ -24,11 +24,9 @@ def upgrade(ctx, project_dir, cfg, **kwargs):
         upgrade_venv(venv_dir)
     for site in cfg.whole_data["sites"]:
         update_and_install_site(cfg, site)
-        site_dir = cfg.project_dir / "sites" / site
         build_assets(
-            virtualenv=site_dir / ".venv",
-            invenio=site_dir / ".venv" / "var" / "instance",
-            site_dir=site_dir,
+            cfg,
+            site,
         )
 
 

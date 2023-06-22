@@ -1,5 +1,3 @@
-import os
-
 import click
 
 from oarepo_cli.site.add.wizard import AddSiteWizard
@@ -24,7 +22,6 @@ def add_site(
     steps=False,
     **kwargs,
 ):
-
     commit_git(
         cfg.project_dir,
         f"before-site-install-{cfg.section}",
@@ -38,9 +35,12 @@ def add_site(
     if steps:
         initialize_wizard.list_steps()
         return
-
+    if cfg.running_in_docker:
+        cfg["pdm_name"] = "invenio"
+    else:
+        cfg["pdm_name"] = ""
     initialize_wizard.run_wizard(
-        cfg, no_input=no_input, silent=silent, single_step=step, verbose=verbose
+        cfg, no_input=no_input, silent=silent, selected_steps=step, verbose=verbose
     )
     commit_git(
         cfg.project_dir,

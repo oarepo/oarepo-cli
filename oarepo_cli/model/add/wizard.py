@@ -44,6 +44,6 @@ class AddModelWizard(Wizard):
             data,
             no_input=no_input,
             silent=silent,
-            single_step=single_step,
+            selected_steps=single_step,
             verbose=verbose,
         )

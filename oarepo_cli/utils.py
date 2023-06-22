@@ -7,7 +7,6 @@ import shutil
 import subprocess
 import sys
 import termios
-import time
 import tty
 from pathlib import Path
 
@@ -30,7 +29,7 @@ def run_cmdline(
     grab_stderr=False,
     discard_output=False,
     raise_exception=False,
-    with_tty=False
+    with_tty=False,
 ):
     env = os.environ.copy()
     env.update(environ or {})
@@ -39,7 +38,14 @@ def run_cmdline(
     print(
         f"{Fore.BLUE}Running {Style.RESET_ALL} {' '.join(cmdline)}", file=sys.__stderr__
     )
-    print(f"{Fore.BLUE}    inside {Style.RESET_ALL} {cwd}. TTY {with_tty}", file=sys.__stderr__)
+    if "DOCKER_AROUND" in os.environ:
+        inside_docker = "docker at path "
+    else:
+        inside_docker = ""
+    print(
+        f"{Fore.BLUE}    inside {Style.RESET_ALL} {inside_docker}{cwd}",
+        file=sys.__stderr__,
+    )
     try:
         if grab_stdout or grab_stderr or discard_output:
             kwargs = {}
@@ -95,12 +101,14 @@ def run_with_tty(cmd, cwd=None, env=None):
     master_fd, slave_fd = pty.openpty()
     try:
         # use os.setsid() make it run in a new process group, or bash job control will not be enabled
-        p = subprocess.Popen(cmd,
-                  preexec_fn=os.setsid,
-                  stdin=slave_fd,
-                  stdout=slave_fd,
-                  stderr=slave_fd,
-                  universal_newlines=True)
+        p = subprocess.Popen(
+            cmd,
+            preexec_fn=os.setsid,
+            stdin=slave_fd,
+            stdout=slave_fd,
+            stderr=slave_fd,
+            universal_newlines=True,
+        )
 
         while p.poll() is None:
             r, w, e = select.select([sys.stdin, master_fd], [], [], 1)
@@ -115,6 +123,7 @@ def run_with_tty(cmd, cwd=None, env=None):
     finally:
         # restore tty settings back
         termios.tcsetattr(sys.stdin, termios.TCSADRAIN, old_tty)
+
 
 def find_oarepo_project(dirname, raises=False):
     dirname = Path(dirname).absolute()
@@ -188,7 +197,7 @@ def get_cookiecutter_source(env_name, lib_github, lib_version, master_version="m
 
 
 def commit_git(repo_dir, tag_name, message):
-    if 'DOCKER_AROUND' in os.environ:
+    if "DOCKER_AROUND" in os.environ:
         return
     tag_index = 1
     try:
@@ -206,7 +215,7 @@ def commit_git(repo_dir, tag_name, message):
 
 
 def must_be_committed(repo_dir):
-    if 'DOCKER_AROUND' in os.environ:
+    if "DOCKER_AROUND" in os.environ:
         return
     repo = git.Repo(repo_dir)
     if repo.is_dirty() or repo.untracked_files:
@@ -296,9 +305,7 @@ def snail_to_title(v):
 
 
 def with_config(
-    config_section=None,
-    project_dir_as_argument=False,
-    config_as_argument=False
+    config_section=None, project_dir_as_argument=False, config_as_argument=False
 ):
     def wrapper(f):
         @(
@@ -341,6 +348,7 @@ def with_config(
         @click.option(
             "--step",
             required=False,
+            multiple=True,
             help="Run only this step",
         )
         @click.option(
@@ -365,14 +373,17 @@ def with_config(
             )
         )
         @click.option(
-                "--use-docker", 'use_docker',
-                flag_value='docker',
-                default=None,
-                help="Run the command inside docker",
+            "--use-docker",
+            "use_docker",
+            flag_value="docker",
+            default=None,
+            help="Run the command inside docker",
         )
         @click.option(
-                "--outside-docker", 'use_docker', flag_value='no docker',
-                help="Run the command outside of docker container",
+            "--outside-docker",
+            "use_docker",
+            flag_value="no docker",
+            help="Run the command outside of docker container",
         )
         @click.pass_context
         @functools.wraps(f)
@@ -405,11 +416,11 @@ def with_config(
             kwargs.pop("cfg", None)
             kwargs.pop("project_dir", None)
 
-            cfg.running_in_docker = 'DOCKER_AROUND' in os.environ
+            cfg.running_in_docker = "DOCKER_AROUND" in os.environ
             if not use_docker:
                 cfg.use_docker = None
             else:
-                cfg.use_docker = use_docker == 'docker'
+                cfg.use_docker = use_docker == "docker"
 
             try:
                 return f(context=context, project_dir=project_dir, cfg=cfg, **kwargs)
@@ -568,24 +579,35 @@ def run_nrp_in_docker_compose(site_dir, *arguments):
         "repo",
         *arguments,
         cwd=site_dir,
-        environ={
-            **os.environ,
-            'INVENIO_DOCKER_USER_ID': str(os.getuid())
-        },
-        with_tty=False
+        environ={**os.environ, "INVENIO_DOCKER_USER_ID": str(os.getuid())},
+        with_tty=False,
     )
+
 
 def run_nrp_in_docker(repo_dir: Path, *arguments):
     run_cmdline(
         "docker",
         "run",
         "-it",
-        '-v', f'{str(repo_dir)}:/repository',
-        '--user', f"{os.getuid()}:{os.getgid()}",
-        '-e', f'REPOSITORY_DIR={repo_dir.name}',
+        "-v",
+        f"{str(repo_dir)}:/repository",
+        "--user",
+        f"{os.getuid()}:{os.getgid()}",
+        "-e",
+        f"REPOSITORY_DIR={repo_dir.name}",
         "--rm",
         "oarepo/oarepo-base-development:11",
         *arguments,
         cwd=repo_dir,
-        with_tty=True
+        with_tty=True,
     )
+
+
+def batched(iterable, n):
+    "Batch data into tuples of length n. The last batch may be shorter."
+    # batched('ABCDEFG', 3) --> ABC DEF G
+    if n < 1:
+        raise ValueError("n must be at least one")
+    it = iter(iterable)
+    while batch := tuple(slice(it, n)):
+        yield batch

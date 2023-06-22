@@ -29,5 +29,5 @@ def install_ui(
         return
 
     wizard.run_wizard(
-        cfg, single_step=step, no_input=no_input, silent=silent, verbose=verbose
+        cfg, selected_steps=step, no_input=no_input, silent=silent, verbose=verbose
     )

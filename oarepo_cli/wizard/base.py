@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import sys
-from functools import cached_property
 from typing import List, Tuple
 
 
@@ -23,7 +22,9 @@ class WizardBase:
     @property
     def data(self):
         if self.root == self:
-            raise RuntimeError('Parent not initialized, should not access data at this time!')
+            raise RuntimeError(
+                "Parent not initialized, should not access data at this time!"
+            )
         return self.root.data
 
     def vprint(self, *args, **kwargs):
@@ -35,11 +36,11 @@ class WizardBase:
         for step in self.steps:
             step.parent = self
 
-    def run(self, single_step=None):
+    def run(self, selected_steps=None):
         steps = self.steps
         self.vprint(f"{self.name} running steps")
         for stepidx, step in enumerate(steps):
-            if single_step and single_step != step.name:
+            if selected_steps and step.name not in selected_steps:
                 continue
             self.vprint(f"Checking if step {step.name} should be run")
             should_run = step.should_run()

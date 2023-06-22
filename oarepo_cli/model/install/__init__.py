@@ -51,7 +51,7 @@ def install_model(
         return
 
     wizard.run_wizard(
-        cfg, no_input=no_input, silent=silent, single_step=step, verbose=verbose
+        cfg, no_input=no_input, silent=silent, selected_steps=step, verbose=verbose
     )
     commit_git(
         cfg.project_dir,

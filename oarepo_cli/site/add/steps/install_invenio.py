@@ -1,4 +1,6 @@
 import shutil
+import tempfile
+from pathlib import Path
 
 from oarepo_cli.site.utils import SiteWizardStepMixin, get_site_local_packages
 from oarepo_cli.utils import run_cmdline
@@ -15,18 +17,25 @@ Now I'll install invenio site.
         )
 
     def after_run(self):
-        if not (self.site_dir / ".venv").exists():
-            run_cmdline(
-                "pdm",
+        # if running in docker, the virtualenv is already there
+        if not self.data.running_in_docker:
+            cmdline = [
+                self.python,
+                "-m",
                 "venv",
-                "create",
-                "--with-pip",
+            ]
+            if self.data.running_in_docker:
+                cmdline.append("--system-site-packages")
+
+            run_cmdline(
+                *cmdline,
+                str(self.virtualenv),
                 cwd=self.site_dir,
-                environ={"PDM_IGNORE_ACTIVE_VENV": "1"},
             )
-        self.call_pip("install", "-U", "--no-input", "setuptools", "pip", "wheel")
+            self.call_pip("install", "-U", "--no-input", "setuptools", "pip", "wheel")
+
         oarepo = (self.site_dir / "requirements.txt").read_text().splitlines()[0]
-        self.call_pip("install", "-U", "--no-input", oarepo)
+        self.install_oarepo_dependencies(oarepo)
         self.call_pip(
             "install",
             "-U",
@@ -59,6 +68,32 @@ Now I'll install invenio site.
         self.install_package(models, "models")
         self.install_package(uis, "ui")
         self.install_package(local_packages, "local")
+
+    def get_oarepo_dependencies(self, oarepo):
+        self.call_pip("download", "--no-deps", "--no-binary=:all:", oarepo, cwd="/tmp")
+        tar_name = "/tmp/" + oarepo.replace("==", "-") + ".tar.gz"
+        # extract the tar
+        with tempfile.TemporaryDirectory() as temp_dir:
+            import tarfile
+
+            tf = tarfile.open(tar_name, mode="r:gz")
+            tf.extractall(path=temp_dir)
+            content_dir = temp_dir + "/" + oarepo.replace("==", "-")
+            run_cmdline(self.python, "setup.py", "egg_info", cwd=content_dir)
+            requires = (
+                Path(content_dir) / "oarepo.egg-info" / "requires.txt"
+            ).read_text()
+            requires = requires.split("\n\n")[0]
+            return requires
+
+    def install_oarepo_dependencies(self, oarepo):
+        requires = self.get_oarepo_dependencies(oarepo)
+        with tempfile.NamedTemporaryFile(
+            mode="wt", suffix="-requirements.txt"
+        ) as temp_file:
+            temp_file.write(requires)
+            temp_file.flush()
+            self.call_pip("install", "--no-deps", "-r", temp_file.name)
 
     def install_package(self, packages, package_folder):
         for package in packages:
