@@ -17,6 +17,9 @@ theme = WebpackThemeBundle(
                 "prettier": ">=2.8.0",
                 "eslint-config-prettier": ">=8.8.0",
             },
+            aliases={
+                "@js/invenio_theme": "js/invenio_theme",
+            }
         ),
     },
 )

@@ -476,22 +476,6 @@ class ProjectWizardMixin:
     def oarepo_cli(self):
         return self.data.project_dir / self.data.get("config.oarepo_cli")
 
-    def invenio_cli_command(self, *args, cwd=None, environ=None):
-        return run_cmdline(
-            self.invenio_cli,
-            *args,
-            cwd=cwd or self.site_dir,
-            environ={**(environ or {})},
-        )
-
-    def invenio_command(self, *args, cwd=None, environ=None):
-        return run_cmdline(
-            ".venv/bin/invenio",
-            *args,
-            cwd=cwd or self.site_dir,
-            environ={**(environ or {})},
-        )
-
     def run_cookiecutter(
         self,
         template,

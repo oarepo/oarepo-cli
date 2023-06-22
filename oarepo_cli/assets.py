@@ -1,3 +1,5 @@
+import json
+import re
 import shutil
 from pathlib import Path
 
@@ -24,13 +26,15 @@ from oarepo_cli.watch import copy_watched_paths, load_watched_paths
 
 def build_assets(*, cfg: MonorepoConfig, site_name, **kwargs):
     site = SiteSupport(cfg, site_name)
-    invenio_instance_path = site.invenio_instance_path
+    invenio_instance_path = site.invenio_instance_path.resolve()
 
     shutil.rmtree(invenio_instance_path / "assets", ignore_errors=True)
     shutil.rmtree(invenio_instance_path / "static", ignore_errors=True)
 
     Path(invenio_instance_path / "assets").mkdir(parents=True)
     Path(invenio_instance_path / "static").mkdir(parents=True)
+
+    register_less_components(site, invenio_instance_path)
 
     site.call_invenio(
         "oarepo",
@@ -48,8 +52,8 @@ def build_assets(*, cfg: MonorepoConfig, site_name, **kwargs):
         "install",
     )
 
-    assets = invenio_instance_path / "assets"
-    static = invenio_instance_path / "static"
+    assets = (site.site_dir / "assets").resolve()
+    static = (site.site_dir / "static").resolve()
 
     watched_paths = load_watched_paths(
         invenio_instance_path / "watch.list.json",
@@ -71,3 +75,26 @@ def build_assets(*, cfg: MonorepoConfig, site_name, **kwargs):
     (invenio_instance_path / "assets" / "build" / "webpack.config.js").write_text(
         webpack_config
     )
+
+
+def register_less_components(site, invenio_instance_path):
+    site.call_invenio(
+        "oarepo",
+        "assets",
+        "less-components",
+        f"{invenio_instance_path}/less-components.json",
+    )
+    data = json.loads(Path(f"{invenio_instance_path}/less-components.json").read_text())
+    components = list(set(data['components']))
+    theme_config_file = site.site_dir / 'assets' / 'less' / 'theme.config'
+    theme_data = theme_config_file.read_text()
+    for c in components:
+        match = re.search("^@" + c, theme_data, re.MULTILINE)
+        if not match:
+            match = theme_data.index("/* @my_custom_component : 'default'; */")
+            theme_data = (
+                    theme_data[:match] +
+                    f"\n@{c}: 'default';\n" +
+                    theme_data[match:]
+            )
+    theme_config_file.write_text(theme_data)

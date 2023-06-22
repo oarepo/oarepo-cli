@@ -2,6 +2,7 @@ import os.path
 from collections import defaultdict
 from pathlib import Path
 
+from oarepo_cli.site.site_support import SiteSupport
 from oarepo_cli.utils import batched, run_cmdline
 from oarepo_cli.wizard import WizardStep
 
@@ -82,16 +83,9 @@ class FormatPythonStep(WizardStep):
     def format_jsx(self, dirs, exclude):
         from autoflake import find_files
 
-        if "INVENIO_INSTANCE_PATH" in os.environ:
-            assets_dir = Path(os.environ["INVENIO_INSTANCE_PATH"]) / "assets"
-        else:
-            sites = self.data.whole_data.get("sites")
-            if not sites:
-                return
-            site = next(iter(sites.values()))
-            assets_dir = (
-                self.data.project_dir / site["site_dir"] / ".venv" / "var" / "instance"
-            )
+        site = SiteSupport(self.data)
+        assets_dir = site.invenio_instance_path / "assets"
+
         if assets_dir.exists() and (assets_dir / "package.json").exists():
             # TODO: only when needed
             run_cmdline(["npm", "ci"], cwd=assets_dir)

@@ -46,7 +46,7 @@ Now I'll install invenio site.
             "-r",
             str(self.site_dir / "requirements.txt"),
         )
-        instance_dir = self.site_dir / ".venv" / "var" / "instance"
+        instance_dir = self.site_support.invenio_instance_path
         if not instance_dir.exists():
             instance_dir.mkdir(parents=True)
         if not (instance_dir / "invenio.cfg").exists():

@@ -3,6 +3,7 @@ import re
 from pathlib import Path
 from typing import Any, List
 
+from oarepo_cli.site.site_support import SiteSupport
 from oarepo_cli.utils import ProjectWizardMixin, SiteMixin, run_cmdline
 from oarepo_cli.wizard import WizardStep
 
@@ -28,12 +29,12 @@ class CreateJinjaStep(SiteMixin, AssociatedModelMixin, ProjectWizardMixin, Wizar
         ui_definition_path = model_path / model_package / "models" / "ui.json"
         ui_definition = json.loads(ui_definition_path.read_text())
 
-        renderers_json = self.invenio_command(
+        site = SiteSupport(self.data)
+        renderers_json = site.call_invenio(
             "oarepo",
             "ui",
             "renderers",
             "--json",
-            cwd=self.site_dir,
             grab_stdout=True,
         )
         renderers = [x["renderer"] for x in json.loads(renderers_json)]
@@ -140,12 +141,3 @@ class CreateJinjaStep(SiteMixin, AssociatedModelMixin, ProjectWizardMixin, Wizar
             fields.append(f'{{%- field "{c_key}" -%}}')
             children.append(cdef)
         return "\n".join(fields), children
-
-    def invenio_command(self, *args, cwd=None, environ=None, **kwargs):
-        return run_cmdline(
-            ".venv/bin/invenio",
-            *args,
-            cwd=cwd or self.site_dir,
-            environ={**(environ or {})},
-            **kwargs,
-        )

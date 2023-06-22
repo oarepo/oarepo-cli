@@ -10,6 +10,7 @@ class SiteSupport:
         self.config = config
         if config.section_path[0] == "sites":
             self.site = config
+            self.site_name = config.section_path[-1]
             return
         elif not site_section:
             sites = config.whole_data.get("sites", {})
@@ -18,6 +19,7 @@ class SiteSupport:
             else:
                 raise RuntimeError("no or more sites, please specify --site or similar")
         self.site = config.whole_data.get("sites", {})[site_section]
+        self.site_name = site_section
 
     @property
     def site_dir(self):
