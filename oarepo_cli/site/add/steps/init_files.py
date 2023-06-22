@@ -2,7 +2,7 @@ import subprocess
 
 from minio import Minio
 
-from oarepo_cli.site.utils import SiteWizardStepMixin
+from oarepo_cli.site.mixins import SiteWizardStepMixin
 from oarepo_cli.wizard import WizardStep
 
 

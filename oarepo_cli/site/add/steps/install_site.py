@@ -4,7 +4,7 @@ import datetime
 import os
 import re
 
-from oarepo_cli.site.utils import SiteWizardStepMixin
+from oarepo_cli.site.mixins import SiteWizardStepMixin
 from oarepo_cli.templates import get_cookiecutter_template
 from oarepo_cli.utils import ProjectWizardMixin, commit_git
 from oarepo_cli.wizard import InputStep, RadioStep, StaticStep, WizardStep

@@ -67,3 +67,21 @@ class SiteSupport:
 
     def call_invenio(self, *args, **kwargs):
         return self.call_pdm_run("invenio", *args, **kwargs)
+
+    def get_site_local_packages(self):
+        models = [
+            model_name
+            for model_name, model_section in self.data.whole_data.get("models", {}).items()
+            if self.data.section in model_section.get("sites")
+        ]
+        uis = [
+            ui_name
+            for ui_name, ui_section in self.data.whole_data.get("ui", {}).items()
+            if self.data.section in ui_section.get("sites")
+        ]
+        local_packages = [
+            local_name
+            for local_name, local_section in self.data.whole_data.get("local", {}).items()
+            if self.data.section in local_section.get("sites")
+        ]
+        return models, uis, local_packages

@@ -2,7 +2,7 @@ import shutil
 import tempfile
 from pathlib import Path
 
-from oarepo_cli.site.utils import SiteWizardStepMixin, get_site_local_packages
+from oarepo_cli.site.mixins import SiteWizardStepMixin
 from oarepo_cli.utils import run_cmdline
 from oarepo_cli.wizard import WizardStep
 
@@ -64,7 +64,7 @@ Now I'll install invenio site.
         )
 
         # models and uis
-        models, uis, local_packages = get_site_local_packages(self.data)
+        models, uis, local_packages = self.site_support.get_site_local_packages()
         self.install_package(models, "models")
         self.install_package(uis, "ui")
         self.install_package(local_packages, "local")

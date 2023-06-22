@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import re
 
-from oarepo_cli.site.utils import SiteWizardStepMixin
+from oarepo_cli.site.mixins import SiteWizardStepMixin
 from oarepo_cli.utils import run_cmdline
 from oarepo_cli.wizard import WizardStep
 

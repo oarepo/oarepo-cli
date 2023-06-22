@@ -2,7 +2,7 @@ import requirements
 import tomli_w
 
 from oarepo_cli.package_versions import OAREPO_VERSION, PYTHON_VERSION
-from oarepo_cli.site.utils import SiteWizardStepMixin, get_site_local_packages
+from oarepo_cli.site.mixins import SiteWizardStepMixin
 from oarepo_cli.wizard import WizardStep
 
 
@@ -17,7 +17,7 @@ I am going to resolve the python dependencies.
 
     def after_run(self):
         # create pyproject.toml file
-        models, uis, local_packages = get_site_local_packages(self.data)
+        models, uis, local_packages = self.site_support.get_site_local_packages()
         extras = [
             *[
                 f"{model} @ file:///${{PROJECT_ROOT}}/../../models/{model}"
