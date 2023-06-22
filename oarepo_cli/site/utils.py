@@ -12,12 +12,10 @@ class SiteWizardStepMixin:
         return Path(self.data.project_dir) / self.data["site_dir"]
 
     def call_pip(self, *args, **kwargs):
-        pip_cmd = self.site_dir / ".venv" / "bin" / "pip"
-        return run_cmdline(pip_cmd, *args, **kwargs, cwd=self.site_dir)
+        return run_cmdline(['pdm', 'run', 'pip'], *args, **kwargs, cwd=self.site_dir)
 
     def call_invenio(self, *args, **kwargs):
-        invenio_cmd = self.site_dir / ".venv" / "bin" / "invenio"
-        return run_cmdline(invenio_cmd, *args, **kwargs, cwd=self.site_dir)
+        return run_cmdline(['pdm', 'run', 'invenio'], *args, **kwargs, cwd=self.site_dir)
 
     def get_invenio_configuration(self, *keys):
         values = dotenv_values(self.site_dir / ".env")

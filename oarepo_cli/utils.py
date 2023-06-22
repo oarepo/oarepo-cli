@@ -30,6 +30,7 @@ def run_cmdline(
     grab_stderr=False,
     discard_output=False,
     raise_exception=False,
+    with_tty=False
 ):
     env = os.environ.copy()
     env.update(environ or {})
@@ -38,7 +39,7 @@ def run_cmdline(
     print(
         f"{Fore.BLUE}Running {Style.RESET_ALL} {' '.join(cmdline)}", file=sys.__stderr__
     )
-    print(f"{Fore.BLUE}    inside {Style.RESET_ALL} {cwd}", file=sys.__stderr__)
+    print(f"{Fore.BLUE}    inside {Style.RESET_ALL} {cwd}. TTY {with_tty}", file=sys.__stderr__)
     try:
         if grab_stdout or grab_stderr or discard_output:
             kwargs = {}
@@ -56,7 +57,10 @@ def run_cmdline(
             )
             ret = (ret.stdout or b"") + b"\n" + (ret.stderr or b"")
         else:
-            ret = run_with_tty(cmdline, cwd=cwd, env=env)
+            if with_tty:
+                ret = run_with_tty(cmdline, cwd=cwd, env=env)
+            else:
+                ret = subprocess.call(cmdline, cwd=cwd, env=env)
             if ret:
                 raise subprocess.CalledProcessError(ret, cmdline)
     except subprocess.CalledProcessError as e:
@@ -566,8 +570,9 @@ def run_nrp_in_docker_compose(site_dir, *arguments):
         cwd=site_dir,
         environ={
             **os.environ,
-            'INVENIO_DOCKER_USER_ID': os.getuid()
-        }
+            'INVENIO_DOCKER_USER_ID': str(os.getuid())
+        },
+        with_tty=False
     )
 
 def run_nrp_in_docker(repo_dir: Path, *arguments):
@@ -582,4 +587,5 @@ def run_nrp_in_docker(repo_dir: Path, *arguments):
         "oarepo/oarepo-base-development:11",
         *arguments,
         cwd=repo_dir,
+        with_tty=True
     )
