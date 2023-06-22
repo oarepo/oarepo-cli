@@ -24,12 +24,12 @@ Should I do it?
 
     def after_run(self):
         if self.data["init_database"] == "yes":
-            self.call_invenio("db", "create")
+            self.site_support.call_invenio("db", "create")
         self.check_db_initialized(raise_error=True)
 
     def check_db_initialized(self, raise_error=False):
         try:
-            output = self.call_invenio(
+            output = self.site_support.call_invenio(
                 "alembic",
                 "current",
                 grab_stdout=True,

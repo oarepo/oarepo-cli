@@ -7,18 +7,7 @@ services:
         - ENVIRONMENT=DEV
     image: {{cookiecutter.project_shortname}}
     restart: "unless-stopped"
-    environment:
-      - "INVENIO_ACCOUNTS_SESSION_REDIS_URL=redis://cache:6379/1"
-      - "INVENIO_BROKER_URL=amqp://${INVENIO_RABBIT_USER}:${INVENIO_RABBIT_PASSWORD}@mq:5672/"
-      - "INVENIO_CACHE_REDIS_URL=redis://cache:6379/0"
-      - "INVENIO_CACHE_TYPE=redis"
-      - "INVENIO_CELERY_BROKER_URL=amqp://${INVENIO_RABBIT_USER}:${INVENIO_RABBIT_PASSWORD}@mq:5672/"
-      - "INVENIO_CELERY_RESULT_BACKEND=redis://cache:6379/2"
-      - "INVENIO_SEARCH_HOSTS=['search:9200']"
-      - "INVENIO_SECRET_KEY=${INVENIO_SECRET_KEY}"
-      - "INVENIO_SQLALCHEMY_DATABASE_URI=postgresql+psycopg2://${INVENIO_DATABASE_USER}:${INVENIO_DATABASE_PASSWORD}@db/${INVENIO_DATABASE_DBNAME}"
-      - "INVENIO_WSGI_PROXIES=2"
-      - "INVENIO_RATELIMIT_STORAGE_URL=redis://cache:6379/3"
+    # environment goes from the .env file
   frontend:
     build: ./docker/nginx/
     image: {{cookiecutter.project_shortname}}-frontend

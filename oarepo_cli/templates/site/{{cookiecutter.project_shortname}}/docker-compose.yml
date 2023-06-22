@@ -56,18 +56,25 @@ services:
     ports:
       - '127.0.0.1:5000:5000'
     # restart: 'unless-stopped'
+    # environment goes from .env file
     environment:
-      - 'INVENIO_ACCOUNTS_SESSION_REDIS_URL=redis://cache:6379/1'
-      - 'INVENIO_BROKER_URL=amqp://guest:guest@mq:5672/'
-      - 'INVENIO_CACHE_REDIS_URL=redis://cache:6379/0'
-      - 'INVENIO_CACHE_TYPE=redis'
-      - 'INVENIO_CELERY_BROKER_URL=amqp://guest:guest@mq:5672/'
-      - 'INVENIO_CELERY_RESULT_BACKEND=redis://cache:6379/2'
-      - "INVENIO_SEARCH_HOSTS=['search:9200']"
       - 'INVENIO_SECRET_KEY=CHANGE_ME'
-      - "INVENIO_SQLALCHEMY_DATABASE_URI=postgresql+psycopg2://test:test@db/test"
-      - 'INVENIO_RATELIMIT_STORAGE_URL=redis://cache:6379/3'
       - 'REPOSITORY_SITE_NAME=test'
+      - 'INVENIO_REDIS_HOST=cache'
+      - 'INVENIO_RABBIT_HOST=mq'
+      - 'INVENIO_OPENSEARCH_HOST=search'
+      - 'INVENIO_OPENSEARCH_DASHBOARD_HOST=opensearch-dashboards'
+      - 'INVENIO_DATABASE_HOST=db'
+      - 'INVENIO_S3_HOST=s3'
+      - 'INVENIO_REDIS_PORT=6379'
+      - 'INVENIO_RABBIT_PORT=5672'
+      - 'INVENIO_RABBIT_ADMIN_PORT=15672'
+      - 'INVENIO_OPENSEARCH_PORT=9200'
+      - 'INVENIO_OPENSEARCH_CLUSTER_PORT=9400'
+      - 'INVENIO_OPENSEARCH_DASHBOARD_PORT=5601'
+      - 'INVENIO_DATABASE_PORT=5432'
+      - 'INVENIO_S3_PORT=9000'
+      - 'INVENIO_S3_PORT1=9001'
     stdin_open: true
     tty: true
     volumes:
