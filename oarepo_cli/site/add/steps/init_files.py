@@ -35,14 +35,14 @@ class InitFilesStep(SiteWizardStepMixin, WizardStep):
         )  # bucket names with underscores are not allowed
         if not client.bucket_exists(bucket_name):
             client.make_bucket(bucket_name)
-        self.call_invenio(
+        self.site_support.call_invenio(
             "files", "location", "default", f"s3://{bucket_name}", "--default"
         )
         self.check_file_location_initialized(raise_error=True)
 
     def check_file_location_initialized(self, raise_error=False):
         try:
-            output = self.call_invenio(
+            output = self.site_support.call_invenio(
                 "files",
                 "location",
                 "list",

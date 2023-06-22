@@ -1,4 +1,5 @@
 import json
+import os
 from functools import cached_property
 
 from dotenv import dotenv_values
@@ -16,8 +17,11 @@ class SiteWizardStepMixin:
         return self.site_support.site_dir
 
     def get_invenio_configuration(self, *keys):
-        values = dotenv_values(self.site_dir / ".env")
-
+        values = dotenv_values(self.site_dir / "variables")
+        values.update({
+            k: v for k, v in os.environ.items()
+            if k.startswith('INVENIO_')
+        })
         def convert(x):
             try:
                 if x == "False":
