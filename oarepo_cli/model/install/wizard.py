@@ -5,10 +5,11 @@ from oarepo_cli.model.install.steps.install import InstallModelStep
 from oarepo_cli.model.install.steps.test_model import RunTestsModelStep
 from oarepo_cli.model.install.steps.update_index import UpdateSearchIndexModelStep
 from oarepo_cli.wizard import RadioStep, Wizard
+from oarepo_cli.wizard.docker import DockerRunner
 
 
 class InstallModelWizard(Wizard):
-    def __init__(self):
+    def __init__(self, runner: DockerRunner):
         super().__init__(
             RadioStep(
                 "run_tests",
@@ -23,8 +24,10 @@ class InstallModelWizard(Wizard):
                 """,
                 force_run=True,
             ),
-            RunTestsModelStep(),
-            InstallModelStep(),
-            CreateAlembicModelStep(),
-            UpdateSearchIndexModelStep(),
+            *runner.wrap_docker_steps(
+                RunTestsModelStep(),
+                InstallModelStep(),
+                CreateAlembicModelStep(),
+                UpdateSearchIndexModelStep(),
+            ),
         )

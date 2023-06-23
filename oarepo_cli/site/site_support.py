@@ -23,7 +23,7 @@ class SiteSupport:
 
     @property
     def site_dir(self):
-        return Path(self.config.project_dir) / self.config["site_dir"]
+        return Path(self.config.project_dir) / self.site["site_dir"]
 
     @property
     def python(self):
@@ -32,7 +32,7 @@ class SiteSupport:
         return self.config.whole_data["config"]["python"]
 
     def call_pdm(self, *args, **kwargs):
-        pdm_binary = self.config.get("pdm_binary", "pdm")
+        pdm_binary = self.site.get("pdm_binary", "pdm")
         return run_cmdline(
             pdm_binary,
             *args,

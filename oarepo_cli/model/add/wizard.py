@@ -23,6 +23,7 @@ class AddModelWizard(Wizard):
         If unsure, use the default value.
             """,
             ),
+            # these just generate sources, no need to run them inside docker
             EmptyModelWizardStep(),
             AddDocsBaseWizardStep(),
             AddFilesWizardStep(),

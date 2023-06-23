@@ -569,12 +569,15 @@ def run_nrp_in_docker_compose(site_dir, *arguments):
 
 
 def run_nrp_in_docker(repo_dir: Path, *arguments):
+    print(f"\n\n\n\n\nNASTY: remove the nrp sources below{__file__}\n\n\n\n\n")
     run_cmdline(
         "docker",
         "run",
         "-it",
         "-v",
         f"{str(repo_dir)}:/repository",
+        "-v",
+        f"/Users/m/w/cesnet/oarepo-cli:/nrp-sources",
         "--user",
         f"{os.getuid()}:{os.getgid()}",
         "-e",

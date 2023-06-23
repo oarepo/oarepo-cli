@@ -40,6 +40,8 @@ class Config:
 
 class MonorepoConfig(Config):
     type = "monorepo"
+    running_in_docker = False
+    use_docker = False
 
     def __init__(self, path: Path, section=["config"]):
         super().__init__()
@@ -128,3 +130,10 @@ class MonorepoConfig(Config):
 
     def __str__(self):
         return f"MonorepoConfig[{self.config}]"
+
+    def clone(self, section_path):
+        ret = MonorepoConfig(self.path, section=section_path)
+        ret.running_in_docker = self.running_in_docker
+        ret.use_docker = self.use_docker
+        ret.load()
+        return ret

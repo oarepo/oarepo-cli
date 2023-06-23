@@ -60,6 +60,8 @@ services:
     environment:
       - 'INVENIO_SECRET_KEY=CHANGE_ME'
       - 'REPOSITORY_SITE_NAME=test'
+      - 'INVENIO_UI_HOST=0.0.0.0'
+      - 'INVENIO_API_HOST=0.0.0.0'
       - 'INVENIO_REDIS_HOST=cache'
       - 'INVENIO_RABBIT_HOST=mq'
       - 'INVENIO_OPENSEARCH_HOST=search'

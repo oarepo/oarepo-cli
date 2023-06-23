@@ -1,3 +1,4 @@
+import json
 import shutil
 import tempfile
 from pathlib import Path
@@ -8,29 +9,42 @@ from oarepo_cli.wizard import WizardStep
 
 
 class InstallInvenioStep(SiteWizardStepMixin, WizardStep):
-    def __init__(self, **kwargs):
+    def __init__(self, clean=False, **kwargs):
         super().__init__(
             heading="""
 Now I'll install invenio site.
             """,
             **kwargs,
         )
+        self.clean = clean
 
     def after_run(self):
         # if running in docker, the virtualenv is already there
         if not self.data.running_in_docker:
+            if self.clean and self.site_support.virtualenv.exists():
+                shutil.rmtree(self.site_support.virtualenv)
+
             cmdline = [
                 self.site_support.python,
                 "-m",
                 "venv",
             ]
-            if self.data.running_in_docker:
-                cmdline.append("--system-site-packages")
 
             run_cmdline(
                 *cmdline,
                 str(self.site_support.virtualenv),
                 cwd=self.site_dir,
+            )
+            self.site_support.call_pip(
+                "install", "-U", "--no-input", "setuptools", "pip", "wheel"
+            )
+        elif self.clean:
+            listing = json.loads(self.site_support.call_pip(
+                "list", "--format", "json", grab_stdout=True
+            ))
+            packages = [pkg['name'] for pkg in listing if pkg['name'] not in ('setuptools', 'pip', 'wheel')]
+            self.site_support.call_pip(
+                "uninstall", '-y', *packages
             )
             self.site_support.call_pip(
                 "install", "-U", "--no-input", "setuptools", "pip", "wheel"

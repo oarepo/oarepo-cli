@@ -15,6 +15,10 @@ class RunInContainerStep(WizardStep):
     def should_run(self):
         return True
 
+    @property
+    def site_support(self):
+        return self.root.site_support
+
     def run(self, single_step=None):
         cmd = sys.argv[1:]
         # remove project dir as it is added by docker itself
@@ -30,7 +34,7 @@ class RunInContainerStep(WizardStep):
             cmd.append(step.name)
         if self.in_compose:
             run_nrp_in_docker_compose(
-                self.data.project_dir / self.data["site_dir"], *cmd
+                self.site_support.site_dir, *cmd
             )
         else:
             run_nrp_in_docker(self.data.project_dir, *cmd)

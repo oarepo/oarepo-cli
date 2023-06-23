@@ -65,9 +65,9 @@ class CreateAlembicModelStep(ModelWizardStep):
 
         if filecount < 2:
             # alembic has not been initialized yet ...
-            self.invenio_command("alembic", "upgrade", "heads", cwd=self.site_dir)
+            self.site_support.call_invenio("alembic", "upgrade", "heads", cwd=self.site_dir)
             # create model branch
-            self.invenio_command(
+            self.site_support.call_invenio(
                 "alembic",
                 "revision",
                 f"Create {branch} branch for {self.data['model_package']}.",
@@ -82,8 +82,8 @@ class CreateAlembicModelStep(ModelWizardStep):
             rewrite_revision_file("_create_", "1")
 
             self.fix_sqlalchemy_utils(alembic_path)
-            self.invenio_command("alembic", "upgrade", "heads", cwd=self.site_dir)
-            self.invenio_command(
+            self.site_support.call_invenio("alembic", "upgrade", "heads", cwd=self.site_dir)
+            self.site_support.call_invenio(
                 "alembic",
                 "revision",
                 "Initial revision.",
@@ -97,7 +97,7 @@ class CreateAlembicModelStep(ModelWizardStep):
             )  # the link to down-revision is created correctly after alembic upgrade heads on the corrected file, explicit rewrite of down-revision is not needed
 
             self.fix_sqlalchemy_utils(alembic_path)
-            self.invenio_command("alembic", "upgrade", "heads", cwd=self.site_dir)
+            self.site_support.call_invenio("alembic", "upgrade", "heads", cwd=self.site_dir)
         else:
             # alembic has been initialized, update heads and generate
             files = [file_path.name for file_path in alembic_path.iterdir()]
@@ -109,8 +109,8 @@ class CreateAlembicModelStep(ModelWizardStep):
                     file_numbers.append(int(file_number_regex[0]))
             new_file_number = max(file_numbers) + 1
 
-            self.invenio_command("alembic", "upgrade", "heads")
-            self.invenio_command(
+            self.site_support.call_invenio("alembic", "upgrade", "heads")
+            self.site_support.call_invenio(
                 "alembic",
                 "revision",
                 "nrp-cli install revision.",
@@ -121,7 +121,7 @@ class CreateAlembicModelStep(ModelWizardStep):
             rewrite_revision_file("_nrp_cli_install", new_file_number)
 
             self.fix_sqlalchemy_utils(alembic_path)
-            self.invenio_command("alembic", "upgrade", "heads")
+            self.site_support.call_invenio("alembic", "upgrade", "heads")
 
     def fix_sqlalchemy_utils(self, alembic_path):
         for fn in alembic_path.iterdir():

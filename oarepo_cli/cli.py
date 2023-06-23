@@ -7,7 +7,7 @@ from oarepo_cli.format import format_sources
 from oarepo_cli.initialize import initialize
 from oarepo_cli.local import local
 from oarepo_cli.model import model
-from oarepo_cli.run import run_server
+from oarepo_cli.run.cli import run_server
 from oarepo_cli.site import site
 from oarepo_cli.ui import ui
 from oarepo_cli.upgrade import upgrade

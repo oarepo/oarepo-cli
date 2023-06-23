@@ -1,8 +1,16 @@
+import shutil
+from pathlib import Path
+from typing import List
+
 import click as click
+import yaml
 
 from oarepo_cli.utils import commit_git, with_config
 
 from .wizard import AddModelWizard
+from ..model_support import ModelSupport
+from ...config import MonorepoConfig
+from ...wizard.docker import DockerRunner
 
 
 @click.command(
@@ -12,28 +20,24 @@ Generate a new model. Required arguments:
     <name>   ... name of the model, can contain [a-z] and dash (-)""",
 )
 @click.argument("name", required=True)
-# @click.option(
-#     "--merge",
-#     multiple=True,
-#     help="""
-# Use this option to merge your code into the generated model.
-#
-# --merge my_dir              will merge my_dir with the generated sources
-#
-# --merge my_dir=gen_subdir   will merge my_dir into the subdir(relative path to models/<model>)
-#
-# --merge my_file=<rel_path_to_file>   will merge single file
-#
-# Normally, user file is merged at the end of the generated file - that is, the content of generated file goes first (includes, classes, arrays).
-#
-# Use '-' before the dir/file to reverse the order - the content of your file will be prepended to an existing file
-# Use '!' before the dir/file to copy the file to destination without merging it
-# """,
-# )
+@click.option(
+    "--use",
+    multiple=True,
+    help="""
+Use this option to merge your code into the generated model.
+
+Syntax: --use <custom_model_file_relative_to_cwd>
+or      --use <custom_model_file_relative_to_cwd>:<jsonpath>
+
+The file will be copied to the destination and referenced from 
+the generated model file. If no path is specified, it will be 
+referenced from the root of the file, with path the reference 
+will be put there. Only '/' is supported in the json path.
+""")
 @with_config(config_section=lambda name, **kwargs: ["models", name])
 def add_model(
     cfg=None,
-    merge=None,
+    use=None,
     step=None,
     no_input=False,
     silent=False,
@@ -46,19 +50,7 @@ def add_model(
         f"before-model-add-{cfg.section}",
         f"Committed automatically before model {cfg.section} has been added",
     )
-    # if merge:
-    #     venv_dir: Path = cfg.project_dir / ".venv" / "oarepo-model-builder"
-    #     venv_dir = venv_dir.absolute()
-    #     if not venv_dir.exists():
-    #         venv_dir.parent.mkdir(parents=True, exist_ok=True)
-    #         venv.main([str(venv_dir)])
-    #
-    #         pip_install(
-    #             venv_dir / "bin" / "pip",
-    #             "OAREPO_MODEL_BUILDER_VERSION",
-    #             "oarepo-model-builder==3.*",
-    #             "https://github.com/oarepo/oarepo-model-builder",
-    #         )
+    cfg["model_dir"] = f"models/{cfg.section}"
 
     wizard = AddModelWizard()
     if steps:
@@ -68,36 +60,50 @@ def add_model(
     wizard.run_wizard(
         cfg, single_step=step, no_input=no_input, silent=silent, verbose=verbose
     )
+    model_support = ModelSupport(cfg)
 
-    # if merge:
-    #     for merge_def in merge:
-    #         opts = []
-    #         merge_def = merge_def.split("=", maxsplit=1)
-    #
-    #         merge_source: Path = merge_def[0]
-    #         if merge_source[0] == "-":
-    #             merge_source = merge_source[1:]
-    #             opts.append("--destination-first")
-    #         if merge_source[0] == "!":
-    #             merge_source = merge_source[1:]
-    #             opts.append("--overwrite")
-    #
-    #         merge_target: Path = cfg.project_dir
-    #         for p in cfg.section_path:
-    #             merge_target = merge_target / p
-    #         if len(merge_def) == 2:
-    #             merge_target = merge_target.joinpath(merge_def[1])
-    #
-    #         subprocess.call(
-    #             [
-    #                 venv_dir / "bin" / "oarepo-merge",
-    #                 Path(merge_source).absolute(),
-    #                 Path(merge_target).absolute(),
-    #                 *opts,
-    #             ]
-    #         )
+    merge_extra_sources(model_support, use or [])
     commit_git(
         cfg.project_dir,
         f"after-model-add-{cfg.section}",
         f"Committed automatically after model {cfg.section} has been added",
     )
+
+
+def merge_extra_sources(model_support: ModelSupport, sources: List[str]):
+    for d in sources:
+        d = d.split(':')
+        if len(d) < 2:
+            filepath = d[0]
+            jsonpath = '/'
+        else:
+            filepath, jsonpath = d
+
+        extra_file_name = Path(filepath).name
+        model_dir = model_support.model_dir
+        model_file_path = model_dir / 'model.yaml'
+
+        shutil.copy(filepath, model_dir / extra_file_name)
+
+        with model_file_path.open() as f:
+            json_data = yaml.safe_load(f)
+
+        add_oarepo_use(json_data, jsonpath.split('/'), f"./{extra_file_name}")
+
+        with model_file_path.open("wt") as f:
+            yaml.safe_dump(json_data, f)
+
+def add_oarepo_use(d, path, value):
+    for p in path:
+        if not p:
+            continue
+        if p not in d:
+            d[p] = {}
+        d = d[p]
+
+    if 'use' in d:
+        if not isinstance(d['use'], list):
+            d['use'] = [d['use']]
+    else:
+        d['use'] = []
+    d['use'].append(value)
