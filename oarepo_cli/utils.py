@@ -591,11 +591,11 @@ def run_nrp_in_docker(repo_dir: Path, *arguments):
     )
 
 
-def batched(iterable, n):
-    "Batch data into tuples of length n. The last batch may be shorter."
-    # batched('ABCDEFG', 3) --> ABC DEF G
+def batched(lst, n):
     if n < 1:
         raise ValueError("n must be at least one")
-    it = iter(iterable)
-    while batch := tuple(slice(it, n)):
-        yield batch
+
+    while lst:
+        data = lst[:n]
+        lst = lst[n:]
+        yield data

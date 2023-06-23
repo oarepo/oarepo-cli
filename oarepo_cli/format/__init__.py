@@ -1,6 +1,7 @@
 import click
 
 from oarepo_cli.format.wizard import FormatWizard
+from oarepo_cli.site.site_support import SiteSupport
 from oarepo_cli.utils import commit_git, with_config
 from oarepo_cli.wizard.docker import DockerRunner
 
@@ -24,9 +25,10 @@ def format_sources(
         f"before-file-format-{cfg.section}",
         f"Committed automatically before file formatting",
     )
+    site_support = SiteSupport(cfg)
 
     runner = DockerRunner(cfg, no_input)
-    initialize_wizard = FormatWizard(runner)
+    initialize_wizard = FormatWizard(runner, site_support)
     if steps:
         initialize_wizard.list_steps()
         return
