@@ -9,7 +9,10 @@ from oarepo_cli.wizard.docker import DockerRunner
 
 
 class InstallModelWizard(Wizard):
-    def __init__(self, runner: DockerRunner):
+    def __init__(self, runner: DockerRunner, *, model_support, site_support):
+        self.model_support = model_support
+        self.site_support = site_support
+
         super().__init__(
             RadioStep(
                 "run_tests",

@@ -9,6 +9,5 @@ class BuildAssetsUIStep(SiteMixin, ProjectWizardMixin, WizardStep):
 
     def after_run(self):
         sites = self.data["sites"]
-        for site in sites:
-            site_dir = self.data.project_dir / "sites" / site
-            build_assets(cfg=self.data, site=site)
+        for site_name in sites:
+            build_assets(cfg=self.data, site_name=site_name)

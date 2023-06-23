@@ -2,9 +2,8 @@ from typing import List
 
 import click as click
 
-from .wizard import UnInstallModelWizard
+from .wizard import UnInstallUIWizard
 from oarepo_cli.utils import with_config, commit_git
-from ..model_support import ModelSupport
 from ...config import MonorepoConfig
 from ...site.site_support import SiteSupport
 from ...wizard.docker import DockerRunner
@@ -13,13 +12,13 @@ from ...wizard.docker import DockerRunner
 @click.command(
     name="uninstall",
     help="""
-Uninstall the model from the current site. Required arguments:
-    <name>   ... name of the already existing model""",
+Uninstall the ui from the current site. Required arguments:
+    <name>   ... name of the already existing ui""",
 )
 @click.argument("name", required=True)
 @click.argument("site_name", required=False)
-@with_config(config_section=lambda name, **kwargs: ["models", name])
-def uninstall_model(
+@with_config(config_section=lambda name, **kwargs: ["ui", name])
+def uninstall_ui(
     cfg: MonorepoConfig=None,
     no_input=False,
     silent=False,
@@ -31,18 +30,18 @@ def uninstall_model(
 ):
     commit_git(
         cfg.project_dir,
-        f"before-model-uninstall-{cfg.section}",
-        f"Committed automatically before model {cfg.section} has been uninstalled",
+        f"before-ui-uninstall-{cfg.section}",
+        f"Committed automatically before ui {cfg.section} has been uninstalled",
     )
     site_support = SiteSupport(cfg, site_name)
 
-    model_sites: List[str] = cfg.setdefault("sites", [])
+    ui_sites: List[str] = cfg.setdefault("sites", [])
 
-    model_sites.remove(site_support.site_name)
+    ui_sites.remove(site_support.site_name)
     cfg.save()
 
     runner = DockerRunner(cfg, no_input)
-    wizard = UnInstallModelWizard(runner, model_support=ModelSupport(cfg), site_support=site_support)
+    wizard = UnInstallUIWizard(runner, site_support=site_support)
 
     if steps:
         wizard.list_steps()
@@ -53,6 +52,6 @@ def uninstall_model(
     )
     commit_git(
         cfg.project_dir,
-        f"after-model-uninstall-{cfg.section}",
-        f"Committed automatically after model {cfg.section} has been uninstalled",
+        f"after-ui-uninstall-{cfg.section}",
+        f"Committed automatically after ui {cfg.section} has been uninstalled",
     )

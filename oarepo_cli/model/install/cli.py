@@ -39,9 +39,7 @@ def install_model(
     cfg.save()
 
     runner = DockerRunner(cfg, no_input)
-    wizard = InstallModelWizard(runner)
-    wizard.model_support = ModelSupport(cfg)
-    wizard.site_support = site_support
+    wizard = InstallModelWizard(runner, model_support=ModelSupport(cfg), site_support=site_support)
 
     if steps:
         wizard.list_steps()

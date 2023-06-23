@@ -10,7 +10,7 @@ class ResolveDependenciesStep(SiteWizardStepMixin, WizardStep):
     def __init__(self, **kwargs):
         super().__init__(
             heading="""
-I am going to resolve the python dependencies.
+I am going to resolve python dependencies.
             """,
             **kwargs,
         )

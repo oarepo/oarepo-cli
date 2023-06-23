@@ -211,7 +211,8 @@ def commit_git(repo_dir, tag_name, message):
     tag_name = f"omb-{tag_index:05d}-{tag_name}"
     index = repo.index
     repo.git.add(repo_dir)
-    index.commit(message + "\n\n" + tag_name)
+    if index.entries:
+        index.commit(message + "\n\n" + tag_name)
 
 
 def must_be_committed(repo_dir):

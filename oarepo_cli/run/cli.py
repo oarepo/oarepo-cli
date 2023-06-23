@@ -25,8 +25,7 @@ def run_server(cfg=None, site=None,
     cfg.save()
 
     runner = DockerRunner(cfg, no_input)
-    wizard = RunSiteWizard(runner)
-    wizard.site_support = site_support
+    wizard = RunSiteWizard(runner, site_support=site_support)
 
     if steps:
         wizard.list_steps()

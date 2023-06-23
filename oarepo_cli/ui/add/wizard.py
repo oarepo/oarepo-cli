@@ -2,10 +2,12 @@ from oarepo_cli.wizard import StaticStep, Wizard
 
 from .steps.add_ui import AddUIWizardStep
 from .steps.jinja import CreateJinjaStep
+from ...wizard.docker import DockerRunner
 
 
 class AddUIWizard(Wizard):
-    def __init__(self):
+    def __init__(self, runner: DockerRunner, *, site_support):
+        self.site_support = site_support
         super().__init__(
             StaticStep(
                 heading="""
@@ -15,5 +17,7 @@ class AddUIWizard(Wizard):
         """,
             ),
             AddUIWizardStep(),
-            CreateJinjaStep(),
+            *runner.wrap_docker_steps(
+                CreateJinjaStep(),
+            )
         )
