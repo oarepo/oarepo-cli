@@ -9,4 +9,4 @@ class UnInstallUIStep(ModelWizardStep):
     def after_run(self):
         sites = self.data.whole_data["sites"].keys()
         for site in sites:
-            update_and_install_site(self.data, site, clean=True)
+            update_and_install_site(self.data, site, clean=True, compile_gui=True)

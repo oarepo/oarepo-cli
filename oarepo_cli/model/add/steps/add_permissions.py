@@ -11,7 +11,7 @@ class AddPermissionsWizardStep(ModelWizardStep):
                 "permissions_preset",
                 prompt="""
 Which permission presets do you want to use? Pre-defined values are
-"'read-only' and 'everyone' but note that you may define your own presets.
+"'read_only' and 'everyone' but note that you may define your own presets.
 Enter 'none' to not define permission preset at all (and use vanilla invenio 
 permission classes).
 """,

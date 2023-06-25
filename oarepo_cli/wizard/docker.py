@@ -36,6 +36,8 @@ class RunInContainerStep(WizardStep):
             run_nrp_in_docker_compose(self.site_support.site_dir, *cmd)
         else:
             run_nrp_in_docker(self.data.project_dir, *cmd)
+        # the config could have been changed during the run, so reload it
+        self.data.load()
 
     @property
     def name(self):

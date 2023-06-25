@@ -38,7 +38,8 @@ def uninstall_ui(
 
     ui_sites: List[str] = cfg.setdefault("sites", [])
 
-    ui_sites.remove(site_support.site_name)
+    if site_support.site_name in ui_sites:
+        ui_sites.remove(site_support.site_name)
     cfg.save()
 
     runner = DockerRunner(cfg, no_input)

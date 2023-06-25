@@ -39,7 +39,8 @@ def uninstall_model(
 
     model_sites: List[str] = cfg.setdefault("sites", [])
 
-    model_sites.remove(site_support.site_name)
+    if site_support.site_name in model_sites:
+        model_sites.remove(site_support.site_name)
     cfg.save()
 
     runner = DockerRunner(cfg, no_input)
