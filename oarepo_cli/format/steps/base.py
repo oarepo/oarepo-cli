@@ -1,9 +1,5 @@
-import os.path
-from collections import defaultdict
 from pathlib import Path
 
-from oarepo_cli.site.site_support import SiteSupport
-from oarepo_cli.utils import batched, run_cmdline
 from oarepo_cli.wizard import WizardStep
 
 
@@ -19,7 +15,10 @@ class BaseFormatStep(WizardStep):
             if (pd / "models" / model_name / model["model_package"]).exists()
         ]
         ui_paths = [
-            pd / "ui" / ui_name / ui["cookiecutter_app_package"]  # TODO: better name here?
+            pd
+            / "ui"
+            / ui_name
+            / ui["cookiecutter_app_package"]  # TODO: better name here?
             for ui_name, ui in self.data.whole_data.get("ui", {}).items()
             if (pd / "ui" / ui_name / ui["cookiecutter_app_package"]).exists()
         ]
@@ -40,6 +39,6 @@ class BaseFormatStep(WizardStep):
 
     def find_files_with_extensions(self, dirs, *extensions):
         for d in dirs:
-            for f in Path(d).glob('**/*'):
+            for f in Path(d).glob("**/*"):
                 if f.suffix[1:] in extensions:
                     yield f

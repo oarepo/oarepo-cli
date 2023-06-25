@@ -17,5 +17,5 @@ class RunServerStep(WizardStep):
             "--key",
             "docker/nginx/test.key",
             "-h",
-            os.environ.get('INVENIO_UI_HOST', '127.0.0.1')
+            os.environ.get("INVENIO_UI_HOST", "127.0.0.1"),
         )

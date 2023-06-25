@@ -4,7 +4,7 @@ from pathlib import Path
 from typing import Any, List
 
 from oarepo_cli.site.site_support import SiteSupport
-from oarepo_cli.utils import ProjectWizardMixin, SiteMixin, run_cmdline
+from oarepo_cli.utils import ProjectWizardMixin, SiteMixin
 from oarepo_cli.wizard import WizardStep
 
 from ..mixins import AssociatedModelMixin
@@ -84,7 +84,7 @@ class CreateJinjaStep(SiteMixin, AssociatedModelMixin, ProjectWizardMixin, Wizar
         fields = ui["children"]
         if "metadata" in fields:
             md = fields.pop("metadata")
-            fields.update({f"metadata.{k}": v for k, v in md["children"].items()})
+            fields.update({f"metadata.{k}": v for k, v in md.get("children", {}).items()})
         title_key, title = self._select(fields, "title", "metadata.title")
         divider = False
         if title_key:

@@ -1,10 +1,11 @@
 import click as click
 
-from .wizard import InstallModelWizard
-from oarepo_cli.utils import with_config, commit_git
-from ..model_support import ModelSupport
+from oarepo_cli.utils import commit_git, with_config
+
 from ...site.site_support import SiteSupport
 from ...wizard.docker import DockerRunner
+from ..model_support import ModelSupport
+from .wizard import InstallModelWizard
 
 
 @click.command(
@@ -39,7 +40,9 @@ def install_model(
     cfg.save()
 
     runner = DockerRunner(cfg, no_input)
-    wizard = InstallModelWizard(runner, model_support=ModelSupport(cfg), site_support=site_support)
+    wizard = InstallModelWizard(
+        runner, model_support=ModelSupport(cfg), site_support=site_support
+    )
 
     if steps:
         wizard.list_steps()

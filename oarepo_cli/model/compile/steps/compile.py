@@ -12,15 +12,19 @@ from oarepo_cli.wizard import WizardStep
 class CompileWizardStep(ModelWizardStep, WizardStep):
     def after_run(self):
         if self.data.running_in_docker:
-            venv_dir = Path('/tmp/oarepo-model-builder')
+            venv_dir = Path("/tmp/oarepo-model-builder")
         else:
-            venv_dir = self.data.project_dir / ".venv" / f"oarepo-model-builder-{self.model_name}"
+            venv_dir = (
+                self.data.project_dir
+                / ".venv"
+                / f"oarepo-model-builder-{self.model_name}"
+            )
         print("model builder venv dir", venv_dir)
         venv_dir = venv_dir.absolute()
         if not venv_dir.exists():
             venv_args = [str(venv_dir)]
             if self.data.running_in_docker:
-                venv_args.append('--system-site-packages')
+                venv_args.append("--system-site-packages")
             venv.main(venv_args)
 
         run_cmdline(

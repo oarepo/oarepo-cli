@@ -1,9 +1,10 @@
 import click as click
 
-from .wizard import InstallWizard
 from oarepo_cli.utils import with_config
+
 from ...site.site_support import SiteSupport
 from ...wizard.docker import DockerRunner
+from .wizard import InstallWizard
 
 
 @click.command(

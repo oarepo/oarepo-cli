@@ -1,7 +1,7 @@
 import click as click
 
-from .add import add_local
-from .remove import remove_local
+from .add.cli import add_local
+from .remove.cli import remove_local
 
 
 @click.group(help="Support for local packages")

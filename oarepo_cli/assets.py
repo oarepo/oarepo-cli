@@ -85,16 +85,14 @@ def register_less_components(site, invenio_instance_path):
         f"{invenio_instance_path}/less-components.json",
     )
     data = json.loads(Path(f"{invenio_instance_path}/less-components.json").read_text())
-    components = list(set(data['components']))
-    theme_config_file = site.site_dir / 'assets' / 'less' / 'theme.config'
+    components = list(set(data["components"]))
+    theme_config_file = site.site_dir / "assets" / "less" / "theme.config"
     theme_data = theme_config_file.read_text()
     for c in components:
         match = re.search("^@" + c, theme_data, re.MULTILINE)
         if not match:
             match = theme_data.index("/* @my_custom_component : 'default'; */")
             theme_data = (
-                    theme_data[:match] +
-                    f"\n@{c}: 'default';\n" +
-                    theme_data[match:]
+                theme_data[:match] + f"\n@{c}: 'default';\n" + theme_data[match:]
             )
     theme_config_file.write_text(theme_data)

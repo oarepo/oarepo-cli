@@ -9,8 +9,5 @@ class InstallWizard(ProjectWizardMixin, Wizard):
     def __init__(self, runner: DockerRunner, *, site_support):
         self.site_support = site_support
         super().__init__(
-            *runner.wrap_docker_steps(
-                InstallUIStep(),
-                BuildAssetsUIStep()
-            )
+            *runner.wrap_docker_steps(InstallUIStep(), BuildAssetsUIStep())
         )

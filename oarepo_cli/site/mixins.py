@@ -18,10 +18,8 @@ class SiteWizardStepMixin:
 
     def get_invenio_configuration(self, *keys):
         values = dotenv_values(self.site_dir / "variables")
-        values.update({
-            k: v for k, v in os.environ.items()
-            if k.startswith('INVENIO_')
-        })
+        values.update({k: v for k, v in os.environ.items() if k.startswith("INVENIO_")})
+
         def convert(x):
             try:
                 if x == "False":

@@ -2,11 +2,12 @@ from typing import List
 
 import click as click
 
-from .wizard import UnInstallUIWizard
-from oarepo_cli.utils import with_config, commit_git
+from oarepo_cli.utils import commit_git, with_config
+
 from ...config import MonorepoConfig
 from ...site.site_support import SiteSupport
 from ...wizard.docker import DockerRunner
+from .wizard import UnInstallUIWizard
 
 
 @click.command(
@@ -19,7 +20,7 @@ Uninstall the ui from the current site. Required arguments:
 @click.argument("site_name", required=False)
 @with_config(config_section=lambda name, **kwargs: ["ui", name])
 def uninstall_ui(
-    cfg: MonorepoConfig=None,
+    cfg: MonorepoConfig = None,
     no_input=False,
     silent=False,
     step=None,

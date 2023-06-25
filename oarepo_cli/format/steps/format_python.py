@@ -1,14 +1,9 @@
-import os.path
 from collections import defaultdict
-from pathlib import Path
 
 from .base import BaseFormatStep
-from oarepo_cli.site.site_support import SiteSupport
-from oarepo_cli.utils import batched, run_cmdline
 
 
 class FormatPythonStep(BaseFormatStep):
-
     def format_paths(self, model_paths, ui_paths, local_paths, site_paths):
         python_source_paths = [*model_paths, *ui_paths, *local_paths, *site_paths]
         self.run_autoflake(python_source_paths, exclude=[])
@@ -37,8 +32,10 @@ class FormatPythonStep(BaseFormatStep):
 
     def run_isort(self, dirs):
         from isort.main import main
+
         main(["--profile", "black", *[str(x) for x in dirs]])
 
     def run_black(self, dirs):
         import black
+
         black.main([*[str(x) for x in dirs]], standalone_mode=False)

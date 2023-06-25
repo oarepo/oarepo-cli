@@ -17,5 +17,5 @@ class {{cookiecutter.resource_config}}(RecordsUIResourceConfig):
                 "record_sidebar": "{{cookiecutter.app_package}}/sidebar.html"                
             },
         },
-        "search": {"layout": "oarepo_ui/search.html.jinja2"},
+        "search": {"layout": "{{cookiecutter.app_package}}/search.html"},
     }

@@ -1,6 +1,6 @@
 import click
 
-from .add import add_site
+from .add.cli import add_site
 from .list import list_sites
 
 

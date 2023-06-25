@@ -27,7 +27,6 @@ will be downloaded and installed and UI will be compiled.
 
     @property
     def _manifest_file(self):
-
         manifest_file = (
             self.site_support.invenio_instance_path
             / "static"

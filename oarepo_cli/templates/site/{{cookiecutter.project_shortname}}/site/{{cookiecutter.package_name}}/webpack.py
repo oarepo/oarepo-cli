@@ -19,10 +19,9 @@ theme = WebpackThemeBundle(
                 "@typescript-eslint/eslint-plugin": ">=5.0.0",
                 "@typescript-eslint/parser": ">=5.0.0",
                 "typescript": ">=5.0.0",
-                "@babel/plugin-proposal-private-property-in-object": ">=7.0.0"
+                "@babel/plugin-proposal-private-property-in-object": ">=7.0.0",
             },
-            aliases={
-            }
+            aliases={},
         ),
     },
 )

@@ -7,10 +7,8 @@ import yaml
 
 from oarepo_cli.utils import commit_git, with_config
 
-from .wizard import AddModelWizard
 from ..model_support import ModelSupport
-from ...config import MonorepoConfig
-from ...wizard.docker import DockerRunner
+from .wizard import AddModelWizard
 
 
 @click.command(
@@ -33,7 +31,8 @@ The file will be copied to the destination and referenced from
 the generated model file. If no path is specified, it will be 
 referenced from the root of the file, with path the reference 
 will be put there. Only '/' is supported in the json path.
-""")
+""",
+)
 @with_config(config_section=lambda name, **kwargs: ["models", name])
 def add_model(
     cfg=None,
@@ -72,26 +71,27 @@ def add_model(
 
 def merge_extra_sources(model_support: ModelSupport, sources: List[str]):
     for d in sources:
-        d = d.split(':')
+        d = d.split(":")
         if len(d) < 2:
             filepath = d[0]
-            jsonpath = '/'
+            jsonpath = "/"
         else:
             filepath, jsonpath = d
 
         extra_file_name = Path(filepath).name
         model_dir = model_support.model_dir
-        model_file_path = model_dir / 'model.yaml'
+        model_file_path = model_dir / "model.yaml"
 
         shutil.copy(filepath, model_dir / extra_file_name)
 
         with model_file_path.open() as f:
             json_data = yaml.safe_load(f)
 
-        add_oarepo_use(json_data, jsonpath.split('/'), f"./{extra_file_name}")
+        add_oarepo_use(json_data, jsonpath.split("/"), f"./{extra_file_name}")
 
         with model_file_path.open("wt") as f:
             yaml.safe_dump(json_data, f)
+
 
 def add_oarepo_use(d, path, value):
     for p in path:
@@ -101,9 +101,9 @@ def add_oarepo_use(d, path, value):
             d[p] = {}
         d = d[p]
 
-    if 'use' in d:
-        if not isinstance(d['use'], list):
-            d['use'] = [d['use']]
+    if "use" in d:
+        if not isinstance(d["use"], list):
+            d["use"] = [d["use"]]
     else:
-        d['use'] = []
-    d['use'].append(value)
+        d["use"] = []
+    d["use"].append(value)

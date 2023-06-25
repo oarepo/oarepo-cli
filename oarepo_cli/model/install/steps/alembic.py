@@ -65,7 +65,9 @@ class CreateAlembicModelStep(ModelWizardStep):
 
         if filecount < 2:
             # alembic has not been initialized yet ...
-            self.site_support.call_invenio("alembic", "upgrade", "heads", cwd=self.site_dir)
+            self.site_support.call_invenio(
+                "alembic", "upgrade", "heads", cwd=self.site_dir
+            )
             # create model branch
             self.site_support.call_invenio(
                 "alembic",
@@ -82,7 +84,9 @@ class CreateAlembicModelStep(ModelWizardStep):
             rewrite_revision_file("_create_", "1")
 
             self.fix_sqlalchemy_utils(alembic_path)
-            self.site_support.call_invenio("alembic", "upgrade", "heads", cwd=self.site_dir)
+            self.site_support.call_invenio(
+                "alembic", "upgrade", "heads", cwd=self.site_dir
+            )
             self.site_support.call_invenio(
                 "alembic",
                 "revision",
@@ -97,7 +101,9 @@ class CreateAlembicModelStep(ModelWizardStep):
             )  # the link to down-revision is created correctly after alembic upgrade heads on the corrected file, explicit rewrite of down-revision is not needed
 
             self.fix_sqlalchemy_utils(alembic_path)
-            self.site_support.call_invenio("alembic", "upgrade", "heads", cwd=self.site_dir)
+            self.site_support.call_invenio(
+                "alembic", "upgrade", "heads", cwd=self.site_dir
+            )
         else:
             # alembic has been initialized, update heads and generate
             files = [file_path.name for file_path in alembic_path.iterdir()]

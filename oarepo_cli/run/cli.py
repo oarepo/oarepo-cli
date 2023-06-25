@@ -10,13 +10,16 @@ from oarepo_cli.wizard.docker import DockerRunner
 @click.option("-c", "--celery")
 @click.argument("site", default=None, required=False)
 @with_config()
-def run_server(cfg=None, site=None,
-               no_input=False,
-               silent=False,
-               step=None,
-               steps=False,
-               verbose=False,
-               **kwargs):
+def run_server(
+    cfg=None,
+    site=None,
+    no_input=False,
+    silent=False,
+    step=None,
+    steps=False,
+    verbose=False,
+    **kwargs
+):
     site_support = SiteSupport(cfg, site)
 
     model_sites = cfg.setdefault("sites", [])
@@ -34,4 +37,3 @@ def run_server(cfg=None, site=None,
     wizard.run_wizard(
         cfg, no_input=no_input, silent=silent, selected_steps=step, verbose=verbose
     )
-

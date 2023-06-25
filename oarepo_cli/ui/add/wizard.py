@@ -1,8 +1,8 @@
 from oarepo_cli.wizard import StaticStep, Wizard
 
+from ...wizard.docker import DockerRunner
 from .steps.add_ui import AddUIWizardStep
 from .steps.jinja import CreateJinjaStep
-from ...wizard.docker import DockerRunner
 
 
 class AddUIWizard(Wizard):

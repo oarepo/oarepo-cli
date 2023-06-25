@@ -1,27 +1,34 @@
+from pathlib import Path
+
 from oarepo_cli.utils import ProjectWizardMixin, run_cmdline
-from oarepo_cli.wizard import InputStep, WizardStep
+from oarepo_cli.wizard import WizardStep
 
 
 class GitHubCloneWizardStep(ProjectWizardMixin, WizardStep):
-    def __init__(self):
-        super().__init__(
-            InputStep(
-                "github_clone_url",
-                prompt="Enter github clone url (or empty to initialize an empty package)",
-                required=False,
-            ),
-        )
-
     def after_run(self):
         self.local_dir.parent.mkdir(exist_ok=True, parents=True)
         if self.data.get("github_clone_url"):
-            run_cmdline(
-                "git",
-                "clone",
-                self.data["github_clone_url"],
-                str(self.local_dir),
-                cwd=self.local_dir.parent,
-            )
+            if self.data.get("branch"):
+                run_cmdline(
+                    "git",
+                    "clone",
+                    "--branch",
+                    self.data["branch"],
+                    self.data["github_clone_url"],
+                    str(self.local_dir),
+                    cwd=self.local_dir.parent,
+                )
+            else:
+                run_cmdline(
+                    "git",
+                    "clone",
+                    self.data["github_clone_url"],
+                    str(self.local_dir),
+                    cwd=self.local_dir.parent,
+                )
+            # it has been checked out, so it probably is there just because we are working
+            # on a library - so put it to gitignore
+            self.add_to_gitignore()
         else:
             self.run_cookiecutter(
                 template="https://github.com/AntoineCezar/cookiecutter-pypkg/blob/develop/cookiecutter.json",
@@ -38,6 +45,7 @@ class GitHubCloneWizardStep(ProjectWizardMixin, WizardStep):
                     "git_init": "n",
                 },
             )
+            # this is a newly created, probably will stay here - so do not put it to gitignore
 
     def should_run(self):
         return not self.local_dir.exists()
@@ -49,3 +57,14 @@ class GitHubCloneWizardStep(ProjectWizardMixin, WizardStep):
     @property
     def local_dir(self):
         return self.data.project_dir / self.data["local_dir"]
+
+    def add_to_gitignore(self):
+        gitignore: Path = self.local_dir.parent / ".gitignore"
+        if gitignore.exists():
+            content = gitignore.read_text()
+        else:
+            content = ""
+        content = [x.strip() for x in content.split("\n")]
+        if self.local_name not in content:
+            content.append(self.local_name)
+            gitignore.write_text("\n".join(content))

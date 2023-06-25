@@ -1,6 +1,7 @@
-from .steps.uninstall import UnInstallUIStep
 from oarepo_cli.wizard import Wizard
 from oarepo_cli.wizard.docker import DockerRunner
+
+from .steps.uninstall import UnInstallUIStep
 
 
 class UnInstallUIWizard(Wizard):

@@ -164,4 +164,4 @@ class RadioStep(WizardStep):
             )
 
     def should_run(self):
-        return self.force_run or self.key not in self.data
+        return (not self.data.no_input and self.force_run) or self.key not in self.data

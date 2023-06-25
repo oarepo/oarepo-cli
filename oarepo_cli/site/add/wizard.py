@@ -1,4 +1,5 @@
 from oarepo_cli.wizard import Wizard
+from ..site_support import SiteSupport
 
 from ...wizard.docker import DockerRunner
 from .steps.check_requirements import CheckRequirementsStep
@@ -14,7 +15,8 @@ from .steps.start_containers import StartContainersStep
 
 
 class AddSiteWizard(Wizard):
-    def __init__(self, runner: DockerRunner):
+    def __init__(self, runner: DockerRunner, site_support: SiteSupport):
+        self.site_support = site_support
         steps = []
         steps.extend(
             runner.wrap_docker_steps(

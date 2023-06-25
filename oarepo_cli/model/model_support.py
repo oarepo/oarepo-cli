@@ -16,7 +16,9 @@ class ModelSupport:
             if len(models) == 1:
                 model_section = next(iter(models.keys()))
             else:
-                raise RuntimeError("none or more models, please specify the model on commandline")
+                raise RuntimeError(
+                    "none or more models, please specify the model on commandline"
+                )
         self.model = models[model_section]
         self.model_name = model_section
 

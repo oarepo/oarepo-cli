@@ -33,9 +33,7 @@ class RunInContainerStep(WizardStep):
             cmd.append("--step")
             cmd.append(step.name)
         if self.in_compose:
-            run_nrp_in_docker_compose(
-                self.site_support.site_dir, *cmd
-            )
+            run_nrp_in_docker_compose(self.site_support.site_dir, *cmd)
         else:
             run_nrp_in_docker(self.data.project_dir, *cmd)
 

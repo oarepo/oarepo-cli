@@ -423,6 +423,8 @@ def with_config(
             else:
                 cfg.use_docker = use_docker == "docker"
 
+            cfg.no_input = kwargs.get('no_input', False)
+
             try:
                 return f(context=context, project_dir=project_dir, cfg=cfg, **kwargs)
             except Exception as e:

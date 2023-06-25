@@ -15,7 +15,7 @@ Which permission presets do you want to use? Pre-defined values are
 Enter 'none' to not define permission preset at all (and use vanilla invenio 
 permission classes).
 """,
-                default="read-only",
+                default="read_only",
             ),
             **kwargs
         )

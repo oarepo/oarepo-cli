@@ -2,12 +2,13 @@ from typing import List
 
 import click as click
 
-from .wizard import UnInstallModelWizard
-from oarepo_cli.utils import with_config, commit_git
-from ..model_support import ModelSupport
+from oarepo_cli.utils import commit_git, with_config
+
 from ...config import MonorepoConfig
 from ...site.site_support import SiteSupport
 from ...wizard.docker import DockerRunner
+from ..model_support import ModelSupport
+from .wizard import UnInstallModelWizard
 
 
 @click.command(
@@ -20,7 +21,7 @@ Uninstall the model from the current site. Required arguments:
 @click.argument("site_name", required=False)
 @with_config(config_section=lambda name, **kwargs: ["models", name])
 def uninstall_model(
-    cfg: MonorepoConfig=None,
+    cfg: MonorepoConfig = None,
     no_input=False,
     silent=False,
     step=None,
@@ -42,7 +43,9 @@ def uninstall_model(
     cfg.save()
 
     runner = DockerRunner(cfg, no_input)
-    wizard = UnInstallModelWizard(runner, model_support=ModelSupport(cfg), site_support=site_support)
+    wizard = UnInstallModelWizard(
+        runner, model_support=ModelSupport(cfg), site_support=site_support
+    )
 
     if steps:
         wizard.list_steps()

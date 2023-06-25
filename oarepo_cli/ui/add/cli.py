@@ -1,9 +1,10 @@
 import click as click
 
 from oarepo_cli.site.site_support import SiteSupport
+from oarepo_cli.utils import commit_git, with_config
 from oarepo_cli.wizard.docker import DockerRunner
+
 from .wizard import AddUIWizard
-from oarepo_cli.utils import with_config, commit_git
 
 
 @click.command(

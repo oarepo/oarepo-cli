@@ -1,9 +1,10 @@
 import click as click
 
-from .wizard import CompileModelWizard
 from oarepo_cli.model.model_support import ModelSupport
-from oarepo_cli.utils import with_config, commit_git
+from oarepo_cli.utils import commit_git, with_config
 from oarepo_cli.wizard.docker import DockerRunner
+
+from .wizard import CompileModelWizard
 
 
 @click.command(

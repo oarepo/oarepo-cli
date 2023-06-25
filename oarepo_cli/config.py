@@ -42,6 +42,7 @@ class MonorepoConfig(Config):
     type = "monorepo"
     running_in_docker = False
     use_docker = False
+    no_input = False
 
     def __init__(self, path: Path, section=["config"]):
         super().__init__()
@@ -82,7 +83,7 @@ class MonorepoConfig(Config):
         if self.path.exists():
             with open(self.path, "r") as f:
                 fs_data = yaml.safe_load(f)
-        data = unique_merger.merge(fs_data, data)
+                data = unique_merger.merge(fs_data, data)
 
         # just try to dump so that if that is not successful we do not overwrite the config
         sio = StringIO()
@@ -92,9 +93,8 @@ class MonorepoConfig(Config):
         if self.path.parent.exists():
             with open(self.path, "w") as f:
                 f.write(sio.getvalue())
-
-        # and reload the changes
-        self.load()
+            # and reload the changes
+            self.load()
 
     def on_changed(self):
         if self.path.parent.exists():
