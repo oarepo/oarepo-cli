@@ -8,7 +8,7 @@ models:
   mymodel:
     model_dir: models/mymodel
     model_package: mymodel
-    permissions_preset: read-only
+    permissions_preset: read_only
     pid_type: null
     run_tests: skip
     sites:

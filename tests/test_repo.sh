@@ -142,7 +142,7 @@ SERVER_PID=$!
 
 # pause to let it boot up
 sleep 5
- homepage should work
+# homepage should work
 curl -k --retry 5 --retry-all-errors --fail-with-body https://localhost:5000/
 
 err_code=$(curl -k -s -o /dev/null -w "%{http_code}" --retry 5 --retry-all-errors https://localhost:5000/myui/)
