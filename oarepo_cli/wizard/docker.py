@@ -3,23 +3,28 @@ import sys
 import yaml
 
 from oarepo_cli.config import MonorepoConfig
+from oarepo_cli.site.site_support import SiteSupport
 from oarepo_cli.utils import run_nrp_in_docker, run_nrp_in_docker_compose
 from oarepo_cli.wizard import WizardStep
 
 
 class RunInContainerStep(WizardStep):
-    def __init__(self, steps, in_compose=True):
+    def __init__(self, steps, in_compose=True, interactive=False, site=None):
         self.steps = steps or []
         self.in_compose = in_compose
+        self.interactive = interactive
+        self.site = site
 
     def should_run(self):
         return True
 
     @property
     def site_support(self):
+        if self.site:
+            return SiteSupport(self.data, self.site)
         return self.root.site_support
 
-    def run(self, single_step=None):
+    def run(self, selected_steps=None):
         cmd = sys.argv[1:]
         # remove project dir as it is added by docker itself
         for idx, c in enumerate(cmd):
@@ -28,14 +33,19 @@ class RunInContainerStep(WizardStep):
                 cmd.pop(idx)
                 break
         for step in self.steps:
-            if single_step and step != single_step:
+            if selected_steps and step not in selected_steps:
                 continue
             cmd.append("--step")
             cmd.append(step.name)
+        if self.site:
+            cmd.append("--site")
+            cmd.append(self.site)
         if self.in_compose:
-            run_nrp_in_docker_compose(self.site_support.site_dir, *cmd)
+            run_nrp_in_docker_compose(
+                self.site_support.site_dir, *cmd, interactive=self.interactive
+            )
         else:
-            run_nrp_in_docker(self.data.project_dir, *cmd)
+            run_nrp_in_docker(self.data.project_dir, *cmd, interactive=self.interactive)
         # the config could have been changed during the run, so reload it
         self.data.load()
 
@@ -82,7 +92,9 @@ class DockerRunner:
     def use_docker(self):
         return self.cfg.use_docker
 
-    def wrap_docker_steps(self, *steps, in_compose=True):
+    def wrap_docker_steps(self, *steps, in_compose=True, interactive=False, site=None):
         if not self.use_docker or self.running_in_docker:
             return steps
-        return [RunInContainerStep(steps, in_compose=in_compose)]
+        return [
+            RunInContainerStep(steps, in_compose=in_compose, interactive=interactive, site=site)
+        ]

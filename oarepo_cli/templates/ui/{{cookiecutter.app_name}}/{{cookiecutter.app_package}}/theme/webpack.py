@@ -8,7 +8,7 @@ theme = WebpackThemeBundle(
         "semantic-ui": dict(
             entry={
                 "{{cookiecutter.app_package}}_components": "./js/{{cookiecutter.app_package}}/custom-components.js",
-                "{{cookiecutter.app_package}}_search": "./js/{{cookiecutter.app_package}}/search/index.js"
+                "{{cookiecutter.app_package}}_search": "./js/{{cookiecutter.app_package}}/search/index.js",
             },
             dependencies={
                 "react-searchkit": "^2.0.0",

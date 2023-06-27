@@ -1,9 +1,10 @@
 import click
 
-from .wizard import AddSiteWizard
-from oarepo_cli.utils import with_config, commit_git, to_python_name
+from oarepo_cli.utils import commit_git, to_python_name, with_config
 from oarepo_cli.wizard.docker import DockerRunner
+
 from ..site_support import SiteSupport
+from .wizard import AddSiteWizard
 
 
 @click.command(

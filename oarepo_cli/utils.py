@@ -423,7 +423,7 @@ def with_config(
             else:
                 cfg.use_docker = use_docker == "docker"
 
-            cfg.no_input = kwargs.get('no_input', False)
+            cfg.no_input = kwargs.get("no_input", False)
 
             try:
                 return f(context=context, project_dir=project_dir, cfg=cfg, **kwargs)
@@ -555,14 +555,14 @@ def check_call(*args, **kwargs):
     return subprocess.check_call(*args, **kwargs)
 
 
-def run_nrp_in_docker_compose(site_dir, *arguments):
+def run_nrp_in_docker_compose(site_dir, *arguments, interactive=True):
     run_cmdline(
         "docker",
         "compose",
         "run",
         "--service-ports",
         "--rm",
-        "-i",
+        *(["-i"] if interactive else []),
         "repo",
         *arguments,
         cwd=site_dir,
@@ -571,12 +571,12 @@ def run_nrp_in_docker_compose(site_dir, *arguments):
     )
 
 
-def run_nrp_in_docker(repo_dir: Path, *arguments):
+def run_nrp_in_docker(repo_dir: Path, *arguments, interactive=True):
     print(f"\n\n\n\n\nNASTY: remove the nrp sources below{__file__}\n\n\n\n\n")
     run_cmdline(
         "docker",
         "run",
-        "-it",
+        *(["-it"] if interactive else []),
         "-v",
         f"{str(repo_dir)}:/repository",
         "-v",

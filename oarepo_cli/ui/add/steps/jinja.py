@@ -84,7 +84,9 @@ class CreateJinjaStep(SiteMixin, AssociatedModelMixin, ProjectWizardMixin, Wizar
         fields = ui["children"]
         if "metadata" in fields:
             md = fields.pop("metadata")
-            fields.update({f"metadata.{k}": v for k, v in md.get("children", {}).items()})
+            fields.update(
+                {f"metadata.{k}": v for k, v in md.get("children", {}).items()}
+            )
         title_key, title = self._select(fields, "title", "metadata.title")
         divider = False
         if title_key:

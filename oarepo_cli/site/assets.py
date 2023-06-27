@@ -1,11 +1,8 @@
 import json
 import re
-import shutil
 from pathlib import Path
 
-from oarepo_cli.config import MonorepoConfig
-from oarepo_cli.site.site_support import SiteSupport
-from oarepo_cli.watch import copy_watched_paths, load_watched_paths
+from oarepo_cli.utils import copy_tree
 
 # Taken from Invenio-cli
 #
@@ -22,59 +19,6 @@ from oarepo_cli.watch import copy_watched_paths, load_watched_paths
 #
 # Another reason is that invenio-cli is inherently unstable when non-rdm version
 # is used - it gets broken with each release.
-
-
-def build_assets(*, cfg: MonorepoConfig, site_name, **kwargs):
-    site = SiteSupport(cfg, site_name)
-    invenio_instance_path = site.invenio_instance_path.resolve()
-
-    shutil.rmtree(invenio_instance_path / "assets", ignore_errors=True)
-    shutil.rmtree(invenio_instance_path / "static", ignore_errors=True)
-
-    Path(invenio_instance_path / "assets").mkdir(parents=True)
-    Path(invenio_instance_path / "static").mkdir(parents=True)
-
-    register_less_components(site, invenio_instance_path)
-
-    site.call_invenio(
-        "oarepo",
-        "assets",
-        "collect",
-        f"{invenio_instance_path}/watch.list.json",
-    )
-    site.call_invenio(
-        "webpack",
-        "clean",
-        "create",
-    )
-    site.call_invenio(
-        "webpack",
-        "install",
-    )
-
-    assets = (site.site_dir / "assets").resolve()
-    static = (site.site_dir / "static").resolve()
-
-    watched_paths = load_watched_paths(
-        invenio_instance_path / "watch.list.json",
-        [f"{assets}=assets", f"{static}=static"],
-    )
-
-    copy_watched_paths(watched_paths, invenio_instance_path)
-
-    site.call_invenio(
-        "webpack",
-        "build",
-    )
-
-    # do not allow Clean plugin to remove files
-    webpack_config = (
-        invenio_instance_path / "assets" / "build" / "webpack.config.js"
-    ).read_text()
-    webpack_config = webpack_config.replace("dry: false", "dry: true")
-    (invenio_instance_path / "assets" / "build" / "webpack.config.js").write_text(
-        webpack_config
-    )
 
 
 def register_less_components(site, invenio_instance_path):
@@ -96,3 +40,21 @@ def register_less_components(site, invenio_instance_path):
                 theme_data[:match] + f"\n@{c}: 'default';\n" + theme_data[match:]
             )
     theme_config_file.write_text(theme_data)
+
+
+def load_watched_paths(paths_json, extra_paths):
+    watched_paths = {}
+    with open(paths_json) as f:
+        for target, paths in json.load(f).items():
+            for pth in paths:
+                watched_paths[pth] = target
+    for e in extra_paths:
+        source, target = e.split("=", maxsplit=1)
+        watched_paths[source] = target
+    return watched_paths
+
+
+def copy_watched_paths(watched_paths, destination):
+    destination.mkdir(parents=True, exist_ok=True)
+    for source, target in watched_paths.items():
+        copy_tree(Path(source).absolute(), destination.absolute() / target)

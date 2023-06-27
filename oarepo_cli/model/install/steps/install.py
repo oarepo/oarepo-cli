@@ -1,5 +1,5 @@
 from oarepo_cli.model.utils import ModelWizardStep
-from oarepo_cli.site.install_site import update_and_install_site
+from oarepo_cli.site.site_support import SiteSupport
 
 
 class InstallModelStep(ModelWizardStep):
@@ -9,4 +9,4 @@ class InstallModelStep(ModelWizardStep):
     def after_run(self):
         sites = self.data["sites"]
         for site in sites:
-            update_and_install_site(self.data, site)
+            SiteSupport(self.data, site).rebuild_site()

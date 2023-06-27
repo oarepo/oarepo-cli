@@ -1,4 +1,3 @@
-from oarepo_cli.assets import build_assets
 from oarepo_cli.site.mixins import SiteWizardStepMixin
 from oarepo_cli.wizard import WizardStep
 
@@ -16,10 +15,7 @@ will be downloaded and installed and UI will be compiled.
         )
 
     def after_run(self):
-        build_assets(
-            cfg=self.data,
-            site_name=self.data.section_path[-1],
-        )
+        self.site_support.build_ui()
 
     def should_run(self):
         manifest_file = self._manifest_file

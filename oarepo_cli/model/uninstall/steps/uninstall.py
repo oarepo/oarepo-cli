@@ -1,5 +1,5 @@
 from oarepo_cli.model.utils import ModelWizardStep
-from oarepo_cli.site.install_site import update_and_install_site
+from oarepo_cli.site.site_support import SiteSupport
 
 
 class UnInstallModelStep(ModelWizardStep):
@@ -9,4 +9,4 @@ class UnInstallModelStep(ModelWizardStep):
     def after_run(self):
         sites = self.data.whole_data["sites"].keys()
         for site in sites:
-            update_and_install_site(self.data, site, clean=True, compile_gui=True)
+            SiteSupport(self.data, site).rebuild_site(clean=True, build_ui=True)

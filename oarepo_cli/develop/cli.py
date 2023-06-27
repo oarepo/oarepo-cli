@@ -1,60 +1,36 @@
-from pathlib import Path
-
 import click as click
 
-from oarepo_cli.assets import build_assets
-
-# from oarepo_cli.develop import call_task, install_editable_sources, copy_invenio_cfg, db_init, search_init, \
-#     create_custom_fields, import_fixtures, development_script, Runner
+from oarepo_cli.develop.wizard import DevelopWizard
+from oarepo_cli.site.site_support import SiteSupport
 from oarepo_cli.utils import with_config
+from oarepo_cli.wizard.docker import DockerRunner
 
 
 @click.command(
-    name="docker-develop",
+    name="develop",
     hidden=True,
-    help="Internal action called inside the development docker. "
-    "Do not call from outside as it will not work. "
-    "Call from the directory containing the oarepo.yaml",
+    help="Use this command to start development server (either in docker or in userspace)",
 )
-@click.option(
-    "--virtualenv",
-    help="Path to invenio virtualenv",
-    type=click.Path(exists=True, file_okay=False, path_type=Path),
-)
-@click.option(
-    "--invenio",
-    help="Path to invenio instance directory",
-    type=click.Path(file_okay=False, path_type=Path),
-)
-@click.option(
-    "--skip-initialization",
-    help="Skip the database/es initialization and loading fixtures",
-    is_flag=True,
-)
-@click.option("--site", help="Name of the site to run the development in")
-@click.option("--host", help="Bind host", default="127.0.0.1")
-@click.option("--port", help="Bind port", default="5000")
-@with_config(config_section=lambda site=None, **kwargs: ["sites", site])
+@click.option("--site", required=False)
+@with_config()
 def develop(
-    cfg, *, virtualenv: Path, invenio: Path, skip_initialization, host, port, **kwargs
+    cfg,
+    no_input=False,
+    silent=False,
+    step=None,
+    verbose=False,
+    steps=False,
+    site=None,
+    **kwargs
 ):
-    if not invenio:
-        invenio = virtualenv / "var" / "instance"
-        if not invenio.exists():
-            invenio.mkdir(parents=True)
-    site_dir = cfg.project_dir / cfg["site_dir"]
+    site_support = SiteSupport(cfg, site)
 
-    call_task(install_editable_sources, cfg=cfg, virtualenv=virtualenv, invenio=invenio)
-    if not skip_initialization:
-        call_task(copy_invenio_cfg, cfg=cfg, virtualenv=virtualenv, invenio=invenio)
-        call_task(db_init, virtualenv=virtualenv, invenio=invenio)
-        call_task(search_init, virtualenv=virtualenv, invenio=invenio)
-        call_task(create_custom_fields, virtualenv=virtualenv, invenio=invenio)
-        call_task(import_fixtures, virtualenv=virtualenv, invenio=invenio)
-    call_task(
-        build_assets, pdm_name=cfg["pdm_name"], invenio=invenio, site_dir=site_dir
+    runner = DockerRunner(cfg, no_input)
+    develop_wizard = DevelopWizard(runner, site_support=site_support)
+    if steps:
+        develop_wizard.list_steps()
+        return
+
+    develop_wizard.run_wizard(
+        cfg, no_input=no_input, silent=silent, selected_steps=step, verbose=verbose
     )
-    call_task(development_script, virtualenv=virtualenv, invenio=invenio)
-
-    runner = Runner(virtualenv, invenio, site_dir, host, port)
-    runner.run()

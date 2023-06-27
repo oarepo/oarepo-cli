@@ -2,10 +2,22 @@ import json
 import os
 import re
 import shutil
+import subprocess
 import tempfile
 from pathlib import Path
 
+import requirements
+import tomli_w
+from dotenv import dotenv_values
+from minio import Minio
+
 from oarepo_cli.config import MonorepoConfig
+from oarepo_cli.package_versions import OAREPO_VERSION, PYTHON_VERSION
+from oarepo_cli.site.assets import (
+    copy_watched_paths,
+    load_watched_paths,
+    register_less_components,
+)
 from oarepo_cli.utils import run_cmdline
 
 
@@ -101,7 +113,7 @@ class SiteSupport:
         ]
         return models, uis, local_packages
 
-    def create_virtualenv(self, clean=False):
+    def venv_ok(self):
         if self.virtualenv.exists():
             # check if the virtualenv is usable - try to run python
             try:
@@ -111,15 +123,22 @@ class SiteSupport:
                     raise_exception=True,
                 )
                 run_cmdline(
-                    self.virtualenv / "bin" / "pip", "list", raise_exception=True
+                    self.virtualenv / "bin" / "pip",
+                    "list",
+                    raise_exception=True,
+                    grab_stdout=True,
                 )
+                return True
             except:
-                clean = True
-            if clean:
-                shutil.rmtree(self.virtualenv)
-            else:
-                # nothing to create, it exists
-                return
+                pass
+        return False
+
+    def check_and_create_virtualenv(self, clean=False):
+        if not self.venv_ok():
+            clean = True
+
+        if clean and self.virtualenv.exists():
+            shutil.rmtree(self.virtualenv)
 
         cmdline = [
             self.python,
@@ -128,7 +147,7 @@ class SiteSupport:
         ]
         if self.config.running_in_docker:
             # alpine image has a pre-installed deps, keep them here
-            cmdline.append('--system-site-packages')
+            cmdline.append("--system-site-packages")
 
         run_cmdline(
             *cmdline, str(self.virtualenv), cwd=self.site_dir, raise_exception=True
@@ -175,12 +194,12 @@ class SiteSupport:
                 "cairocffi",
                 "cffi",
                 "packaging",
-                "pyparsing"
+                "pyparsing",
             ]
-            requires = requires.split('\n')
+            requires = requires.split("\n")
             found_extras = []
             for r in requires:
-                r = re.split('[=><]', r, maxsplit=1)
+                r = re.split("[=><]", r, maxsplit=1)
                 if r[0] in extra_packages:
                     found_extras.append(r[0])
             requires.extend(set(extra_packages) - set(found_extras))
@@ -190,33 +209,64 @@ class SiteSupport:
     def _install_oarepo_dependencies(self, oarepo):
         requires = self._get_oarepo_dependencies(oarepo)
         # load already installed packages
-        installed_json = json.loads(self.call_pip(
-            "list",
-            "--format", "json",
-            grab_stdout=True
-        ))
-        installed_packages = set(x['name'] for x in installed_json)
+        installed_json = json.loads(
+            self.call_pip("list", "--format", "json", grab_stdout=True)
+        )
+        installed_packages = set(x["name"] for x in installed_json)
         requirements_to_install = []
         for r in requires:
-            package_name = re.split('[=><]', r, maxsplit=1)[0]
+            package_name = re.split("[=><]", r, maxsplit=1)[0]
             if package_name not in installed_packages:
                 requirements_to_install.append(r)
 
         with tempfile.NamedTemporaryFile(
             mode="wt", suffix="-requirements.txt"
         ) as temp_file:
-            temp_file.write('\n'.join(requirements_to_install))
+            temp_file.write("\n".join(requirements_to_install))
             temp_file.flush()
             self.call_pip("install", "--no-deps", "-r", temp_file.name)
 
         # hack: add an empty version of uritemplate.py,
         # needs to be removed when invenio-oauthclient gets updated
-        self.call_pip("install", "--force-reinstall", str(
-            Path(__file__).parent / 'uritemplate.py-1.999.999.tar.gz')
+        self.call_pip(
+            "install",
+            "--force-reinstall",
+            str(Path(__file__).parent / "uritemplate.py-1.999.999.tar.gz"),
         )
         # this is needed to fix installation problems on osx (not all requirements
         # seems to be built inside oarepo package for darwin architecture)
-        self.call_pip("install", "--force-reinstall", 'ipython')
+        self.call_pip("install", "--force-reinstall", "ipython")
+
+    def site_ok(self):
+        try:
+            self.call_invenio("--help", raise_exception=True, grab_stdout=True)
+        except:
+            import traceback
+
+            traceback.print_exc()
+            return False
+
+        models, uis, local_packages = self.get_site_local_packages()
+        invenio_ts = (self.virtualenv / "bin" / "invenio").lstat().st_mtime
+        if self.packages_newer(models, "models", invenio_ts):
+            return False
+        if self.packages_newer(uis, "ui", invenio_ts):
+            return False
+        if self.packages_newer(local_packages, "local", invenio_ts):
+            return False
+        return True
+
+    def packages_newer(self, packages, package_folder, timestamp):
+        for package in packages:
+            package_dir = (
+                self.site_dir.absolute().parent.parent / package_folder / package
+            )
+            if not package_dir.exists():
+                continue
+            for fn in package_dir.glob("*"):
+                if fn.lstat().st_mtime > timestamp:
+                    return True
+        return False
 
     def install_site(self):
         oarepo = (self.site_dir / "requirements.txt").read_text().splitlines()[0]
@@ -266,4 +316,219 @@ class SiteSupport:
                 shutil.rmtree(f)
             self.call_pip(
                 "install", "-U", "--no-input", "--no-deps", "-e", str(package_dir)
+            )
+
+    def build_ui(self):
+        invenio_instance_path = self.invenio_instance_path.resolve()
+
+        shutil.rmtree(invenio_instance_path / "assets", ignore_errors=True)
+        shutil.rmtree(invenio_instance_path / "static", ignore_errors=True)
+
+        Path(invenio_instance_path / "assets").mkdir(parents=True)
+        Path(invenio_instance_path / "static").mkdir(parents=True)
+
+        register_less_components(self, invenio_instance_path)
+
+        self.call_invenio(
+            "oarepo",
+            "assets",
+            "collect",
+            f"{invenio_instance_path}/watch.list.json",
+        )
+        self.call_invenio(
+            "webpack",
+            "clean",
+            "create",
+        )
+        self.call_invenio(
+            "webpack",
+            "install",
+        )
+
+        assets = (self.site_dir / "assets").resolve()
+        static = (self.site_dir / "static").resolve()
+
+        watched_paths = load_watched_paths(
+            invenio_instance_path / "watch.list.json",
+            [f"{assets}=assets", f"{static}=static"],
+        )
+
+        copy_watched_paths(watched_paths, invenio_instance_path)
+
+        self.call_invenio(
+            "webpack",
+            "build",
+        )
+
+        # do not allow Clean plugin to remove files
+        webpack_config = (
+            invenio_instance_path / "assets" / "build" / "webpack.config.js"
+        ).read_text()
+        webpack_config = webpack_config.replace("dry: false", "dry: true")
+        (invenio_instance_path / "assets" / "build" / "webpack.config.js").write_text(
+            webpack_config
+        )
+
+    def ui_ok(self):
+        # check that there is a manifest.json there
+        manifest = self.invenio_instance_path / "static" / "dist" / "manifest.json"
+        if not manifest.exists():
+            return False
+        try:
+            json_data = json.loads(manifest.read_text())
+            if json_data.get("status") != "done":
+                return False
+        except:
+            return False
+        return True
+
+    def rebuild_site(self, clean=False, build_ui=False):
+        self.check_and_create_virtualenv(clean=clean)
+        self.build_dependencies()
+        self.install_site()
+        if build_ui:
+            self.build_ui()
+
+    def build_dependencies(self):
+        # create pyproject.toml file
+        models, uis, local_packages = self.get_site_local_packages()
+        extras = [
+            *[
+                f"{model} @ file:///${{PROJECT_ROOT}}/../../models/{model}"
+                for model in models
+                if (self.site_dir.parent.parent / "models" / model).exists()
+            ],
+            *[
+                f"{ui} @ file:///${{PROJECT_ROOT}}/../../ui/{ui}"
+                for ui in uis
+                if (self.site_dir.parent.parent / "models" / ui).exists()
+            ],
+            *[
+                f"{local} @ file:///${{PROJECT_ROOT}}/../../local/{local}"
+                for local in local_packages
+                if (self.site_dir.parent.parent / "local" / local).exists()
+            ],
+            "site @ file:///${PROJECT_ROOT}/site",
+        ]
+        # generate requirements just for oarepo package
+        oarepo_requirements = self.generate_requirements([])
+        oarepo_requirements = list(requirements.parse(oarepo_requirements))
+
+        # get the current version of oarepo
+        oarepo_requirement = [x for x in oarepo_requirements if x.name == "oarepo"][0]
+
+        # generate requirements for the local packages as well
+        all_requirements = self.generate_requirements(extras)
+        all_requirements = list(requirements.parse(all_requirements))
+
+        # now make the difference of those two (we do not want to have oarepo dependencies in the result)
+        # as oarepo will be installed to virtualenv separately (to handle system packages)
+        oarepo_requirements_names = {x.name for x in oarepo_requirements}
+        non_oarepo_requirements = [
+            x for x in all_requirements if x.name not in oarepo_requirements_names
+        ]
+
+        # remove local packages
+        non_oarepo_requirements = [
+            x for x in non_oarepo_requirements if "file://" not in x.line
+        ]
+
+        # and generate final requirements
+        resolved_requirements = "\n".join(
+            [oarepo_requirement.line, *[x.line for x in non_oarepo_requirements]]
+        )
+        (self.site_dir / "requirements.txt").write_text(resolved_requirements)
+
+    def generate_requirements(self, extras):
+        pdm_file = {
+            "project": {
+                "name": f"{self.config.section}-repository",
+                "version": "1.0.0",
+                "description": "",
+                "packages": [],
+                "authors": [
+                    {
+                        "name": self.config["author_name"],
+                        "email": self.config["author_email"],
+                    },
+                ],
+                "dependencies": [OAREPO_VERSION, *extras],
+                "requires-python": PYTHON_VERSION,
+            }
+        }
+        with open(self.site_dir / "pyproject.toml", "wb") as f:
+            tomli_w.dump(pdm_file, f)
+
+        self.call_pdm(
+            "lock",
+        )
+        return self.call_pdm(
+            "export", "-f", "requirements", "--without-hashes", grab_stdout=True
+        )
+
+    def init_files(self):
+        host, port, access_key, secret_key = self.get_invenio_configuration(
+            "INVENIO_S3_HOST",
+            "INVENIO_S3_PORT",
+            "INVENIO_S3_ACCESS_KEY",
+            "INVENIO_S3_SECRET_KEY",
+        )
+
+        client = Minio(
+            f"{host}:{port}",
+            access_key=access_key,
+            secret_key=secret_key,
+            secure=False,
+        )
+
+        bucket_name = self.config["site_package"].replace(
+            "_", ""
+        )  # bucket names with underscores are not allowed
+        if not client.bucket_exists(bucket_name):
+            client.make_bucket(bucket_name)
+        self.call_invenio(
+            "files", "location", "default", f"s3://{bucket_name}", "--default"
+        )
+        self.check_file_location_initialized(raise_error=True)
+
+    def check_file_location_initialized(self, raise_error=False):
+        try:
+            output = self.call_invenio(
+                "files",
+                "location",
+                "list",
+                grab_stdout=True,
+                raise_exception=True,
+            )
+            print(f"initialization check:\n{output}\n")
+        except subprocess.CalledProcessError:
+            raise Exception("Checking if file location exists failed.")
+        if output:
+            return True
+        else:
+            if raise_error:
+                raise Exception(
+                    "No file location exists. This probably means that the wizard was unable to create one."
+                )
+            return False
+
+    def get_invenio_configuration(self, *keys):
+        values = dotenv_values(self.site_dir / "variables")
+        values.update({k: v for k, v in os.environ.items() if k.startswith("INVENIO_")})
+
+        def convert(x):
+            try:
+                if x == "False":
+                    return False
+                if x == "True":
+                    return True
+                return json.loads(x)
+            except:
+                return x
+
+        try:
+            return [convert(values[x]) for x in keys]
+        except KeyError as e:
+            raise KeyError(
+                f"Configuration key not found in defaults: {values.keys()}: {e}"
             )

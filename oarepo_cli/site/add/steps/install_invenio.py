@@ -13,7 +13,7 @@ Now I'll install invenio site.
         self.clean = clean
 
     def after_run(self):
-        self.site_support.create_virtualenv(clean=self.clean)
+        self.site_support.check_and_create_virtualenv(clean=self.clean)
 
         self.site_support.install_site()
 

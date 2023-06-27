@@ -38,13 +38,13 @@ class AddModelWizard(Wizard):
         )
 
     def run_wizard(
-        self, data, *, no_input=False, silent=False, single_step=None, verbose=False
+        self, data, *, no_input=False, silent=False, selected_steps=None, verbose=False
     ):
         self.files = GeneratedFiles(data.project_dir / "models" / data.section)
         super().run_wizard(
             data,
             no_input=no_input,
             silent=silent,
-            selected_steps=single_step,
+            selected_steps=selected_steps,
             verbose=verbose,
         )

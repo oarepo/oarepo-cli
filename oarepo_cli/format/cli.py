@@ -29,12 +29,12 @@ def format_sources(
     site_support = SiteSupport(cfg)
 
     runner = DockerRunner(cfg, no_input)
-    initialize_wizard = FormatWizard(runner, site_support)
+    format_wizard = FormatWizard(runner, site_support)
     if steps:
-        initialize_wizard.list_steps()
+        format_wizard.list_steps()
         return
 
-    initialize_wizard.run_wizard(
+    format_wizard.run_wizard(
         cfg, no_input=no_input, silent=silent, selected_steps=step, verbose=verbose
     )
     commit_git(

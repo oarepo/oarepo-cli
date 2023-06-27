@@ -3,10 +3,16 @@ import time
 import click
 import psutil
 
+
 @click.command(name="kill")
-@click.argument('pid', type=int)
+@click.argument("pid", type=int)
 def kill(pid):
-    process = psutil.Process(pid)
+    try:
+        process = psutil.Process(pid)
+    except Exception as e:
+        print(e)
+        return
+
     to_kill = [process] + list(process.children(True))
     to_kill.reverse()
     print(f"Going to kill {[x.pid for x in to_kill]}")
@@ -22,7 +28,7 @@ def kill(pid):
         if c.is_running():
             break
     else:
-        return   # all terminated
+        return  # all terminated
 
     # wait a bit and try again
     time.sleep(2)
@@ -32,7 +38,7 @@ def kill(pid):
         if c.is_running():
             break
     else:
-        return   # all terminated
+        return  # all terminated
 
     # send the rest sigkill
     for c in to_kill:

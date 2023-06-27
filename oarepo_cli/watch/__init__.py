@@ -1,4 +1,3 @@
-import json
 import traceback
 from pathlib import Path
 
@@ -55,21 +54,3 @@ def docker_watch(paths_json, destination, extra_paths):
     print("Starting observer")
     observer.start()
     observer.join()
-
-
-def load_watched_paths(paths_json, extra_paths):
-    watched_paths = {}
-    with open(paths_json) as f:
-        for target, paths in json.load(f).items():
-            for pth in paths:
-                watched_paths[pth] = target
-    for e in extra_paths:
-        source, target = e.split("=", maxsplit=1)
-        watched_paths[source] = target
-    return watched_paths
-
-
-def copy_watched_paths(watched_paths, destination):
-    destination.mkdir(parents=True, exist_ok=True)
-    for source, target in watched_paths.items():
-        copy_tree(Path(source).absolute(), destination.absolute() / target)

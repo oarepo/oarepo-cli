@@ -1,7 +1,7 @@
 from oarepo_cli.wizard import Wizard
-from ..site_support import SiteSupport
 
 from ...wizard.docker import DockerRunner
+from ..site_support import SiteSupport
 from .steps.check_requirements import CheckRequirementsStep
 from .steps.compile_gui import CompileGUIStep
 from .steps.init_database import InitDatabaseStep
@@ -20,7 +20,7 @@ class AddSiteWizard(Wizard):
         steps = []
         steps.extend(
             runner.wrap_docker_steps(
-                InstallSiteStep(), in_compose=False
+                InstallSiteStep(), in_compose=False, interactive=True
             )  # can run in plain docker
         )
         steps.append(LinkEnvStep())  # runs in userspace

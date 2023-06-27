@@ -7,6 +7,13 @@ usage() { echo "Usage: $0 [-d to run everything in docker] repo_input_directory 
 SERVER_PID=
 
 kill_server() {
+  # kill the docker as well
+  (
+    cd "$REPO_OUTPUT_DIRECTORY/sites"
+    cd "$(find . -type d -maxdepth 1 | egrep -v '^\.$' | head -n 1)"
+    INVENIO_DOCKER_USER_ID=$(id -u) docker compose ps -a --status=running | grep repo-run | cut -d ' ' -f1 | xargs docker rm -f || true
+  )
+
   if [ ! -z "$1" ] ; then
     nrp kill "$1"
   fi
@@ -66,7 +73,7 @@ nrp site add mysite \
 
 echo ">>> run and check that mysite homepage is ok"
 nrp run $USE_DOCKER \
-    --project-dir $REPO_OUTPUT_DIRECTORY &
+    --project-dir $REPO_OUTPUT_DIRECTORY &>/tmp/nrp-run.log &
 SERVER_PID=$!
 
 # pause to let it boot up
@@ -93,7 +100,7 @@ nrp model install mymodel \
 
 echo ">>> check that listing is ok"
 nrp run $USE_DOCKER \
-    --project-dir $REPO_OUTPUT_DIRECTORY &
+    --project-dir $REPO_OUTPUT_DIRECTORY &>/tmp/nrp-run.log &
 SERVER_PID=$!
 
 # pause to let it boot up
@@ -117,7 +124,7 @@ nrp ui install myui \
 
 echo ">>> check that the UI listing page works"
 nrp run $USE_DOCKER \
-    --project-dir $REPO_OUTPUT_DIRECTORY &
+    --project-dir $REPO_OUTPUT_DIRECTORY &>/tmp/nrp-run.log &
 SERVER_PID=$!
 
 # pause to let it boot up
@@ -137,7 +144,7 @@ rm -rf $REPO_OUTPUT_DIRECTORY/ui/myui
 
 echo ">>> check that the UI listing page is not accessible anymore"
 nrp run $USE_DOCKER \
-    --project-dir $REPO_OUTPUT_DIRECTORY &
+    --project-dir $REPO_OUTPUT_DIRECTORY &>/tmp/nrp-run.log &
 SERVER_PID=$!
 
 # pause to let it boot up
@@ -163,7 +170,7 @@ rm -rf $REPO_OUTPUT_DIRECTORY/models/mymodel
 
 echo ">>> check that listing no more exists"
 nrp run $USE_DOCKER \
-    --project-dir $REPO_OUTPUT_DIRECTORY &
+    --project-dir $REPO_OUTPUT_DIRECTORY &>/tmp/nrp-run.log &
 SERVER_PID=$!
 
 # pause to let it boot up

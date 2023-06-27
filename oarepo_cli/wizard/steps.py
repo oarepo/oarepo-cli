@@ -22,13 +22,13 @@ class WizardStep(WizardBase):
         self.heading = heading or self.heading
         self.pause = pause or self.pause
 
-    def run(self, single_step=None):
+    def run(self, selected_steps=None):
         if not self.on_before_run():
             return
         self.on_before_heading()
         self._print_heading()
         self.on_after_heading()
-        super().run(selected_steps=single_step)
+        super().run(selected_steps=selected_steps)
         if self.pause and not self.root.no_input:
             input(f"Press enter to continue ...")
         self.after_run()

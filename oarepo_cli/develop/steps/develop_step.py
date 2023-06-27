@@ -1,5 +1,3 @@
-import os
-
 from oarepo_cli.site.site_support import SiteSupport
 from oarepo_cli.wizard import WizardStep
 
@@ -23,7 +21,6 @@ from pathlib import Path
 
 import yaml
 
-from oarepo_cli.assets import build_assets
 from oarepo_cli.config import MonorepoConfig
 from oarepo_cli.utils import check_call
 
