@@ -1,5 +1,6 @@
 import errno
 import os
+import time
 
 import click as click
 
@@ -64,3 +65,4 @@ def send_command(command):
     with open(CONTROL_PIPE, "w") as f:
         f.write(command + "\n")
         f.flush()
+        time.sleep(2)

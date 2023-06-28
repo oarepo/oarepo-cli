@@ -66,3 +66,5 @@ class PipeController:
                         queue.put(cmd)
                         if not running:
                             break
+                    else:
+                        cmdarray.append(pt)
