@@ -54,17 +54,14 @@ class PipeController:
         running = True
         while running:
             with open(self.pipe_path) as fd:
-                cmdarray = []
-                for pt in fd.read(1):
-                    print(f"arrived char {pt=} {ord(pt)=}")
-                    if pt == '\n':
-                        cmd = ''.join(cmdarray).strip()
-                        cmdarray=[]
-                        print("Accepted command from pipe", cmd)
-                        if cmd == "stop":
-                            running = False
-                        queue.put(cmd)
-                        if not running:
-                            break
-                    else:
-                        cmdarray.append(pt)
+                cmd = fd.read(1024)
+                print(f"arrived cmd '{cmd=}'")
+                if not cmd:
+                    continue
+                cmd = cmd.strip()
+                print("Accepted command from pipe", cmd)
+                if cmd == "stop":
+                    running = False
+                queue.put(cmd)
+                if not running:
+                    break
