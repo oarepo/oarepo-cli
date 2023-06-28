@@ -1,13 +1,10 @@
 import functools
 import os
-import pty
 import re
 import select
 import shutil
 import subprocess
 import sys
-import termios
-import tty
 from pathlib import Path
 
 import click
@@ -30,6 +27,7 @@ def run_cmdline(
     discard_output=False,
     raise_exception=False,
     with_tty=False,
+        no_input=False
 ):
     env = os.environ.copy()
     env.update(environ or {})
@@ -47,8 +45,10 @@ def run_cmdline(
         file=sys.__stderr__,
     )
     try:
+        kwargs = {}
+        if no_input:
+            kwargs['stdin'] = subprocess.DEVNULL
         if grab_stdout or grab_stderr or discard_output:
-            kwargs = {}
             if grab_stdout or discard_output:
                 kwargs["stdout"] = subprocess.PIPE
             if grab_stderr or discard_output:
@@ -66,7 +66,7 @@ def run_cmdline(
             if with_tty:
                 ret = run_with_tty(cmdline, cwd=cwd, env=env)
             else:
-                ret = subprocess.call(cmdline, cwd=cwd, env=env)
+                ret = subprocess.call(cmdline, cwd=cwd, env=env, **kwargs)
             if ret:
                 raise subprocess.CalledProcessError(ret, cmdline)
     except subprocess.CalledProcessError as e:
@@ -92,6 +92,9 @@ def run_cmdline(
 
 def run_with_tty(cmd, cwd=None, env=None):
     # https://stackoverflow.com/questions/41542960/run-interactive-bash-with-popen-and-a-dedicated-tty-python
+    import pty
+    import termios
+    import tty
 
     # save original tty setting then set it to raw mode
     old_tty = termios.tcgetattr(sys.stdin)
@@ -555,21 +558,37 @@ def check_call(*args, **kwargs):
     return subprocess.check_call(*args, **kwargs)
 
 
-def run_nrp_in_docker_compose(site_dir, *arguments, interactive=True):
+def run_nrp_in_docker_compose(site_dir, *arguments, interactive=True, no_input=False, networking=True, name=None):
     run_cmdline(
         "docker",
         "compose",
         "run",
-        "--service-ports",
+        *(["--service-ports"] if networking else []),
         "--rm",
         *(["-i"] if interactive else []),
+        *(["--no-TTY"] if no_input else []),
+        *(["--name", name] if name else []),
         "repo",
         *arguments,
         cwd=site_dir,
         environ={**os.environ, "INVENIO_DOCKER_USER_ID": str(os.getuid())},
         with_tty=False,
+        no_input=no_input
     )
 
+def exec_nrp_in_docker(site_dir, container_name, *arguments, interactive=True):
+    run_cmdline(
+        "docker",
+        "exec",
+        *(["-it"] if interactive else []),
+        container_name,
+        "/nrp/bin/nrp",
+        *arguments,
+        cwd=site_dir,
+        environ={**os.environ, "INVENIO_DOCKER_USER_ID": str(os.getuid())},
+        with_tty=False,
+        no_input=not interactive
+    )
 
 def run_nrp_in_docker(repo_dir: Path, *arguments, interactive=True):
     print(f"\n\n\n\n\nNASTY: remove the nrp sources below{__file__}\n\n\n\n\n")

@@ -23,7 +23,6 @@ from oarepo_cli.utils import run_cmdline
 
 class SiteSupport:
     def __init__(self, config: MonorepoConfig, site_section=None):
-        self.config = config
         if config.section_path[0] == "sites":
             self.site = config
             self.site_name = config.section_path[-1]
@@ -36,6 +35,7 @@ class SiteSupport:
                 raise RuntimeError("no or more sites, please specify --site or similar")
         self.site = config.whole_data.get("sites", {})[site_section]
         self.site_name = site_section
+        self.config = config.clone(['sites', self.site_name])
 
     @property
     def site_dir(self):
@@ -97,19 +97,19 @@ class SiteSupport:
             for model_name, model_section in self.config.whole_data.get(
                 "models", {}
             ).items()
-            if self.config.section in model_section.get("sites")
+            if self.config.section in model_section.get("sites", [])
         ]
         uis = [
             ui_name
             for ui_name, ui_section in self.config.whole_data.get("ui", {}).items()
-            if self.config.section in ui_section.get("sites")
+            if self.config.section in ui_section.get("sites", [])
         ]
         local_packages = [
             local_name
             for local_name, local_section in self.config.whole_data.get(
                 "local", {}
             ).items()
-            if self.config.section in local_section.get("sites")
+            if self.config.section in local_section.get("sites", [])
         ]
         return models, uis, local_packages
 
@@ -241,9 +241,6 @@ class SiteSupport:
         try:
             self.call_invenio("--help", raise_exception=True, grab_stdout=True)
         except:
-            import traceback
-
-            traceback.print_exc()
             return False
 
         models, uis, local_packages = self.get_site_local_packages()

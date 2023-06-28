@@ -8,20 +8,21 @@ from .steps.check_search import CheckSearchStep
 from .steps.check_site import CheckSiteStep
 from .steps.check_ui import CheckUIStep
 from .steps.check_venv import CheckVirtualenvStep
+from .steps.develop_step import DevelopStep
 
 
 class DevelopWizard(Wizard):
     def __init__(self, runner: DockerRunner, *, site_support):
         self.site_support = site_support
         super().__init__(
-            StartContainersStep(),
-            *runner.wrap_docker_steps(
-                CheckVirtualenvStep(),
-                CheckSiteStep(),
-                CheckUIStep(),
-                CheckDBStep(),
-                CheckSearchStep(),
-                CheckS3LocationStep(),
-            ),
-            # DevelopStep(),
+            # StartContainersStep(),
+            # *runner.wrap_docker_steps(
+            #     CheckVirtualenvStep(),
+            #     CheckSiteStep(),
+            #     CheckUIStep(),
+            #     CheckDBStep(),
+            #     CheckSearchStep(),
+            #     CheckS3LocationStep(),
+            # ),
+            DevelopStep(),
         )

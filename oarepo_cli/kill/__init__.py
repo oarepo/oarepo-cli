@@ -6,6 +6,10 @@ import psutil
 
 @click.command(name="kill")
 @click.argument("pid", type=int)
+def kill_command(pid):
+    kill(pid)
+
+
 def kill(pid):
     try:
         process = psutil.Process(pid)
@@ -20,7 +24,10 @@ def kill(pid):
     # first round - send terminate
     for c in to_kill:
         if c.is_running():
-            print(f"Terminating {c.pid} {c.cmdline()}")
+            try:
+                print(f"Terminating {c.pid} {c.cmdline()}")
+            except:
+                pass
             c.terminate()
 
     # if all killed, return
@@ -43,5 +50,8 @@ def kill(pid):
     # send the rest sigkill
     for c in to_kill:
         if c.is_running():
-            print(f"Killing {c.pid} {c.cmdline()}")
+            try:
+                print(f"Killing {c.pid} {c.cmdline()}")
+            except:
+                pass
             c.kill()

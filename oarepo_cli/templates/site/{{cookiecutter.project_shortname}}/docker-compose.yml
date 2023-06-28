@@ -78,7 +78,6 @@ services:
       - 'INVENIO_S3_PORT=9000'
       - 'INVENIO_S3_PORT1=9001'
     stdin_open: true
-    tty: true
     volumes:
       - type: bind
         source: ../..

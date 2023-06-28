@@ -8,7 +8,7 @@ from oarepo_cli.wizard.docker import DockerRunner
 
 @click.command(name="run", help="Run the server")
 @click.option("-c", "--celery")
-@click.argument("site", default=None, required=False)
+@click.option("--site", default=None, required=False)
 @with_config()
 def run_server(
     cfg=None,

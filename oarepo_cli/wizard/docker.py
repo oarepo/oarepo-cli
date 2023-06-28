@@ -96,5 +96,7 @@ class DockerRunner:
         if not self.use_docker or self.running_in_docker:
             return steps
         return [
-            RunInContainerStep(steps, in_compose=in_compose, interactive=interactive, site=site)
+            RunInContainerStep(
+                steps, in_compose=in_compose, interactive=interactive, site=site
+            )
         ]

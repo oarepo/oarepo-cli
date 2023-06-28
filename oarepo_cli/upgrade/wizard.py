@@ -13,9 +13,7 @@ class UpgradeWizard(Wizard):
                 continue
             upgrade_sites_steps.extend(
                 runner.wrap_docker_steps(
-                    UpgradeDockerNRPStep(),
-                    UpgradeSiteStep(),
-                    site=s
+                    UpgradeDockerNRPStep(), UpgradeSiteStep(s), site=s
                 )
             )
 

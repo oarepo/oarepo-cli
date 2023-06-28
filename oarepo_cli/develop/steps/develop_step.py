@@ -1,3 +1,14 @@
+import os
+import queue
+import threading
+import traceback
+from queue import Queue
+from time import sleep
+
+from oarepo_cli.develop.config import CONTROL_PIPE
+from oarepo_cli.develop.controller import PipeController, TerminalController
+from oarepo_cli.develop.runners.docker import DockerDevelopmentRunner
+from oarepo_cli.develop.runners.local import LocalDevelopmentRunner
 from oarepo_cli.site.site_support import SiteSupport
 from oarepo_cli.wizard import WizardStep
 
@@ -8,275 +19,51 @@ class DevelopStep(WizardStep):
 
     def after_run(self):
         site_support: SiteSupport = self.root.site_support
+        if not self.data.running_in_docker and self.data.use_docker:
+            runner = DockerDevelopmentRunner(site_support)
+        else:
+            runner = LocalDevelopmentRunner(site_support)
 
+        if not self.data.running_in_docker:
+            controller = TerminalController()
+        else:
+            controller = PipeController(CONTROL_PIPE)
 
-import os
-import select
-import shutil
-import subprocess
-import sys
-import time
-import traceback
-from pathlib import Path
+        control_queue = Queue()
+        control_thread = threading.Thread(
+            target=lambda: controller.run(control_queue), daemon=True
+        )
+        control_thread.start()
+        self.control_loop(site_support, runner, control_queue)
 
-import yaml
-
-from oarepo_cli.config import MonorepoConfig
-from oarepo_cli.utils import check_call
-
-
-def call_task(task_func, **kwargs):
-    status_file = Path(kwargs["invenio"]) / "docker-develop.yaml"
-    if status_file.exists():
-        with open(status_file, "r") as f:
-            status = yaml.safe_load(f)
-    else:
-        status = {}
-    if task_func.__name__ in status:
-        return
-    print(f"Calling task {task_func.__name__} with arguments {kwargs}")
-    task_func(**kwargs)
-    status[task_func.__name__] = True
-    with open(status_file, "w") as f:
-        yaml.safe_dump(status, f)
-
-
-def install_editable_sources(*, cfg: MonorepoConfig, virtualenv, **kwargs):
-    site_name = cfg.section_path[-1]
-    # 1. go through all models and install them
-    for model_name, model in cfg.whole_data.get("models", {}).items():
-        if site_name in model.get("sites"):
-            install_dir(cfg.project_dir / model["model_dir"], virtualenv)
-    # 2. go through all uis and install them
-    for ui_name, ui in cfg.whole_data.get("ui", {}).items():
-        if site_name in ui.get("sites"):
-            install_dir(cfg.project_dir / ui["ui_dir"], virtualenv)
-    # 3. install site's site folder
-    install_dir(cfg.project_dir / cfg["site_dir"] / "site", virtualenv)
-
-
-def install_dir(dirname, virtualenv):
-    if not dirname.exists():
-        return
-    check_call(
-        [
-            f"{virtualenv}/bin/pip",
-            "install",
-            "--no-deps",  # do not install dependencies as they were installed during container build
-            "-e",
-            str(dirname),
-        ]
-    )
-
-
-def copy_invenio_cfg(*, cfg, invenio, **kwargs):
-    site_dir = cfg.project_dir / cfg["site_dir"]
-    shutil.copy(site_dir / "invenio.cfg", invenio / "invenio.cfg")
-    shutil.copy(site_dir / "variables", invenio / "variables")
-
-
-def db_init(*, virtualenv, **kwargs):
-    """
-    Create database tables.
-    """
-    call([f"{virtualenv}/bin/invenio", "db", "drop", "--yes-i-know"])
-    check_call([f"{virtualenv}/bin/invenio", "db", "create"])
-
-
-def search_init(*, virtualenv, **kwargs):
-    """
-    Create search indices.
-    """
-    call([f"{virtualenv}/bin/invenio", "index", "destroy", "--force", "--yes-i-know"])
-    check_call([f"{virtualenv}/bin/invenio", "index", "init"])
-
-
-def create_custom_fields(*, virtualenv, **kwargs):
-    """
-    Create custom fields and patch indices.
-    """
-    check_call([f"{virtualenv}/bin/invenio", "oarepo", "cf", "init"])
-
-
-def import_fixtures(*, virtualenv, **kwargs):
-    """
-    Import fixtures.
-    """
-    check_call([f"{virtualenv}/bin/invenio", "oarepo", "fixtures", "load"])
-
-
-def development_script(**kwargs):
-    if Path("development/initialize.sh").exists():
-        check_call(["/bin/sh", "development/initialize.sh"])
-
-
-class Runner:
-    def __init__(self, pdm_name, invenio, site_dir, host, port):
-        self.pdm_name = pdm_name
-        self.invenio = invenio
-        self.server_handle = None
-        self.ui_handle = None
-        self.watch_handle = None
-        self.site_dir = site_dir
-        self.host = host
-        self.port = port
-
-    def run(self):
-        try:
-            self.start_server()
-            time.sleep(10)
-            self.start_watch()
-            self.start_ui()
-        except:
-            traceback.print_exc()
-            self.stop_watch()
-            self.stop_server()
-            self.stop_ui()
-            return
-
+    def control_loop(self, site_support, runner, control_queue: queue.Queue):
+        print(f"Starting {runner}")
+        runner.start()
         while True:
+            print(f"Docker runner is running {os.getpid()}")
             try:
-                l = input_with_timeout(60)
-                if not l:
+                try:
+                    command = control_queue.get(block=True, timeout=10)
+                    print(f"Got {command=}")
+                except queue.Empty:
                     continue
-                if l == "stop":
+                if not command:
+                    continue
+                if command == "stop":
+                    runner.stop()
                     break
-                if l == "server":
-                    self.stop_server()
-                    subprocess.call(["ps", "-A"])
-                    self.start_server()
-                    subprocess.call(["ps", "-A"])
+                if command == "server":
+                    runner.restart_python()
                     continue
-                if l == "ui":
-                    self.stop_ui()
-                    subprocess.call(["ps", "-A"])
-                    self.start_ui()
-                    subprocess.call(["ps", "-A"])
+                if command == "ui":
+                    runner.restart_ui()
                     continue
-                if l == "build":
-                    self.stop_ui()
-                    self.stop_server()
-                    self.stop_watch()
-                    subprocess.call(["ps", "-A"])
-                    build_assets(
-                        pdm_name=self.pdm_name,
-                        invenio=self.invenio,
-                        site_dir=self.site_dir,
-                    )
-                    self.start_server()
-                    time.sleep(10)
-                    self.start_watch()
-                    self.start_ui()
-                    subprocess.call(["ps", "-A"])
-
+                if command == "build":
+                    runner.stop()
+                    site_support.rebuild_site(clean=True, build_ui=True)
+                    runner.start()
             except InterruptedError:
-                self.stop_watch()
-                self.stop_server()
-                self.stop_ui()
+                runner.stop()
                 return
             except Exception:
                 traceback.print_exc()
-        self.stop_server()
-        self.stop_ui()
-        self.stop_watch()
-
-    def start_server(self):
-        print("Starting server")
-        self.server_handle = subprocess.Popen(
-            [
-                f"{self.venv}/bin/invenio",
-                "run",
-                "--cert",
-                str(self.site_dir / "docker" / "nginx" / "test.crt"),
-                "--key",
-                str(self.site_dir / "docker" / "nginx" / "test.key"),
-                "-h",
-                self.host,
-                "-p",
-                self.port,
-            ],
-            env={
-                "INVENIO_TEMPLATES_AUTO_RELOAD": "1",
-                "FLASK_DEBUG": "1",
-                **os.environ,
-            },
-            stdin=subprocess.DEVNULL,
-            cwd=self.site_dir,
-        )
-
-    def stop_server(self):
-        print("Stopping server")
-        self.stop(self.server_handle)
-        self.server_handle = None
-
-    def start_watch(self):
-        print("Starting file watcher")
-        self.watch_handle = subprocess.Popen(
-            [
-                os.environ.get("NRP_CLI", "nrp-cli"),
-                "docker-watch",
-                f"{self.invenio}/watch.list.json",
-                self.invenio,
-                f"{self.site_dir}/assets=assets",
-                f"{self.site_dir}/static=static",
-            ],
-            cwd=self.site_dir,
-        )
-        time.sleep(5)
-
-    def stop_watch(self):
-        print("Stopping file watcher")
-        self.stop(self.watch_handle)
-        self.watch_handle = None
-
-    def stop(self, handle):
-        if handle:
-            try:
-                handle.terminate()
-            except:
-                pass
-            time.sleep(5)
-            try:
-                handle.kill()
-            except:
-                pass
-            time.sleep(5)
-
-    def start_ui(self):
-        print("Starting ui watcher")
-        self.ui_handle = subprocess.Popen(
-            ["npm", "run", "start"], cwd=f"{self.invenio}/assets"
-        )
-
-    def stop_ui(self):
-        print("Stopping ui watcher")
-        self.stop(self.ui_handle)
-        self.ui_handle = None
-
-
-#
-# end of code taken from invenio-cli
-# endregion
-
-
-def call(*args, **kwargs):
-    cmdline = " ".join(args[0])
-    print(f"Calling command {cmdline} with kwargs {kwargs}")
-    return subprocess.call(*args, **kwargs)
-
-
-def input_with_timeout(timeout):
-    print("=======================================================================")
-    print()
-    print("Type: ")
-    print()
-    print("    server <enter>    --- restart server")
-    print("    ui <enter>        --- restart ui watcher")
-    print("    build <enter>     --- stop server and watcher, ")
-    print("                          call ui build, then start again")
-    print("    stop <enter>      --- stop the server and ui and exit")
-    print()
-    i, o, e = select.select([sys.stdin], [], [], timeout)
-
-    if i:
-        return sys.stdin.readline().strip()

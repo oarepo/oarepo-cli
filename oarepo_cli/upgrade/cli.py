@@ -9,11 +9,11 @@ from oarepo_cli.wizard.docker import DockerRunner
 
 @click.command
 @with_config()
-@click.option('--site')
+@click.option("--site")
 @click.pass_context
 def upgrade(
     ctx,
-    cfg: MonorepoConfig=None,
+    cfg: MonorepoConfig = None,
     step=None,
     no_input=False,
     silent=False,
@@ -23,13 +23,13 @@ def upgrade(
     **kwargs,
 ):
     if site:
-        cfg = cfg.clone(['sites', site])
+        cfg = cfg.clone(["sites", site])
 
     runner = DockerRunner(cfg, no_input=no_input)
-    wizard = UpgradeWizard(runner, list(cfg.whole_data.get('sites', {}).keys()), site)
+    wizard = UpgradeWizard(runner, list(cfg.whole_data.get("sites", {}).keys()), site)
 
     if site:
-        cfg = cfg.clone(['sites', site])
+        cfg = cfg.clone(["sites", site])
         wizard.site_support = SiteSupport(cfg, site)
 
     if steps:
