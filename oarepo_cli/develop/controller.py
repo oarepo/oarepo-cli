@@ -56,6 +56,7 @@ class PipeController:
             with open(self.pipe_path) as fd:
                 cmdarray = []
                 for pt in fd.read(1):
+                    print(f"arrived char {pt=} {ord(pt)=}")
                     if pt == '\n':
                         cmd = ''.join(cmdarray).strip()
                         cmdarray=[]
