@@ -18,7 +18,6 @@ class TerminalController:
             cmd = self.input_with_timeout(60)
             if not cmd:
                 continue
-            print("Accepted command from terminal", cmd)
             if cmd == "stop":
                 running = False
             queue.put(cmd)
@@ -43,7 +42,6 @@ class TerminalController:
 class PipeController:
     def __init__(self, pipe_path):
         self.pipe_path = pipe_path
-        print(f"making fifo at {pipe_path=}")
         try:
             os.mkfifo(pipe_path)
         except OSError as oe:
@@ -55,14 +53,15 @@ class PipeController:
         print("Pipe controller running")
         running = True
         while running:
-            print("Waiting on queue")
             with open(self.pipe_path) as fd:
-                for cmd in fd.readline():
-                    cmd = cmd.strip()
-                    print("Accepted command from queue", cmd)
-                    if cmd == "stop":
-                        running = False
-
-                    queue.put(cmd)
-                    if not running:
-                        break
+                cmdarray = []
+                for pt in fd.read(1):
+                    if pt == '\n':
+                        cmd = ''.join(cmdarray).strip()
+                        cmdarray=[]
+                        print("Accepted command from pipe", cmd)
+                        if cmd == "stop":
+                            running = False
+                        queue.put(cmd)
+                        if not running:
+                            break
