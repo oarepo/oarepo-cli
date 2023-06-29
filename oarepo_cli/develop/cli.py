@@ -30,13 +30,9 @@ def develop(
     command=None,
     **kwargs
 ):
-    print(f"Develop step running, {locals()}")
-
     if command:
-        print("Sending command to control pipe")
         # there is a CONTROL_PIPE pipe, send command to it and quit
         send_command(command)
-        print("Sending command successful")
         return
 
     site_support = SiteSupport(cfg, site)
@@ -54,11 +50,9 @@ def develop(
 
 def send_command(command):
     # make sure CONTROL_PIPE is a pipe
-    print(f"making fifo at {CONTROL_PIPE=}")
     try:
         os.mkfifo(CONTROL_PIPE)
     except OSError as oe:
-        print(oe)
         if oe.errno != errno.EEXIST:
             raise
 

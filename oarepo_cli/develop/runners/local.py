@@ -15,9 +15,8 @@ class LocalDevelopmentRunner:
         self.ui_handle = None
 
     def start(self):
-        print("local development runner is starting")
-        # self.start_server()
-        # self.start_ui()
+        self.start_server()
+        self.start_ui()
 
     def stop(self):
         self.stop_server()
@@ -88,16 +87,3 @@ class LocalDevelopmentRunner:
     def stop_handle(handle):
         if handle and handle.returncode is None:
             kill(handle.pid)
-
-    # TODO: move this to watcher ...
-    #
-    # def start_ui(self):
-    #     print("Starting ui watcher")
-    #     self.ui_handle = subprocess.Popen(
-    #         ["npm", "run", "start"], cwd=f"{self.invenio}/assets"
-    #     )
-    #
-    # def stop_ui(self):
-    #     print("Stopping ui watcher")
-    #     self.stop(self.ui_handle)
-    #     self.ui_handle = None

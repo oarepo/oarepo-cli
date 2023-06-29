@@ -37,33 +37,34 @@ class DevelopStep(WizardStep):
         self.control_loop(site_support, runner, control_queue)
 
     def control_loop(self, site_support, runner, control_queue: queue.Queue):
-        print(f"Starting {runner}")
         runner.start()
-        while True:
-            print(f"Docker runner is running {os.getpid()}")
-            try:
+        try:
+            while True:
                 try:
-                    command = control_queue.get(block=True, timeout=10)
-                    print(f"Got {command=}")
-                except queue.Empty:
-                    continue
-                if not command:
-                    continue
-                if command == "stop":
-                    runner.stop()
-                    break
-                if command == "server":
-                    runner.restart_python()
-                    continue
-                if command == "ui":
-                    runner.restart_ui()
-                    continue
-                if command == "build":
-                    runner.stop()
-                    site_support.rebuild_site(clean=True, build_ui=True)
-                    runner.start()
-            except InterruptedError:
-                runner.stop()
-                return
-            except Exception:
-                traceback.print_exc()
+                    try:
+                        command = control_queue.get(block=True, timeout=10)
+                        print(f"Got {command=}")
+                    except queue.Empty:
+                        continue
+                    if not command:
+                        continue
+                    if command == "stop":
+                        runner.stop()
+                        break
+                    if command == "server":
+                        runner.restart_python()
+                        continue
+                    if command == "ui":
+                        runner.restart_ui()
+                        continue
+                    if command == "build":
+                        runner.stop()
+                        site_support.rebuild_site(clean=True, build_ui=True)
+                        runner.start()
+                except InterruptedError:
+                    raise
+                except Exception:
+                    traceback.print_exc()
+        except:
+            runner.stop()
+            return

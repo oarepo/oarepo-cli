@@ -12,15 +12,17 @@ import sys
 
 class TerminalController:
     def run(self, queue: queue.Queue):
-        print("Terminal controller running")
         running = True
-        while running:
-            cmd = self.input_with_timeout(60)
-            if not cmd:
-                continue
-            if cmd == "stop":
-                running = False
-            queue.put(cmd)
+        try:
+            while running:
+                cmd = self.input_with_timeout(60)
+                if not cmd:
+                    continue
+                if cmd == "stop":
+                    running = False
+                queue.put(cmd)
+        except InterruptedError:
+            queue.put('stop')
 
     def input_with_timeout(self, timeout):
         print("=======================================================================")
@@ -45,21 +47,17 @@ class PipeController:
         try:
             os.mkfifo(pipe_path)
         except OSError as oe:
-            print(f"{pipe_path=} {oe=}")
             if oe.errno != errno.EEXIST:
                 raise
 
     def run(self, queue: queue.Queue):
-        print("Pipe controller running")
         running = True
         while running:
             with open(self.pipe_path) as fd:
                 cmd = fd.read(1024)
-                print(f"arrived cmd '{cmd=}'")
                 if not cmd:
                     continue
                 cmd = cmd.strip()
-                print("Accepted command from pipe", cmd)
                 if cmd == "stop":
                     running = False
                 queue.put(cmd)

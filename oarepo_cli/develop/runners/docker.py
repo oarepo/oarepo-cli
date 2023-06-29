@@ -39,7 +39,6 @@ class DockerDevelopmentRunner:
         self.send_command("ui")
 
     def send_command(self, command):
-        print("Sending command to develop")
         exec_nrp_in_docker(
             self.site_support.site_dir,
             self.develop_container_name,
