@@ -24,6 +24,8 @@ class DockerDevelopmentRunner:
             "develop",
             "--site",
             self.site_support.site_name,
+            "--step",
+            "DevelopStep",
             interactive=False,
             no_input=True,
             name=self.develop_container_name
