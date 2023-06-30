@@ -16,4 +16,5 @@ class CheckVirtualenvStep(SiteWizardStepMixin, WizardStep):
             shutil.rmtree(self.site_support.invenio_instance_path)
 
     def should_run(self):
+        print("venv ok returning", self.site_support.venv_ok())
         return not self.site_support.venv_ok()

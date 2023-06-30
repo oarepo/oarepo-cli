@@ -237,6 +237,7 @@ class SiteSupport:
         # seems to be built inside oarepo package for darwin architecture)
         self.call_pip("install", "--force-reinstall", "ipython")
 
+
     def site_ok(self):
         try:
             self.call_invenio("--help", raise_exception=True, grab_stdout=True)
@@ -245,6 +246,7 @@ class SiteSupport:
 
         models, uis, local_packages = self.get_site_local_packages()
         invenio_ts = (self.virtualenv / "bin" / "invenio").lstat().st_mtime
+        print(f"Invenio has timestamp {invenio_ts}")
         if self.packages_newer(models, "models", invenio_ts):
             return False
         if self.packages_newer(uis, "ui", invenio_ts):
@@ -262,6 +264,7 @@ class SiteSupport:
                 continue
             for fn in package_dir.glob("*"):
                 if fn.lstat().st_mtime > timestamp:
+                    print(f"Package {fn} with timestamp {fn.lstat().st_mtime} is newer than {timestamp}")
                     return True
         return False
 
@@ -301,6 +304,10 @@ class SiteSupport:
         self._install_package(models, "models")
         self._install_package(uis, "ui")
         self._install_package(local_packages, "local")
+
+        # touch invenio to mark the installation timestamp
+        (self.virtualenv / "bin" / "invenio").touch()
+
 
     def _install_package(self, packages, package_folder):
         for package in packages:
