@@ -25,7 +25,7 @@ def kill(pid):
     for c in to_kill:
         if c.is_running():
             try:
-                print(f"Terminating {c.pid} {c.cmdline()}")
+                print(f"Terminating {c.pid} {' '.join(c.cmdline())}")
             except:
                 pass
             c.terminate()

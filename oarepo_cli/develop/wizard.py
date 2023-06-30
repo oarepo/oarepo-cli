@@ -15,14 +15,14 @@ class DevelopWizard(Wizard):
     def __init__(self, runner: DockerRunner, *, site_support):
         self.site_support = site_support
         super().__init__(
-            # StartContainersStep(),
-            # *runner.wrap_docker_steps(
-            #     CheckVirtualenvStep(),
-            #     CheckSiteStep(),
-            #     CheckUIStep(),
-            #     CheckDBStep(),
-            #     CheckSearchStep(),
-            #     CheckS3LocationStep(),
-            # ),
+            StartContainersStep(),
+            *runner.wrap_docker_steps(
+                CheckVirtualenvStep(),
+                CheckSiteStep(),
+                CheckUIStep(),
+                CheckDBStep(),
+                CheckSearchStep(),
+                CheckS3LocationStep(),
+            ),
             DevelopStep(),
         )
