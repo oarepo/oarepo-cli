@@ -1,5 +1,6 @@
 from oarepo_cli.wizard import Wizard
 from oarepo_cli.wizard.docker import DockerRunner
+from .steps.check_dependencies import CheckDependenciesStep
 from ..site.add.steps.link_env import LinkEnvStep
 
 from ..site.add.steps.start_containers import StartContainersStep
@@ -20,6 +21,7 @@ class DevelopWizard(Wizard):
             StartContainersStep(),
             *runner.wrap_docker_steps(
                 CheckVirtualenvStep(),
+                CheckDependenciesStep(),
                 CheckSiteStep(),
                 CheckUIStep(),
                 CheckDBStep(),
