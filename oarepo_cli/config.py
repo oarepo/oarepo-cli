@@ -40,6 +40,9 @@ class Config:
 
 class MonorepoConfig(Config):
     type = "monorepo"
+    running_in_docker = False
+    use_docker = False
+    no_input = False
 
     def __init__(self, path: Path, section=["config"]):
         super().__init__()
@@ -52,6 +55,7 @@ class MonorepoConfig(Config):
         self.section_path = tuple(section)
         self.whole_data = {}
         self._load_section()
+        self.readonly = False
 
     def load(self):
         with open(self.path, "r") as f:
@@ -67,7 +71,12 @@ class MonorepoConfig(Config):
         self.config = data
 
     def save(self):
+        # import locally to prevent circular dependencies
+        if self.readonly:
+            return
+
         data = {**self.whole_data, "type": self.type}
+
         # just try to dump so that if that is not successful we do not overwrite the config
         sio = StringIO()
         yaml.safe_dump(data, sio)
@@ -76,6 +85,8 @@ class MonorepoConfig(Config):
         if self.path.parent.exists():
             with open(self.path, "w") as f:
                 f.write(sio.getvalue())
+            # and reload the changes
+            self.load()
 
     def on_changed(self):
         if self.path.parent.exists():
@@ -108,3 +119,13 @@ class MonorepoConfig(Config):
             self.save()
         else:
             always_merger.merge(self.config, config_data)
+
+    def __str__(self):
+        return f"MonorepoConfig[{self.config}]"
+
+    def clone(self, section_path):
+        ret = MonorepoConfig(self.path, section=section_path)
+        ret.running_in_docker = self.running_in_docker
+        ret.use_docker = self.use_docker
+        ret.load()
+        return ret

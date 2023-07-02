@@ -1,0 +1,8 @@
+config:
+  sites:
+  - test
+sites:
+  test:
+    site_dir: sites/test
+    site_package: test
+type: monorepo

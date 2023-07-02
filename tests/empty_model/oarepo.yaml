@@ -1,0 +1,58 @@
+config:
+  oarepo_cli: .venv/nrp-cli/bin/nrp-cli
+  project_package: repo
+  python: python3.9
+  sites:
+  - mysite
+models:
+  mymodel:
+    model_dir: models/mymodel
+    model_package: mymodel
+    permissions_preset: read_only
+    pid_type: null
+    run_tests: skip
+    sites:
+    - mysite
+    update_opensearch: run
+    use_custom_fields: 'yes'
+    use_docs: 'no'
+    use_files: 'yes'
+    use_metadata: 'yes'
+    use_nr_vocabularies: 'no'
+    use_relations: 'yes'
+    use_tests: 'no'
+    use_vocabularies: 'yes'
+sites:
+  mysite:
+    author_email: ms@ms.com
+    author_name: ms
+    copyright_holder: c
+    init_database: 'yes'
+    pdm_name: ''
+    repository_name: Mysite
+    site_dir: sites/mysite
+    site_package: mysite
+    transifex_project: repo
+    use_oarepo_vocabularies: 'yes'
+    www: https://mysicte.com
+    year: '2023'
+type: monorepo
+ui:
+  myui:
+    cookiecutter_api_service: mymodel
+    cookiecutter_app_name: myui
+    cookiecutter_app_package: myui
+    cookiecutter_author: ''
+    cookiecutter_author_email: ''
+    cookiecutter_ext_name: MyuiExtension
+    cookiecutter_local_model_path: ../../models/mymodel
+    cookiecutter_model_package: mymodel
+    cookiecutter_repository_url: ''
+    cookiecutter_resource: MyuiResource
+    cookiecutter_resource_config: MyuiResourceConfig
+    cookiecutter_ui_record_serializer_class: mymodel.resources.records.ui.MymodelUIJSONSerializer
+    model_name: mymodel
+    sites:
+    - mysite
+    ui_dir: ui/myui
+    url_prefix: /myui/
