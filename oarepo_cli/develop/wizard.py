@@ -16,6 +16,7 @@ class DevelopWizard(Wizard):
     def __init__(self, runner: DockerRunner, *, site_support):
         self.site_support = site_support
         super().__init__(
+            LinkEnvStep(),
             StartContainersStep(),
             *runner.wrap_docker_steps(
                 CheckVirtualenvStep(),
@@ -25,6 +26,5 @@ class DevelopWizard(Wizard):
                 CheckSearchStep(),
                 CheckS3LocationStep(),
             ),
-            LinkEnvStep(),
             DevelopStep(),
         )
