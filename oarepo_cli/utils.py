@@ -203,6 +203,10 @@ def commit_git(repo_dir, tag_name, message):
     if "DOCKER_AROUND" in os.environ:
         return
     tag_index = 1
+
+    if not (repo_dir / '.git').exists():
+        git.Repo.init(repo_dir)
+
     try:
         for commit in pydriller.Repository(str(repo_dir)).traverse_commits():
             for m in commit.msg.split("\n"):
@@ -210,10 +214,13 @@ def commit_git(repo_dir, tag_name, message):
                     tag_index += 1
     except git.exc.GitCommandError:
         pass
+    except git.exc.InvalidGitRepositoryError:
+        pass
+
     repo = git.Repo(repo_dir)
     tag_name = f"omb-{tag_index:05d}-{tag_name}"
-    index = repo.index
     repo.git.add(repo_dir)
+    index = repo.index
     if index.entries:
         index.commit(message + "\n\n" + tag_name)
 
