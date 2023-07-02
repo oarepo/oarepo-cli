@@ -1,6 +1,6 @@
 import click
 
-from oarepo_cli.build.cli import build_command
+from oarepo_cli.build_command.cli import build_command
 from oarepo_cli.develop.cli import develop_command
 from oarepo_cli.format.cli import format_sources_command
 from oarepo_cli.initialize.cli import initialize_command
