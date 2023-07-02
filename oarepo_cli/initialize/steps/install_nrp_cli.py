@@ -13,15 +13,15 @@ class InstallINRPCliStep(WizardStep):
         super().__init__(
             heading="""
 I will install nrp command-line tools that make using the invenio easier.
-To run them, invoke the "nrp-cli" script from within the project directory.            
+To run them, invoke the "nrp" script from within the project directory.            
             """,
             **kwargs,
         )
 
     def after_run(self):
-        print("Creating nrp-cli virtualenv")
+        print("Creating nrp virtualenv")
         self.data["oarepo_cli"] = str(
-            (self.nrp_cli_dir / "bin" / "nrp-cli").relative_to(self.data.project_dir)
+            (self.nrp_cli_dir / "bin" / "nrp").relative_to(self.data.project_dir)
         )
         if self.nrp_cli_dir.exists():
             shutil.rmtree(self.nrp_cli_dir)
@@ -44,7 +44,7 @@ To run them, invoke the "nrp-cli" script from within the project directory.
 
     @property
     def nrp_cli_dir(self):
-        return self.data.project_dir / ".venv" / "nrp-cli"
+        return self.data.project_dir / ".venv" / "nrp"
 
     def should_run(self):
         return not (self.nrp_cli_dir / ".check.ok").exists()
