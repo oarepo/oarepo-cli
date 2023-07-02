@@ -11,7 +11,7 @@ from oarepo_cli.wizard.docker import DockerRunner
 @with_config()
 @click.option("--site")
 @click.pass_context
-def upgrade(
+def upgrade_command(
     ctx,
     cfg: MonorepoConfig = None,
     step=None,

@@ -12,7 +12,7 @@ from .wizard import FormatWizard
     help="""Format all source files inside the project""",
 )
 @with_config()
-def format_sources(
+def format_sources_command(
     cfg=None,
     no_input=False,
     silent=False,

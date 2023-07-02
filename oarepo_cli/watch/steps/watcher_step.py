@@ -50,7 +50,6 @@ class WatcherStep(WizardStep):
             except Exception as e:
                 pass
 
-
     def create_observer(self):
         destination = self.invenio_instance_path
         watched_paths = load_watched_paths(

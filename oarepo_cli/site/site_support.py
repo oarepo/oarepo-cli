@@ -13,11 +13,6 @@ from minio import Minio
 
 from oarepo_cli.config import MonorepoConfig
 from oarepo_cli.package_versions import OAREPO_VERSION, PYTHON_VERSION
-from oarepo_cli.site.assets import (
-    copy_watched_paths,
-    load_watched_paths,
-    register_less_components,
-)
 from oarepo_cli.utils import run_cmdline
 
 
@@ -26,6 +21,7 @@ class SiteSupport:
         if config.section_path[0] == "sites":
             self.site = config
             self.site_name = config.section_path[-1]
+            self.config = config
             return
         elif not site_section:
             sites = config.whole_data.get("sites", {})
@@ -33,9 +29,10 @@ class SiteSupport:
                 site_section = next(iter(sites.keys()))
             else:
                 raise RuntimeError("no or more sites, please specify --site or similar")
+
         self.site = config.whole_data.get("sites", {})[site_section]
         self.site_name = site_section
-        self.config = config.clone(['sites', self.site_name])
+        self.config = config.clone(["sites", self.site_name])
 
     @property
     def site_dir(self):
@@ -237,7 +234,6 @@ class SiteSupport:
         # seems to be built inside oarepo package for darwin architecture)
         self.call_pip("install", "--force-reinstall", "ipython")
 
-
     def site_ok(self):
         try:
             self.call_invenio("--help", raise_exception=True, grab_stdout=True)
@@ -264,7 +260,9 @@ class SiteSupport:
                 continue
             for fn in package_dir.glob("*"):
                 if fn.lstat().st_mtime > timestamp:
-                    print(f"Package {fn} with timestamp {fn.lstat().st_mtime} is newer than {timestamp}")
+                    print(
+                        f"Package {fn} with timestamp {fn.lstat().st_mtime} is newer than {timestamp}"
+                    )
                     return True
         return False
 
@@ -308,7 +306,6 @@ class SiteSupport:
         # touch invenio to mark the installation timestamp
         (self.virtualenv / "bin" / "invenio").touch()
 
-
     def _install_package(self, packages, package_folder):
         for package in packages:
             package_dir = (
@@ -322,7 +319,13 @@ class SiteSupport:
                 "install", "-U", "--no-input", "--no-deps", "-e", str(package_dir)
             )
 
-    def build_ui(self):
+    def build_ui(self, production=False):
+        from oarepo_cli.site.assets import (
+            copy_watched_paths,
+            load_watched_paths,
+            register_less_components,
+        )
+
         invenio_instance_path = self.invenio_instance_path.resolve()
 
         shutil.rmtree(invenio_instance_path / "assets", ignore_errors=True)
@@ -359,10 +362,7 @@ class SiteSupport:
 
         copy_watched_paths(watched_paths, invenio_instance_path)
 
-        self.call_invenio(
-            "webpack",
-            "build",
-        )
+        self.call_invenio("webpack", "build", *(["--production"] if production else []))
 
         # do not allow Clean plugin to remove files
         webpack_config = (

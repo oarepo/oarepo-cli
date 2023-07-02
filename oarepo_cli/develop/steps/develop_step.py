@@ -1,9 +1,7 @@
-import os
 import queue
 import threading
 import traceback
 from queue import Queue
-from time import sleep
 
 from oarepo_cli.develop.config import CONTROL_PIPE
 from oarepo_cli.develop.controller import PipeController, TerminalController

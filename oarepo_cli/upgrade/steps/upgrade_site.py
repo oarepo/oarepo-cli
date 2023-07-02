@@ -11,7 +11,7 @@ class UpgradeSiteStep(WizardStep):
         return True
 
     def after_run(self):
-        if not hasattr(self.root, 'site_support'):
+        if not hasattr(self.root, "site_support"):
             site_support = SiteSupport(self.data, self.site)
         else:
             site_support = self.root.site_support

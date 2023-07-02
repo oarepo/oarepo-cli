@@ -3,8 +3,13 @@ from oarepo_cli.wizard import WizardStep
 
 
 class CheckUIStep(SiteWizardStepMixin, WizardStep):
+    def __init__(self, production=False):
+        super().__init__()
+        self.production = production
+
     def after_run(self):
-        self.site_support.build_ui()
+        self.site_support.build_ui(production=self.production)
 
     def should_run(self):
-        return not self.site_support.ui_ok()
+        # production always rebuilds the site
+        return self.production or not self.site_support.ui_ok()

@@ -1,17 +1,17 @@
 import click
 
-from oarepo_cli.dependencies import dependencies
-from oarepo_cli.develop.cli import develop
-from oarepo_cli.format.cli import format_sources
-from oarepo_cli.initialize.cli import initialize
+from oarepo_cli.build.cli import build_command
+from oarepo_cli.develop.cli import develop_command
+from oarepo_cli.format.cli import format_sources_command
+from oarepo_cli.initialize.cli import initialize_command
 from oarepo_cli.kill import kill_command
-from oarepo_cli.local import local
-from oarepo_cli.model import model
-from oarepo_cli.run.cli import run_server
-from oarepo_cli.site import site
-from oarepo_cli.ui import ui
-from oarepo_cli.upgrade.cli import upgrade
-from oarepo_cli.watch.cli import docker_watch
+from oarepo_cli.local import local_commands
+from oarepo_cli.model import model_commands
+from oarepo_cli.run.cli import run_server_command
+from oarepo_cli.site import site_commands
+from oarepo_cli.ui import ui_commands
+from oarepo_cli.upgrade.cli import upgrade_command
+from oarepo_cli.watch.cli import watch_command
 
 
 @click.group()
@@ -19,18 +19,18 @@ def run(*args, **kwargs):
     pass
 
 
-run.add_command(initialize)
-run.add_command(site)
-run.add_command(model)
-run.add_command(local)
-run.add_command(ui)
-run.add_command(run_server)
-run.add_command(upgrade)
-run.add_command(develop)
-run.add_command(docker_watch)
-run.add_command(dependencies)
-run.add_command(format_sources)
+run.add_command(initialize_command)
+run.add_command(site_commands)
+run.add_command(model_commands)
+run.add_command(local_commands)
+run.add_command(ui_commands)
+run.add_command(run_server_command)
+run.add_command(upgrade_command)
+run.add_command(develop_command)
+run.add_command(watch_command)
+run.add_command(format_sources_command)
 run.add_command(kill_command)
+run.add_command(build_command)
 
 if __name__ == "__main__":
     run()

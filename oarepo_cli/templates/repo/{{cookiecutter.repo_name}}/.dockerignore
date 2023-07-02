@@ -1,0 +1,5 @@
+# Ignore local virtualenv (if present)
+**/.venv/
+**/__pycache__
+**/__pypackages__
+**/node_modules

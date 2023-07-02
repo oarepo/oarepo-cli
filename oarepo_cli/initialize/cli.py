@@ -20,7 +20,7 @@ Initialize the whole repository structure. Required arguments:
 )
 @click.option("--python", required=False)
 @with_config(project_dir_as_argument=True)
-def initialize(
+def initialize_command(
     *,
     context=None,
     cfg=None,

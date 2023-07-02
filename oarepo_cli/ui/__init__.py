@@ -6,12 +6,14 @@ from .list import list_uis
 from .uninstall.cli import uninstall_ui
 
 
-@click.group(help="User interface related tools (add user interface for a model, ...)")
-def ui():
+@click.group(
+    help="User interface related tools (add user interface for a model, ...)", name="ui"
+)
+def ui_commands():
     pass
 
 
-ui.add_command(add_ui)
-ui.add_command(install_ui)
-ui.add_command(uninstall_ui)
-ui.add_command(list_uis)
+ui_commands.add_command(add_ui)
+ui_commands.add_command(install_ui)
+ui_commands.add_command(uninstall_ui)
+ui_commands.add_command(list_uis)

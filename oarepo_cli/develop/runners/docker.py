@@ -1,7 +1,7 @@
 import threading
 
 from oarepo_cli.site.site_support import SiteSupport
-from oarepo_cli.utils import run_nrp_in_docker_compose, exec_nrp_in_docker
+from oarepo_cli.utils import exec_nrp_in_docker, run_nrp_in_docker_compose
 
 
 class DockerDevelopmentRunner:
@@ -16,7 +16,7 @@ class DockerDevelopmentRunner:
 
     @property
     def develop_container_name(self):
-        return self.site_support.site_name + '-repo-develop'
+        return self.site_support.site_name + "-repo-develop"
 
     def run_docker_develop(self):
         run_nrp_in_docker_compose(
@@ -28,7 +28,7 @@ class DockerDevelopmentRunner:
             "DevelopStep",
             interactive=False,
             no_input=True,
-            name=self.develop_container_name
+            name=self.develop_container_name,
         )
 
     def stop(self):
@@ -49,5 +49,5 @@ class DockerDevelopmentRunner:
             command,
             "--site",
             self.site_support.site_name,
-            interactive=False
+            interactive=False,
         )

@@ -27,7 +27,7 @@ def run_cmdline(
     discard_output=False,
     raise_exception=False,
     with_tty=False,
-        no_input=False
+    no_input=False,
 ):
     env = os.environ.copy()
     env.update(environ or {})
@@ -47,7 +47,7 @@ def run_cmdline(
     try:
         kwargs = {}
         if no_input:
-            kwargs['stdin'] = subprocess.DEVNULL
+            kwargs["stdin"] = subprocess.DEVNULL
         if grab_stdout or grab_stderr or discard_output:
             if grab_stdout or discard_output:
                 kwargs["stdout"] = subprocess.PIPE
@@ -558,7 +558,9 @@ def check_call(*args, **kwargs):
     return subprocess.check_call(*args, **kwargs)
 
 
-def run_nrp_in_docker_compose(site_dir, *arguments, interactive=True, no_input=False, networking=True, name=None):
+def run_nrp_in_docker_compose(
+    site_dir, *arguments, interactive=True, no_input=False, networking=True, name=None
+):
     run_cmdline(
         "docker",
         "compose",
@@ -573,8 +575,9 @@ def run_nrp_in_docker_compose(site_dir, *arguments, interactive=True, no_input=F
         cwd=site_dir,
         environ={**os.environ, "INVENIO_DOCKER_USER_ID": str(os.getuid())},
         with_tty=False,
-        no_input=no_input
+        no_input=no_input,
     )
+
 
 def exec_nrp_in_docker(site_dir, container_name, *arguments, interactive=True):
     run_cmdline(
@@ -587,8 +590,9 @@ def exec_nrp_in_docker(site_dir, container_name, *arguments, interactive=True):
         cwd=site_dir,
         environ={**os.environ, "INVENIO_DOCKER_USER_ID": str(os.getuid())},
         with_tty=False,
-        no_input=not interactive
+        no_input=not interactive,
     )
+
 
 def run_nrp_in_docker(repo_dir: Path, *arguments, interactive=True):
     print(f"\n\n\n\n\nNASTY: remove the nrp sources below{__file__}\n\n\n\n\n")

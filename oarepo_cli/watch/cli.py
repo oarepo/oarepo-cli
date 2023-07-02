@@ -14,7 +14,7 @@ from oarepo_cli.wizard.docker import DockerRunner
 @with_config()
 @click.option("--run-ui", is_flag=True)
 @click.option("--site")
-def docker_watch(
+def watch_command(
     run_ui,
     site,
     cfg=None,

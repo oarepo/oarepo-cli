@@ -5,6 +5,10 @@ from oarepo_cli.wizard import WizardStep
 
 
 class CheckSiteStep(SiteWizardStepMixin, WizardStep):
+    def __init__(self, clean=False):
+        super().__init__()
+        self.clean = clean
+
     def after_run(self):
         # site will be newly installed, so need to get rid of compiled stuff
         # doing it before site installation as it will place 'invenio.cfg'
@@ -15,4 +19,4 @@ class CheckSiteStep(SiteWizardStepMixin, WizardStep):
         self.site_support.install_site()
 
     def should_run(self):
-        return not self.site_support.site_ok()
+        return self.clean or not self.site_support.site_ok()

@@ -37,10 +37,7 @@ def add_site(
     if steps:
         initialize_wizard.list_steps()
         return
-    if cfg.running_in_docker:
-        cfg["pdm_name"] = "invenio"
-    else:
-        cfg["pdm_name"] = ""
+    cfg["pdm_name"] = name
     initialize_wizard.run_wizard(
         cfg, no_input=no_input, silent=silent, selected_steps=step, verbose=verbose
     )

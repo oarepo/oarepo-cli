@@ -3,13 +3,12 @@ import sys
 import yaml
 
 from oarepo_cli.config import MonorepoConfig
-from oarepo_cli.site.site_support import SiteSupport
 from oarepo_cli.utils import run_nrp_in_docker, run_nrp_in_docker_compose
 from oarepo_cli.wizard import WizardStep
 
 
 class RunInContainerStep(WizardStep):
-    def __init__(self, steps, in_compose=True, interactive=False, site=None):
+    def __init__(self, steps, in_compose=True, interactive=False, site=None, name=None):
         self.steps = steps or []
         self.in_compose = in_compose
         self.interactive = interactive
@@ -20,6 +19,8 @@ class RunInContainerStep(WizardStep):
 
     @property
     def site_support(self):
+        from oarepo_cli.site.site_support import SiteSupport
+
         if self.site:
             return SiteSupport(self.data, self.site)
         return self.root.site_support

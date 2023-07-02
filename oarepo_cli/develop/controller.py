@@ -22,7 +22,7 @@ class TerminalController:
                     running = False
                 queue.put(cmd)
         except InterruptedError:
-            queue.put('stop')
+            queue.put("stop")
 
     def input_with_timeout(self, timeout):
         print("=======================================================================")

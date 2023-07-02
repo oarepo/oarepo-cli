@@ -8,14 +8,15 @@ from .uninstall.cli import uninstall_model
 
 
 @click.group(
-    help="Model-related tools (add model, compile, install, load and dump data)"
+    help="Model-related tools (add model, compile, install, load and dump data)",
+    name="model",
 )
-def model():
+def model_commands():
     pass
 
 
-model.add_command(add_model)
-model.add_command(compile_model)
-model.add_command(install_model)
-model.add_command(uninstall_model)
-model.add_command(list_models)
+model_commands.add_command(add_model)
+model_commands.add_command(compile_model)
+model_commands.add_command(install_model)
+model_commands.add_command(uninstall_model)
+model_commands.add_command(list_models)

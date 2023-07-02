@@ -19,7 +19,7 @@ from oarepo_cli.wizard.docker import DockerRunner
 @click.option("--site", required=False)
 @click.option("--command", required=False, hidden=True)
 @with_config()
-def develop(
+def develop_command(
     cfg,
     no_input=False,
     silent=False,
