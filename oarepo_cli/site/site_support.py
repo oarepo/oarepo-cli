@@ -216,12 +216,17 @@ class SiteSupport:
             if package_name not in installed_packages:
                 requirements_to_install.append(r)
 
+        # this is needed to fix installation problems on osx (not all requirements
+        # seems to be built inside oarepo package for darwin architecture)
+        self.call_pip("install", "--force-reinstall", "ipython")
+
+        # and call the following with force reinstall as ipython might override something
         with tempfile.NamedTemporaryFile(
             mode="wt", suffix="-requirements.txt"
         ) as temp_file:
             temp_file.write("\n".join(requirements_to_install))
             temp_file.flush()
-            self.call_pip("install", "--no-deps", "-r", temp_file.name)
+            self.call_pip("install", "--no-deps", "--force-reinstall", "-r", temp_file.name)
 
         # hack: add an empty version of uritemplate.py,
         # needs to be removed when invenio-oauthclient gets updated
@@ -230,9 +235,6 @@ class SiteSupport:
             "--force-reinstall",
             str(Path(__file__).parent / "uritemplate.py-1.999.999.tar.gz"),
         )
-        # this is needed to fix installation problems on osx (not all requirements
-        # seems to be built inside oarepo package for darwin architecture)
-        self.call_pip("install", "--force-reinstall", "ipython")
 
     def site_ok(self):
         try:
@@ -405,7 +407,7 @@ class SiteSupport:
             *[
                 f"{ui} @ file:///${{PROJECT_ROOT}}/../../ui/{ui}"
                 for ui in uis
-                if (self.site_dir.parent.parent / "models" / ui).exists()
+                if (self.site_dir.parent.parent / "ui" / ui).exists()
             ],
             *[
                 f"{local} @ file:///${{PROJECT_ROOT}}/../../local/{local}"
