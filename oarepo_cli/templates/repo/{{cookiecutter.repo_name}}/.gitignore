@@ -65,3 +65,11 @@ target/
 
 # Vim swapfiles
 .*.sw?
+
+
+__pypackages__
+.env
+.oarepo-user.yaml
+.pdm-python
+pdm.lock
+
