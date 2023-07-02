@@ -43,9 +43,9 @@ nosetests.xml
 coverage.xml
 *,cover
 
-# Translations
-*.mo
-*.pot
+# Translations are not ignored as they are not rebuilt in image
+# *.mo
+# *.pot
 
 # Django stuff:
 *.log
