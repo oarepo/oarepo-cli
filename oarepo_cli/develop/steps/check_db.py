@@ -8,7 +8,7 @@ from oarepo_cli.wizard import WizardStep
 class CheckDBStep(SiteWizardStepMixin, WizardStep):
     def after_run(self):
         if self.db_status == "not_initialized":
-            self.site_support.call_invenio("db", "init")
+            self.site_support.call_invenio("db", "create")
         elif self.db_status == "migration_pending":
             self.site_support.call_invenio("alembic", "upgrade", "heads")
         else:
