@@ -4,10 +4,10 @@ set -e
 
 COMMAND="$0"
 PYTHON=python3.9
-OAREPO_CLI_VERSION="release"
+NRP_CLI_VERSION="release"
 
 print_usage() {
-  echo "Usage: ${COMMAND} [-p <python_bin>] [-b <oarepo-client-version>] <target-project-directory>"
+  echo "Usage: ${COMMAND} [-p <python_bin>] [-b <nrp-client-version>] <target-project-directory>"
   exit 1
 }
 
@@ -17,7 +17,7 @@ do
   case $c in
     h) print_usage ;;
     p) PYTHON=$OPTARG ;;
-    b) OAREPO_CLI_VERSION=$OPTARG ;;
+    b) NRP_CLI_VERSION=$OPTARG ;;
   esac
 done
 shift $((OPTIND-1))
@@ -40,7 +40,7 @@ fi
 
 PROJECT_DIR="$1"
 shift
-OAREPO_CLI_INITIAL_VENV="$PROJECT_DIR/.venv/oarepo-cli-initial"
+NRP_CLI_INITIAL_VENV="$PROJECT_DIR/.venv/nrp-cli-initial"
 
 test -d "$PROJECT_DIR" || {
   mkdir "$PROJECT_DIR"
@@ -50,21 +50,21 @@ test -d "$PROJECT_DIR/.venv" || {
   mkdir "$PROJECT_DIR/.venv"
 }
 
-test -d "$OAREPO_CLI_INITIAL_VENV" || {
-  "$RESOLVED_PYTHON" -m venv "$OAREPO_CLI_INITIAL_VENV"
-  "$OAREPO_CLI_INITIAL_VENV/bin/pip" install -U setuptools pip wheel
+test -d "$NRP_CLI_INITIAL_VENV" || {
+  "$RESOLVED_PYTHON" -m venv "$NRP_CLI_INITIAL_VENV"
+  "$NRP_CLI_INITIAL_VENV/bin/pip" install -U setuptools pip wheel
 
-  if [ ${OAREPO_CLI_VERSION} == "release" ] ; then
-    "$OAREPO_CLI_INITIAL_VENV/bin/pip" install "oarepo-cli>=11.0.7,<12"
-  elif [ ${OAREPO_CLI_VERSION} == "maintrunk" ] ; then
-    "$OAREPO_CLI_INITIAL_VENV/bin/pip" install "git+https://github.com/oarepo/oarepo-cli"
+  if [ ${NRP_CLI_VERSION} == "release" ] ; then
+    "$NRP_CLI_INITIAL_VENV/bin/pip" install "oarepo-cli>=11.1.0,<12"
+  elif [ ${NRP_CLI_VERSION} == "maintrunk" ] ; then
+    "$NRP_CLI_INITIAL_VENV/bin/pip" install "git+https://github.com/oarepo/oarepo-cli"
   else
-    "$OAREPO_CLI_INITIAL_VENV/bin/pip" install "${OAREPO_CLI_VERSION}"
+    "$NRP_CLI_INITIAL_VENV/bin/pip" install "${NRP_CLI_VERSION}"
   fi
 }
 
-export OAREPO_CLI_VERSION=${OAREPO_CLI_VERSION}
+export NRP_CLI_VERSION=${NRP_CLI_VERSION}
 
-echo "Running $OAREPO_CLI_INITIAL_VENV/bin/nrp-cli initialize $PROJECT_DIR $@"
+echo "Running $NRP_CLI_INITIAL_VENV/bin/nrp initialize $PROJECT_DIR $*"
 
-"$OAREPO_CLI_INITIAL_VENV/bin/nrp-cli" initialize "$PROJECT_DIR" --python $PYTHON $@
+"$NRP_CLI_INITIAL_VENV/bin/nrp" initialize "$PROJECT_DIR" --python $PYTHON "$@"
