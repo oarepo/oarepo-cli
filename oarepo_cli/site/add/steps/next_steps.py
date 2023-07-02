@@ -10,7 +10,7 @@ The repository skeleton has been created and dependencies installed.
 To check that everything has been installed successfully you may want
 to start your new repository by running
 
-    nrp-cli run
+    nrp run
     
 and point your browser to 
 
@@ -18,21 +18,21 @@ and point your browser to
     
 After doing so, add your model by calling
 
-    nrp-cli model add <modelname>
+    nrp model add <modelname>
     
 edit the contents of metadata.yaml to suit your needs and run
 
-    nrp-cli model compile <modelname>
-    nrp-cli model install <modelname>
+    nrp model compile <modelname>
+    nrp model install <modelname>
     
 If you run invenio again and head to https://localhost:5000/api/<modelname>
 an empty listing should be returned.
 
 In the next step, add a UI application by calling
 
-    nrp-cli ui add <uiname>
-    nrp-cli ui compile <uiname>
-    nrp-cli ui install <uiname>
+    nrp ui add <uiname>
+    nrp ui compile <uiname>
+    nrp ui install <uiname>
 
 After restarting the server, a UI will be available at 
 https://localhost:5000/<uiname>

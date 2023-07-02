@@ -50,4 +50,4 @@ class CreateMonorepoStep(ProjectWizardMixin, WizardStep):
 
     def should_run(self):
         project_dir, repo_name, repo_out = self._repo_params
-        return not (project_dir / "nrp-cli").exists()
+        return not (project_dir / "nrp").exists()

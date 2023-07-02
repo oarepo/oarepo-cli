@@ -119,7 +119,7 @@ class CreateAlembicModelStep(ModelWizardStep):
             self.site_support.call_invenio(
                 "alembic",
                 "revision",
-                "nrp-cli install revision.",
+                "nrp install revision.",
                 "-b",
                 branch,
             )
