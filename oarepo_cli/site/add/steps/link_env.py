@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import os
+
 from oarepo_cli.site.mixins import SiteWizardStepMixin
 from oarepo_cli.utils import ProjectWizardMixin
 from oarepo_cli.wizard import WizardStep
@@ -16,7 +18,7 @@ If you'd like to make local changes to the variables, remove the link,
         )
 
     def after_run(self):
-        (self.site_dir / ".env").symlink_to(self.site_dir / "variables")
+        os.symlink("variables", str(self.site_dir / ".env"))
 
     def should_run(self):
         return not (self.site_dir / ".env").exists()
