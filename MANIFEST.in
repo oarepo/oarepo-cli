@@ -1,5 +1,6 @@
 recursive-include oarepo_cli/templates/repo *
 recursive-include oarepo_cli/templates/site *
 recursive-include oarepo_cli/templates/ui *
+include oarepo_cli/site/*.tar.gz
 
 global-exclude *.pyc
