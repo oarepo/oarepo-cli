@@ -204,17 +204,20 @@ class SiteSupport:
             return requires
 
     def _install_oarepo_dependencies(self, oarepo):
+        print("Install oarepo dependencies called")
         requires = self._get_oarepo_dependencies(oarepo)
         # load already installed packages
         installed_json = json.loads(
             self.call_pip("list", "--format", "json", grab_stdout=True)
         )
-        installed_packages = set(x["name"] for x in installed_json)
+        installed_packages = set(x["name"].lower() for x in installed_json)
         requirements_to_install = []
         for r in requires:
             package_name = re.split("[=><]", r, maxsplit=1)[0]
-            if package_name not in installed_packages:
-                requirements_to_install.append(r)
+            if package_name.lower() not in installed_packages:
+                requirements_to_install.append(r.lower())
+        print("Installed packages", installed_packages)
+        print("Requirements to install", requirements_to_install)
 
         # this is needed to fix installation problems on osx (not all requirements
         # seems to be built inside oarepo package for darwin architecture)
