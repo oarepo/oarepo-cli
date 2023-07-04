@@ -7,7 +7,7 @@ from oarepo_cli.utils import with_config
 from oarepo_cli.wizard.docker import DockerRunner
 
 
-@click.command
+@click.command(name="upgrade", help="Upgrade dependencies and rebuild site")
 @with_config()
 @click.option("--site")
 @click.pass_context

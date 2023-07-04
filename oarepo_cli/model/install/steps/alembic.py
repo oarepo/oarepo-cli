@@ -47,9 +47,14 @@ class CreateAlembicModelStep(ModelWizardStep):
 
         def rewrite_revision_file(file_suffix, new_id_number):
             files = list(alembic_path.iterdir())
-            target_file = str(
-                [file_name for file_name in files if file_suffix in str(file_name)][0]
-            )
+            suffixed_files = [
+                file_name for file_name in files if file_suffix in str(file_name)
+            ]
+
+            if not suffixed_files:
+                return
+
+            target_file = str(suffixed_files[0])
             id_start_index = target_file.rfind("/") + 1
             id_end_index = target_file.find(file_suffix)
             old_id = target_file[id_start_index:id_end_index]

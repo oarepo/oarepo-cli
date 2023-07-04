@@ -1,5 +1,3 @@
-import shutil
-
 from oarepo_cli.site.mixins import SiteWizardStepMixin
 from oarepo_cli.wizard import WizardStep
 
@@ -13,4 +11,6 @@ class CheckDependenciesStep(SiteWizardStepMixin, WizardStep):
         self.site_support.build_dependencies()
 
     def should_run(self):
-        return self.clean or not (self.site_support.site_dir / 'requirements.txt').exists()
+        return (
+            self.clean or not (self.site_support.site_dir / "requirements.txt").exists()
+        )

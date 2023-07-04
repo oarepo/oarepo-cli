@@ -229,7 +229,9 @@ class SiteSupport:
         ) as temp_file:
             temp_file.write("\n".join(requirements_to_install))
             temp_file.flush()
-            self.call_pip("install", "--no-deps", "--force-reinstall", "-r", temp_file.name)
+            self.call_pip(
+                "install", "--no-deps", "--force-reinstall", "-r", temp_file.name
+            )
 
         # hack: add an empty version of uritemplate.py,
         # needs to be removed when invenio-oauthclient gets updated

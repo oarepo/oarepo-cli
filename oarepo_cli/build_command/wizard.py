@@ -7,12 +7,13 @@ from oarepo_cli.wizard.docker import DockerRunner
 
 
 class BuildWizard(Wizard):
-    def __init__(self, runner: DockerRunner, site_support: SiteSupport, production: bool):
-
+    def __init__(
+        self, runner: DockerRunner, site_support: SiteSupport, production: bool
+    ):
         super().__init__(
             *runner.wrap_docker_steps(
                 CheckVirtualenvStep(clean=True),
                 CheckSiteStep(clean=True),
-                CheckUIStep(production=production)
+                CheckUIStep(production=production),
             ),
         )

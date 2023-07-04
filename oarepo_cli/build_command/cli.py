@@ -2,12 +2,16 @@ import click
 
 from oarepo_cli.config import MonorepoConfig
 from oarepo_cli.site.site_support import SiteSupport
-from .wizard import BuildWizard
 from oarepo_cli.utils import with_config
 from oarepo_cli.wizard.docker import DockerRunner
 
+from .wizard import BuildWizard
 
-@click.command(name="build")
+
+@click.command(
+    name="build",
+    help="Install packages and build invenio UI, either for development or production",
+)
 @with_config()
 @click.option("--site")
 @click.option("--production/--development")
@@ -21,7 +25,7 @@ def build_command(
     verbose=False,
     steps=False,
     site=None,
-        production=None,
+    production=None,
     **kwargs,
 ):
     site_support = SiteSupport(cfg, site)

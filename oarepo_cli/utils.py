@@ -204,7 +204,7 @@ def commit_git(repo_dir, tag_name, message):
         return
     tag_index = 1
 
-    if not (repo_dir / '.git').exists():
+    if not (repo_dir / ".git").exists():
         git.Repo.init(repo_dir)
 
     try:
