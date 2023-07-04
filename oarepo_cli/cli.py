@@ -8,6 +8,7 @@ from oarepo_cli.invenio.cli import invenio_command
 from oarepo_cli.kill import kill_command
 from oarepo_cli.local import local_commands
 from oarepo_cli.model import model_commands
+from oarepo_cli.oarepo.cli import oarepo_command
 from oarepo_cli.run.cli import run_server_command
 from oarepo_cli.site import site_commands
 from oarepo_cli.ui import ui_commands
@@ -33,6 +34,7 @@ run.add_command(format_sources_command)
 run.add_command(kill_command)
 run.add_command(build_command)
 run.add_command(invenio_command)
+run.add_command(oarepo_command)
 
 if __name__ == "__main__":
     run()
