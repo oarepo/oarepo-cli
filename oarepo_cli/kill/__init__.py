@@ -4,7 +4,7 @@ import click
 import psutil
 
 
-@click.command(name="kill")
+@click.command(name="kill", hidden=True)
 @click.argument("pid", type=int)
 def kill_command(pid):
     kill(pid)

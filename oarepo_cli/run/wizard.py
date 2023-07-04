@@ -1,8 +1,8 @@
 from oarepo_cli.wizard import Wizard
 from oarepo_cli.wizard.docker import DockerRunner
 
-from .steps.run_server import RunServerStep
 from ..site.add.steps.link_env import LinkEnvStep
+from .steps.run_server import RunServerStep
 
 
 class RunSiteWizard(Wizard):

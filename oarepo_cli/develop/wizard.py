@@ -1,10 +1,10 @@
 from oarepo_cli.wizard import Wizard
 from oarepo_cli.wizard.docker import DockerRunner
-from .steps.check_dependencies import CheckDependenciesStep
-from ..site.add.steps.link_env import LinkEnvStep
 
+from ..site.add.steps.link_env import LinkEnvStep
 from ..site.add.steps.start_containers import StartContainersStep
 from .steps.check_db import CheckDBStep
+from .steps.check_dependencies import CheckDependenciesStep
 from .steps.check_s3_location import CheckS3LocationStep
 from .steps.check_search import CheckSearchStep
 from .steps.check_site import CheckSiteStep
