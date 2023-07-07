@@ -266,6 +266,8 @@ class SiteSupport:
             if not package_dir.exists():
                 continue
             for fn in package_dir.glob("*"):
+                if 'egg' in fn.name:
+                    continue
                 if fn.lstat().st_mtime > timestamp:
                     print(
                         f"Package {fn} with timestamp {fn.lstat().st_mtime} is newer than {timestamp}"

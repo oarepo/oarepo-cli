@@ -31,14 +31,14 @@ class GitHubCloneWizardStep(ProjectWizardMixin, WizardStep):
             self.add_to_gitignore()
         else:
             self.run_cookiecutter(
-                template="https://github.com/AntoineCezar/cookiecutter-pypkg/blob/develop/cookiecutter.json",
+                template="https://github.com/AntoineCezar/cookiecutter-pypkg",
                 config_file=f"local-{self.local_name}",
-                output_dir=self.data.project_dir / "ui",
+                output_dir=self.data.project_dir / "local",
                 extra_context={
                     "project_name": "Python Project",
                     "project_slug": self.local_name,
                     "package_name": "{{ cookiecutter.project_slug.replace('-', '_') }}",
-                    "test_runner": ["pytest"],
+                    "test_runner": "pytest",
                     "build_docs": "n",
                     "build_rpm": "n",
                     "exemple": "n",

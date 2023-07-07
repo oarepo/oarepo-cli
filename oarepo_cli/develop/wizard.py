@@ -11,6 +11,7 @@ from .steps.check_site import CheckSiteStep
 from .steps.check_ui import CheckUIStep
 from .steps.check_venv import CheckVirtualenvStep
 from .steps.develop_step import DevelopStep
+from .steps.editor_support import EditorSupportStep
 
 
 class DevelopWizard(Wizard):
@@ -27,6 +28,7 @@ class DevelopWizard(Wizard):
                 CheckDBStep(),
                 CheckSearchStep(),
                 CheckS3LocationStep(),
+                EditorSupportStep(),
             ),
             DevelopStep(),
         )

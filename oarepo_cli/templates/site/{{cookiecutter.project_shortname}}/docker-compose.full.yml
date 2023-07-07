@@ -6,7 +6,7 @@
 #
 # Usage::
 #
-#   $ docker-compose up -f docker-compose.full.yml -d
+#   $ docker compose up -f docker-compose.full.yml -d
 #
 # Following services are included:
 # - Frontend: Nginx (exposed ports: 40 and 443)

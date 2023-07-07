@@ -46,6 +46,8 @@ def load_watched_paths(paths_json, extra_paths):
     watched_paths = {}
     with open(paths_json) as f:
         for target, paths in json.load(f).items():
+            if target.startswith("@"):
+                continue
             for pth in paths:
                 watched_paths[pth] = target
     for e in extra_paths:
