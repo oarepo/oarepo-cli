@@ -73,8 +73,9 @@ I will check the requirements for Invenio site installation.
         if self.data.running_in_docker:
             return
         self.check_version(
-            "docker-compose",
-            "--version",
+            "docker",
+            "compose",
+            "version",
             expected_major=expected_major,
             expected_minor=expected_minor,
         )

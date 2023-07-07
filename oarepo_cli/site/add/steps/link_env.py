@@ -18,6 +18,11 @@ If you'd like to make local changes to the variables, remove the link,
         )
 
     def after_run(self):
+        try:
+            # try to unlink stale symlink - it also does not "exist" from pathlib point of view
+            os.unlink(str(self.site_dir / ".env"))
+        except:
+            pass
         os.symlink("variables", str(self.site_dir / ".env"))
 
     def should_run(self):
