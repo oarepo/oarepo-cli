@@ -1,4 +1,5 @@
 import json
+import os
 import re
 from pathlib import Path
 
@@ -43,7 +44,7 @@ class EditorSupportStep(WizardStep):
             "--repository-dir",
             str(self.data.project_dir),
             "--assets-dir",
-            "./assets",
+            "./.assets",
         )
 
         watch_list = json.loads(
@@ -52,6 +53,8 @@ class EditorSupportStep(WizardStep):
 
         aliases = {}
         for alias, root_path in watch_list.get("@root_aliases", {}).items():
+            if not root_path.startswith('./'):
+                root_path = './' + root_path
             aliases.setdefault(alias, []).append(root_path)
 
         Path(self.data.project_dir / "jsconfig.json").write_text(
@@ -74,4 +77,5 @@ class EditorSupportStep(WizardStep):
         else:
             assets_path.symlink_to(site_support.invenio_instance_path / "assets")
 
-        modules_path.symlink_to(assets_path / "node_modules")
+        # can not use Pathlib.symlink_to as it does not create a relative symlink
+        os.symlink(modules_path, '.assets/node_modules')
