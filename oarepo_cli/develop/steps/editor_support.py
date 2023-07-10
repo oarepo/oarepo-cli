@@ -78,4 +78,4 @@ class EditorSupportStep(WizardStep):
             assets_path.symlink_to(site_support.invenio_instance_path / "assets")
 
         # can not use Pathlib.symlink_to as it does not create a relative symlink
-        os.symlink(modules_path, '.assets/node_modules')
+        os.symlink('.assets/node_modules', modules_path)
