@@ -48,6 +48,7 @@ class LocalDevelopmentRunner:
             ],
             env={
                 "INVENIO_TEMPLATES_AUTO_RELOAD": "1",
+                "INVENIO_DEVELOPMENT_MODE": "1",
                 "FLASK_DEBUG": "1",
                 **os.environ,
             },
