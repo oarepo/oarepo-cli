@@ -8,6 +8,7 @@ from oarepo_cli.develop.controller import PipeController, TerminalController
 from oarepo_cli.develop.runners.docker import DockerDevelopmentRunner
 from oarepo_cli.develop.runners.local import LocalDevelopmentRunner
 from oarepo_cli.site.site_support import SiteSupport
+from oarepo_cli.utils import run_nrp_in_docker_compose
 from oarepo_cli.wizard import WizardStep
 
 
@@ -32,9 +33,9 @@ class DevelopStep(WizardStep):
             target=lambda: controller.run(control_queue), daemon=True
         )
         control_thread.start()
-        self.control_loop(site_support, runner, control_queue)
+        self.control_loop(runner, control_queue)
 
-    def control_loop(self, site_support, runner, control_queue: queue.Queue):
+    def control_loop(self, runner, control_queue: queue.Queue):
         runner.start()
         try:
             while True:
@@ -57,7 +58,6 @@ class DevelopStep(WizardStep):
                         continue
                     if command == "build":
                         runner.stop()
-                        site_support.rebuild_site(clean=True, build_ui=True)
                         runner.start()
                 except InterruptedError:
                     raise

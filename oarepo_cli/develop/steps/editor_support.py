@@ -3,6 +3,8 @@ import os
 import re
 from pathlib import Path
 
+from cookiecutter.utils import rmtree
+
 from oarepo_cli.site.site_support import SiteSupport
 from oarepo_cli.utils import copy_tree
 from oarepo_cli.wizard import WizardStep
@@ -69,7 +71,13 @@ class EditorSupportStep(WizardStep):
         assets_path: Path = self.data.project_dir / ".assets"
         modules_path: Path = self.data.project_dir / "node_modules"
 
-        assets_path.unlink(missing_ok=True)
+        # assets can be dir or link
+        if assets_path.exists():
+            if not os.path.islink(assets_path):
+                rmtree(assets_path)
+            else:
+                assets_path.unlink()
+
         modules_path.unlink(missing_ok=True)
 
         if self.data.running_in_docker:
