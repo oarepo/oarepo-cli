@@ -1,4 +1,5 @@
 import shutil
+from pathlib import Path
 
 from colorama import Fore, Style
 
@@ -28,19 +29,29 @@ so that you might recover them if the compilation process fails.{Style.RESET_ALL
             )
         )
 
-    def on_before_run(self):
+    def should_run(self):
         return (self.model_dir / "setup.cfg").exists()
 
     def after_run(self):
         if self.data.get("merge_changes") == "overwrite":
-
-            def _rm(x):
+            def _rm(x: Path, *, exceptions: set=None, stack=None):
+                # print("Removing", x, stack, exceptions)
+                if not stack:
+                    stack = []
                 if x.exists():
                     if x.is_dir():
-                        shutil.rmtree(x)
+                        for child in x.iterdir():
+                            stack.append(child.name)
+                            _rm(child, exceptions=exceptions, stack=stack)
+                            stack.pop()
+                        if not list(x.iterdir()):
+                            if not exceptions or not exceptions.intersection(stack):
+                                x.rmdir()
                     else:
-                        x.unlink()
+                        if not exceptions or not exceptions.intersection(stack):
+                            x.unlink()
 
-            _rm(self.model_package_dir)
+            _rm(self.model_package_dir, exceptions={'alembic'})
+            _rm(self.model_dir / "tests")
             _rm(self.model_dir / "setup.cfg")
             _rm(self.model_dir / "data")
