@@ -48,6 +48,7 @@ INVENIO_DATABASE_DBNAME="{{cookiecutter.project_shortname}}"
 INVENIO_PGADMIN_EMAIL="{{cookiecutter.author_email}}"
 INVENIO_PGADMIN_PASSWORD="{{cookiecutter.project_shortname}}"
 
+INVENIO_S3_PROTOCOL=http
 INVENIO_S3_HOST=127.0.0.1
 INVENIO_S3_PORT=9000
 INVENIO_S3_PORT1=9001
