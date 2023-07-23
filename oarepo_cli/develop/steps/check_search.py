@@ -8,6 +8,7 @@ from oarepo_cli.wizard import WizardStep
 class CheckSearchStep(SiteWizardStepMixin, WizardStep):
     def after_run(self):
         self.site_support.call_invenio("oarepo", "index", "init")
+        self.site_support.call_invenio("oarepo", "cf", "init")
         # TODO: add option to reindex data to tooling
 
     def should_run(self):

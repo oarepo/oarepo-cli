@@ -25,6 +25,7 @@ the index?
     def after_run(self):
         if self.data["update_opensearch"] == "run":
             self.site_support.call_invenio("oarepo", "index", "init")
+            self.site_support.call_invenio("oarepo", "cf", "init")
 
     def should_run(self):
         return True

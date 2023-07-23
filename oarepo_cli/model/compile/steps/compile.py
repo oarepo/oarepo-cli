@@ -42,6 +42,32 @@ class CompileWizardStep(ModelWizardStep, WizardStep):
 
         with open(self.model_dir / "model.yaml") as f:
             model_data = yaml.safe_load(f)
+
+        # install plugins from model.yaml
+        self._install_plugins_from_model(model_data, venv_dir)
+
+        # install plugins from included files
+        uses = model_data.get('use') or []
+        if not isinstance(uses, list):
+            uses = [uses]
+
+        for use in uses:
+            if not use.startswith('.'):
+                # can not currently find plugins in uses
+                # that are registered as entrypoints
+                continue
+            with open(self.model_dir.joinpath(use)) as f:
+                used_data = yaml.safe_load(f)
+                self._install_plugins_from_model(used_data, venv_dir)
+
+        run_cmdline(
+            venv_dir / "bin" / "oarepo-compile-model",
+            "-vvv",
+            "model.yaml",
+            cwd=self.model_dir,
+        )
+
+    def _install_plugins_from_model(self, model_data, venv_dir):
         plugins = model_data.get("plugins", {}).get("packages", [])
         for package in plugins:
             run_cmdline(
@@ -50,13 +76,6 @@ class CompileWizardStep(ModelWizardStep, WizardStep):
                 package,
                 cwd=self.model_dir,
             )
-
-        run_cmdline(
-            venv_dir / "bin" / "oarepo-compile-model",
-            "-vvv",
-            "model.yaml",
-            cwd=self.model_dir,
-        )
 
     def should_run(self):
         # always run as there is an optional step for merge/overwrite changes

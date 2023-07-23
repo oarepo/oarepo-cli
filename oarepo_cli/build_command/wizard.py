@@ -1,3 +1,4 @@
+from oarepo_cli.develop.steps.check_dependencies import CheckDependenciesStep
 from oarepo_cli.develop.steps.check_site import CheckSiteStep
 from oarepo_cli.develop.steps.check_ui import CheckUIStep
 from oarepo_cli.develop.steps.check_venv import CheckVirtualenvStep
@@ -10,9 +11,11 @@ class BuildWizard(Wizard):
     def __init__(
         self, runner: DockerRunner, site_support: SiteSupport, production: bool
     ):
+        self.site_support = site_support
         super().__init__(
             *runner.wrap_docker_steps(
                 CheckVirtualenvStep(clean=True),
+                CheckDependenciesStep(clean=False),
                 CheckSiteStep(clean=True),
                 CheckUIStep(production=production),
             ),
