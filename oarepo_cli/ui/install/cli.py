@@ -30,6 +30,8 @@ def install_ui(
     sites = cfg.setdefault('sites', [])
     if site_support.site_name not in sites:
         sites.append(site_support.site_name)
+    cfg.save()
+
     wizard = InstallWizard(runner, site_support=site_support)
     if steps:
         wizard.list_steps()
