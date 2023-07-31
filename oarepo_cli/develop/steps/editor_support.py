@@ -71,14 +71,21 @@ class EditorSupportStep(WizardStep):
         assets_path: Path = self.data.project_dir / ".assets"
         modules_path: Path = self.data.project_dir / "node_modules"
 
-        # assets can be dir or link
-        if assets_path.exists():
-            if not os.path.islink(assets_path):
-                rmtree(assets_path)
-            else:
-                assets_path.unlink()
+        try:
+            rmtree(assets_path)
+        except Exception as e:
+            print(f"Could not remove {assets_path} as a directory, will try to remove it as a link: {e}")
 
-        modules_path.unlink(missing_ok=True)
+        try:
+            assets_path.unlink()
+        except Exception as e:
+            print(f"Could not remove {assets_path} as a file/link, might have been already removed: {e}")
+
+        try:
+            modules_path.unlink(missing_ok=True)
+        except Exception as e:
+            print(f"Could not remove {modules_path} as a file/link, might have been already removed: {e}")
+            pass
 
         if self.data.running_in_docker:
             copy_tree(site_support.invenio_instance_path / "assets", assets_path)
