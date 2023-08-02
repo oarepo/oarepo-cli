@@ -3,8 +3,10 @@ import os
 import re
 import shutil
 import subprocess
+import sys
 import tempfile
 from pathlib import Path
+import time
 
 import requirements
 import tomli_w
@@ -41,8 +43,18 @@ class SiteSupport:
     @property
     def python(self):
         if self.config.running_in_docker:
-            return "python3"
-        return self.config.whole_data["config"]["python"]
+            python = "python3"
+        else:
+            python = self.config.whole_data["config"]["python"]
+        #
+        # python_base_package = run_cmdline(
+        #     python,
+        #     "-c",
+        #     "import sys; print(sys.base_prefix)",
+        #     grab_stdout=True,
+        # )
+        # return python_base_package.strip() + "/bin/" + python
+        return python
 
     def call_pdm(self, *args, **kwargs):
         pdm_binary = self.site.get("pdm_binary", "pdm")
@@ -158,7 +170,7 @@ class SiteSupport:
             "wheel",
         )
 
-    def _get_oarepo_dependencies(self, oarepo):
+    def _get_oarepo_dependencies(self, oarepo, system_packages):
         self.call_pip("download", "--no-deps", "--no-binary=:all:", oarepo, cwd="/tmp")
         tar_name = "/tmp/" + oarepo.replace("==", "-") + ".tar.gz"
         # extract the tar
@@ -177,46 +189,16 @@ class SiteSupport:
             requires = (
                 Path(content_dir) / "oarepo.egg-info" / "requires.txt"
             ).read_text()
-            requires = requires.split("\n\n")[0]
-
-            # install some core packages if they are not already pre-installed
-            # TODO: modify oarepo not to exclude packages and do difference to
-            # actual venv in the installation steps
-
-            extra_packages = [
-                "libcst",
-                "cchardet",
-                "uwsgi",
-                "ruamel.yaml.clib",
-                "cairocffi",
-                "cffi",
-                "packaging",
-                "pyparsing",
-            ]
-            requires = requires.split("\n")
-            found_extras = []
+            requires = requires.split("\n\n")[0].split("\n")
+            filtered_requires = []
             for r in requires:
-                r = re.split("[=><]", r, maxsplit=1)
-                if r[0] in extra_packages:
-                    found_extras.append(r[0])
-            requires.extend(set(extra_packages) - set(found_extras))
+                if r.split("==")[0].lower() not in system_packages:
+                    filtered_requires.append(r)
+            return filtered_requires
 
-            return requires
-
-    def _install_oarepo_dependencies(self, oarepo):
+    def _install_oarepo_dependencies(self, oarepo, system_packages):
         print("Install oarepo dependencies called")
-        requires = self._get_oarepo_dependencies(oarepo)
-        # load already installed packages
-        installed_json = json.loads(
-            self.call_pip("list", "--format", "json", grab_stdout=True)
-        )
-        installed_packages = set(x["name"].lower() for x in installed_json)
-        requirements_to_install = []
-        for r in requires:
-            package_name = re.split("[=><]", r, maxsplit=1)[0]
-            if package_name.lower() not in installed_packages:
-                requirements_to_install.append(r.lower())
-        print("Installed packages", installed_packages)
+        requirements_to_install = self._get_oarepo_dependencies(oarepo, system_packages)
         print("Requirements to install", requirements_to_install)
 
         # this is needed to fix installation problems on osx (not all requirements
@@ -266,7 +248,7 @@ class SiteSupport:
             if not package_dir.exists():
                 continue
             for fn in package_dir.glob("*"):
-                if 'egg' in fn.name:
+                if "egg" in fn.name:
                     continue
                 if fn.lstat().st_mtime > timestamp:
                     print(
@@ -276,17 +258,18 @@ class SiteSupport:
         return False
 
     def install_site(self):
-        oarepo = (self.site_dir / "requirements.txt").read_text().splitlines()[0]
-
-        self._install_oarepo_dependencies(oarepo)
-        self.call_pip(
-            "install",
-            "-U",
-            "--no-input",
-            "--no-deps",
-            "-r",
-            str(self.site_dir / "requirements.txt"),
+        identified_requirements = (
+            (self.site_dir / "requirements.txt").read_text().splitlines()
         )
+        oarepo = identified_requirements[0]
+        no_oarepo = identified_requirements[1:]
+
+        system_packages = self._get_system_packages()
+        self._install_extra_packages_if_not_installed()
+        self._install_oarepo_dependencies(oarepo, system_packages)
+        self._install_fake_oarepo(oarepo)
+        self._install_requirements(no_oarepo)
+
         instance_dir = self.invenio_instance_path
         if not instance_dir.exists():
             instance_dir.mkdir(parents=True)
@@ -314,6 +297,97 @@ class SiteSupport:
 
         # touch invenio to mark the installation timestamp
         (self.virtualenv / "bin" / "invenio").touch()
+
+    def _get_system_packages(self):
+        tmpd = tempfile.mkdtemp()
+        try:
+            cmdline = [
+                self.python,
+                "-m",
+                "venv",
+            ]
+            if self.config.running_in_docker:
+                # alpine image has a pre-installed deps, keep them here
+                cmdline.append("--system-site-packages")
+
+            run_cmdline(*cmdline, tmpd, raise_exception=True, cwd=tmpd)
+            run_cmdline(
+                Path(tmpd) / "bin" / "pip",
+                "install",
+                "-U",
+                "--no-input",
+                "setuptools",
+                "pip",
+                "wheel",
+                cwd=tmpd,
+                no_environment=True,
+            )
+            initial_json = json.loads(
+                run_cmdline(
+                    Path(tmpd) / "bin" / "pip",
+                    "list",
+                    "--format",
+                    "json",
+                    grab_stdout=True,
+                    cwd=tmpd,
+                    no_environment=True,
+                )
+            )
+            return [x["name"].lower() for x in initial_json]
+        finally:
+            shutil.rmtree(tmpd)
+
+    def _install_fake_oarepo(self, oarepo):
+        # create a shadow oarepo packages without any dependencies
+        # to prevent dependency clash
+        oarepo_version = oarepo.split("==", maxsplit=1)[1]
+        tmpd = tempfile.mkdtemp()
+        try:
+            (Path(tmpd) / "setup.py").write_text(
+                f"""
+from setuptools import setup
+
+setup(name='oarepo',
+      version='{oarepo_version}',
+      description='OARepo dependencies',
+      url='http://github.com/oarepo/oarepo',
+      author='CESNET z.s.p.o',
+      author_email='miroslav.simek@cesnet.cz',
+      license='MIT',
+      packages=[],
+      zip_safe=True)            
+            """
+            )
+            self.call_pip("install", tmpd)
+        finally:
+            shutil.rmtree(tmpd)
+
+    def _install_extra_packages_if_not_installed(self):
+        # extra packages - modify oarepo not to exclude them
+        extra_packages = [
+            "libcst",
+            "cchardet",
+            "uwsgi",
+            "ruamel.yaml.clib",
+            "cairocffi",
+            "cffi",
+            "packaging",
+            "pyparsing",
+        ]
+        self.call_pip("install", *extra_packages)
+
+    def _install_requirements(self, package_list):
+        with tempfile.NamedTemporaryFile(suffix="-requirements.txt", mode="w") as f:
+            f.write("\n".join(package_list))
+            f.flush()
+            self.call_pip(
+                "install",
+                "-U",
+                "--no-input",
+                "--no-deps",
+                "-r",
+                f.name,
+            )
 
     def _install_package(self, packages, package_folder):
         for package in packages:

@@ -28,9 +28,13 @@ def run_cmdline(
     raise_exception=False,
     with_tty=False,
     no_input=False,
+    no_environment=False,
 ):
-    env = os.environ.copy()
-    env.update(environ or {})
+    if no_environment:
+        env = {}
+    else:
+        env = os.environ.copy()
+        env.update(environ or {})
     cwd = Path(cwd).absolute()
     cmdline = [str(x) for x in cmdline]
     print(
