@@ -106,11 +106,18 @@ If this step fails, please fix the problem and run the wizard again.
             assert conn.execute("SELECT 1").fetchone()[0] == 1
 
     def check_mq(self):
-        host, port = self.get_invenio_configuration(
-            "INVENIO_RABBIT_HOST", "INVENIO_RABBIT_PORT"
+        host, port, user, password = self.get_invenio_configuration(
+            "INVENIO_RABBIT_HOST",
+            "INVENIO_RABBIT_PORT",
+            "INVENIO_RABBIT_USER",
+            "INVENIO_RABBIT_PASSWORD",
         )
         connection = pika.BlockingConnection(
-            pika.ConnectionParameters(host=host, port=port)
+            pika.ConnectionParameters(
+                host=host,
+                port=port,
+                credentials=pika.credentials.PlainCredentials(user, password),
+            )
         )
         channel = connection.channel()
         connection.process_data_events(2)
