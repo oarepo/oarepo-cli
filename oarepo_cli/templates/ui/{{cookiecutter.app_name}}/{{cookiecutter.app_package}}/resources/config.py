@@ -1,4 +1,5 @@
 from oarepo_ui.resources.config import RecordsUIResourceConfig
+from oarepo_ui.resources import BabelComponent
 
 
 class {{cookiecutter.resource_config}}(RecordsUIResourceConfig):
@@ -9,6 +10,13 @@ class {{cookiecutter.resource_config}}(RecordsUIResourceConfig):
     api_service = "{{cookiecutter.api_service}}"
     layout = "{{cookiecutter.api_service}}"
 
+    components = [BabelComponent]
+    try:
+        from oarepo_vocabularies.ui.resources.components import DepositVocabularyOptionsComponent
+        components.append(DepositVocabularyOptionsComponent)
+    except ImportError:
+        pass
+
     templates = {
         "detail": {
             "layout": "{{cookiecutter.app_package}}/detail.html",
@@ -18,4 +26,6 @@ class {{cookiecutter.resource_config}}(RecordsUIResourceConfig):
             },
         },
         "search": {"layout": "{{cookiecutter.app_package}}/search.html"},
+        "edit": {"layout": "{{cookiecutter.app_package}}/deposit.html"},
+        "create": {"layout": "{{cookiecutter.app_package}}/deposit.html"},
     }
