@@ -61,13 +61,15 @@ export const DepositForm = () => {
     <Container>
       <BaseForm
         onSubmit={onSubmit}
-        formik={{
-          initialValues: record,
-          validationSchema: DepositValidationSchema,
-          validateOnChange: false,
-          validateOnBlur: false,
-          enableReinitialize: true,
-        }}
+        formik={
+            {
+                initialValues: record,
+                validationSchema: DepositValidationSchema,
+                validateOnChange: false,
+                validateOnBlur: false,
+                enableReinitialize: true,
+            }
+        }
       >
         <Header textAlign="center">{{cookiecutter.app_name}} deposit form</Header>
         <TextField
