@@ -48,7 +48,9 @@ class CreateAlembicModelStep(ModelWizardStep):
         def get_revision_number(stdout_str, file_suffix):
             mtch = re.search(f"(\w{{12}}){file_suffix}", stdout_str)
             if not mtch:
-                raise ValueError("Revision number was not found in revision create stdout")
+                raise ValueError(
+                    "Revision number was not found in revision create stdout"
+                )
             return mtch.group(1)
 
         def get_revision_names(revision_message):
@@ -57,22 +59,30 @@ class CreateAlembicModelStep(ModelWizardStep):
             if file_name[-1] == ".":
                 file_name = file_name[:-1]
 
-            file_name = file_name[:30] #there seems to be maximum length for the file name
+            file_name = file_name[
+                :30
+            ]  # there seems to be maximum length for the file name
             idx = file_name.rfind("_")
-            file_name = file_name[:idx] #and all words after it are cut
+            file_name = file_name[:idx]  # and all words after it are cut
             return revision_message, file_name
 
         def rewrite_revision_file(new_id_number, current_revision_id):
             files = list(alembic_path.iterdir())
             files_with_this_revision_id = [
-                file_name for file_name in files if current_revision_id in str(file_name)
+                file_name
+                for file_name in files
+                if current_revision_id in str(file_name)
             ]
 
             if not files_with_this_revision_id:
-                raise ValueError("Alembic file rewrite couldn't find the generated revision file")
+                raise ValueError(
+                    "Alembic file rewrite couldn't find the generated revision file"
+                )
 
             if len(files_with_this_revision_id) > 1:
-                raise ValueError("More alembic files with the same revision number found")
+                raise ValueError(
+                    "More alembic files with the same revision number found"
+                )
 
             target_file = str(files_with_this_revision_id[0])
             new_id = f"{revision_id_prefix}_{new_id_number}"
@@ -91,19 +101,24 @@ class CreateAlembicModelStep(ModelWizardStep):
                 "alembic", "upgrade", "heads", cwd=self.site_dir
             )
             # create model branch
-            revision_message, file_revision_name_suffix = get_revision_names(f"Create {branch} branch for {self.data['model_package']}.")
-            new_revision = get_revision_number(self.site_support.call_invenio(
-                "alembic",
-                "revision",
-                revision_message,
-                "-b",
-                branch,
-                "-p",
-                "dbdbc1b19cf2",
-                "--empty",
-                cwd=self.site_dir,
-                grab_stdout=True
-            ), file_revision_name_suffix)
+            revision_message, file_revision_name_suffix = get_revision_names(
+                f"Create {branch} branch for {self.data['model_package']}."
+            )
+            new_revision = get_revision_number(
+                self.site_support.call_invenio(
+                    "alembic",
+                    "revision",
+                    revision_message,
+                    "-b",
+                    branch,
+                    "-p",
+                    "dbdbc1b19cf2",
+                    "--empty",
+                    cwd=self.site_dir,
+                    grab_stdout=True,
+                ),
+                file_revision_name_suffix,
+            )
 
             rewrite_revision_file("1", new_revision)
 
@@ -112,16 +127,21 @@ class CreateAlembicModelStep(ModelWizardStep):
                 "alembic", "upgrade", "heads", cwd=self.site_dir
             )
 
-            revision_message, file_revision_name_suffix = get_revision_names("Initial revision.")
-            new_revision = get_revision_number(self.site_support.call_invenio(
-                "alembic",
-                "revision",
-                revision_message,
-                "-b",
-                branch,
-                cwd=self.site_dir,
-                grab_stdout=True
-            ), file_revision_name_suffix)
+            revision_message, file_revision_name_suffix = get_revision_names(
+                "Initial revision."
+            )
+            new_revision = get_revision_number(
+                self.site_support.call_invenio(
+                    "alembic",
+                    "revision",
+                    revision_message,
+                    "-b",
+                    branch,
+                    cwd=self.site_dir,
+                    grab_stdout=True,
+                ),
+                file_revision_name_suffix,
+            )
 
             rewrite_revision_file(
                 "2", new_revision
@@ -142,16 +162,21 @@ class CreateAlembicModelStep(ModelWizardStep):
                     file_numbers.append(int(file_number_regex[0]))
             new_file_number = max(file_numbers) + 1
 
-            revision_message, file_revision_name_suffix = get_revision_names("Nrp install revision.")
+            revision_message, file_revision_name_suffix = get_revision_names(
+                "Nrp install revision."
+            )
             self.site_support.call_invenio("alembic", "upgrade", "heads")
-            new_revision = get_revision_number(self.site_support.call_invenio(
-                "alembic",
-                "revision",
-                revision_message,
-                "-b",
-                branch,
-                grab_stdout=True
-            ), file_revision_name_suffix)
+            new_revision = get_revision_number(
+                self.site_support.call_invenio(
+                    "alembic",
+                    "revision",
+                    revision_message,
+                    "-b",
+                    branch,
+                    grab_stdout=True,
+                ),
+                file_revision_name_suffix,
+            )
             rewrite_revision_file(new_file_number, new_revision)
 
             self.fix_sqlalchemy_utils(alembic_path)
