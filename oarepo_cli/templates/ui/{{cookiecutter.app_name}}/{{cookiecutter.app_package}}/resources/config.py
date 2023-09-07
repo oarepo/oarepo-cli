@@ -1,5 +1,5 @@
-from oarepo_ui.resources.config import RecordsUIResourceConfig
 from oarepo_ui.resources import BabelComponent
+from oarepo_ui.resources.config import RecordsUIResourceConfig
 
 
 class {{cookiecutter.resource_config}}(RecordsUIResourceConfig):
@@ -12,7 +12,9 @@ class {{cookiecutter.resource_config}}(RecordsUIResourceConfig):
 
     components = [BabelComponent]
     try:
-        from oarepo_vocabularies.ui.resources.components import DepositVocabularyOptionsComponent
+        from oarepo_vocabularies.ui.resources.components import (
+            DepositVocabularyOptionsComponent,
+        )
         components.append(DepositVocabularyOptionsComponent)
     except ImportError:
         pass

@@ -8,7 +8,6 @@ from oarepo_cli.develop.controller import PipeController, TerminalController
 from oarepo_cli.develop.runners.docker import DockerDevelopmentRunner
 from oarepo_cli.develop.runners.local import LocalDevelopmentRunner
 from oarepo_cli.site.site_support import SiteSupport
-from oarepo_cli.utils import run_nrp_in_docker_compose
 from oarepo_cli.wizard import WizardStep
 
 

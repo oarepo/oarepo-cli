@@ -27,7 +27,7 @@ def install_ui(
 ):
     site_support = SiteSupport(cfg)
     runner = DockerRunner(cfg, no_input)
-    sites = cfg.setdefault('sites', [])
+    sites = cfg.setdefault("sites", [])
     if site_support.site_name not in sites:
         sites.append(site_support.site_name)
     cfg.save()

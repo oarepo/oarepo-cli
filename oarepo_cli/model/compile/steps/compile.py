@@ -47,12 +47,12 @@ class CompileWizardStep(ModelWizardStep, WizardStep):
         self._install_plugins_from_model(model_data, venv_dir)
 
         # install plugins from included files
-        uses = model_data.get('use') or []
+        uses = model_data.get("use") or []
         if not isinstance(uses, list):
             uses = [uses]
 
         for use in uses:
-            if not use.startswith('.'):
+            if not use.startswith("."):
                 # can not currently find plugins in uses
                 # that are registered as entrypoints
                 continue
