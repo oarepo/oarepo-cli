@@ -3,6 +3,7 @@ from oarepo_cli.wizard import StaticStep, Wizard
 
 from .steps.add_custom_fields import AddCustomFieldsWizardStep
 from .steps.add_docs_base import AddDocsBaseWizardStep
+from .steps.add_drafts import AddDraftsWizardStep
 from .steps.add_files import AddFilesWizardStep
 from .steps.add_metadata import AddMetadataWizardStep
 from .steps.add_nr_vocabularies import AddNRVocabulariesWizardStep
@@ -27,6 +28,7 @@ class AddModelWizard(Wizard):
             EmptyModelWizardStep(),
             AddDocsBaseWizardStep(),
             AddFilesWizardStep(),
+            AddDraftsWizardStep(),
             AddCustomFieldsWizardStep(),
             AddNRVocabulariesWizardStep(),
             AddVocabulariesWizardStep(),
