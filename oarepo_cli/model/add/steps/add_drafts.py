@@ -1,6 +1,9 @@
 from oarepo_cli.model.gen.base import GeneratedFile
 from oarepo_cli.model.utils import ModelWizardStep
-from oarepo_cli.package_versions import OAREPO_MODEL_BUILDER_DRAFTS_VERSION, OAREPO_MODEL_BUILDER_DRAFTS_FILES_VERSION
+from oarepo_cli.package_versions import (
+    OAREPO_MODEL_BUILDER_DRAFTS_FILES_VERSION,
+    OAREPO_MODEL_BUILDER_DRAFTS_VERSION,
+)
 from oarepo_cli.utils import unique_merger
 from oarepo_cli.wizard import RadioStep
 
@@ -52,7 +55,6 @@ class AddDraftsWizardStep(ModelWizardStep):
                     },
                 },
             )
-
 
         yaml_file.save()
 

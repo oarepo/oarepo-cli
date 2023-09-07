@@ -55,8 +55,8 @@ class EditorSupportStep(WizardStep):
 
         aliases = {}
         for alias, root_path in watch_list.get("@root_aliases", {}).items():
-            if not root_path.startswith('./'):
-                root_path = './' + root_path
+            if not root_path.startswith("./"):
+                root_path = "./" + root_path
             aliases.setdefault(alias, []).append(root_path)
 
         Path(self.data.project_dir / "jsconfig.json").write_text(
@@ -74,18 +74,23 @@ class EditorSupportStep(WizardStep):
         try:
             rmtree(assets_path)
         except Exception as e:
-            print(f"Could not remove {assets_path} as a directory, will try to remove it as a link: {e}")
+            print(
+                f"Could not remove {assets_path} as a directory, will try to remove it as a link: {e}"
+            )
 
         try:
             assets_path.unlink()
         except Exception as e:
-            print(f"Could not remove {assets_path} as a file/link, might have been already removed: {e}")
+            print(
+                f"Could not remove {assets_path} as a file/link, might have been already removed: {e}"
+            )
 
         try:
             modules_path.unlink(missing_ok=True)
         except Exception as e:
-            print(f"Could not remove {modules_path} as a file/link, might have been already removed: {e}")
-            pass
+            print(
+                f"Could not remove {modules_path} as a file/link, might have been already removed: {e}"
+            )
 
         if self.data.running_in_docker:
             copy_tree(site_support.invenio_instance_path / "assets", assets_path)
@@ -93,4 +98,4 @@ class EditorSupportStep(WizardStep):
             assets_path.symlink_to(site_support.invenio_instance_path / "assets")
 
         # can not use Pathlib.symlink_to as it does not create a relative symlink
-        os.symlink('.assets/node_modules', modules_path)
+        os.symlink(".assets/node_modules", modules_path)
