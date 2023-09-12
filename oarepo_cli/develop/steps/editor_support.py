@@ -1,9 +1,8 @@
 import json
 import os
 import re
+import shutil
 from pathlib import Path
-
-from cookiecutter.utils import rmtree
 
 from oarepo_cli.site.site_support import SiteSupport
 from oarepo_cli.utils import copy_tree
@@ -72,7 +71,9 @@ class EditorSupportStep(WizardStep):
         modules_path: Path = self.data.project_dir / "node_modules"
 
         try:
-            rmtree(assets_path)
+            # if is link, unlink it
+            if assets_path.is_dir() and not assets_path.is_symlink():
+                shutil.rmtree(assets_path)
         except Exception as e:
             print(
                 f"Could not remove {assets_path} as a directory, will try to remove it as a link: {e}"
