@@ -1,0 +1,116 @@
+{% raw %}
+import { defineConfig } from 'vite'
+import { resolve } from 'path'
+import react from '@vitejs/plugin-react'
+import inject from "@rollup/plugin-inject";
+import dynamicImport from 'vite-plugin-dynamic-import';
+import Prebundle from 'vite-plugin-prebundle';
+import fs from "fs/promises";
+import viteBasicSslPlugin from '@vitejs/plugin-basic-ssl'
+
+
+function manualChunks(id) {
+    if (id.includes('/node_modules/lodash')) {
+        return 'lodash'
+    }
+    if (id.includes('/node_modules/react/') || id.includes('/node_modules/react-dom/')) {
+        return 'react'
+    }
+    if (id.includes('/node_modules/react') || id.includes('/node_modules/@react')) {
+        return 'react-extra'
+    }
+    if (id.includes('/semantic-ui/translations/invenio_search_ui/')) {
+        return 'semantic-ui-translations'
+    }
+}
+
+
+// https://vitejs.dev/config/
+export default defineConfig({
+    plugins: [
+        inject({
+            jQuery: "jquery",
+            $: "jquery",
+            jquery: "jquery",
+            "window.jQuery": "jquery",
+            exclude: ["**/select2/**/*.js", "**/flightjs/**/*.js", "**/admin-lte/**/*.js", "**/*.less", "**/*.css", "**/*.html"]
+        }),
+        dynamicImport(),
+        Prebundle({
+            entries: []
+        }),
+        react(),
+        viteBasicSslPlugin()
+    ],
+    server: {
+        host: '127.0.0.1',
+        strictPort: true,
+        origin: 'https://127.0.0.1:5173',
+        https: {
+            key: syncFs.readFileSync('../sites/nr-docs/docker/nginx/test.key'),
+            cert: syncFs.readFileSync('../sites/nr-docs/docker/nginx/test.key'),
+        }
+    },
+    resolve: {
+        preserveSymlinks: true,
+        alias: [
+{% endraw %}
+            {% for alias_name, alias_value in aliases.items() -%}
+            {
+                "find": new RegExp("^{{ alias_name }}"),
+                "replacement": "{{ cwd }}/repo/{{ alias_value }}"
+            },
+            {% endfor -%}
+{% raw %}
+        ]
+    },
+
+    build: {
+        manifest: true,
+        rollupOptions: {
+            output: {
+                manualChunks: manualChunks
+            },
+            input: {
+{% endraw %}
+                {%- for inp in entries -%}
+                "{{ inp }}": resolve(__dirname, "./entrypoints/{{ inp }}.html"),
+                {% endfor %}
+{%- raw %}
+          },
+        },
+    },
+    optimizeDeps: {
+        force: true,
+        esbuildOptions: {
+            loader: {
+                ".js": "jsx"
+            },
+            plugins: [
+                {
+                    name: "load-js-files-as-jsx",
+                    setup(build) {
+                        build.onLoad({filter: /src\/.*\.js$/}, async (args) => ({
+                            loader: "jsx",
+                            contents: await fs.readFile(args.path, "utf8"),
+                        }));
+                    }
+                }
+            ]
+        }
+    },
+    esbuild: {
+        loader: "jsx",
+        include: /.*\.js[x]?$/,
+        exclude: [],
+    },
+    css: {
+        preprocessorOptions: {
+            less: {
+                math: "always",
+                javascriptEnabled: true,
+            },
+        },
+    },
+})
+{% endraw %}

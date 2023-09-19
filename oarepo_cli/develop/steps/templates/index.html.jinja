@@ -1,0 +1,14 @@
+<html>
+<body>
+This is just a html page so that vite does not choke up.
+The following pages link to the entrypoint js/css:
+
+<ul>
+        {%- for inp in entries -%}
+        <li>
+            <a href="entrypoints/{{ inp }}.html">{{ inp }}</a>
+        </li>
+        {% endfor %}
+</ul>
+</body>
+</html>

@@ -5,7 +5,7 @@ import time
 import click as click
 
 from oarepo_cli.develop.config import CONTROL_PIPE
-from oarepo_cli.develop.wizard import DevelopWizard
+from oarepo_cli.develop.wizard import WebpackDevelopWizard, ViteDevelopWizard
 from oarepo_cli.site.site_support import SiteSupport
 from oarepo_cli.utils import with_config
 from oarepo_cli.wizard.docker import DockerRunner
@@ -18,6 +18,7 @@ from oarepo_cli.wizard.docker import DockerRunner
 )
 @click.option("--site", required=False)
 @click.option("--command", required=False, hidden=True)
+@click.option("--vite/--no-vite")
 @with_config()
 def develop_command(
     cfg,
@@ -28,6 +29,7 @@ def develop_command(
     steps=False,
     site=None,
     command=None,
+    vite=None,
     **kwargs
 ):
     if command:
@@ -38,7 +40,11 @@ def develop_command(
     site_support = SiteSupport(cfg, site)
 
     runner = DockerRunner(cfg, no_input)
-    develop_wizard = DevelopWizard(runner, site_support=site_support)
+    if vite:
+        develop_wizard = ViteDevelopWizard(runner, site_support=site_support)
+    else:
+        develop_wizard = WebpackDevelopWizard(runner, site_support=site_support)
+
     if steps:
         develop_wizard.list_steps()
         return

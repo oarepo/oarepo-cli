@@ -1,5 +1,6 @@
 from oarepo_cli.wizard import Wizard
 from oarepo_cli.wizard.docker import DockerRunner
+from .steps.create_vite import CreateViteStep
 
 from ..site.add.steps.link_env import LinkEnvStep
 from ..site.add.steps.start_containers import StartContainersStep
@@ -14,7 +15,7 @@ from .steps.develop_step import DevelopStep
 from .steps.editor_support import EditorSupportStep
 
 
-class DevelopWizard(Wizard):
+class WebpackDevelopWizard(Wizard):
     def __init__(self, runner: DockerRunner, *, site_support):
         self.site_support = site_support
         super().__init__(
@@ -31,4 +32,25 @@ class DevelopWizard(Wizard):
                 EditorSupportStep(),
             ),
             DevelopStep(),
+        )
+
+
+class ViteDevelopWizard(Wizard):
+    def __init__(self, runner: DockerRunner, *, site_support):
+        self.site_support = site_support
+        super().__init__(
+            # LinkEnvStep(),
+            # StartContainersStep(),
+            *runner.wrap_docker_steps(
+                #     CheckVirtualenvStep(),
+                #     CheckDependenciesStep(),
+                #     CheckSiteStep(),
+                #     CheckUIStep(),
+                #     CheckDBStep(),
+                #     CheckSearchStep(),
+                #     CheckS3LocationStep(),
+                #     EditorSupportStep(),
+                CreateViteStep()
+            ),
+            # DevelopStep(),
         )
