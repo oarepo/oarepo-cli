@@ -15,7 +15,7 @@ class BuildWizard(Wizard):
         super().__init__(
             *runner.wrap_docker_steps(
                 CheckVirtualenvStep(clean=True),
-                CheckDependenciesStep(clean=False),
+                CheckDependenciesStep(clean=False, require_up_to_date=production),
                 CheckSiteStep(clean=True),
                 CheckUIStep(production=production),
             ),
