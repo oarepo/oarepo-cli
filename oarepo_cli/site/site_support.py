@@ -523,6 +523,34 @@ setup(name='oarepo',
         )
         (self.site_dir / "requirements.txt").write_text(resolved_requirements)
 
+    def require_dependencies_up_to_date(self):
+        reqs_file = self.site_dir / "requirements.txt"
+        if not reqs_file.exists():
+            raise RuntimeError(
+                "No requirements.txt has been found! You need to run nrp build first"
+            )
+        reqs_file_backup = self.site_dir / "requirements-previous.txt"
+        reqs_file_backup.unlink(missing_ok=True)
+        shutil.move(reqs_file, reqs_file_backup)
+        try:
+            self.build_dependencies()
+            original_requirements = "\n".join(
+                sorted(reqs_file_backup.read_text().splitlines())
+            )
+            new_requirements = "\n".join(sorted(reqs_file.read_text().splitlines()))
+            if original_requirements != new_requirements:
+                raise RuntimeError(
+                    f"""Requirement files do not match. Original requirements:
+    {original_requirements}
+    
+    Newly built requirements:
+    {new_requirements}
+                """
+                )
+        finally:
+            reqs_file.unlink(missing_ok=True)
+            shutil.move(reqs_file_backup, reqs_file)
+
     def generate_requirements(self, extras):
         pdm_file = {
             "project": {
