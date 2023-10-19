@@ -6,11 +6,100 @@ import inject from "@rollup/plugin-inject";
 import dynamicImport from 'vite-plugin-dynamic-import';
 import Prebundle from 'vite-plugin-prebundle';
 import fs from "fs/promises";
+import syncFs from "fs";
 import viteBasicSslPlugin from '@vitejs/plugin-basic-ssl'
+import commonjs from '@rollup/plugin-commonjs';
+
+function transformFunc(src) {
+    return src.split('\n').map(line => {
+        line = line.replace(
+            /^import ([_a-zA-Z]+) from "lodash\/(.*)";?$/,
+            'import {$2 as $1} from "lodash-es";'
+        )
+        line = line.replace(
+            /^var ([^=]*)=\s*require\('lodash\/([^']*)'\);?$/,
+            'import {$2 as $1} from "lodash-es";'
+        )
+        line = line.replace(
+            /^var ([^=]*)=\s*require\("lodash\/([^"]*)"\);?$/,
+            'import {$2 as $1} from "lodash-es";'
+        )
+        return line
+    }).join('\n')
+
+}
+
+function transformLodash() {
+    return {
+        "name": "transformLodash",
+        transform(src, fn) {
+            return transformFunc(src)
+        },
+    }
+}
+
+function transformLodashESBuild() {
+    return {
+        "name": "transformLodash",
+        // pre-bundler stuff
+        setup(build) {
+            build.onLoad({
+                filter: /.*\.jsx?$/
+            }, async (args) => {
+                const contents = await fs.readFile(args.path, "utf8")
+                const transformed = transformFunc(contents)
+                return {
+                    loader: "jsx",
+                    contents: transformed,
+                }
+            });
+        }
+    }
+}
+
+function jsImportInNodeModules() {
+    function find_with_extensions(id) {
+
+        if (!id.split('/').pop().includes('.')) {
+            for (const ext of [".jsx", ".tsx", ".js", ".ts", ".css", "/index.js", "/index.ts"]) {
+                let candidateFile = `${id}${ext}`
+                if (syncFs.existsSync(candidateFile) && syncFs.statSync(candidateFile).isFile()) {
+                    // console.log(`Ok, ${candidateFile} exists, returning that`)
+                    return candidateFile
+                }
+            }
+        }
+    }
+
+    return {
+        "name": "jsImportInNodeModules",
+        resolveId(id) {
+            let resolved = find_with_extensions(id);
+            if (resolved) {
+                return resolved
+            }
+            const node_module = './node_modules/' + id
+            resolved = find_with_extensions(node_module)
+            if (resolved) {
+                return resolved
+            }
+            if (syncFs.existsSync(node_module)) {
+                const pkg = JSON.parse(syncFs.readFileSync(node_module + '/package.json'))
+                if (pkg['main']) {
+                    const main = node_module + '/' + pkg['main']
+                    // console.log(`Got node module, returning ${main}`)
+                    return main
+                }
+                // console.error(`No main in node module, returning just ${node_module}`)
+                return node_module
+            }
+        },
+    }
+}
 
 
 function manualChunks(id) {
-    if (id.includes('/node_modules/lodash')) {
+    if (id.includes('/node_modules/lodash') || id.includes('/node_modules/lodash-es')) {
         return 'lodash'
     }
     if (id.includes('/node_modules/react/') || id.includes('/node_modules/react-dom/')) {
@@ -19,8 +108,11 @@ function manualChunks(id) {
     if (id.includes('/node_modules/react') || id.includes('/node_modules/@react')) {
         return 'react-extra'
     }
-    if (id.includes('/semantic-ui/translations/invenio_search_ui/')) {
-        return 'semantic-ui-translations'
+    if (id.includes('invenio_search_ui/')) {
+        return 'invenio-search-ui'
+    }
+    if (id.includes('invenio_communities/')) {
+        return 'invenio-communities'
     }
 }
 
@@ -35,10 +127,10 @@ export default defineConfig({
             "window.jQuery": "jquery",
             exclude: ["**/select2/**/*.js", "**/flightjs/**/*.js", "**/admin-lte/**/*.js", "**/*.less", "**/*.css", "**/*.html"]
         }),
+        commonjs(),
+        jsImportInNodeModules(),
+        transformLodash(),
         dynamicImport(),
-        Prebundle({
-            entries: []
-        }),
         react(),
         viteBasicSslPlugin()
     ],
@@ -47,18 +139,19 @@ export default defineConfig({
         strictPort: true,
         origin: 'https://127.0.0.1:5173',
         https: {
-            key: syncFs.readFileSync('../sites/nr-docs/docker/nginx/test.key'),
-            cert: syncFs.readFileSync('../sites/nr-docs/docker/nginx/test.key'),
+            key: syncFs.readFileSync('sites/nr-docs/docker/nginx/test.key'),
+            cert: syncFs.readFileSync('sites/nr-docs/docker/nginx/test.key'),
         }
     },
     resolve: {
         preserveSymlinks: true,
+        dedupe: ['lodash', 'lodash-es', 'jquery'],
         alias: [
 {% endraw %}
-            {% for alias_name, alias_value in aliases.items() -%}
+            {% for alias_name, alias_value in aliases -%}
             {
                 "find": new RegExp("^{{ alias_name }}"),
-                "replacement": "{{ cwd }}/repo/{{ alias_value }}"
+                "replacement": "{{ alias_value }}"
             },
             {% endfor -%}
 {% raw %}
@@ -74,7 +167,7 @@ export default defineConfig({
             input: {
 {% endraw %}
                 {%- for inp in entries -%}
-                "{{ inp }}": resolve(__dirname, "./entrypoints/{{ inp }}.html"),
+                "{{ inp }}": resolve(__dirname, ".vite/{{ inp }}.html"),
                 {% endfor %}
 {%- raw %}
           },
@@ -82,20 +175,13 @@ export default defineConfig({
     },
     optimizeDeps: {
         force: true,
+        include: ['lodash**', 'lodash-es', "react**", "@fluentui/**", "ckeditor"],
         esbuildOptions: {
             loader: {
                 ".js": "jsx"
             },
             plugins: [
-                {
-                    name: "load-js-files-as-jsx",
-                    setup(build) {
-                        build.onLoad({filter: /src\/.*\.js$/}, async (args) => ({
-                            loader: "jsx",
-                            contents: await fs.readFile(args.path, "utf8"),
-                        }));
-                    }
-                }
+                transformLodashESBuild()
             ]
         }
     },

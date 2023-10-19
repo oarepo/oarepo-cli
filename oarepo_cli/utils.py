@@ -570,17 +570,39 @@ def check_call(*args, **kwargs):
 
 
 def run_nrp_in_docker_compose(
-    site_dir, *arguments, interactive=True, no_input=False, networking=True, name=None
+    site_dir,
+    *arguments,
+    interactive=True,
+    no_input=False,
+    networking=True,  # TODO: change this to False
+    container_name=None,
+    extra_mounts=None,
 ):
+    args = [
+        "--rm",
+    ]
+    if networking:
+        args.append("--service-ports")
+    if interactive:
+        args.append("-i")
+    if no_input:
+        args.append("--no-TTY")
+    if container_name:
+        args.extend(("--name", container_name))
+    if extra_mounts:
+        for mnt_name, mnt_path in extra_mounts:
+            args.extend(
+                (
+                    "-v",
+                    f"{mnt_path}:/mounts/{mnt_name}",
+                )
+            )
+
     run_cmdline(
         "docker",
         "compose",
         "run",
-        *(["--service-ports"] if networking else []),
-        "--rm",
-        *(["-i"] if interactive else []),
-        *(["--no-TTY"] if no_input else []),
-        *(["--name", name] if name else []),
+        *args,
         "repo",
         *arguments,
         cwd=site_dir,
@@ -605,11 +627,10 @@ def exec_nrp_in_docker(site_dir, container_name, *arguments, interactive=True):
     )
 
 
-def run_nrp_in_docker(repo_dir: Path, *arguments, interactive=True):
-    run_cmdline(
-        "docker",
-        "run",
-        *(["-it"] if interactive else []),
+def run_nrp_in_docker(
+    repo_dir: Path, *arguments, interactive=True, container_name=None, extra_mounts=None
+):
+    args = [
         "-v",
         f"{str(repo_dir)}:/repository",
         "--user",
@@ -619,7 +640,31 @@ def run_nrp_in_docker(repo_dir: Path, *arguments, interactive=True):
         "--rm",
         "oarepo/oarepo-base-development:11",
         *arguments,
-        cwd=repo_dir,
+    ]
+    if interactive:
+        args.append("-it")
+
+    if container_name:
+        args.extend(
+            (
+                "--name",
+                container_name,
+            )
+        )
+    if extra_mounts:
+        for mnt_name, mnt_path in extra_mounts:
+            args.extend(
+                (
+                    "-v",
+                    f"{mnt_path}:/mounts/{mnt_name}",
+                )
+            )
+
+    run_cmdline(
+        "docker",
+        "run",
+        *args,
+        cwd=str(repo_dir),
         with_tty=True,
     )
 
