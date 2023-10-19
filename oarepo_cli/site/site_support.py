@@ -139,13 +139,7 @@ class SiteSupport:
                 pass
         return False
 
-    def check_and_create_virtualenv(self, clean=False):
-        if not self.venv_ok():
-            clean = True
-
-        if clean and self.virtualenv.exists():
-            shutil.rmtree(self.virtualenv)
-
+    def create_virtualenv(self):
         cmdline = [
             self.python,
             "-m",
@@ -166,6 +160,20 @@ class SiteSupport:
             "pip",
             "wheel",
         )
+
+    def check_and_create_virtualenv(self, clean=False):
+        if not self.venv_ok():
+            clean = True
+
+        if clean and self.virtualenv.exists():
+            self.clean()
+
+        self.create_virtualenv()
+
+    def clean(self):
+        shutil.rmtree(self.virtualenv)
+        shutil.rmtree(self.invenio_instance_path / "assets", ignore_errors=True)
+        shutil.rmtree(self.invenio_instance_path / "static", ignore_errors=True)
 
     def _get_oarepo_dependencies(self, oarepo, system_packages):
         self.call_pip("download", "--no-deps", "--no-binary=:all:", oarepo, cwd="/tmp")
@@ -644,3 +652,13 @@ setup(name='oarepo',
             raise KeyError(
                 f"Configuration key not found in defaults: {values.keys()}: {e}"
             )
+
+    def remove_dependencies(self):
+        requirements_file = self.site_dir / "requirements.txt"
+        requirements_file.unlink(missing_ok=True)
+
+    def install_local_library(self, library_name, library_path):
+        self.call_pip("uninstall", "-y", library_name, raise_exception=False)
+        self.call_pip(
+            "install", "-e", library_path, "--config-settings", "editable_mode=compat"
+        )

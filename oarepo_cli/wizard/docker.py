@@ -8,11 +8,21 @@ from oarepo_cli.wizard import WizardStep
 
 
 class RunInContainerStep(WizardStep):
-    def __init__(self, steps, in_compose=True, interactive=False, site=None, name=None):
+    def __init__(
+        self,
+        steps,
+        in_compose=True,
+        interactive=False,
+        site=None,
+        name=None,
+        extra_mounts=None,
+    ):
         self.steps = steps or []
         self.in_compose = in_compose
         self.interactive = interactive
         self.site = site
+        self.container_name = name
+        self.extra_mounts = extra_mounts
 
     def should_run(self):
         return True
@@ -43,10 +53,20 @@ class RunInContainerStep(WizardStep):
             cmd.append(self.site)
         if self.in_compose:
             run_nrp_in_docker_compose(
-                self.site_support.site_dir, *cmd, interactive=self.interactive
+                self.site_support.site_dir,
+                *cmd,
+                interactive=self.interactive,
+                container_name=self.container_name,
+                extra_mounts=self.extra_mounts
             )
         else:
-            run_nrp_in_docker(self.data.project_dir, *cmd, interactive=self.interactive)
+            run_nrp_in_docker(
+                self.data.project_dir,
+                *cmd,
+                interactive=self.interactive,
+                container_name=self.container_name,
+                extra_mounts=self.extra_mounts
+            )
         # the config could have been changed during the run, so reload it
         self.data.load()
 
@@ -93,11 +113,17 @@ class DockerRunner:
     def use_docker(self):
         return self.cfg.use_docker
 
-    def wrap_docker_steps(self, *steps, in_compose=True, interactive=False, site=None):
+    def wrap_docker_steps(
+        self, *steps, in_compose=True, interactive=False, site=None, extra_mounts=None
+    ):
         if not self.use_docker or self.running_in_docker:
             return steps
         return [
             RunInContainerStep(
-                steps, in_compose=in_compose, interactive=interactive, site=site
+                steps,
+                in_compose=in_compose,
+                interactive=interactive,
+                site=site,
+                extra_mounts=extra_mounts,
             )
         ]

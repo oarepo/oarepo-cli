@@ -28,7 +28,7 @@ class DockerDevelopmentRunner:
             "DevelopStep",
             interactive=False,
             no_input=True,
-            name=self.develop_container_name,
+            container_name=self.develop_container_name,
         )
 
     def stop(self):
