@@ -1,3 +1,4 @@
+{#def search_app_config #}
 {{ '{%' }}- extends config.BASE_TEMPLATE {{ '%}' }}
 {{ '{%' }}- set title = _("Search results") ~ " | " ~ _("{{cookiecutter.app_name}}") {{ '%}' }}
 
@@ -10,6 +11,6 @@
 
 {{ '{%' }}- block page_body {{ '%}' }}
 <div class="ui main container">
-  <div data-invenio-search-config='{{ "{{" }} search_app_config(app_id="{{cookiecutter.app_package|title}}.Search") | tojson {{ "}}" }}'></div>
+  <div data-invenio-search-config='{{ "{{" }} search_app_config | tojson {{ "}}" }}'></div>
 </div>
 {{ '{%' }}- endblock page_body {{ '%}' }}
