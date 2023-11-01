@@ -1,12 +1,11 @@
 import json
-import re
+from oarepo_cli.site.site_support import SiteSupport
 from pathlib import Path
 from typing import Any, List
+import string
 
-from oarepo_cli.site.site_support import SiteSupport
 from oarepo_cli.utils import ProjectWizardMixin, SiteMixin
 from oarepo_cli.wizard import WizardStep
-
 from ..mixins import AssociatedModelMixin
 
 
@@ -25,29 +24,29 @@ class CreateJinjaStep(SiteMixin, AssociatedModelMixin, ProjectWizardMixin, Wizar
             model_package,
             model_config,
         ) = self.get_model_definition()
+
+
         # get the UI definition
         ui_definition_path = model_path / model_package / "models" / "ui.json"
         ui_definition = json.loads(ui_definition_path.read_text())
 
         site = SiteSupport(self.data)
-        renderers_json = site.call_invenio(
+        existing_components = site.call_invenio(
             "oarepo",
             "ui",
-            "renderers",
-            "--json",
+            "components",
             grab_stdout=True,
         )
-        renderers = [x["renderer"] for x in json.loads(renderers_json)]
 
-        template, macro_definitions = self.generate_main(ui_definition)
-        if macro_definitions:
-            macros = "\n".join(
-                self.generate_macro_definitions(macro_definitions, set(renderers))
-            )
+        template, component_definitions = self.generate_main(ui_definition, existing_components)
+        if component_definitions:
+            components = self.get_component_definitions(component_definitions)
+
         else:
-            macros = None
+            components = None
 
-        # save template and macros
+        # save template and components
+
         ui_dir = self.data.project_dir / self.data.config["ui_dir"]
         main_jinja_path = (
             ui_dir
@@ -55,22 +54,23 @@ class CreateJinjaStep(SiteMixin, AssociatedModelMixin, ProjectWizardMixin, Wizar
             / "templates"
             / "semantic-ui"
             / self.data.config["cookiecutter_app_package"]
-            / "main.html"
+            / "Main.jinja.html"
         )
         template = main_jinja_path.read_text() + "\n\n" + template
         main_jinja_path.write_text(template)
-
-        macros_jinja_path: Path = (
-            ui_dir
-            / self.data.config["cookiecutter_app_package"]
-            / "templates"
-            / "semantic-ui"
-            / "oarepo_ui"
-            / "components"
-            / "100-macros.html"
-        )
-        macros_jinja_path.parent.mkdir(exist_ok=True, parents=True)
-        macros_jinja_path.write_text(macros or "")
+        for comp in components:
+            file_name = "999-" + comp["name"] + ".jinja"
+            component_jinja_path: Path = (
+                ui_dir
+                / self.data.config["cookiecutter_app_package"]
+                / "templates"
+                / "semantic-ui"
+                / "oarepo_ui"
+                / "components"
+                / file_name
+            )
+            component_jinja_path.parent.mkdir(exist_ok=True, parents=True)
+            component_jinja_path.write_text(comp["component"])
 
     def _select(self, fields, *keys):
         for k in keys:
@@ -78,8 +78,8 @@ class CreateJinjaStep(SiteMixin, AssociatedModelMixin, ProjectWizardMixin, Wizar
                 return k, fields.pop(k)
         return None, None
 
-    def generate_main(self, ui):
-        macro_definitions = []
+    def generate_main(self, ui, existing_components):
+        component_definitions = []
         template = []
         fields = ui["children"]
         if "metadata" in fields:
@@ -89,57 +89,84 @@ class CreateJinjaStep(SiteMixin, AssociatedModelMixin, ProjectWizardMixin, Wizar
             )
         title_key, title = self._select(fields, "title", "metadata.title")
         divider = False
+        template.append("{#def metadata, ui, layout, record #}")
         if title_key:
-            template.append(f'<h1>{{%- value "{title_key}" -%}}</h1>')
-            macro_definitions.append(title)
+            template.append(f'<h1>{{{{ {title_key} }}}}</h1>')
             divider = True
         creator_key, creator = self._select(fields, "creator", "metadata.creator")
         if creator_key:
             template.append(
-                f'<div class="creator">{{%- value "{creator_key}" -%}}</div>'
+                f'<div class="creator">{{{{ {creator_key} }}}}</div>'
             )
-            macro_definitions.append(creator)
             divider = True
         if divider:
             template.append('<hr class="divider"/>')
         template.append('<dl class="detail-fields">')
         for fld_key, fld in sorted(fields.items()):
-            template.append(f'{{%- field "{fld_key}" -%}}')
-            macro_definitions.append(fld)
+            if not fld_key.startswith('metadata'):
+                data_name = 'record.' + fld_key
+            else:
+                data_name = fld_key
+            matching_component = None
+            for item in existing_components:
+                if item['key'] == fld['detail']:
+                    matching_component = item
+                    break  # Exit the loop when a match is found
+
+            if matching_component:
+                field_definition = f'<Field label={{ _("{fld["label"]}") }}>'
+
+                field_definition = field_definition + f'<{matching_component["component"]} data={{{data_name}}}></{matching_component["component"]}>'
+                field_definition = field_definition + f'</Field>'
+
+            elif not('child' in fld or 'children' in fld):
+                field_definition = f'<Field label={{ _("{fld["label"]}") }}>{{{{ {data_name} }}}}</Field>'
+            else:
+
+                field_definition = f'<Field label={{ _("{fld["label"]}") }}>'
+                component_name = self.create_component_name(fld_key)
+
+                field_definition = field_definition + f'<{component_name} data={{{data_name}}}></{component_name}>'
+                field_definition = field_definition + f'</Field>'
+
+                component_definitions.append({"name": component_name, "definition": fld})
+            template.append(field_definition)
         template.append("</dl>")
 
-        return "\n".join(template), macro_definitions
+        return "\n".join(template), component_definitions
 
-    def generate_macro_definitions(
-        self, macro_definitions: List[Any], processed_components
+    def create_component_name(self, field_key):
+        field_key = field_key.lstrip(string.punctuation)
+        fields = field_key.split('.')
+        component_name = "".join([field.capitalize() for field in fields])
+
+        return component_name
+
+
+    def get_component_definitions(
+        self, component_definitions: List[Any]
     ):
-        for definition in macro_definitions:
-            if not definition.get("detail"):
-                continue
-            component = re.sub(r"\W", replace_non_variable_signs, definition["detail"])
+        components = []
+        for definition in component_definitions:
 
-            if component in processed_components:
-                _, children = self._generate_macro_children(definition)
+            if definition["definition"]["detail"] == "array":
+                children_def, children = self._generate_macro_children(definition["definition"]["child"])
+                components.append({"name": definition["name"], "component": f"\n\n{{#def data}}\n<dl class='detail-subfields'>\n{{% for field in data %}}\n{children_def}\n{{% endfor %}}\n</dl>\n"})
+
             else:
-                processed_components.add(component)
+                children_def, children = self._generate_macro_children(definition["definition"])
+                components.append({"name": definition["name"], "component": f"\n\n{{#def data}}\n<dl class='detail-subfields'>\n{children_def}\n</dl>\n"})
 
-                children_def, children = self._generate_macro_children(definition)
-                if children_def:
-                    yield f"\n\n{{%- macro render_{component}(arg) -%}}\n<dl class='detail-subfields'>\n{children_def}\n</dl>\n{{%- endmacro -%}}"
-                else:
-                    yield f"\n\n{{%- macro render_{component}(arg) -%}}{'{{'}arg{'}}'}{{%- endmacro -%}}"
 
-            yield from self.generate_macro_definitions(children, processed_components)
+        return components
 
     def _generate_macro_children(self, definition):
-        # for array members, do not return fields as array macro is built-in
-        if "child" in definition:
-            return "", [definition["child"]]
         if "children" not in definition:
-            return "", []
+            return "", [{"definition": {}}]
         fields = []
         children = []
         for c_key, cdef in definition["children"].items():
-            fields.append(f'{{%- field "{c_key}" -%}}')
-            children.append(cdef)
+            c_key = "data." + c_key
+            fields.append(f'<Field label={{ _("{cdef["label"]}") }}>{{{{ {c_key} }}}}</Field>')
+
         return "\n".join(fields), children
