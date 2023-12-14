@@ -211,6 +211,10 @@ class SiteSupport:
             self.call_pip(
                 "install", "--no-deps", "--force-reinstall", "-r", temp_file.name
             )
+        #
+        # install oarepo, but do not install dependencies as these have been already installed
+        #
+        self.call_pip("install", "--no-deps", oarepo)
 
         # hack: add an empty version of uritemplate.py,
         # needs to be removed when invenio-oauthclient gets updated
