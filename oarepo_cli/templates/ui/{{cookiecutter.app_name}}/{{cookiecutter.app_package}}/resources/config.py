@@ -21,13 +21,13 @@ class {{cookiecutter.resource_config}}(RecordsUIResourceConfig):
 
     templates = {
         "detail": {
-            "layout": "{{cookiecutter.app_package}}/detail.html",
+            "layout": "{{cookiecutter.app_package}}/Detail.html.jinja",
             "blocks": {
-                "record_main_content": "{{cookiecutter.app_package}}/main.html",
-                "record_sidebar": "{{cookiecutter.app_package}}/sidebar.html"                
+                "record_main_content": "Main",
+                "record_sidebar": "Sidebar"
             },
         },
-        "search": {"layout": "{{cookiecutter.app_package}}/search.html"},
-        "edit": {"layout": "{{cookiecutter.app_package}}/deposit.html"},
-        "create": {"layout": "{{cookiecutter.app_package}}/deposit.html"},
+        "search": {"layout": "{{cookiecutter.app_package}}/Search.html.jinja", "app_id": "{{cookiecutter.app_package|title}}.Search"},
+        "edit": {"layout": "{{cookiecutter.app_package}}/Deposit.html.jinja"},
+        "create": {"layout": "{{cookiecutter.app_package}}/Deposit.html.jinja"},
     }
