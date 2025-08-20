@@ -1,0 +1,44 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "oarepo-cli"
+dynamic = ["version"]
+description = "A set of extensions to the invenio-cli package"
+readme = "README.md"
+license = "MIT"
+dependencies = [
+    "invenio-cli>=1.9.0,<2.0.0",
+]
+requires-python = ">=3.13,<3.14"
+
+[project.urls]
+Homepage = "https://github.com/oarepo/oarepo-cli"
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=7.1.2",
+]
+tests = [
+    "pytest>=7.1.2",
+]
+
+[project.entry-points."invenio_cli.extensions.commands"]
+oarepo = "oarepo_cli:register_commands"
+
+[tool.hatch.version]
+path = "oarepo_cli/__init__.py"
+
+[tool.hatch.build.targets.sdist]
+include = [
+    "/oarepo_cli",
+]
+
+[tool.pytest.ini_options]
+    testpaths = [
+        "tests"
+    ]
+
+[tool.hatch.metadata]
+allow-direct-references = true
