@@ -7,7 +7,7 @@
 # under the terms of the MIT License; see LICENSE file for more details.
 #
 
-# tests/test_less_components_commands.py
+from __future__ import annotations
 
 import json
 import re
