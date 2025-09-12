@@ -8,11 +8,16 @@
 #
 """Commands for working with less components."""
 
+from __future__ import annotations
+
 import json
 import re
 import tempfile
 from functools import partial
-from pathlib import Path
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from pathlib import Path
 
 from invenio_cli.commands import Commands
 from invenio_cli.commands.steps import FunctionStep, Step
