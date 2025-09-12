@@ -53,9 +53,10 @@ class LessComponentsCommands(Commands):
         if theme_config_file is None:
             theme_config_file = (
                 self.cli_config.project_path
-                / "ui"
-                / "branding"
-                / "semantic-ui"
+                / ".venv"
+                / "var"
+                / "instance"
+                / "assets"
                 / "less"
                 / "theme.config"
             )
