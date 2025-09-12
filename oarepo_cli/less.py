@@ -27,13 +27,9 @@ class LessComponentsCommands(Commands):
     def register_less_components(self, theme_config_file: Path | None) -> list[Step]:
         """Return steps that register less components."""
         return [
+            FunctionStep(self._collect_less_components, message="Collecting LESS components..."),
             FunctionStep(
-                self._collect_less_components, message="Collecting LESS components..."
-            ),
-            FunctionStep(
-                partial(
-                    self._register_less_components, theme_config_file=theme_config_file
-                ),
+                partial(self._register_less_components, theme_config_file=theme_config_file),
                 message="Registering LESS components...",
             ),
         ]
@@ -41,36 +37,22 @@ class LessComponentsCommands(Commands):
     def _collect_less_components(self) -> ProcessResponse:
         pkg_man = self.cli_config.python_package_manager
         with tempfile.NamedTemporaryFile(mode="w+", suffix=".json") as t:
-            run_cmd(
-                pkg_man.run_command("invenio", "oarepo", "less", "components", t.name)
-            )
+            run_cmd(pkg_man.run_command("invenio", "oarepo", "less", "components", t.name))
             self.components = list(set(json.load(t)["components"]))
         return ProcessResponse()
 
-    def _register_less_components(
-        self, theme_config_file: Path | None
-    ) -> ProcessResponse:
+    def _register_less_components(self, theme_config_file: Path | None) -> ProcessResponse:
         if theme_config_file is None:
             theme_config_file = (
-                self.cli_config.project_path
-                / ".venv"
-                / "var"
-                / "instance"
-                / "assets"
-                / "less"
-                / "theme.config"
+                self.cli_config.project_path / ".venv" / "var" / "instance" / "assets" / "less" / "theme.config"
             )
         if not theme_config_file.exists():
-            raise FileNotFoundError(
-                f"Theme configuration file {theme_config_file} does not exist."
-            )
+            raise FileNotFoundError(f"Theme configuration file {theme_config_file} does not exist.")
         theme_data = theme_config_file.read_text()
         for c in self.components:
             match = re.search("^@" + c, theme_data, re.MULTILINE)
             if not match:
-                autoregistration_position = theme_data.index(
-                    "/* --- autoregistration point, do not remove --- */"
-                )
+                autoregistration_position = theme_data.index("/* --- autoregistration point, do not remove --- */")
                 theme_data = (
                     theme_data[:autoregistration_position]
                     + f"\n@{c}: 'default';\n"

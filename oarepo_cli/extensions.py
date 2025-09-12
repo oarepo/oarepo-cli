@@ -34,9 +34,7 @@ def less_group() -> None:
     help="Path to the theme config file.",
 )
 @pass_cli_config
-def register_less_components(
-    cli_config: CLIConfig, theme_config_file: str | None
-) -> None:
+def register_less_components(cli_config: CLIConfig, theme_config_file: str | None) -> None:
     """Collect and register less components into the theme.less file."""
     steps = LessComponentsCommands(
         cli_config,
