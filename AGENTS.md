@@ -78,5 +78,5 @@ adds over inventing new tooling.
   Plus `from __future__ import annotations` at the top of each file.
 - Follow `implementation-steps.md`'s status flags when checking off work:
   `[ ]` not started, `[~]` in progress, `[x]` done (code + tests passing), `[!]` blocked.
-- When starting a new step, please create a new branch from `cli-as-python` and implement the step there.
-- After implementing a step, please create a PR with the changes and request a review. The target branch of the PR will be `cli-as-python`.
+- When starting a new step, create a new branch from `cli-as-python` (note: you might be on a different branch / not up-to-date) and implement the step there.
+- After implementing a step, create a PR with the changes and request a review. The target branch of the PR will be `cli-as-python`.
