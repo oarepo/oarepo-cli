@@ -353,7 +353,7 @@ For unit-level tests, call `run()`/`stream()`/`get_output()` directly against re
 **Tests** (`tests/workflow/test_upgrade_workflow.py`):
 - [x] Test venv removed and recreated
 - [x] Test cache cleaned
-- [x] Test services stopped before upgrade - Deferred to Step 3.4
+- [ ] Test services stopped before upgrade - Deferred to Step 3.4
 - [x] Test success message displayed
 - [x] Test cache clean failure handling
 
@@ -362,24 +362,25 @@ For unit-level tests, call `run()`/`stream()`/`get_output()` directly against re
 ### Step 3.4: Services Lifecycle Manager
 **Goal**: Manage Docker service lifecycle.
 
-- [ ] Implement `services/services_lifecycle.py` with `ServicesLifecycleManager`
-- [ ] Method: `start_services(config)` → env dict
-- [ ] Method: `stop_services()` → None
-- [ ] Use `docker-services-cli up/down`
-- [ ] Write/read `.env-services` file
-- [ ] Support DB, search, MQ, cache, S3 options
-- [ ] Update 3.3 steps with service checks
+- [x] Implement `services/services_lifecycle.py` with `ServicesLifecycleManager`
+- [x] Method: `start_services(config)` → env dict
+- [x] Method: `stop_services()` → None
+- [x] Use `docker-services-cli up/down`
+- [x] Write/read `.env-services` file
+- [x] Support DB, search, MQ, cache, S3 options
+- [ ] Update 3.3 steps with service checks - Deferred to Step 3.5
 
 **Deliverables**:
 - Service lifecycle management
 - Environment file handling
 
 **Tests** (`tests/workflow/test_services_lifecycle.py`):
-- [ ] Test services start with `pytest-subprocess` faking `docker-services-cli`
-- [ ] Test `.env-services` file written
-- [ ] Test services stop removes file
-- [ ] Test environment variables loaded from file
-- [ ] Integration test: real Docker services (if available)
+- [x] Test services start with `pytest-subprocess` faking `docker-services-cli`
+- [x] Test `.env-services` file written
+- [x] Test services stop removes file
+- [x] Test environment variables loaded from file
+- [x] Test skip services functionality
+- [ ] Integration test: real Docker services (if available) - Optional
 
 ---
 
