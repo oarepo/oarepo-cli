@@ -159,6 +159,130 @@ def library_venv(
     console.info(f"  Path: {venv_path}", fg=typer.colors.GREEN)
 
 
+@library_app.command("install")
+def library_install(
+    force: Annotated[
+        bool, typer.Option("--force", "-f", help="Recreate venv from scratch")
+    ] = False,
+    no_editable: Annotated[
+        bool, typer.Option("--no-editable", help="Build wheel instead of editable install")
+    ] = False,
+    quiet: Annotated[bool, typer.Option("--quiet", "-q", help="Suppress command output")] = False,
+) -> None:
+    """Alias for 'venv' command - set up virtual environment with OARepo dependencies.
+
+    Creates or verifies a Python virtual environment in the project directory
+    and installs all required dependencies including OARepo and the project itself.
+
+    By default, the project is installed in editable mode (-e) so changes to
+    the code are immediately reflected. Use --no-editable to build and install
+    a wheel instead.
+
+    The virtual environment path defaults to .venv but can be configured via
+    the OAREPO_VENV_PATH environment variable or [tool.oarepo-cli.venv.path]
+    in pyproject.toml.
+    """
+    # Just call library_venv with the same parameters
+    library_venv(force=force, no_editable=no_editable, quiet=quiet)
+
+
+@library_app.command("clean")
+def library_clean(
+    quiet: Annotated[bool, typer.Option("--quiet", "-q", help="Suppress command output")] = False,
+) -> None:
+    """Clean up development environment.
+
+    This command:
+    1. Stops running services (if any)
+    2. Removes the virtual environment directory
+    3. Removes the .env-services file
+
+    Use this when you want to completely remove your development environment,
+    for example before deleting the project or when you want a fresh start.
+
+    This command is idempotent - it will not fail if the environment is
+    already clean.
+    """
+    import shutil
+
+    # Discover project context
+    context = discover_context()
+
+    # Create console output handler
+    console = ConsoleOutput(quiet=quiet)
+
+    console.info("🧹 Cleaning environment...", fg=typer.colors.BRIGHT_BLUE, bold=True)
+
+    items_removed = []
+
+    # Stop services if running
+    services_mgr = ServicesLifecycleManager(
+        config=context.config, project_root=context.root_directory, quiet=quiet
+    )
+    if services_mgr.are_services_running():
+        console.info("🛑 Stopping services...", fg=typer.colors.CYAN)
+        try:
+            services_mgr.stop_services()
+            console.info("  ✓ Services stopped", fg=typer.colors.GREEN)
+            items_removed.append("services")
+        except Exception as e:
+            console.warning(
+                f"  ⚠ Warning: Failed to stop services: {e}",
+                fg=typer.colors.YELLOW,
+            )
+    else:
+        console.info("  ℹ No services running", fg=typer.colors.CYAN)
+
+    # Remove .env-services file
+    env_services_file = context.root_directory / ".env-services"
+    if env_services_file.exists():
+        console.info("🗑️  Removing .env-services file...", fg=typer.colors.CYAN)
+        try:
+            env_services_file.unlink()
+            console.info("  ✓ .env-services removed", fg=typer.colors.GREEN)
+            items_removed.append(".env-services")
+        except Exception as e:
+            console.warning(
+                f"  ⚠ Warning: Failed to remove .env-services: {e}",
+                fg=typer.colors.YELLOW,
+            )
+    else:
+        console.info("  ℹ No .env-services file found", fg=typer.colors.CYAN)
+
+    # Remove venv directory
+    if context.venv_path.exists():
+        console.info(
+            f"🗑️  Removing virtual environment at {context.venv_path}...", fg=typer.colors.CYAN
+        )
+        try:
+            shutil.rmtree(context.venv_path)
+            console.info("  ✓ Virtual environment removed", fg=typer.colors.GREEN)
+            items_removed.append("venv")
+        except Exception as e:
+            console.warning(
+                f"  ⚠ Warning: Failed to remove venv: {e}",
+                fg=typer.colors.YELLOW,
+            )
+    else:
+        console.info(
+            f"  ℹ No virtual environment found at {context.venv_path}", fg=typer.colors.CYAN
+        )
+
+    # Display summary
+    if items_removed:
+        console.success(
+            f"✨ ✓ Cleanup completed! Removed: {', '.join(items_removed)}",
+            fg=typer.colors.BRIGHT_GREEN,
+            bold=True,
+        )
+    else:
+        console.success(
+            "✨ ✓ Environment is already clean!",
+            fg=typer.colors.BRIGHT_GREEN,
+            bold=True,
+        )
+
+
 @library_app.command("upgrade")
 def library_upgrade(
     quiet: Annotated[bool, typer.Option("--quiet", "-q", help="Suppress command output")] = False,

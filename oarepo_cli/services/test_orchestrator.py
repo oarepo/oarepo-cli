@@ -96,6 +96,29 @@ class TestOrchestrator:
                 if not self._quiet and console:
                     console.info("  ✓ Services started", fg=None)
 
+            # Ensure venv exists before trying to install dependencies
+            if not self._context.venv_path.exists():
+                if not self._quiet:
+                    if console is None:
+                        from oarepo_cli.ui import ConsoleOutput
+
+                        console = ConsoleOutput(quiet=False)
+                    console.info("🔨 Creating virtual environment...", fg=None, bold=True)
+
+                from oarepo_cli.services.venv import VenvRequirements, VirtualEnvironmentManager
+
+                requirements = VenvRequirements(
+                    python_binary=str(self._context.python_binary),
+                    oarepo_version=self._context.oarepo_version,
+                    extras=[],
+                    editable=True,
+                )
+                venv_mgr = VirtualEnvironmentManager(config=self._context.config)
+                venv_mgr.ensure_venv(requirements, force=False, quiet=self._quiet)
+
+                if not self._quiet and console:
+                    console.info("  ✓ Virtual environment created", fg=None)
+
             # Ensure pytest and coverage are installed if needed
             self._ensure_test_dependencies(use_coverage)
 

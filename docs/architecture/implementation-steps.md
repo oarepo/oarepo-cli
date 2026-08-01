@@ -480,20 +480,21 @@ For unit-level tests, call `run()`/`stream()`/`get_output()` directly against re
 ### Step 3.8: Library `clean` Command
 **Goal**: Implement `oarepo-cli library clean` command.
 
-- [ ] Implement `library_clean()` function
-- [ ] Stop services
-- [ ] Remove venv directory
-- [ ] Remove `.env-services` file
-- [ ] Display cleanup summary
+- [x] Implement `library_clean()` function
+- [x] Stop services
+- [x] Remove venv directory
+- [x] Remove `.env-services` file
+- [x] Display cleanup summary
 
 **Deliverables**:
 - Working `clean` command
 
-**Tests** (`tests/workflow/test_cleanup_workflow.py`):
-- [ ] Test venv removed
-- [ ] Test env-services file removed
-- [ ] Test services stopped
-- [ ] Test idempotent (works even if nothing exists)
+**Tests** (`tests/workflow/test_cleanup_workflow.py` and `tests/integration/test_library_clean.py`):
+- [x] Test venv removed
+- [x] Test env-services file removed
+- [x] Test services stopped
+- [x] Test idempotent (works even if nothing exists)
+- [x] Integration tests for full command execution
 
 ---
 
