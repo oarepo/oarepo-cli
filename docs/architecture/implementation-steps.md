@@ -159,22 +159,22 @@ For unit-level tests, call `run()`/`stream()`/`get_output()` directly against re
 ### Step 1.2: Version Resolver
 **Goal**: Determine compatible Python and OARepo versions.
 
-- [ ] Implement `services/version_resolver.py` with `VersionInfo` dataclass
-- [ ] `VersionResolver` class with methods: `resolve_from_pyproject()`, `find_available_python()`, `validate_compatibility()`
-- [ ] Parse `requires-python` constraint into discrete version list
-- [ ] Check system for available Python binaries
-- [ ] Select highest available Python version within constraints
+- [x] Implement `services/version_resolver.py` with `VersionInfo` dataclass
+- [x] `VersionResolver` class with methods: `resolve_from_pyproject()`, `find_available_python()`, `validate_compatibility()`
+- [x] Parse `requires-python` constraint into discrete version list
+- [x] Check system for available Python binaries
+- [x] Select highest available Python version within constraints
 
 **Deliverables**:
-- Version resolution logic
-- Python availability detection
+- [x] Version resolution logic
+- [x] Python availability detection
 
 **Tests** (`tests/unit/test_version_resolver.py`):
-- [ ] Test version range parsing (e.g., `>=3.12,<3.15` → `["3.12", "3.13", "3.14"]`)
-- [ ] Test finding highest available Python
-- [ ] Test fallback to lower version if highest unavailable
-- [ ] Test `VersionMismatchError` when no compatible version found
-- [ ] Test OARepo-Python compatibility validation
+- [x] Test version range parsing (e.g., `>=3.12,<3.15` → `["3.12", "3.13", "3.14"]`)
+- [x] Test finding highest available Python
+- [x] Test fallback to lower version if highest unavailable
+- [x] Test `VersionMismatchError` when no compatible version found
+- [x] Test OARepo-Python compatibility validation
 
 ---
 
@@ -897,14 +897,14 @@ For unit-level tests, call `run()`/`stream()`/`get_output()` directly against re
 | Phase | Steps | Status |
 |-------|-------|--------|
 | 0: Project Setup | 4 | [x] (4/4 complete) |
-| 1: Core Domain Models | 4 | [~] (1/4 complete) |
+| 1: Core Domain Models | 4 | [~] (2/4 complete) |
 | 2: Virtual Environment | 3 | [ ] |
 | 3: Library Commands | 12 | [ ] |
 | 4: Repository Commands | 10 | [ ] |
 | 5: Repository Installer | 3 | [ ] |
 | 6: Hardening | 5 | [ ] |
 | 7: Release Prep | 2 | [ ] |
-| **Total** | **43** | **[~] (5/43 complete)** |
+| **Total** | **43** | **[~] (6/43 complete)** |
 
 ---
 
