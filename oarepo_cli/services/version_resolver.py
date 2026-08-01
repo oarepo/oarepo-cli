@@ -117,6 +117,22 @@ class VersionResolver:
             "Please install one of these versions or adjust your requires-python constraint."
         )
 
+    def is_compatible(self, python: str, oarepo: int) -> bool:
+        """Check if a Python version is compatible with an OARepo version.
+
+        Args:
+            python: Python version string (e.g., "3.12")
+            oarepo: OARepo major version (e.g., 14)
+
+        Returns:
+            True if the combination is compatible, False otherwise
+        """
+        try:
+            self.validate_compatibility(python, oarepo)
+            return True
+        except VersionMismatchError:
+            return False
+
     def validate_compatibility(self, python: str, oarepo: int) -> None:
         """Validate that a Python version is compatible with an OARepo version.
 
