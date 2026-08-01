@@ -10,6 +10,7 @@ readme = "README.md"
 license = "MIT"
 dependencies = [
     "invenio-cli>=1.9.0,<2.0.0",
+    "packaging>=24.0",
 ]
 requires-python = ">=3.14,<3.15"
 
@@ -26,6 +27,7 @@ tests = [
     "pytest>=7.1.2",
     "pytest-cov>=4.0.0",
     "pytest-subprocess>=1.5.0",
+    "pytest-mock>=3.14.0",
 ]
 oarepo14 = [
     # just for installation, no code dependency

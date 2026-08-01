@@ -5,7 +5,6 @@
 
 from __future__ import annotations
 
-import re
 import tomllib
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any
@@ -13,7 +12,7 @@ from typing import TYPE_CHECKING, Any
 if TYPE_CHECKING:
     from pathlib import Path
 
-_OAREPO_VERSION_RE = re.compile(r"oarepo(\d+)")
+from oarepo_cli.constants import OAREPO_VERSION_RE
 
 
 @dataclass
@@ -57,7 +56,7 @@ class PyProjectData:
         """
         versions = set()
         for dep in self.optional_dependencies.get("oarepo", []):
-            if match := _OAREPO_VERSION_RE.match(dep):
+            if match := OAREPO_VERSION_RE.match(dep):
                 versions.add(int(match.group(1)))
         return sorted(versions)
 

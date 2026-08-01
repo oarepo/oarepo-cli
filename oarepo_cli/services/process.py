@@ -14,6 +14,8 @@ from typing import TYPE_CHECKING
 if TYPE_CHECKING:
     from collections.abc import Iterator, Sequence
 
+from oarepo_cli.constants import STREAM_ENV_DEFAULTS
+
 
 @dataclass
 class ProcessResult:
@@ -150,9 +152,6 @@ def run(
         ) from exc
 
 
-_STREAM_ENV_DEFAULTS = {"PYTHONUNBUFFERED": "1"}
-
-
 def stream(
     command: Sequence[str],
     *,
@@ -176,7 +175,7 @@ def stream(
     Yields:
         Lines of stdout interleaved with stderr
     """
-    run_env = dict(os.environ, **_STREAM_ENV_DEFAULTS)
+    run_env = dict(os.environ, **STREAM_ENV_DEFAULTS)
     if env is not None:
         run_env.update(env)
 
