@@ -54,6 +54,7 @@ These are architectural decisions already made — don't re-litigate them, just 
 - **Never** rename imports unless absolutely necessary, do not use pattern like `from oarepo_cli.core.errors import ConfigurationError as ConfigurationError`
 - **Always** run the format & lint & type checkers (make check) after your changes, use "if TYPE_CHECKING: ..." for type checking-only imports
 - **Always** add module-level docstrings
+- **Do not use** imports inside a function/method unless absolutely necessary to break circular imports
 
 ## Dev commands
 
