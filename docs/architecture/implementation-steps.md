@@ -18,6 +18,23 @@ Track progress by updating the status flags:
 
 ---
 
+## Roadmap
+
+Per-phase deliverable. Steps within a phase can often be parallelized; see each phase below for the detailed, verifiable checklist. Phases are worked in order, with no fixed schedule.
+
+| Phase | Deliverable |
+|-------|-------------|
+| 0: Project Setup & Infrastructure | Project scaffolding, tooling (ruff, ty, pytest), and pre-commit hooks in place |
+| 1: Core Domain Models | pyproject.toml parsing, version resolution, config loading, and context discovery working |
+| 2: Virtual Environment Management | `oarepo-cli --help` matches shell script structure; venvs created/managed via `uv` with lock-file concurrency protection |
+| 3: Library Commands | All library commands functional, passing characterization tests |
+| 4: Repository Commands | All repository commands functional |
+| 5: Repository Installer | `oarepo-cli repo-install <name>` works identically to the shell script |
+| 6: Hardening & Polish | Signal handling, structured logging, benchmarks, and full characterization parity |
+| 7: Release Preparation | CI/CD pipeline live; v1.0.0 tagged and published |
+
+---
+
 ## Phase 0: Project Setup & Infrastructure
 
 ### Step 0.1: Initialize Project Structure

@@ -652,94 +652,17 @@ class CommandResult(Generic[T]):
 
 ## 10. Implementation Roadmap
 
-### Phase 1: Foundation (Week 1-2)
+Development proceeds through 8 phases, from project scaffolding to release, worked in order with no fixed schedule.
 
-- [ ] Project scaffolding with Poetry/pip
-- [ ] Typer CLI skeleton with --help parity
-- [ ] Core context discovery and pyproject.toml parsing
-- [ ] ProcessExecutor with subprocess backend
-- [ ] Version resolver (Python/OARepo detection)
-- [ ] Basic error hierarchy
-
-**Deliverable**: `oarepo-cli --help` matches shell script help structure
+**See:** [implementation-steps.md](./implementation-steps.md) for the full phase-by-phase, test-driven checklist and deliverables.
 
 ---
 
-### Phase 2: Library Runner Parity (Week 3-4)
+## 11. Migration Guide
 
-- [ ] `venv` command with uv integration
-- [ ] `upgrade` command
-- [ ] `start`/`stop` services
-- [ ] `test` command with coverage support
-- [ ] `lint`/`format` commands
-- [ ] `shell`/`invenio` passthrough
-- [ ] `translations` command
-- [ ] `clean` command
-- [ ] `self-update` (deprecated path)
+User-facing migration from shell scripts to `oarepo-cli` (command mapping, environment variables, breaking changes, deprecation timeline) is covered separately.
 
-**Deliverable**: All library commands functional, passing characterization tests
-
----
-
-### Phase 3: Repository Runner Parity (Week 5-6)
-
-- [ ] `install` command
-- [ ] `services` subcommands
-- [ ] `model create`/`update`
-- [ ] `local add`/`remove`
-- [ ] `run` command with celery/docker orchestration
-- [ ] `cli` passthrough
-- [ ] `index rebuild`
-- [ ] `reset` with confirmation
-- [ ] `info` command
-
-**Deliverable**: All repository commands functional
-
----
-
-### Phase 4: Repository Installer (Week 7)
-
-- [ ] Top-level `repo-install` command
-- [ ] Copier integration with templates
-- [ ] SSL certificate generation
-- [ ] Git initialization
-- [ ] Docker compose setup
-
-**Deliverable**: `oarepo-cli repo-install my-repo` works identically to shell script
-
----
-
-### Phase 5: Hardening (Week 8)
-
-- [ ] Signal handling for long-running processes
-- [ ] Lock file concurrency control
-- [ ] Structured logging option
-- [ ] Comprehensive error messages
-- [ ] Documentation and migration guide
-- [ ] Performance benchmarking
-
-**Deliverable**: Production-ready release candidate
-
----
-
-## 11. Migration Guide Outline
-
-### For End Users
-
-1. Installation: `pip install oarepo-cli`
-2. Replace `./run.sh venv` → `oarepo-cli library venv`
-3. Replace `./run.sh test` → `oarepo-cli library test`
-4. Replace `./run.sh install` → `oarepo-cli repository install`
-5. Environment variables remain the same (read-only)
-6. `self-update` deprecated; use `pip install --upgrade oarepo-cli`
-
-### For Maintainers
-
-1. Keep shell scripts in parallel during transition
-2. Run both implementations side-by-side in CI
-3. Gradually shift characterization tests to Python
-4. Deprecation notice in shell scripts after 3 months
-5. Remove shell scripts after 6 months or v2.0
+**See:** [03-migration-guide.md](./03-migration-guide.md) for complete migration instructions.
 
 ---
 

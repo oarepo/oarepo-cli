@@ -226,7 +226,7 @@ class TestVersionResolver:
 from pathlib import Path
 from typing import Optional, Sequence
 from oarepo_cli.services.process import ProcessExecutor, ProcessResult
-from oarepio_cli.services.filesystem import FileSystem
+from oarepo_cli.services.filesystem import FileSystem
 
 
 class FakeFileSystem(FileSystem):

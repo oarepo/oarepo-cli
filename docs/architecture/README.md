@@ -203,37 +203,20 @@ class PyProjectReader:
 
 ---
 
-## 7. Migration Plan
+## 7. Implementation Roadmap
 
-### Phase 1: Foundation (Week 1-2)
-- Project scaffolding
-- Typer CLI skeleton
-- Core context discovery
-- ProcessExecutor implementation
-- Version resolver
-- Error hierarchy
+Development proceeds through 8 phases, from project scaffolding to release, worked in order with no fixed schedule:
 
-**Deliverable:** `oarepo-cli --help` matches shell script structure
+| Phases | Focus |
+|--------|-------|
+| 0-2 | Foundation: project setup, core domain models, virtual environments |
+| 3 | Library command parity |
+| 4 | Repository command parity |
+| 5 | Repository installer |
+| 6-7 | Hardening & release |
 
-### Phase 2: Library Runner Parity (Week 3-4)
-- All library commands functional
-- Characterization tests passing
-
-### Phase 3: Repository Runner Parity (Week 5-6)
-- All repository commands functional
-- Integration tests passing
-
-### Phase 4: Repository Installer (Week 7)
-- Top-level `repo-install` command
-- Copier integration
-
-### Phase 5: Hardening (Week 8)
-- Signal handling
-- Lock file concurrency
-- Documentation
-- Performance benchmarking
-
-**See:** [03-migration-guide.md](./03-migration-guide.md) for user migration instructions
+**See:** [implementation-steps.md](./implementation-steps.md) for the full phase-by-phase, test-driven checklist.
+**See:** [03-migration-guide.md](./03-migration-guide.md) for end-user migration instructions (command mapping, breaking changes).
 
 ---
 
@@ -278,7 +261,7 @@ class PyProjectReader:
 
 ---
 
-### 10. Implementation Checklist
+## 10. Implementation Checklist
 
 ### Core Infrastructure
 - [ ] Project setup (Poetry/pip, ruff, ty, pytest)
@@ -405,6 +388,7 @@ class PyProjectReader:
 | [01-detailed-design.md](./01-detailed-design.md) | Component specs, interfaces, diagrams | Developers implementing |
 | [02-testing-strategy.md](./02-testing-strategy.md) | Test pyramid, examples, fixtures | QA, developers writing tests |
 | [03-migration-guide.md](./03-migration-guide.md) | User migration instructions | End users, DevOps |
+| [implementation-steps.md](./implementation-steps.md) | Phase-by-phase, test-driven implementation checklist | Developers implementing |
 
 ---
 

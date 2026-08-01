@@ -69,7 +69,7 @@ oarepo-cli library test
 | `./run.sh jslint` | `oarepo-cli library jslint` | Identical behavior |
 | `./run.sh jstest setup` | `oarepo-cli library jstest setup` | Identical behavior |
 | `./run.sh jstest --skip-services` | `oarepo-cli library jstest --skip-services` | Same flag |
-| `./run.sh self-update` | **Removed** | Use `pip install --upgrade oarepo-cli` | **Not available** in Python CLI |
+| `./run.sh self-update` | **Removed** | **Not available** in Python CLI — use `pip install --upgrade oarepo-cli` |
 | `./run.sh --no-editable test` | `oarepo-cli library venv --no-editable && oarepo-cli library test` | Flag moved to venv command |
 
 ### Repository Commands
@@ -97,7 +97,7 @@ oarepo-cli library test
 | `./run.sh index rebuild` | `oarepo-cli repository index rebuild` | Identical behavior |
 | `./run.sh reset` | `oarepo-cli repository reset` | Identical behavior (with confirmation prompt) |
 | `./run.sh info` | `oarepo-cli repository info` | Identical behavior |
-| `./run.sh self-update` | **Removed** | Use `pip install --upgrade oarepo-cli` | **Not available** in Python CLI |
+| `./run.sh self-update` | **Removed** | **Not available** in Python CLI — use `pip install --upgrade oarepo-cli` |
 
 ### Repository Installer
 

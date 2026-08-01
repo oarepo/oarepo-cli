@@ -521,7 +521,7 @@ class VirtualEnvironmentManager:
         self._process.run(
             [
                 "uv", "pip", "install",
-                f"oarepo[{oarpo_constraint}>=...,<...",
+                f"oarepo[{oarepo_constraint}]",
             ],
             check=True,
         )
