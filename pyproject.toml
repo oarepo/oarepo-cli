@@ -11,11 +11,15 @@ license = "MIT"
 dependencies = [
     "invenio-cli>=1.9.0,<2.0.0",
     "packaging>=24.0",
+    "typer>=0.12.0",
 ]
 requires-python = ">=3.14,<3.15"
 
 [project.urls]
 Homepage = "https://github.com/oarepo/oarepo-cli"
+
+[project.scripts]
+oarepo-cli = "oarepo_cli.cli.main:cli_main"
 
 [project.optional-dependencies]
 dev = [
