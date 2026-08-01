@@ -63,3 +63,51 @@ def library_venv(
     venv_path = venv_mgr.ensure_venv(requirements, force=force)
 
     typer.echo(f"✓ Virtual environment ready at {venv_path}", color=True)
+
+
+@library_app.command("upgrade")
+def library_upgrade() -> None:
+    """Clean cache and recreate virtual environment from scratch.
+
+    This command:
+    1. Removes the existing virtual environment (if present)
+    2. Cleans the uv cache to ensure fresh package downloads
+    3. Recreates the virtual environment with all dependencies
+
+    Use this when you need to completely refresh your development environment,
+    for example after updating OARepo or when dependencies become corrupted.
+
+    Note: This does not stop services. Use 'oarepo-cli library stop' first
+    if you have services running.
+    """
+    # Discover project context
+    context = discover_context()
+
+    typer.echo("Upgrading environment...")
+
+    # Clean uv cache
+    typer.echo("Cleaning uv cache...")
+    from oarepo_cli.services import process
+
+    try:
+        process.run(["uv", "cache", "clean"], check=True)
+    except Exception as e:
+        typer.echo(f"Warning: Failed to clean uv cache: {e}", err=True)
+
+    # Remove and recreate venv using VirtualEnvironmentManager
+    typer.echo("Recreating virtual environment...")
+
+    # Build requirements from context
+    requirements = VenvRequirements(
+        python_binary=str(context.python_binary),
+        oarepo_version=context.oarepo_version,
+        extras=[],
+        editable=True,  # Default to editable mode
+    )
+
+    # Create/verify venv with force=True to recreate
+    venv_mgr = VirtualEnvironmentManager(config=context.config)
+    venv_path = venv_mgr.ensure_venv(requirements, force=True)
+
+    typer.echo("✓ Upgrade completed successfully.", color=True)
+    typer.echo(f"Virtual environment ready at {venv_path}")

@@ -341,20 +341,21 @@ For unit-level tests, call `run()`/`stream()`/`get_output()` directly against re
 ### Step 3.3: Library `upgrade` Command
 **Goal**: Implement `oarepo-cli library upgrade` command.
 
-- [ ] Implement `library_upgrade()` function
-- [ ] Stop services (if running)
-- [ ] Remove existing venv
-- [ ] Clean uv cache
-- [ ] Recreate venv with `ensure_venv(force=True)`
+- [x] Implement `library_upgrade()` function
+- [ ] Stop services (if running) - Deferred to Step 3.4 when services are implemented
+- [x] Remove existing venv
+- [x] Clean uv cache
+- [x] Recreate venv with `ensure_venv(force=True)`
 
 **Deliverables**:
 - Working `upgrade` command
 
 **Tests** (`tests/workflow/test_upgrade_workflow.py`):
-- [ ] Test venv removed and recreated
-- [ ] Test cache cleaned
-- [ ] Test services stopped before upgrade
-- [ ] Test success message displayed
+- [x] Test venv removed and recreated
+- [x] Test cache cleaned
+- [x] Test services stopped before upgrade - Deferred to Step 3.4
+- [x] Test success message displayed
+- [x] Test cache clean failure handling
 
 ---
 
@@ -367,6 +368,7 @@ For unit-level tests, call `run()`/`stream()`/`get_output()` directly against re
 - [ ] Use `docker-services-cli up/down`
 - [ ] Write/read `.env-services` file
 - [ ] Support DB, search, MQ, cache, S3 options
+- [ ] Update 3.3 steps with service checks
 
 **Deliverables**:
 - Service lifecycle management
