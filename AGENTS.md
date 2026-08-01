@@ -55,6 +55,7 @@ These are architectural decisions already made — don't re-litigate them, just 
 - **Always** run the format & lint & type checkers (make check) after your changes, use "if TYPE_CHECKING: ..." for type checking-only imports
 - **Always** add module-level docstrings
 - **Do not use** imports inside a function/method unless absolutely necessary to break circular imports
+- **Always check for existing library** before adding a new functionality as the library might have already the functionality implemented and tested. It is ok to add a new library if it significantly improves the functionality or maintainability of the code.
 
 ## Dev commands
 
