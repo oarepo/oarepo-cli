@@ -387,17 +387,17 @@ For unit-level tests, call `run()`/`stream()`/`get_output()` directly against re
 ### Step 3.5: Library `start`/`stop` Commands
 **Goal**: Implement service start/stop commands.
 
-- [ ] Implement `library_start()` and `library_stop()` functions
-- [ ] Delegate to `ServicesLifecycleManager`
-- [ ] Display colored status messages
+- [x] Implement `library_start()` and `library_stop()` functions
+- [x] Delegate to `ServicesLifecycleManager`
+- [x] Display colored status messages
 
 **Deliverables**:
 - Start/stop commands
 
 **Tests** (`tests/integration/test_library_services.py`):
-- [ ] Test start creates env file
-- [ ] Test stop removes env file
-- [ ] Test exit codes match bash
+- [x] Test start creates env file
+- [x] Test stop removes env file
+- [x] Test exit codes match bash
 
 ---
 
