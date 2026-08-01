@@ -62,7 +62,8 @@ def library_venv(
     venv_mgr = VirtualEnvironmentManager(config=context.config)
     venv_path = venv_mgr.ensure_venv(requirements, force=force)
 
-    typer.echo(f"✓ Virtual environment ready at {venv_path}", color=True)
+    typer.secho("✨ ✓ Virtual environment ready!", fg=typer.colors.BRIGHT_GREEN, bold=True)
+    typer.secho(f"  Path: {venv_path}", fg=typer.colors.GREEN)
 
 
 @library_app.command("upgrade")
@@ -83,19 +84,20 @@ def library_upgrade() -> None:
     # Discover project context
     context = discover_context()
 
-    typer.echo("Upgrading environment...")
+    typer.secho("🔄 Upgrading environment...", fg=typer.colors.BRIGHT_BLUE, bold=True)
 
     # Clean uv cache
-    typer.echo("Cleaning uv cache...")
+    typer.secho("🧹 Cleaning uv cache...", fg=typer.colors.CYAN)
     from oarepo_cli.services import process
 
     try:
         process.run(["uv", "cache", "clean"], check=True)
+        typer.secho("  ✓ Cache cleaned", fg=typer.colors.GREEN)
     except Exception as e:
-        typer.echo(f"Warning: Failed to clean uv cache: {e}", err=True)
+        typer.secho(f"  ⚠ Warning: Failed to clean uv cache: {e}", fg=typer.colors.YELLOW, err=True)
 
     # Remove and recreate venv using VirtualEnvironmentManager
-    typer.echo("Recreating virtual environment...")
+    typer.secho("🔨 Recreating virtual environment...", fg=typer.colors.CYAN)
 
     # Build requirements from context
     requirements = VenvRequirements(
@@ -109,5 +111,5 @@ def library_upgrade() -> None:
     venv_mgr = VirtualEnvironmentManager(config=context.config)
     venv_path = venv_mgr.ensure_venv(requirements, force=True)
 
-    typer.echo("✓ Upgrade completed successfully.", color=True)
-    typer.echo(f"Virtual environment ready at {venv_path}")
+    typer.secho("✨ ✓ Upgrade completed successfully!", fg=typer.colors.BRIGHT_GREEN, bold=True)
+    typer.secho(f"  Virtual environment ready at {venv_path}", fg=typer.colors.GREEN)
