@@ -52,7 +52,8 @@ These are architectural decisions already made — don't re-litigate them, just 
 - **No premature abstraction.** Only introduce a protocol/abstraction when there are 2+ concrete implementations (real + fake counts).
 - **Preserve exit codes, stdout/stderr, flag names, and `.env-services` file format exactly** — this is a behavior-preserving rewrite, not a redesign. See the compatibility matrix in `00-main-architecture.md` §1 and §8/§Compatibility Matrix (main doc + README).
 - **Never** rename imports unless absolutely necessary, do not use pattern like `from oarepo_cli.core.errors import ConfigurationError as ConfigurationError`
-- **Always** run the format & lint & type checkers (make check) after your changes
+- **Always** run the format & lint & type checkers (make check) after your changes, use "if TYPE_CHECKING: ..." for type checking-only imports
+- **Always** add module-level docstrings
 
 ## Dev commands
 

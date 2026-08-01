@@ -104,21 +104,21 @@ Per-phase deliverable. Steps within a phase can often be parallelized; see each 
 ### Step 0.4: Process Executor Protocol & Fake Implementation
 **Goal**: Define abstraction for subprocess execution with test double.
 
-- [ ] Define `services/process.py` with `ProcessResult` dataclass
-- [ ] Define `ProcessExecutor` protocol with `run()`, `stream()`, `get_output()` methods
-- [ ] Implement `FakeProcessExecutor` in `tests/fakes.py`
-- [ ] Register command responses and simulate outputs in fake executor
+- [x] Define `services/process.py` with `ProcessResult` dataclass
+- [x] Define `ProcessExecutor` protocol with `run()`, `stream()`, `get_output()` methods
+- [x] Implement `FakeProcessExecutor` in `tests/fakes.py`
+- [x] Register command responses and simulate outputs in fake executor
 
 **Deliverables**:
-- ProcessExecutor protocol definition
-- Fully functional fake implementation for testing
+- [x] ProcessExecutor protocol definition
+- [x] Fully functional fake implementation for testing
 
 **Tests** (`tests/contracts/test_process_executor.py`):
-- [ ] Contract tests verify fake executor satisfies protocol
-- [ ] Test `run()` captures stdout/stderr correctly
-- [ ] Test `run()` respects `check=True/False`
-- [ ] Test `get_output()` returns stripped stdout
-- [ ] Test environment variables are passed correctly
+- [x] Contract tests verify fake executor satisfies protocol
+- [x] Test `run()` captures stdout/stderr correctly
+- [x] Test `run()` respects `check=True/False`
+- [x] Test `get_output()` returns stripped stdout
+- [x] Test environment variables are passed correctly
 
 ---
 
