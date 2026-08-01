@@ -1,0 +1,32 @@
+[project]
+name = "testlib"
+version = "0.1.0"
+description = "Test library for oarepo-cli"
+readme = "README.md"
+authors = [
+    { name = "Mirek Simek", email = "miroslav.simek@cesnet.cz" }
+]
+requires-python = ">=3.14,<3.15"
+
+dependencies = [
+    "oarepo[rdm,tests]>=14.2.1b10.dev7,<15.0.0",
+]
+
+[project.optional-dependencies]
+tests = [
+    "pytest>=7.0",
+    "pytest-invenio>=4.0.0,<5.0.0",
+    "pytest-oarepo>=6.0.0,<7.0.0",
+    "oarepo-rdm>=8.0.0,<9.0.0",
+    "deepdiff",
+]
+oarepo14 = [
+    "oarepo[rdm,tests]>=14.2.1b10.dev7,<15.0.0",
+]
+
+[tool.oarepo-cli]
+oarepo = { version = "14" }
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"

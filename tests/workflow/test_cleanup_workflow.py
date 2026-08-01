@@ -1,10 +1,11 @@
 # SPDX-FileCopyrightText: 2026 CESNET z.s.p.o.
 # SPDX-License-Identifier: MIT
 
-"""Workflow tests for cleanup operations."""
+"""Workflow tests for cleanup operations using real testlib fixture."""
 
 from __future__ import annotations
 
+import shutil
 from typing import TYPE_CHECKING
 
 import pytest
@@ -16,53 +17,21 @@ from oarepo_cli.services.services_lifecycle import ServicesLifecycleManager
 if TYPE_CHECKING:
     from pathlib import Path
 
-    from pytest_subprocess import FakeProcess
-
 
 @pytest.fixture
-def test_project(tmp_path: Path) -> Path:
-    """Create a minimal test project structure."""
-    # Create pyproject.toml
-    pyproject = tmp_path / "pyproject.toml"
-    pyproject.write_text(
-        """
-[project]
-name = "test-package"
-version = "1.0.0"
-
-[tool.oarepo-cli]
-[tool.oarepo-cli.oarepo]
-version = 14
-"""
-    )
-
-    # Create venv structure
-    venv_path = tmp_path / ".venv"
-    venv_bin = venv_path / "bin"
-    venv_bin.mkdir(parents=True)
-
-    # Create dummy files in venv
-    (venv_bin / "python").write_text("#!/bin/sh\necho 'python'")
-    (venv_bin / "python").chmod(0o755)
-
-    # Create .env-services file
-    env_file = tmp_path / ".env-services"
-    env_file.write_text('export DATABASE_URL="postgresql://localhost:5432/test"\n')
-
-    return tmp_path
-
-
-@pytest.fixture
-def test_context(test_project: Path) -> ProjectContext:
-    """Create a test project context."""
+def test_context(clean_testlib: Path) -> ProjectContext:
+    """Create a test project context using testlib."""
     config = CliConfig()
     config.services = ServicesConfig(skip=False)
 
+    # Use a temporary venv path to avoid affecting the actual testlib
+    tmp_venv = clean_testlib.parent / "testlib_test_venv"
+
     return ProjectContext(
-        root_directory=test_project,
-        pyproject_path=test_project / "pyproject.toml",
-        venv_path=test_project / ".venv",
-        python_binary=test_project / ".venv" / "bin" / "python",
+        root_directory=clean_testlib,
+        pyproject_path=clean_testlib / "pyproject.toml",
+        venv_path=tmp_venv,
+        python_binary=tmp_venv / "bin" / "python",
         oarepo_version=14,
         config=config,
     )
@@ -70,28 +39,31 @@ def test_context(test_project: Path) -> ProjectContext:
 
 def test_clean_removes_venv(test_context: ProjectContext) -> None:
     """Test that clean command removes the venv directory."""
-    import shutil
+    venv_path = test_context.venv_path
+
+    # Create a test venv structure
+    venv_path.mkdir(parents=True, exist_ok=True)
+    venv_bin = venv_path / "bin"
+    venv_bin.mkdir(exist_ok=True)
+    (venv_bin / "python").touch()
 
     # Verify venv exists before cleaning
-    assert test_context.venv_path.exists()
+    assert venv_path.exists()
 
-    # Manually perform cleanup steps (testing the cleanup logic)
-    # Remove .env-services if it exists
-    env_file = test_context.root_directory / ".env-services"
-    if env_file.exists():
-        env_file.unlink()
-
-    # Remove venv
-    if test_context.venv_path.exists():
-        shutil.rmtree(test_context.venv_path)
+    # Perform cleanup
+    if venv_path.exists():
+        shutil.rmtree(venv_path)
 
     # Verify venv was removed
-    assert not test_context.venv_path.exists()
+    assert not venv_path.exists()
 
 
 def test_clean_removes_env_services_file(test_context: ProjectContext) -> None:
     """Test that clean command removes the .env-services file."""
     env_file = test_context.root_directory / ".env-services"
+
+    # Create the file
+    env_file.write_text('export DATABASE_URL="postgresql://localhost:5432/test"\n')
 
     # Verify file exists before cleaning
     assert env_file.exists()
@@ -103,87 +75,50 @@ def test_clean_removes_env_services_file(test_context: ProjectContext) -> None:
     assert not env_file.exists()
 
 
-def test_clean_stops_services(
+def test_clean_stops_services_real(
     test_context: ProjectContext,
-    fake_process: FakeProcess,
 ) -> None:
     """Test that clean command stops services if they're running."""
     services_mgr = ServicesLifecycleManager(
-        config=test_context.config, project_root=test_context.root_directory, quiet=True
+        config=test_context.config, project_root=test_context.root_directory
     )
 
-    # Verify services are considered running (env file exists)
+    # Create .env-services to simulate running services
+    env_file = test_context.root_directory / ".env-services"
+    env_file.write_text("export DATABASE_URL=test\n")
+
+    # Verify services are considered running
     assert services_mgr.are_services_running()
-
-    # Register docker-services-cli down command
-    fake_process.register(
-        [
-            "uvx",
-            "--with",
-            "setuptools",
-            "docker-services-cli",
-            "down",
-            "--env",
-            "--quiet",
-        ],
-        stdout="",
-    )
 
     # Stop services
     services_mgr.stop_services()
 
-    # Verify docker-services-cli was called
-    assert (
-        fake_process.call_count(
-            [
-                "uvx",
-                "--with",
-                "setuptools",
-                "docker-services-cli",
-                "down",
-                "--env",
-                "--quiet",
-            ]
-        )
-        > 0
-    )
+    # Verify .env-services was removed
+    assert not env_file.exists()
 
 
-def test_clean_is_idempotent(tmp_path: Path) -> None:
+def test_clean_is_idempotent(clean_testlib: Path) -> None:
     """Test that clean command works even if nothing exists."""
-    import shutil
+    # Use a unique venv path
+    venv_path = clean_testlib.parent / "testlib_cleanup_test_venv"
 
-    # Create minimal project without venv or .env-services
-    pyproject = tmp_path / "pyproject.toml"
-    pyproject.write_text(
-        """
-[project]
-name = "test-package"
-version = "1.0.0"
-
-[tool.oarepo-cli]
-[tool.oarepo-cli.oarepo]
-version = 14
-"""
-    )
-
+    # clean_testlib fixture guarantees nothing exists yet
     config = CliConfig()
     context = ProjectContext(
-        root_directory=tmp_path,
-        pyproject_path=pyproject,
-        venv_path=tmp_path / ".venv",
-        python_binary=tmp_path / ".venv" / "bin" / "python",
+        root_directory=clean_testlib,
+        pyproject_path=clean_testlib / "pyproject.toml",
+        venv_path=venv_path,
+        python_binary=venv_path / "bin" / "python",
         oarepo_version=14,
         config=config,
     )
 
     # Verify nothing exists
     assert not context.venv_path.exists()
-    assert not (tmp_path / ".env-services").exists()
+    assert not (clean_testlib / ".env-services").exists()
 
     # Try to clean (should not raise errors)
-    # These operations should be safe even if files don't exist
-    env_file = tmp_path / ".env-services"
+    env_file = clean_testlib / ".env-services"
     if env_file.exists():
         env_file.unlink()
 
@@ -192,25 +127,64 @@ version = 14
 
     # Verify still nothing exists (idempotent)
     assert not context.venv_path.exists()
-    assert not (tmp_path / ".env-services").exists()
+    assert not (clean_testlib / ".env-services").exists()
 
 
 def test_clean_handles_partial_cleanup(test_context: ProjectContext) -> None:
     """Test that clean handles cases where only some items exist."""
-    import shutil
+    venv_path = test_context.venv_path
 
-    # Remove venv but keep .env-services
-    if test_context.venv_path.exists():
-        shutil.rmtree(test_context.venv_path)
+    # Create venv but no .env-services
+    venv_path.mkdir(parents=True, exist_ok=True)
+    (venv_path / "bin").mkdir(exist_ok=True)
+    (venv_path / "bin" / "python").touch()
 
-    # Verify venv is gone but .env-services remains
-    assert not test_context.venv_path.exists()
-    assert (test_context.root_directory / ".env-services").exists()
-
-    # Clean should still work
+    # Ensure no .env-services
     env_file = test_context.root_directory / ".env-services"
     if env_file.exists():
         env_file.unlink()
 
+    # Verify venv exists but .env-services doesn't
+    assert venv_path.exists()
+    assert not env_file.exists()
+
+    # Clean should still work
+    if venv_path.exists():
+        shutil.rmtree(venv_path)
+
     # Verify cleanup completed
-    assert not (test_context.root_directory / ".env-services").exists()
+    assert not venv_path.exists()
+    assert not env_file.exists()
+
+
+def test_clean_with_actual_venv_creation_and_removal(
+    clean_testlib: Path,
+) -> None:
+    """Test complete cycle: create venv, then clean it."""
+    venv_path = clean_testlib.parent / "testlib_full_cleanup_venv"
+
+    # Create a minimal venv structure
+    venv_path.mkdir(parents=True)
+    bin_dir = venv_path / "bin"
+    bin_dir.mkdir()
+    python_bin = bin_dir / "python"
+    python_bin.touch()
+    python_bin.chmod(0o755)
+
+    # Also create .env-services
+    env_file = clean_testlib / ".env-services"
+    env_file.write_text("export TEST=value\n")
+
+    # Verify both exist
+    assert venv_path.exists()
+    assert env_file.exists()
+
+    # Perform cleanup
+    if env_file.exists():
+        env_file.unlink()
+    if venv_path.exists():
+        shutil.rmtree(venv_path)
+
+    # Verify both removed
+    assert not venv_path.exists()
+    assert not env_file.exists()

@@ -156,7 +156,7 @@ def library_venv(
     )
 
     # Create/verify venv
-    venv_mgr = VirtualEnvironmentManager(config=context.config)
+    venv_mgr = VirtualEnvironmentManager(config=context.config, project_root=context.root_directory)
     venv_path = venv_mgr.ensure_venv(requirements, force=force, quiet=quiet)
 
     console.success("✨ ✓ Virtual environment ready!", fg=typer.colors.BRIGHT_GREEN, bold=True)
@@ -347,7 +347,7 @@ def library_upgrade(
     )
 
     # Create/verify venv with force=True to recreate
-    venv_mgr = VirtualEnvironmentManager(config=context.config)
+    venv_mgr = VirtualEnvironmentManager(config=context.config, project_root=context.root_directory)
     venv_path = venv_mgr.ensure_venv(requirements, force=True, quiet=quiet)
 
     console.success("✨ ✓ Upgrade completed successfully!", fg=typer.colors.BRIGHT_GREEN, bold=True)
@@ -540,7 +540,7 @@ def library_shell(
 
     # Ensure venv exists
     console.info("🔧 Checking virtual environment...", fg=typer.colors.BRIGHT_BLUE, bold=True)
-    venv_mgr = VirtualEnvironmentManager(config=context.config)
+    venv_mgr = VirtualEnvironmentManager(config=context.config, project_root=context.root_directory)
     requirements = VenvRequirements(
         python_binary=str(context.python_binary),
         oarepo_version=context.oarepo_version,
@@ -555,6 +555,9 @@ def library_shell(
             fg=typer.colors.BRIGHT_RED,
             bold=True,
         )
+        import traceback  # noqa: TID251
+
+        traceback.print_exc()
         raise typer.Exit(code=1) from e
 
     # Start services if not skipped
@@ -668,7 +671,7 @@ def library_invenio(
 
     # Ensure venv exists
     console.info("🔧 Checking virtual environment...", fg=typer.colors.BRIGHT_BLUE, bold=True)
-    venv_mgr = VirtualEnvironmentManager(config=context.config)
+    venv_mgr = VirtualEnvironmentManager(config=context.config, project_root=context.root_directory)
     requirements = VenvRequirements(
         python_binary=str(context.python_binary),
         oarepo_version=context.oarepo_version,

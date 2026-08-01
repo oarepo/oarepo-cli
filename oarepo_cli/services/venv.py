@@ -6,10 +6,11 @@ from __future__ import annotations
 
 import shutil
 from dataclasses import dataclass, field
-from pathlib import Path
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
+    from pathlib import Path
+
     from oarepo_cli.core.config import CliConfig
 
 from oarepo_cli.core.errors import ValidationError
@@ -85,16 +86,26 @@ class VirtualEnvironmentManager:
 
     Handles creation, dependency installation, and cleanup of virtual environments
     for OARepo projects. Uses `uv` for fast, reliable environment management.
+
+    All operations are anchored to an explicit ``project_root`` and target the
+    venv's interpreter by absolute path, so behavior never depends on the
+    process's current working directory.
     """
 
-    def __init__(self, config: CliConfig) -> None:
+    def __init__(self, config: CliConfig, project_root: Path) -> None:
         """Initialize the virtual environment manager.
 
         Args:
             config: CLI configuration containing venv path and other settings
+            project_root: Absolute path to the project root (source of the
+                editable/wheel install and base for a relative venv.path)
         """
         self._config = config
+        self._project_root = project_root
         self._platform = get_platform_detector()
+
+        venv_path = config.venv.path
+        self._venv_path = venv_path if venv_path.is_absolute() else project_root / venv_path
 
     def ensure_venv(
         self,
@@ -120,7 +131,7 @@ class VirtualEnvironmentManager:
             ValidationError: If requirements are invalid
             ProcessExecutionError: If uv commands fail
         """
-        venv_path = self._config.venv.path
+        venv_path = self._venv_path
 
         if force and venv_path.exists():
             shutil.rmtree(venv_path)
@@ -149,9 +160,8 @@ class VirtualEnvironmentManager:
         Deletes the entire virtual environment directory. Does not fail if
         the directory doesn't exist.
         """
-        venv_path = self._config.venv.path
-        if venv_path.exists():
-            shutil.rmtree(venv_path)
+        if self._venv_path.exists():
+            shutil.rmtree(self._venv_path)
 
     def _create_venv(self, python: str, path: Path, quiet: bool = False) -> None:
         """Create fresh virtual environment using uv.
@@ -166,6 +176,7 @@ class VirtualEnvironmentManager:
         """
         process.run(
             ["uv", "venv", "--python", python, "--seed", str(path)],
+            cwd=self._project_root,
             check=True,
             interactive=not quiet,
         )
@@ -211,6 +222,8 @@ class VirtualEnvironmentManager:
                     "uv",
                     "pip",
                     "install",
+                    "--python",
+                    str(python_path),
                     "--prerelease",
                     "allow",
                     f"oarepo[{oarepo_constraint}]",
@@ -221,9 +234,9 @@ class VirtualEnvironmentManager:
 
         # Install project itself
         if requirements.editable:
-            self._install_editable(requirements, quiet=quiet)
+            self._install_editable(requirements, python_path, quiet=quiet)
         else:
-            self._build_and_install_wheel(requirements, quiet=quiet)
+            self._build_and_install_wheel(requirements, python_path, quiet=quiet)
 
     def _build_oarepo_constraint(self, requirements: VenvRequirements) -> str:
         """Build OARepo package constraint string.
@@ -248,11 +261,14 @@ class VirtualEnvironmentManager:
 
         return ",".join(constraint_parts)
 
-    def _install_editable(self, requirements: VenvRequirements, quiet: bool = False) -> None:
+    def _install_editable(
+        self, requirements: VenvRequirements, python_path: Path, quiet: bool = False
+    ) -> None:
         """Install project in editable mode.
 
         Args:
             requirements: Requirements with extras to install
+            python_path: Absolute path to the venv's Python interpreter
             quiet: If True, suppress command output
 
         Raises:
@@ -267,28 +283,45 @@ class VirtualEnvironmentManager:
         extras_str = ",".join(extras)
 
         process.run(
-            ["uv", "pip", "install", "--prerelease", "allow", "-e", f".[{extras_str}]"],
+            [
+                "uv",
+                "pip",
+                "install",
+                "--python",
+                str(python_path),
+                "--prerelease",
+                "allow",
+                "-e",
+                f"{self._project_root}[{extras_str}]",
+            ],
             check=True,
             interactive=not quiet,
         )
 
-    def _build_and_install_wheel(self, requirements: VenvRequirements, quiet: bool = False) -> None:
+    def _build_and_install_wheel(
+        self, requirements: VenvRequirements, python_path: Path, quiet: bool = False
+    ) -> None:
         """Build wheel and install (non-editable mode).
 
         Args:
             requirements: Requirements with extras to install
+            python_path: Absolute path to the venv's Python interpreter
             quiet: If True, suppress command output
 
         Raises:
             ProcessExecutionError: If build or install fails
         """
         # Clean dist directory if it exists
-        dist_dir = Path("dist")
+        dist_dir = self._project_root / "dist"
         if dist_dir.exists():
             shutil.rmtree(dist_dir)
 
         # Build wheel
-        process.run(["uv", "build", "--wheel"], check=True, interactive=not quiet)
+        process.run(
+            ["uv", "build", "--wheel", "--out-dir", str(dist_dir), str(self._project_root)],
+            check=True,
+            interactive=not quiet,
+        )
 
         # Find the built wheel
         wheels = list(dist_dir.glob("*.whl"))
@@ -312,6 +345,8 @@ class VirtualEnvironmentManager:
                 "uv",
                 "pip",
                 "install",
+                "--python",
+                str(python_path),
                 "--prerelease",
                 "allow",
                 f"{wheel_path}[{extras_str}]",

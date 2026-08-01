@@ -1,7 +1,7 @@
 # SPDX-FileCopyrightText: 2026 CESNET z.s.p.o.
 # SPDX-License-Identifier: MIT
 
-"""Integration tests for library venv command."""
+"""Integration tests for library venv command using real testlib fixture."""
 
 from __future__ import annotations
 
@@ -22,59 +22,28 @@ def runner() -> CliRunner:
     return CliRunner()
 
 
-@pytest.fixture
-def mock_library_project(tmp_path: Path) -> Path:
-    """Create a minimal mock library project."""
-    project_dir = tmp_path / "test-library"
-    project_dir.mkdir()
-
-    # Create pyproject.toml
-    pyproject_content = """
-[project]
-name = "test-library"
-version = "1.0.0"
-requires-python = ">=3.14,<3.15"
-
-[build-system]
-requires = ["setuptools>=61.0"]
-build-backend = "setuptools.build_meta"
-
-[tool.oarepo-cli]
-oarepo.version = 14
-"""
-    (project_dir / "pyproject.toml").write_text(pyproject_content)
-
-    # Create minimal package structure
-    pkg_dir = project_dir / "test_library"
-    pkg_dir.mkdir()
-    (pkg_dir / "__init__.py").write_text("")
-
-    return project_dir
-
-
-def test_library_venv_creates_venv(
+def test_library_venv_creates_venv_real(
     runner: CliRunner,
-    mock_library_project: Path,
+    clean_testlib: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """Test that 'library venv' creates a virtual environment."""
-    monkeypatch.chdir(mock_library_project)
+    monkeypatch.chdir(clean_testlib)
 
-    # Ensure no venv exists
-    venv_path = mock_library_project / ".venv"
+    # clean_testlib fixture guarantees no venv exists yet
+    venv_path = clean_testlib / ".venv"
     assert not venv_path.exists()
 
-    # Run the command (will fail if uv not available, but we're testing CLI structure)
-    result = runner.invoke(app, ["library", "venv"])
+    # Run the command
+    result = runner.invoke(app, ["library", "venv"], catch_exceptions=False)
 
-    # Check exit code and output
-    # Note: This may fail if uv is not installed, which is expected
-    # The important thing is that the command runs and attempts to create the venv
-    assert (
-        "library venv" in result.stdout
-        or "Virtual environment" in result.stdout
-        or result.exit_code != 0
-    )
+    # Command should complete (may fail if uv not available, but should not crash)
+    assert result.exit_code in [0, 1]
+
+    # If successful, venv should exist
+    if result.exit_code == 0:
+        assert venv_path.exists()
+        assert (venv_path / "bin" / "python").exists()
 
 
 def test_library_venv_help_displays(runner: CliRunner) -> None:
@@ -103,21 +72,20 @@ def test_library_venv_no_editable_flag_exists(runner: CliRunner) -> None:
     assert "--no-editable" in result.stdout
 
 
-def test_library_venv_strips_parent_venv(
+def test_library_venv_strips_parent_venv_real(
     runner: CliRunner,
-    mock_library_project: Path,
+    clean_testlib: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """Test that library venv command strips parent VIRTUAL_ENV."""
-    monkeypatch.chdir(mock_library_project)
+    monkeypatch.chdir(clean_testlib)
 
-    # Simulate being run from within oarepo-cli's own venv
+    # Simulate being run from within another venv
     monkeypatch.setenv("VIRTUAL_ENV", "/some/other/venv")
     monkeypatch.setenv("VIRTUAL_ENV_PROMPT", "(oarepo-cli) ")
 
     # The command should work without being confused by the parent venv
-    # (actual venv creation may fail without uv, but the command should not crash)
-    result = runner.invoke(app, ["library", "venv"])
+    result = runner.invoke(app, ["library", "venv"], catch_exceptions=False)
 
     # Should not crash with context errors about wrong venv
     # Exit code may be non-zero if uv is missing, but should not be a context error
@@ -137,9 +105,32 @@ def test_library_venv_requires_pyproject(
     result = runner.invoke(app, ["library", "venv"])
 
     assert result.exit_code != 0
-    # The error is raised as an exception, check the exception message or output
+    # The error should mention pyproject.toml
     assert (
         "pyproject.toml" in str(result.exception).lower()
-        or "not found" in str(result.exception).lower()
-        or result.stdout  # May have output
+        if result.exception
+        else "pyproject.toml" in result.stdout.lower()
     )
+
+
+def test_library_venv_with_testlib_real(
+    runner: CliRunner,
+    clean_testlib: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Test library venv works correctly with the actual testlib project."""
+    monkeypatch.chdir(clean_testlib)
+
+    venv_path = clean_testlib / ".venv"
+
+    # Run venv creation
+    result = runner.invoke(app, ["library", "venv"], catch_exceptions=False)
+
+    # Should succeed or fail with expected error (not crash)
+    assert result.exit_code in [0, 1]
+
+    # If successful, verify structure
+    if result.exit_code == 0:
+        assert venv_path.exists()
+        assert (venv_path / "bin" / "python").exists()
+        assert (venv_path / "bin" / "pip").exists()

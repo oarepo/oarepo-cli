@@ -113,7 +113,9 @@ class TestOrchestrator:
                     extras=[],
                     editable=True,
                 )
-                venv_mgr = VirtualEnvironmentManager(config=self._context.config)
+                venv_mgr = VirtualEnvironmentManager(
+                    config=self._context.config, project_root=self._context.root_directory
+                )
                 venv_mgr.ensure_venv(requirements, force=False, quiet=self._quiet)
 
                 if not self._quiet and console:
