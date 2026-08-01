@@ -23,16 +23,18 @@ class ServicesLifecycleManager:
     variables to .env-services file for use by the application.
     """
 
-    def __init__(self, config: CliConfig, project_root: Path) -> None:
+    def __init__(self, config: CliConfig, project_root: Path, *, quiet: bool = False) -> None:
         """Initialize the services lifecycle manager.
 
         Args:
             config: CLI configuration with service settings
             project_root: Root directory of the project (where .env-services is written)
+            quiet: If True, suppress docker-services-cli output
         """
         self._config = config
         self._project_root = project_root
         self._env_file = project_root / ".env-services"
+        self._quiet = quiet
 
     def start_services(self) -> dict[str, str]:
         """Start Docker services and return environment variables.
@@ -69,6 +71,10 @@ class ServicesLifecycleManager:
             "--env",
         ]
 
+        # Add --quiet flag if requested
+        if self._quiet:
+            cmd.append("--quiet")
+
         # Run and capture output
         result = process.run(cmd, cwd=self._project_root, check=True, capture_output=True)
 
@@ -101,6 +107,10 @@ class ServicesLifecycleManager:
             "down",
             "--env",
         ]
+
+        # Add --quiet flag if requested
+        if self._quiet:
+            cmd.append("--quiet")
 
         process.run(cmd, cwd=self._project_root, check=True, capture_output=True)
 

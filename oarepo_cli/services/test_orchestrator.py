@@ -26,15 +26,17 @@ class TestOrchestrator:
     5. Return structured result
     """
 
-    def __init__(self, context: ProjectContext) -> None:
+    def __init__(self, context: ProjectContext, *, quiet: bool = False) -> None:
         """Initialize the test orchestrator.
 
         Args:
             context: Project context with configuration and paths
+            quiet: If True, suppress service start/stop messages
         """
         self._context = context
+        self._quiet = quiet
         self._services_manager = ServicesLifecycleManager(
-            config=context.config, project_root=context.root_directory
+            config=context.config, project_root=context.root_directory, quiet=quiet
         )
         # Cache pyproject data to avoid multiple reads
         from oarepo_cli.services.pyproject_reader import PyProjectReader
@@ -72,12 +74,27 @@ class TestOrchestrator:
         )
 
         services_started = False
+        console = None
+        service_env_vars = {}
 
         try:
             # Start services if not skipped
             if not should_skip_services:
+                # Show info message before starting services
+                if not self._quiet:
+                    from oarepo_cli.ui import ConsoleOutput
+
+                    console = ConsoleOutput(quiet=False)
+                    console.info("🚀 Starting services...", fg=None, bold=True)
+
                 self._services_manager.start_services()
                 services_started = True
+
+                # Load environment variables from .env-services file
+                service_env_vars = self._services_manager.load_service_env()
+
+                if not self._quiet and console:
+                    console.info("  ✓ Services started", fg=None)
 
             # Ensure pytest and coverage are installed if needed
             self._ensure_test_dependencies(use_coverage)
@@ -89,6 +106,7 @@ class TestOrchestrator:
             result = process.run(
                 pytest_cmd,
                 cwd=self._context.root_directory,
+                env=service_env_vars if service_env_vars else None,
                 check=False,
                 interactive=True,  # Real-time output for tests
             )
@@ -98,9 +116,19 @@ class TestOrchestrator:
         finally:
             # Always stop services if we started them
             if services_started:
+                if not self._quiet:
+                    if console is None:
+                        from oarepo_cli.ui import ConsoleOutput
+
+                        console = ConsoleOutput(quiet=False)
+                    console.info("🛑 Stopping services...", fg=None, bold=True)
+
                 with contextlib.suppress(Exception):
                     # Don't let service cleanup errors mask test failures
                     self._services_manager.stop_services()
+
+                if not self._quiet and console:
+                    console.info("  ✓ Services stopped", fg=None)
 
     def _ensure_test_dependencies(self, use_coverage: bool) -> None:
         """Ensure pytest and coverage dependencies are installed.
