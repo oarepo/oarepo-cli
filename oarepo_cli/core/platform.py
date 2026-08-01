@@ -4,7 +4,9 @@
 from __future__ import annotations
 
 import platform
+import shutil
 import sys
+from pathlib import Path
 
 
 class PlatformDetector:
@@ -52,6 +54,37 @@ class PlatformDetector:
         if self.is_windows():
             return "python.exe"
         return "python"
+
+    def get_default_shell(self) -> str:
+        """
+        Get the path to the preferred bash executable for interactive shells.
+
+        On macOS, Apple ships a very old bash (3.2, frozen for licensing
+        reasons) as /bin/bash. A Homebrew-installed bash is a modern
+        version and is preferred when present: /opt/homebrew/bin/bash on
+        Apple Silicon, /usr/local/bin/bash on Intel. Falls back to
+        /bin/bash, then to whatever "bash" is found on PATH.
+
+        Returns:
+            Absolute path to the bash executable to use.
+        """
+        if self.is_macos():
+            for homebrew_bash in (
+                Path("/opt/homebrew/bin/bash"),
+                Path("/usr/local/bin/bash"),
+            ):
+                if homebrew_bash.exists():
+                    return str(homebrew_bash)
+
+        system_bash = Path("/bin/bash")
+        if system_bash.exists():
+            return str(system_bash)
+
+        found = shutil.which("bash")
+        if found:
+            return found
+
+        return "bash"
 
     def needs_dyld_fix(self) -> bool:
         """

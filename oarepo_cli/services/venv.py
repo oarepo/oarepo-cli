@@ -143,6 +143,32 @@ class VirtualEnvironmentManager:
 
         return venv_path
 
+    def ensure_venv_fast(self, requirements: VenvRequirements, quiet: bool = False) -> Path:
+        """Ensure the venv exists, without reinstalling if it already does.
+
+        Unlike ensure_venv(), this never re-verifies or reinstalls
+        dependencies for an existing venv — it only checks that the
+        directory is present. Intended for commands that just need
+        somewhere to run from on every invocation (shell, invenio, test)
+        rather than a full dependency sync each time. Falls through to the
+        full ensure_venv() (real `uv venv` creation plus installs) when the
+        venv directory doesn't exist yet.
+
+        Args:
+            requirements: Requirements to use if the venv needs to be created
+            quiet: If True, suppress command output (for --quiet flag)
+
+        Returns:
+            Path to the virtual environment directory
+
+        Raises:
+            ValidationError: If requirements are invalid
+            ProcessExecutionError: If uv commands fail
+        """
+        if self._venv_path.exists():
+            return self._venv_path
+        return self.ensure_venv(requirements, force=False, quiet=quiet)
+
     def upgrade_environment(self, requirements: VenvRequirements) -> None:
         """Clean cache and recreate venv from scratch.
 

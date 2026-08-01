@@ -178,3 +178,77 @@ class TestGetPlatformDetector:
         detector2 = get_platform_detector()
 
         assert detector1 is detector2
+
+
+def test_get_default_shell_prefers_apple_silicon_homebrew_bash_on_macos() -> None:
+    """Test that get_default_shell() prefers /opt/homebrew/bin/bash on macOS."""
+    with (
+        patch("platform.system", return_value="Darwin"),
+        patch(
+            "oarepo_cli.core.platform.Path.exists",
+            new=lambda self: str(self) == "/opt/homebrew/bin/bash",
+        ),
+    ):
+        detector = PlatformDetector()
+        assert detector.get_default_shell() == "/opt/homebrew/bin/bash"
+
+
+def test_get_default_shell_prefers_intel_homebrew_bash_on_macos() -> None:
+    """Test that get_default_shell() falls back to /usr/local/bin/bash on macOS."""
+    with (
+        patch("platform.system", return_value="Darwin"),
+        patch(
+            "oarepo_cli.core.platform.Path.exists",
+            new=lambda self: str(self) == "/usr/local/bin/bash",
+        ),
+    ):
+        detector = PlatformDetector()
+        assert detector.get_default_shell() == "/usr/local/bin/bash"
+
+
+def test_get_default_shell_falls_back_to_system_bash_on_macos() -> None:
+    """Test that get_default_shell() uses /bin/bash on macOS when no Homebrew bash exists."""
+    with (
+        patch("platform.system", return_value="Darwin"),
+        patch(
+            "oarepo_cli.core.platform.Path.exists",
+            new=lambda self: str(self) == "/bin/bash",
+        ),
+    ):
+        detector = PlatformDetector()
+        assert detector.get_default_shell() == "/bin/bash"
+
+
+def test_get_default_shell_skips_homebrew_check_on_linux() -> None:
+    """Test that get_default_shell() doesn't look for Homebrew bash on Linux."""
+    with (
+        patch("platform.system", return_value="Linux"),
+        patch(
+            "oarepo_cli.core.platform.Path.exists",
+            new=lambda self: str(self) == "/bin/bash",
+        ),
+    ):
+        detector = PlatformDetector()
+        assert detector.get_default_shell() == "/bin/bash"
+
+
+def test_get_default_shell_falls_back_to_path_lookup() -> None:
+    """Test that get_default_shell() searches PATH if no known bash path exists."""
+    with (
+        patch("platform.system", return_value="Linux"),
+        patch("oarepo_cli.core.platform.Path.exists", return_value=False),
+        patch("shutil.which", return_value="/usr/bin/bash"),
+    ):
+        detector = PlatformDetector()
+        assert detector.get_default_shell() == "/usr/bin/bash"
+
+
+def test_get_default_shell_falls_back_to_bare_name_if_not_found() -> None:
+    """Test that get_default_shell() returns 'bash' as a last resort."""
+    with (
+        patch("platform.system", return_value="Linux"),
+        patch("oarepo_cli.core.platform.Path.exists", return_value=False),
+        patch("shutil.which", return_value=None),
+    ):
+        detector = PlatformDetector()
+        assert detector.get_default_shell() == "bash"
