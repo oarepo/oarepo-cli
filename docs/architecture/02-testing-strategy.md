@@ -315,16 +315,20 @@ def test_stream_yields_lines():
     assert lines == ["line1", "line2"]
 ```
 
-### Faking Subprocess Calls: `pytest-subprocess`, Not a Hand-Written Fake
+### Faking Subprocess Calls with `pytest-subprocess`
 
-There is no `FakeProcessExecutor` in `tests/fakes.py`. A hand-registered fake class has no independent behavior of its own to verify or maintain — it only returns whatever a test tells it to — so writing and maintaining one from scratch (regex matching, call logs, reset semantics, and inevitably a "fall back to a real subprocess" escape hatch for anything not registered) is effort spent reinventing what a maintained library already does correctly.
+Services that shell out to slow, optional, side-effecting external tools (`uv`, `docker-services-cli`, `copier`, `invenio-cli`) are tested by faking those tools at the OS boundary, not by injecting a hand-written test double. A hand-registered fake class has no independent behavior of its own to verify or maintain — it only returns whatever a test tells it to — so writing and maintaining one from scratch (command matching, call logging, reset semantics, and a way to fall through to a real subprocess for anything unregistered) is effort spent reinventing what a maintained library already does correctly.
 
-Use [`pytest-subprocess`](https://pytest-subprocess.readthedocs.io/) instead, via its `fake_process` fixture. It patches `subprocess.Popen` (and everything built on it — `subprocess.run`, our own `process.run()`/`stream()`/`get_output()`) for the duration of a test, so it intercepts calls transparently — no injected executor, no constructor parameter, no service needs to know it's under test:
+[`pytest-subprocess`](https://pytest-subprocess.readthedocs.io/) provides this via its `fake_process` fixture. It patches `subprocess.Popen` (and everything built on it — `subprocess.run`, our own `process.run()`/`stream()`/`get_output()`) for the duration of a test, so it intercepts calls transparently — no injected executor, no constructor parameter, no service needs to know it's under test:
 
 ```python
 def test_creates_venv_if_missing(fake_process, tmp_path):
-    fake_process.register(["uv", "venv", "--python", "python3.14", "--seed", fspath(tmp_path / ".venv")])
-    fake_process.register([fspath(tmp_path / ".venv/bin/python"), "-m", "pip", "install", "setuptools"])
+    fake_process.register(
+        ["uv", "venv", "--python", "python3.14", "--seed", fspath(tmp_path / ".venv")]
+    )
+    fake_process.register(
+        [fspath(tmp_path / ".venv/bin/python"), "-m", "pip", "install", "setuptools"]
+    )
     fake_process.register(["uv", "pip", "install", fake_process.any()])
 
     manager = VirtualEnvironmentManager(config=make_config(venv_path=tmp_path / ".venv"))
@@ -334,7 +338,7 @@ def test_creates_venv_if_missing(fake_process, tmp_path):
     assert any("venv" in call for call in fake_process.calls)
 ```
 
-Unregistered commands raise a clear error by default (no silent success, no silent fallback to a real subprocess) — the opposite failure mode of the retired `FakeProcessExecutor`'s `execute_real_commands` flag.
+Unregistered commands raise a clear error by default — no silent success, no silent fallback to a real subprocess.
 
 ---
 
@@ -342,9 +346,9 @@ Unregistered commands raise a clear error by default (no silent success, no sile
 
 ### Purpose
 
-Verify that multiple *real* implementations of the same protocol behave identically — this only earns its place when a protocol genuinely has (or will have) more than one concrete backend to keep in sync.
+Verify that multiple *real* implementations of the same protocol behave identically. This tier only earns its place when a protocol genuinely has (or will have) more than one concrete backend to keep in sync — most of this codebase's boundaries (filesystem, environment variables, subprocess execution) have exactly one real implementation each, so they're called directly (`pathlib`, `os.environ`, `subprocess`) and tested directly instead — see §3 (Unit Tests) for `process.py`'s tests against real trivial commands, and `tmp_path`/`monkeypatch` for filesystem/environment code.
 
-Neither `FileSystem` nor `EnvironmentProvider` nor `ProcessExecutor` ended up needing this tier: each turned out to have exactly one real implementation (`pathlib`/`os.environ`/`subprocess`), so they're called directly and tested directly — see §3 (Unit Tests) for `process.py`'s tests against real trivial commands, and `tmp_path`/`monkeypatch` for filesystem/environment code. `NetworkClient` is the one remaining protocol in this codebase that could genuinely justify a contract suite (e.g. if both a `requests`- and `httpx`-backed adapter exist); add its contract tests here if and when that happens. Until then, this tier is intentionally empty rather than populated with a suite that has nothing to verify.
+`NetworkClient` is the one protocol in this codebase that could genuinely justify a contract suite (e.g. if both a `requests`- and `httpx`-backed adapter exist); add its contract tests here if and when that happens. Until then, this tier is intentionally empty rather than populated with a suite that has nothing to verify.
 
 ---
 
@@ -379,8 +383,12 @@ dev = ["ruff", "mypy"]
 tests = ["pytest"]
 """)
 
-    fake_process.register(["uv", "venv", "--python", "python3.14", "--seed", str(tmp_path / ".venv")])
-    fake_process.register([str(tmp_path / ".venv/bin/python"), "-m", "pip", "install", "setuptools"])
+    fake_process.register(
+        ["uv", "venv", "--python", "python3.14", "--seed", str(tmp_path / ".venv")]
+    )
+    fake_process.register(
+        [str(tmp_path / ".venv/bin/python"), "-m", "pip", "install", "setuptools"]
+    )
     fake_process.register(["uv", "pip", "install", "oarepo[rdm,tests]>=14.0.0,<15.0.0"])
     fake_process.register(["uv", "pip", "install", "-e", ".[dev,tests,oarepo14]"])
 

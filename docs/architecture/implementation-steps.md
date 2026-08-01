@@ -102,33 +102,33 @@ Per-phase deliverable. Steps within a phase can often be parallelized; see each 
 ---
 
 ### Step 0.4: Process Execution Helper
-**Goal**: Provide a single, safe way to run subprocesses, used directly by every service — no protocol, no dependency injection.
+**Goal**: Provide a single, safe way to run subprocesses, used directly by every service.
 
-A shared subprocess helper is still justified, unlike the `FileSystem`/`EnvironmentProvider` protocols considered (and dropped) earlier in this plan: it centralizes real logic worth not duplicating per call site — never `shell=True`, UTF-8 decoding, timeout → `TimeoutExceeded` translation with partial-output capture, env-dict merging, optional output streaming. What it does *not* need is a `Protocol`/`ABC` with constructor-injected implementations: there is exactly one real way to run a subprocess (same reasoning that killed `EnvironmentProvider`), and — critically — a hand-registered fake has no independent behavior worth verifying against a shared "contract," so trying to give it one (see the old Step 0.4/0.5 split and the retired `FakeProcessExecutor`) only produced dead weight: unused regex matching, a `time.sleep()`-based fake timing simulator, and a `execute_real_commands` escape hatch that silently re-ran real subprocesses to paper over the fact the fake had nothing of its own to assert.
+Subprocess execution has exactly one real implementation (the stdlib `subprocess` module), so it's exposed as plain module-level functions rather than a `Protocol`/`ABC` with constructor-injected implementations — a swappable interface only pays for itself once there's a second real implementation to swap in. The functions centralize real, non-trivial logic that's worth not duplicating at every call site: never `shell=True`, UTF-8 decoding, timeout → `TimeoutExceeded` translation with partial-output capture, env-dict merging, optional output streaming.
 
-Where a fake genuinely earns its keep is at the **OS boundary**, for the services built on top (`VirtualEnvironmentManager`, `ServicesLifecycleManager`, `ModelManager`, ...) that shell out to slow, optional, side-effecting external tools — `uv`, `docker-services-cli`, `copier`, `invenio-cli`. Those workflow tests need to avoid actually invoking those tools while still asserting which commands ran and in what order. [`pytest-subprocess`](https://pytest-subprocess.readthedocs.io/) (its `fake_process` fixture) does this by patching `subprocess.Popen` process-wide, so it intercepts calls transparently — no injected executor required. See Step 2.2 and onward for its use in workflow tests.
+For unit-level tests, call `run()`/`stream()`/`get_output()` directly against real, trivial, always-available commands (`echo`, `true`, `false`, `python3 -c`) — no fixture needed. For workflow-level tests of services that shell out to slow, optional, side-effecting external tools (`uv`, `docker-services-cli`, `copier`, `invenio-cli`), fake at the **OS boundary** with [`pytest-subprocess`](https://pytest-subprocess.readthedocs.io/)'s `fake_process` fixture, which patches `subprocess.Popen` process-wide and intercepts calls transparently — no injected executor required. See Step 2.2 and onward for its use in workflow tests.
 
-- [ ] Define `services/process.py` with `ProcessResult` dataclass
-- [ ] Implement `run()`, `stream()`, `get_output()` as plain module-level functions wrapping `subprocess.run`/`Popen` (not a class, not an `ABC` — no swappable implementation exists)
-- [ ] Never use `shell=True`; always pass args as list
-- [ ] Implement timeout handling → `TimeoutExceeded`, with partial output captured
-- [ ] Ensure proper encoding handling (UTF-8)
-- [ ] Add `pytest-subprocess` as a dev dependency, for use starting in Phase 2's workflow tests
+- [x] Define `services/process.py` with `ProcessResult` dataclass
+- [x] Implement `run()`, `stream()`, `get_output()` as plain module-level functions wrapping `subprocess.run`/`Popen`
+- [x] Never use `shell=True`; always pass args as list
+- [x] Implement timeout handling → `TimeoutExceeded`, with partial output captured
+- [x] Ensure proper encoding handling (UTF-8)
+- [x] Add `pytest-subprocess` as a dev dependency, for use starting in Phase 2's workflow tests
 
 **Deliverables**:
-- [ ] `services/process.py`: production-ready, safe subprocess execution — no `adapters/subprocess_executor.py`, no `ProcessExecutor` protocol, no `tests/fakes.py::FakeProcessExecutor`
-- [ ] Safe execution without shell injection risks
+- [x] `services/process.py`: production-ready, safe subprocess execution
+- [x] Safe execution without shell injection risks
 
-**Tests** (`tests/unit/test_process.py`, replacing the former split between `tests/contracts/test_process_executor.py` and `tests/integration/test_subprocess_executor.py`):
-- [ ] Test successful command execution, using trivial, always-available real commands (`echo`, `true`, `false`, `python3 -c`) — call `process.run(...)` directly, no fixture/DI needed
-- [ ] Test error capture on failure
-- [ ] Test `check=True/False` behavior
-- [ ] Test timeout raises `TimeoutExceeded`
-- [ ] Test environment variable inheritance
-- [ ] Test working directory parameter
-- [ ] Test shell injection is prevented (literal output, not executed)
-- [ ] Test `get_output()` returns stripped stdout
-- [ ] Test `stream()` yields lines
+**Tests** (`tests/unit/test_process.py`):
+- [x] Test successful command execution, using trivial, always-available real commands (`echo`, `true`, `false`, `python3 -c`) — call `process.run(...)` directly, no fixture needed
+- [x] Test error capture on failure
+- [x] Test `check=True/False` behavior
+- [x] Test timeout raises `TimeoutExceeded`
+- [x] Test environment variable inheritance
+- [x] Test working directory parameter
+- [x] Test shell injection is prevented (literal output, not executed)
+- [x] Test `get_output()` returns stripped stdout
+- [x] Test `stream()` yields lines
 
 ---
 
@@ -896,7 +896,7 @@ Where a fake genuinely earns its keep is at the **OS boundary**, for the service
 
 | Phase | Steps | Status |
 |-------|-------|--------|
-| 0: Project Setup | 4 | [~] (3/4 complete) |
+| 0: Project Setup | 4 | [x] (4/4 complete) |
 | 1: Core Domain Models | 4 | [ ] |
 | 2: Virtual Environment | 3 | [ ] |
 | 3: Library Commands | 12 | [ ] |
@@ -904,7 +904,7 @@ Where a fake genuinely earns its keep is at the **OS boundary**, for the service
 | 5: Repository Installer | 3 | [ ] |
 | 6: Hardening | 5 | [ ] |
 | 7: Release Prep | 2 | [ ] |
-| **Total** | **43** | **[~] (3/43 complete)** |
+| **Total** | **43** | **[~] (4/43 complete)** |
 
 ---
 

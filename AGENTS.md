@@ -11,7 +11,7 @@ fully designed in [`docs/architecture/`](./docs/architecture/) but mostly not ye
 implemented.**
 
 Do not assume any module named in the architecture docs (`core/context.py`,
-`services/process.py`, `adapters/subprocess_executor.py`, etc.) already exists — check first. When implementing a piece of the design, follow
+`services/process.py`, `services/venv.py`, etc.) already exists — check first. When implementing a piece of the design, follow
 [`docs/architecture/implementation-steps.md`](./docs/architecture/implementation-steps.md)
 phase by phase; don't jump ahead to later phases' modules before their
 dependencies (earlier phases) exist.
@@ -30,7 +30,7 @@ on a step or finishing it.
 | Orientation / executive summary of the whole design | [docs/architecture/README.md](./docs/architecture/README.md) |
 | Feature inventory: every command/flag/env var the CLI must support, external tool deps, known issues in the old bash scripts | [docs/architecture/00-main-architecture.md](./docs/architecture/00-main-architecture.md) §1 |
 | Design principles, ADRs (why Typer, why single executable, why no self-update, why no `shell=True`, why no parent-env mutation) | [00-main-architecture.md](./docs/architecture/00-main-architecture.md) §2, §8 |
-| Target package layout, component diagrams, protocol interfaces (`ProcessExecutor`, `VirtualEnvironmentManager`, `PyProjectReader`), CLI command code samples | [docs/architecture/01-detailed-design.md](./docs/architecture/01-detailed-design.md) |
+| Target package layout, component diagrams, key interfaces (`process.py`, `VirtualEnvironmentManager`, `PyProjectReader`), CLI command code samples | [docs/architecture/01-detailed-design.md](./docs/architecture/01-detailed-design.md) |
 | How to test what you write (unit/contract/workflow/integration/characterization layers, fakes, fixtures) | [docs/architecture/02-testing-strategy.md](./docs/architecture/02-testing-strategy.md) |
 | Shell-to-Python command mapping, breaking changes, env var semantics that must be preserved | [docs/architecture/03-migration-guide.md](./docs/architecture/03-migration-guide.md) |
 | **The actual step-by-step build plan** — work through this in order | [docs/architecture/implementation-steps.md](./docs/architecture/implementation-steps.md) |
@@ -46,8 +46,8 @@ These are architectural decisions already made — don't re-litigate them, just 
 - **Never parse TOML with regex/grep/sed.** Use `tomllib` (stdlib, Python 3.11+).
 - **No parent-shell environment mutation.** Don't export env vars for the calling shell to pick up; write `.env-services` files instead (preserves old behavior) and pass env explicitly to subprocesses.
 - **No `self-update` command.** Deliberately omitted; users run `pip install --upgrade oarepo-cli` instead.
-- **Dependency injection around subprocess/filesystem/env/network.** Business logic depends on protocols (`ProcessExecutor`, `FileSystem`, `EnvironmentProvider`), not concrete implementations — this is what makes the fake-based test pyramid in `02-testing-strategy.md` possible. Don't call `subprocess.run` or `Path.write_text` directly from services/CLI code.
-- **No test classes.** Write tests as plain `test_*` functions in `test_*.py` modules, with shared setup in fixtures (`conftest.py` or module-level `@pytest.fixture`) — never `class Test...`. Contract tests that need to run against multiple adapter implementations use a parametrized fixture (see `tests/contracts/conftest.py` in `02-testing-strategy.md`), not a shared base test class.
+- **No dependency injection for boundaries with only one real implementation.** Filesystem, environment-variable, and subprocess access call `pathlib.Path`/`os.environ`/`oarepo_cli.services.process` directly, with no `Protocol` to inject — a swappable interface only pays for itself once a second real implementation exists. Test these boundaries against real state instead: `tmp_path` for the filesystem, `monkeypatch` for environment variables, and `pytest-subprocess`'s `fake_process` fixture (patches `subprocess.Popen` process-wide) for workflow-level tests of services that shell out to slow external tools (`uv`, `docker-services-cli`, `copier`). Only reach for a `Protocol` + dependency injection when a boundary genuinely has 2+ real implementations to keep interchangeable — see `02-testing-strategy.md` §4 (Contract Tests).
+- **No test classes.** Write tests as plain `test_*` functions in `test_*.py` modules, with shared setup in fixtures (`conftest.py` or module-level `@pytest.fixture`) — never `class Test...`.
 - **Single `oarepo-cli` executable** with `library`, `repository` subcommand groups plus a top-level `repo-install`, built with Typer.
 - **No premature abstraction.** Only introduce a protocol/abstraction when there are 2+ concrete implementations (fake does not count).
 - **Preserve exit codes, stdout/stderr, flag names, and `.env-services` file format exactly** — this is a behavior-preserving rewrite, not a redesign. See the compatibility matrix in `00-main-architecture.md` §1 and §8/§Compatibility Matrix (main doc + README).
@@ -57,16 +57,26 @@ These are architectural decisions already made — don't re-litigate them, just 
 
 ## Dev commands
 
-Only `pytest` is currently wired up (ruff/ty/pre-commit are planned in
-implementation-steps.md Phase 0, not yet configured in this repo):
+Phase 0 has landed: use the `Makefile` for all dev tasks instead of invoking `pytest`/`ruff`/`ty`
+directly — each target auto-installs the right dependency group into `.venv` via `uv` first
+(tracked with marker files under `.venv/markers`, so re-running a target is fast/idempotent).
 
 ```bash
-pip install -e ".[dev,tests]"
-pytest
+make help              # list all targets with descriptions
+make test               # pytest with coverage (installs [tests] extra)
+make lint                # ruff check .
+make format               # ruff format .
+make type-check           # ty check --python-version 3.14 .
+make check                # lint + format + type-check, in that order — run this before opening a PR
+make pre-commit-setup     # install the pre-commit git hook
+make pre-commit-run       # run pre-commit on all files
+make clean                # remove build artifacts, caches, htmlcov, and .venv
 ```
 
-When Phase 0 lands, prefer whatever `ruff check` / `ty check` / `pytest` config it
-adds over inventing new tooling.
+`install-dev` / `install-tests` / `install-all` targets exist too, but you rarely need to call
+them directly — `test`/`lint`/`format`/`type-check` depend on the right one automatically.
+
+**Always run `make check` after making changes**, per the non-negotiable constraints below.
 
 ## Tools
 
@@ -74,6 +84,7 @@ Use:
 - git
 - gh
 - uv for the Python package manager
+- make for dev workflows (test/lint/format/type-check/pre-commit) — see Dev commands above
 
 ### Reading PR review comments in this repository
 
