@@ -20,7 +20,7 @@ def test_returns_zero_exit_code_for_success(executor: ProcessExecutor) -> None:
     fake = cast("FakeProcessExecutor", executor)
     fake.register_response(["echo", "hello"], returncode=0, stdout="hello")
     result = executor.run(["echo", "hello"], check=False)
-    assert result.returncode == 0
+    assert result.return_code == 0
 
 
 def test_captures_stdout_correctly(executor: ProcessExecutor) -> None:
@@ -80,7 +80,7 @@ def test_does_not_raise_on_nonzero_with_check_false(executor: ProcessExecutor) -
         ["failing-command"],
         check=False,
     )
-    assert result.returncode == 42
+    assert result.return_code == 42
 
 
 def test_environment_variables_passed_correctly(executor: ProcessExecutor) -> None:
@@ -255,7 +255,7 @@ def test_forward_stdout_parameter_is_recorded(executor: ProcessExecutor) -> None
         forward_stdout=True,
         check=False,
     )
-    assert result.returncode == 0
+    assert result.return_code == 0
 
 
 def test_timeout_parameter_is_accepted(executor: ProcessExecutor) -> None:
@@ -272,4 +272,4 @@ def test_timeout_parameter_is_accepted(executor: ProcessExecutor) -> None:
         timeout=30.0,
         check=False,
     )
-    assert result.returncode == 0
+    assert result.return_code == 0

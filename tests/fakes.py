@@ -168,7 +168,7 @@ class FakeProcessExecutor(ProcessExecutor):
         stderr = response["stderr"] if capture_output else ""
 
         result = ProcessResult(
-            returncode=response["returncode"],
+            return_code=response["returncode"],
             stdout=stdout,
             stderr=stderr,
             command=command,
@@ -178,9 +178,9 @@ class FakeProcessExecutor(ProcessExecutor):
 
         if check and not result.success:
             raise ProcessExecutionError(
-                message=f"Command failed with exit code {result.returncode}",
+                message=f"Command failed with exit code {result.return_code}",
                 command=list(command),
-                returncode=result.returncode,
+                returncode=result.return_code,
                 stdout=stdout,
                 stderr=stderr,
             )

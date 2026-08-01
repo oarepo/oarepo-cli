@@ -16,7 +16,7 @@ if TYPE_CHECKING:
 class ProcessResult:
     """Result of a subprocess execution."""
 
-    returncode: int
+    return_code: int
     stdout: str
     stderr: str
     command: Sequence[str]
@@ -26,7 +26,7 @@ class ProcessResult:
     @property
     def success(self) -> bool:
         """Return True if command executed successfully (exit code 0)."""
-        return self.returncode == 0
+        return self.return_code == 0
 
     def check(self) -> ProcessResult:
         """Raise ProcessExecutionError if command failed.
@@ -35,15 +35,15 @@ class ProcessResult:
             Self if successful.
 
         Raises:
-            ProcessExecutionError: If returncode is non-zero.
+            ProcessExecutionError: If return_code is non-zero.
         """
         if not self.success:
             from oarepo_cli.core.errors import ProcessExecutionError
 
             raise ProcessExecutionError(
-                message=f"Command failed with exit code {self.returncode}",
+                message=f"Command failed with exit code {self.return_code}",
                 command=list(self.command),
-                returncode=self.returncode,
+                returncode=self.return_code,
                 stdout=self.stdout,
                 stderr=self.stderr,
             )
