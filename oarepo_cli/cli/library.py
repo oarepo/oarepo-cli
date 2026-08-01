@@ -128,3 +128,74 @@ def library_upgrade() -> None:
 
     typer.secho("✨ ✓ Upgrade completed successfully!", fg=typer.colors.BRIGHT_GREEN, bold=True)
     typer.secho(f"  Virtual environment ready at {venv_path}", fg=typer.colors.GREEN)
+
+
+@library_app.command("start")
+def library_start() -> None:
+    """Start Docker services for development and testing.
+
+    Starts the configured Docker services (database, search, message queue,
+    cache, S3) and writes connection details to .env-services file.
+
+    The services are configured via environment variables or [tool.oarepo-cli.services]
+    in pyproject.toml.
+    """
+    # Discover project context
+    context = discover_context()
+
+    typer.secho("🚀 Starting services...", fg=typer.colors.BRIGHT_BLUE, bold=True)
+
+    # Start services using ServicesLifecycleManager
+    services_mgr = ServicesLifecycleManager(
+        config=context.config, project_root=context.root_directory
+    )
+
+    try:
+        env_vars = services_mgr.start_services()
+
+        if not env_vars:
+            # Services were skipped (SKIP_SERVICES=1)
+            typer.secho("✓ Services skipped", fg=typer.colors.YELLOW)
+        else:
+            typer.secho(
+                "✨ ✓ Services started successfully!", fg=typer.colors.BRIGHT_GREEN, bold=True
+            )
+            typer.secho(
+                f"  Environment variables written to {context.root_directory / '.env-services'}",
+                fg=typer.colors.GREEN,
+            )
+    except Exception as e:
+        typer.secho(
+            f"❌ Error starting services: {e}", fg=typer.colors.BRIGHT_RED, bold=True, err=True
+        )
+        raise typer.Exit(code=1) from e
+
+
+@library_app.command("stop")
+def library_stop() -> None:
+    """Stop Docker services.
+
+    Stops all running Docker services and removes the .env-services file.
+    """
+    # Discover project context
+    context = discover_context()
+
+    if not (context.root_directory / ".env-services").exists():
+        typer.secho("✓ No services running", fg=typer.colors.YELLOW)
+        return
+
+    typer.secho("🛑 Stopping services...", fg=typer.colors.BRIGHT_BLUE, bold=True)
+
+    # Stop services using ServicesLifecycleManager
+    services_mgr = ServicesLifecycleManager(
+        config=context.config, project_root=context.root_directory
+    )
+
+    try:
+        services_mgr.stop_services()
+        typer.secho("✨ ✓ Services stopped successfully!", fg=typer.colors.BRIGHT_GREEN, bold=True)
+    except Exception as e:
+        typer.secho(
+            f"❌ Error stopping services: {e}", fg=typer.colors.BRIGHT_RED, bold=True, err=True
+        )
+        raise typer.Exit(code=1) from e
