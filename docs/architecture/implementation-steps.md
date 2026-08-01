@@ -295,23 +295,23 @@ For unit-level tests, call `run()`/`stream()`/`get_output()` directly against re
 ### Step 3.1: CLI Skeleton with Typer
 **Goal**: Set up Typer CLI with root command and subcommand groups.
 
-- [ ] Install Typer and Pydantic
-- [ ] Implement `cli/main.py` with root `app`
-- [ ] Add global options: `--verbose`, `--config`, `--cd`
-- [ ] Create `cli/library.py` with empty `library_app`
-- [ ] Create `cli/repository.py` with empty `repository_app`
-- [ ] Register subcommands with root app
-- [ ] Verify `oarepo-cli --help` displays correctly
+- [x] Install Typer and Pydantic
+- [x] Implement `cli/main.py` with root `app`
+- [x] Add global options: `--verbose`, `--config`, `--cd`
+- [x] Create `cli/library.py` with empty `library_app`
+- [x] Create `cli/repository.py` with empty `repository_app`
+- [x] Register subcommands with root app
+- [x] Verify `oarepo-cli --help` displays correctly
 
 **Deliverables**:
 - Working CLI skeleton
 - Help text matches shell script structure
 
 **Tests** (`tests/unit/test_cli_skeleton.py`):
-- [ ] Test `--help` shows all commands
-- [ ] Test unknown command returns exit code 2
-- [ ] Test global options parsed correctly
-- [ ] Test `--version` displays package version
+- [x] Test `--help` shows all commands
+- [x] Test unknown command returns exit code 2
+- [x] Test global options parsed correctly
+- [x] Test `--version` displays package version
 
 ---
 
