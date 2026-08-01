@@ -2,7 +2,7 @@
 
 Instructions for AI coding agents (Claude Code and similar) working in this repository.
 
-## Project state: pre-implementation
+## Project state: in progress
 
 This repo is being reworked from a thin `invenio-cli` extension into a standalone
 Python CLI (`oarepo-cli`) that replaces three bash scripts (`library_runner.sh`,
@@ -10,21 +10,16 @@ Python CLI (`oarepo-cli`) that replaces three bash scripts (`library_runner.sh`,
 fully designed in [`docs/architecture/`](./docs/architecture/) but mostly not yet
 implemented.**
 
-Current actual repo contents:
-
-```
-oarepo_cli/__init__.py   # version stub only — no CLI code yet
-tests/test_dummy.py      # placeholder so CI doesn't fail on no tests
-pyproject.toml           # deps: invenio-cli only; dev/tests extras have pytest
-run.sh                   # legacy: downloads and execs library_runner.sh from oarepo/oarepo
-```
-
 Do not assume any module named in the architecture docs (`core/context.py`,
-`services/process.py`, `adapters/subprocess_executor.py`, etc.) already exists —
-check first. When implementing a piece of the design, follow
+`services/process.py`, `adapters/subprocess_executor.py`, etc.) already exists — check first. When implementing a piece of the design, follow
 [`docs/architecture/implementation-steps.md`](./docs/architecture/implementation-steps.md)
 phase by phase; don't jump ahead to later phases' modules before their
 dependencies (earlier phases) exist.
+
+Before starting implementation of a new step, create a new branch from `cli-as-python` branch (note: you might be on a different branch / not up-to-date, so you need to switch and pull first) and implement the step there.
+
+After implementing a step, create a PR with the changes and request a review. The target branch of the PR will be `cli-as-python`.
+
 
 ## Where to look
 
@@ -102,5 +97,3 @@ The API endpoint returns JSON with `path`, `line`, `original_line`, and `body` f
   Plus `from __future__ import annotations` at the top of each file.
 - Follow `implementation-steps.md`'s status flags when checking off work:
   `[ ]` not started, `[~]` in progress, `[x]` done (code + tests passing), `[!]` blocked.
-- Before starting a new step, create a new branch from `cli-as-python` branch (note: you might be on a different branch / not up-to-date, so you need to switch and pull first) and implement the step there.
-- After implementing a step, create a PR with the changes and request a review. The target branch of the PR will be `cli-as-python`.
