@@ -20,6 +20,8 @@ Before starting implementation of a new step, create a new branch from `cli-as-p
 
 After implementing a step, create a PR with the changes and request a review. The target branch of the PR will be `cli-as-python`.
 
+Mark the action items in implementation-steps.md correctly when working
+on a step or finishing it.
 
 ## Where to look
 
