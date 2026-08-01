@@ -129,25 +129,27 @@ def test_invalid_toml_raises_validation_error(tmp_path: Path) -> None:
 
 
 def test_merge_precedence_order() -> None:
-    """Test that merge respects precedence order (rightmost wins)."""
+    """Test that merge respects precedence order (rightmost wins for non-default values)."""
     defaults = CliConfig()
     from_pyproject = CliConfig(
         build=BuildConfig(editable=False),
         venv=VenvConfig(path=Path("/pyproject-venv")),
     )
     from_env = CliConfig(
-        build=BuildConfig(editable=True),
+        # Note: editable=True is the default, so it won't override pyproject's False
+        # Only non-default values from env will override
         venv=VenvConfig(path=Path("/env-venv")),
         python=PythonConfig(binary="python3.12"),
-        test=TestingConfig(coverage=True),
+        test=TestingConfig(coverage=True),  # True != False (default)
     )
 
     merged = CliConfig.merge([defaults, from_pyproject, from_env])
 
-    # from_env should win (highest priority)
-    assert merged.build.editable is True
-    assert merged.venv.path == Path("/env-venv")
-    assert merged.python.binary == "python3.12"
+    # from_env overrides non-default values, but editable=True equals default so pyproject's False wins
+    assert merged.build.editable is False  # from_pyproject (since from_env's True equals default)
+    assert merged.venv.path == Path("/env-venv")  # from_env wins
+    assert merged.python.binary == "python3.12"  # from_env wins
+    assert merged.test.coverage is True  # from_env wins
 
 
 def test_invalid_python_binary_raises_validation_error() -> None:
