@@ -20,10 +20,84 @@ library_app = typer.Typer(
     no_args_is_help=True,
 )
 
+# Create the services subcommand group
+services_app = typer.Typer(
+    name="services",
+    help="Docker services management",
+    no_args_is_help=True,
+)
+
+# Register services as a subcommand of library
+library_app.add_typer(services_app)
+
 
 @library_app.callback()
 def library_callback() -> None:
     """Library command group."""
+
+
+@services_app.callback()
+def services_callback() -> None:
+    """Services command group."""
+
+
+def _start_services_impl() -> None:
+    """Shared implementation for starting services."""
+    # Discover project context
+    context = discover_context()
+
+    typer.secho("🚀 Starting services...", fg=typer.colors.BRIGHT_BLUE, bold=True)
+
+    # Start services using ServicesLifecycleManager
+    services_mgr = ServicesLifecycleManager(
+        config=context.config, project_root=context.root_directory
+    )
+
+    try:
+        env_vars = services_mgr.start_services()
+
+        if not env_vars:
+            # Services were skipped (SKIP_SERVICES=1)
+            typer.secho("✓ Services skipped", fg=typer.colors.YELLOW)
+        else:
+            typer.secho(
+                "✨ ✓ Services started successfully!", fg=typer.colors.BRIGHT_GREEN, bold=True
+            )
+            typer.secho(
+                f"  Environment variables written to {context.root_directory / '.env-services'}",
+                fg=typer.colors.GREEN,
+            )
+    except Exception as e:
+        typer.secho(
+            f"❌ Error starting services: {e}", fg=typer.colors.BRIGHT_RED, bold=True, err=True
+        )
+        raise typer.Exit(code=1) from e
+
+
+def _stop_services_impl() -> None:
+    """Shared implementation for stopping services."""
+    # Discover project context
+    context = discover_context()
+
+    if not (context.root_directory / ".env-services").exists():
+        typer.secho("✓ No services running", fg=typer.colors.YELLOW)
+        return
+
+    typer.secho("🛑 Stopping services...", fg=typer.colors.BRIGHT_BLUE, bold=True)
+
+    # Stop services using ServicesLifecycleManager
+    services_mgr = ServicesLifecycleManager(
+        config=context.config, project_root=context.root_directory
+    )
+
+    try:
+        services_mgr.stop_services()
+        typer.secho("✨ ✓ Services stopped successfully!", fg=typer.colors.BRIGHT_GREEN, bold=True)
+    except Exception as e:
+        typer.secho(
+            f"❌ Error stopping services: {e}", fg=typer.colors.BRIGHT_RED, bold=True, err=True
+        )
+        raise typer.Exit(code=1) from e
 
 
 @library_app.command("venv")
@@ -140,35 +214,20 @@ def library_start() -> None:
     The services are configured via environment variables or [tool.oarepo-cli.services]
     in pyproject.toml.
     """
-    # Discover project context
-    context = discover_context()
+    _start_services_impl()
 
-    typer.secho("🚀 Starting services...", fg=typer.colors.BRIGHT_BLUE, bold=True)
 
-    # Start services using ServicesLifecycleManager
-    services_mgr = ServicesLifecycleManager(
-        config=context.config, project_root=context.root_directory
-    )
+@services_app.command("start")
+def services_start() -> None:
+    """Start Docker services for development and testing.
 
-    try:
-        env_vars = services_mgr.start_services()
+    Starts the configured Docker services (database, search, message queue,
+    cache, S3) and writes connection details to .env-services file.
 
-        if not env_vars:
-            # Services were skipped (SKIP_SERVICES=1)
-            typer.secho("✓ Services skipped", fg=typer.colors.YELLOW)
-        else:
-            typer.secho(
-                "✨ ✓ Services started successfully!", fg=typer.colors.BRIGHT_GREEN, bold=True
-            )
-            typer.secho(
-                f"  Environment variables written to {context.root_directory / '.env-services'}",
-                fg=typer.colors.GREEN,
-            )
-    except Exception as e:
-        typer.secho(
-            f"❌ Error starting services: {e}", fg=typer.colors.BRIGHT_RED, bold=True, err=True
-        )
-        raise typer.Exit(code=1) from e
+    The services are configured via environment variables or [tool.oarepo-cli.services]
+    in pyproject.toml.
+    """
+    _start_services_impl()
 
 
 @library_app.command("stop")
@@ -177,25 +236,13 @@ def library_stop() -> None:
 
     Stops all running Docker services and removes the .env-services file.
     """
-    # Discover project context
-    context = discover_context()
+    _stop_services_impl()
 
-    if not (context.root_directory / ".env-services").exists():
-        typer.secho("✓ No services running", fg=typer.colors.YELLOW)
-        return
 
-    typer.secho("🛑 Stopping services...", fg=typer.colors.BRIGHT_BLUE, bold=True)
+@services_app.command("stop")
+def services_stop() -> None:
+    """Stop Docker services.
 
-    # Stop services using ServicesLifecycleManager
-    services_mgr = ServicesLifecycleManager(
-        config=context.config, project_root=context.root_directory
-    )
-
-    try:
-        services_mgr.stop_services()
-        typer.secho("✨ ✓ Services stopped successfully!", fg=typer.colors.BRIGHT_GREEN, bold=True)
-    except Exception as e:
-        typer.secho(
-            f"❌ Error stopping services: {e}", fg=typer.colors.BRIGHT_RED, bold=True, err=True
-        )
-        raise typer.Exit(code=1) from e
+    Stops all running Docker services and removes the .env-services file.
+    """
+    _stop_services_impl()
