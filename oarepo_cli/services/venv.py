@@ -4,9 +4,17 @@
 
 from __future__ import annotations
 
+import shutil
 from dataclasses import dataclass, field
+from pathlib import Path
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from oarepo_cli.core.config import CliConfig
 
 from oarepo_cli.core.errors import ValidationError
+from oarepo_cli.core.platform import get_platform_detector
+from oarepo_cli.services import process
 from oarepo_cli.services.version_resolver import VersionResolver
 
 
@@ -70,3 +78,232 @@ class VenvRequirements:
 
         # If no "python" prefix, return as-is (unusual case)
         return binary_name
+
+
+class VirtualEnvironmentManager:
+    """Manages Python virtual environments via uv.
+
+    Handles creation, dependency installation, and cleanup of virtual environments
+    for OARepo projects. Uses `uv` for fast, reliable environment management.
+    """
+
+    def __init__(self, config: CliConfig) -> None:
+        """Initialize the virtual environment manager.
+
+        Args:
+            config: CLI configuration containing venv path and other settings
+        """
+        self._config = config
+        self._platform = get_platform_detector()
+
+    def ensure_venv(
+        self,
+        requirements: VenvRequirements,
+        force: bool = False,
+    ) -> Path:
+        """Ensure virtual environment exists with required packages.
+
+        Creates a new virtual environment if it doesn't exist, or recreates it
+        if force=True. Installs OARepo and project dependencies according to
+        the requirements.
+
+        Args:
+            requirements: Python version, OARepo version, extras to install
+            force: If True, remove existing venv and recreate from scratch
+
+        Returns:
+            Path to the virtual environment directory
+
+        Raises:
+            ValidationError: If requirements are invalid
+            ProcessExecutionError: If uv commands fail
+        """
+        venv_path = self._config.venv.path
+
+        if force and venv_path.exists():
+            shutil.rmtree(venv_path)
+
+        if not venv_path.exists():
+            self._create_venv(requirements.python_binary, venv_path)
+
+        self._install_dependencies(requirements, venv_path)
+
+        return venv_path
+
+    def upgrade_environment(self, requirements: VenvRequirements) -> None:
+        """Clean cache and recreate venv from scratch.
+
+        Removes the existing virtual environment and recreates it with fresh
+        dependencies. Useful when dependencies become corrupted or outdated.
+
+        Args:
+            requirements: Requirements for the new environment
+        """
+        self.ensure_venv(requirements, force=True)
+
+    def cleanup(self) -> None:
+        """Remove virtual environment and related files.
+
+        Deletes the entire virtual environment directory. Does not fail if
+        the directory doesn't exist.
+        """
+        venv_path = self._config.venv.path
+        if venv_path.exists():
+            shutil.rmtree(venv_path)
+
+    def _create_venv(self, python: str, path: Path) -> None:
+        """Create fresh virtual environment using uv.
+
+        Args:
+            python: Python executable path or name (e.g., "python3.14")
+            path: Path where the venv should be created
+
+        Raises:
+            ProcessExecutionError: If uv venv command fails
+        """
+        process.run(
+            ["uv", "venv", "--python", python, "--seed", str(path)],
+            check=True,
+        )
+
+    def _install_dependencies(
+        self,
+        requirements: VenvRequirements,
+        venv_path: Path,
+    ) -> None:
+        """Install OARepo and project dependencies.
+
+        Installs dependencies in this order:
+        1. setuptools (required by uv pip)
+        2. oarepo with version constraint and extras
+        3. project itself (editable or as wheel)
+
+        Args:
+            requirements: Requirements specifying what to install
+            venv_path: Path to the virtual environment
+
+        Raises:
+            ProcessExecutionError: If any pip install command fails
+        """
+        # Get platform-specific paths
+        bin_dir = self._platform.get_venv_bin_dir()
+        python_exe = self._platform.get_venv_python()
+        python_path = venv_path / bin_dir / python_exe
+
+        # Install setuptools first (required by uv pip)
+        process.run(
+            [str(python_path), "-m", "pip", "install", "setuptools"],
+            check=True,
+        )
+
+        # Build oarepo version constraint and install
+        if requirements.oarepo_version is not None:
+            oarepo_constraint = self._build_oarepo_constraint(requirements)
+            process.run(
+                [
+                    "uv",
+                    "pip",
+                    "install",
+                    "--prerelease",
+                    "allow",
+                    f"oarepo[{oarepo_constraint}]",
+                ],
+                check=True,
+            )
+
+        # Install project itself
+        if requirements.editable:
+            self._install_editable(requirements)
+        else:
+            self._build_and_install_wheel(requirements)
+
+    def _build_oarepo_constraint(self, requirements: VenvRequirements) -> str:
+        """Build OARepo package constraint string.
+
+        Creates a constraint like "rdm,tests,oarepo14" based on requirements.
+
+        Args:
+            requirements: Requirements with oarepo_version and extras
+
+        Returns:
+            Comma-separated constraint string
+        """
+        # Base extras always include rdm and tests
+        constraint_parts = ["rdm", "tests"]
+
+        # Add oarepo version extra
+        if requirements.oarepo_version is not None:
+            constraint_parts.append(f"oarepo{requirements.oarepo_version}")
+
+        # Add any additional extras from requirements
+        constraint_parts.extend(requirements.extras)
+
+        return ",".join(constraint_parts)
+
+    def _install_editable(self, requirements: VenvRequirements) -> None:
+        """Install project in editable mode.
+
+        Args:
+            requirements: Requirements with extras to install
+
+        Raises:
+            ProcessExecutionError: If pip install fails
+        """
+        # Build extras list
+        extras = ["dev", "tests"]
+        if requirements.oarepo_version is not None:
+            extras.append(f"oarepo{requirements.oarepo_version}")
+        extras.extend(requirements.extras)
+
+        extras_str = ",".join(extras)
+
+        process.run(
+            ["uv", "pip", "install", "--prerelease", "allow", "-e", f".[{extras_str}]"],
+            check=True,
+        )
+
+    def _build_and_install_wheel(self, requirements: VenvRequirements) -> None:
+        """Build wheel and install (non-editable mode).
+
+        Args:
+            requirements: Requirements with extras to install
+
+        Raises:
+            ProcessExecutionError: If build or install fails
+        """
+        # Clean dist directory if it exists
+        dist_dir = Path("dist")
+        if dist_dir.exists():
+            shutil.rmtree(dist_dir)
+
+        # Build wheel
+        process.run(["uv", "build", "--wheel"], check=True)
+
+        # Find the built wheel
+        wheels = list(dist_dir.glob("*.whl"))
+        if not wheels:
+            msg = "No wheel found in dist/ after build"
+            raise ValidationError(msg)
+
+        wheel_path = wheels[0]
+
+        # Build extras list
+        extras = ["tests"]
+        if requirements.oarepo_version is not None:
+            extras.append(f"oarepo{requirements.oarepo_version}")
+        extras.extend(requirements.extras)
+
+        extras_str = ",".join(extras)
+
+        # Install the wheel with extras
+        process.run(
+            [
+                "uv",
+                "pip",
+                "install",
+                "--prerelease",
+                "allow",
+                f"{wheel_path}[{extras_str}]",
+            ],
+            check=True,
+        )

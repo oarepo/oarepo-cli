@@ -244,26 +244,26 @@ For unit-level tests, call `run()`/`stream()`/`get_output()` directly against re
 ### Step 2.2: Virtual Environment Manager
 **Goal**: Create and manage virtual environments via uv.
 
-- [ ] Implement `VirtualEnvironmentManager` class
-- [ ] Method: `ensure_venv(requirements, force=False)` → Path
-- [ ] Method: `upgrade_environment()` → None
-- [ ] Method: `cleanup()` → None
-- [ ] Use `uv venv` for creation
-- [ ] Use `uv pip install` for dependencies
-- [ ] Handle editable vs wheel builds
+- [x] Implement `VirtualEnvironmentManager` class
+- [x] Method: `ensure_venv(requirements, force=False)` → Path
+- [x] Method: `upgrade_environment()` → None
+- [x] Method: `cleanup()` → None
+- [x] Use `uv venv` for creation
+- [x] Use `uv pip install` for dependencies
+- [x] Handle editable vs wheel builds
 
 **Deliverables**:
 - Venv management service
 - uv integration
 
 **Tests** (`tests/workflow/test_venv_workflow.py`):
-- [ ] Test venv creation with `pytest-subprocess` faking `uv`/`pip` calls
-- [ ] Test setuptools installed first
-- [ ] Test oarepo installed with correct version constraint
-- [ ] Test editable vs non-editable modes
-- [ ] Test force recreation removes existing venv
-- [ ] Test skip creation if venv already exists
-- [ ] Integration test: real venv created in temp dir
+- [x] Test venv creation with `pytest-subprocess` faking `uv`/`pip` calls
+- [x] Test setuptools installed first
+- [x] Test oarepo installed with correct version constraint
+- [x] Test editable vs non-editable modes
+- [x] Test force recreation removes existing venv
+- [x] Test skip creation if venv already exists
+- [x] Integration test: real venv created in temp dir
 
 ---
 
