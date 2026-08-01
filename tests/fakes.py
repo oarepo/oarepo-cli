@@ -3,10 +3,12 @@
 
 from __future__ import annotations
 
+import os
 import time
 from pathlib import Path
 from typing import TYPE_CHECKING
 
+from oarepo_cli.core.errors import TimeoutExceeded
 from oarepo_cli.services.process import ProcessExecutor, ProcessResult
 
 if TYPE_CHECKING:
@@ -25,12 +27,18 @@ class FakeProcessExecutor(ProcessExecutor):
     - Verification of command parameters (cwd, env)
     """
 
-    def __init__(self) -> None:
-        """Initialize the fake executor with empty command registry."""
+    def __init__(self, execute_real_commands: bool = False) -> None:
+        """Initialize the fake executor with empty command registry.
+
+        Args:
+            execute_real_commands: If True, execute real subprocess commands
+                when no response is registered. Useful for contract tests.
+        """
         self._command_registry: dict[tuple[str, ...] | str, dict] = {}
         self._last_command: list[str] | None = None
         self._last_cwd: Path | None = None
         self._last_env: dict[str, str] | None = None
+        self._execute_real_commands = execute_real_commands
 
     def register_response(
         self,
@@ -110,6 +118,9 @@ class FakeProcessExecutor(ProcessExecutor):
                 return value
 
         # Default response if nothing registered
+        # If execute_real_commands is True, return marker to trigger real execution
+        if self._execute_real_commands:
+            return {"__execute_real": True}
         return {
             "returncode": 0,
             "stdout": "",
@@ -151,13 +162,61 @@ class FakeProcessExecutor(ProcessExecutor):
         self._last_cwd = cwd
         self._last_env = env
 
-        start_time = time.time()
-
         response = self._find_response(command)
 
-        # Simulate delay
-        time.sleep(response["duration_ms"] / 1000.0)
+        # Execute real command if requested and no registered response
+        if response.get("__execute_real"):
+            import subprocess
 
+            start_time = time.time()
+
+            # Merge with parent environment if custom env provided
+            run_env = None
+            if env is not None:
+                run_env = dict(**os.environ)
+                run_env.update(env)
+
+            try:
+                result = subprocess.run(
+                    command,
+                    cwd=cwd,
+                    env=run_env,
+                    capture_output=capture_output,
+                    text=True,
+                    encoding="utf-8",
+                    errors="replace",
+                    timeout=timeout,
+                )
+
+                duration_ms = int((time.time() - start_time) * 1000)
+
+                return ProcessResult(
+                    return_code=result.returncode,
+                    stdout=result.stdout if capture_output else "",
+                    stderr=result.stderr if capture_output else "",
+                    command=command,
+                    cwd=cwd or Path.cwd(),
+                    duration_ms=duration_ms,
+                )
+            except subprocess.TimeoutExpired as exc:
+                duration_ms = int((time.time() - start_time) * 1000)
+                stdout = ""
+                stderr = ""
+                if exc.stdout is not None:
+                    stdout = exc.stdout.decode("utf-8", errors="replace")
+                if exc.stderr is not None:
+                    stderr = exc.stderr.decode("utf-8", errors="replace")
+
+                raise TimeoutExceeded(
+                    command=list(command),
+                    timeout=timeout,
+                    stdout=stdout,
+                    stderr=stderr,
+                ) from exc
+
+        # Simulate delay for fake responses
+        start_time = time.time()
+        time.sleep(response["duration_ms"] / 1000.0)
         duration_ms = int((time.time() - start_time) * 1000)
 
         # Ensure at least minimum duration for test reliability

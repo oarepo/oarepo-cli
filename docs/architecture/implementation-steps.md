@@ -125,40 +125,40 @@ Per-phase deliverable. Steps within a phase can often be parallelized; see each 
 ### Step 0.5: Real Subprocess Executor Implementation
 **Goal**: Implement real subprocess execution using stdlib.
 
-- [ ] Implement `adapters/subprocess_executor.py` with `SubprocessExecutor` class
-- [ ] Never use `shell=True`; always pass args as list
-- [ ] Implement timeout handling
-- [ ] Implement signal forwarding (basic version)
-- [ ] Ensure proper encoding handling (UTF-8)
+- [x] Implement `adapters/subprocess_executor.py` with `SubprocessExecutor` class
+- [x] Never use `shell=True`; always pass args as list
+- [x] Implement timeout handling
+- [x] Implement signal forwarding (basic version)
+- [x] Ensure proper encoding handling (UTF-8)
 
 **Deliverables**:
-- Production-ready subprocess executor
-- Safe execution without shell injection risks
+- [x] Production-ready subprocess executor
+- [x] Safe execution without shell injection risks
+- [x] Added `TimeoutExceeded` exception for timeout handling
 
 **Tests** (`tests/integration/test_subprocess_executor.py`):
-- [ ] Test successful command execution
-- [ ] Test error capture on failure
-- [ ] Test timeout raises `TimeoutExceeded`
-- [ ] Test environment variable inheritance
-- [ ] Test working directory parameter
-- [ ] Test shell injection is prevented (literal output, not executed)
+- [x] Test successful command execution
+- [x] Test error capture on failure
+- [x] Test timeout raises `TimeoutExceeded`
+- [x] Test environment variable inheritance
+- [x] Test working directory parameter
+- [x] Test shell injection is prevented (literal output, not executed)
 
 ---
 
 ### Step 0.6: Filesystem Abstraction
-**Goal**: Define filesystem protocol with fake and real implementations.
+**Goal**: Define filesystem protocol with a real implementation.
 
 - [ ] Define `services/filesystem.py` with `FileSystem` protocol
 - [ ] Methods: `exists()`, `read_text()`, `write_text()`, `rmtree()`, `mkdir()`, `symlink()`, `is_executable()`
-- [ ] Implement `FakeFileSystem` in `tests/fakes.py`
 - [ ] Implement `RealFileSystem` in `adapters/real_filesystem.py`
 
 **Deliverables**:
 - FileSystem protocol
-- Fake and real implementations
+- Real implementation
 
 **Tests** (`tests/contracts/test_filesystem.py`):
-- [ ] Contract tests for both implementations
+- [ ] Contract tests for `RealFileSystem`
 - [ ] Test read/write operations
 - [ ] Test directory creation and removal
 - [ ] Test symlink creation
@@ -172,16 +172,15 @@ Per-phase deliverable. Steps within a phase can often be parallelized; see each 
 - [ ] Define `services/environment.py` with `EnvironmentProvider` protocol
 - [ ] Methods: `get()`, `set()`, `get_all()`, `merge()`
 - [ ] Implement `RealEnvironmentProvider` wrapping `os.environ`
-- [ ] Implement `FakeEnvironmentProvider` for testing
 
 **Deliverables**:
 - Environment abstraction
-- Test doubles
+- Real implementation
 
 **Tests** (`tests/unit/test_environment.py`):
 - [ ] Test get/set operations
 - [ ] Test merge with parent environment
-- [ ] Test fake provider isolation
+- [ ] Test real environment provider (using monkeypatch for os.environ if needed)
 
 ---
 
