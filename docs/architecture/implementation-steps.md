@@ -137,22 +137,22 @@ For unit-level tests, call `run()`/`stream()`/`get_output()` directly against re
 ### Step 1.1: PyProject.toml Reader
 **Goal**: Parse pyproject.toml with typed accessors using tomllib.
 
-- [ ] Implement `services/pyproject_reader.py` with `PyProjectData` dataclass
-- [ ] Properties: `name`, `homepage`, `requires_python`, `dependencies`, `optional_dependencies`, `oarepo_versions`, `default_extras`
-- [ ] Implement `PyProjectReader` class with `read()` method
-- [ ] Handle missing file and invalid TOML errors
+- [x] Implement `services/pyproject_reader.py` with `PyProjectData` dataclass
+- [x] Properties: `name`, `homepage`, `requires_python`, `dependencies`, `optional_dependencies`, `oarepo_versions`, `default_extras`
+- [x] Implement `PyProjectReader` class with `read()` method
+- [x] Handle missing file and invalid TOML errors
 
 **Deliverables**:
-- Robust TOML parsing with typed interface
-- No grep/sed/awk parsing
+- [x] Robust TOML parsing with typed interface
+- [x] No grep/sed/awk parsing
 
 **Tests** (`tests/unit/test_pyproject_reader.py`):
-- [ ] Test minimal project parsing
-- [ ] Test extraction of oarepo versions from dependencies
-- [ ] Test default extras parsing
-- [ ] Test missing file raises `ConfigurationError`
-- [ ] Test invalid TOML raises `ConfigurationError`
-- [ ] Test multiple oarepo versions extracted correctly
+- [x] Test minimal project parsing
+- [x] Test extraction of oarepo versions from dependencies
+- [x] Test default extras parsing
+- [x] Test missing file raises `ConfigurationError`
+- [x] Test invalid TOML raises `ConfigurationError`
+- [x] Test multiple oarepo versions extracted correctly
 
 ---
 
@@ -897,14 +897,14 @@ For unit-level tests, call `run()`/`stream()`/`get_output()` directly against re
 | Phase | Steps | Status |
 |-------|-------|--------|
 | 0: Project Setup | 4 | [x] (4/4 complete) |
-| 1: Core Domain Models | 4 | [ ] |
+| 1: Core Domain Models | 4 | [~] (1/4 complete) |
 | 2: Virtual Environment | 3 | [ ] |
 | 3: Library Commands | 12 | [ ] |
 | 4: Repository Commands | 10 | [ ] |
 | 5: Repository Installer | 3 | [ ] |
 | 6: Hardening | 5 | [ ] |
 | 7: Release Prep | 2 | [ ] |
-| **Total** | **43** | **[~] (4/43 complete)** |
+| **Total** | **43** | **[~] (5/43 complete)** |
 
 ---
 
