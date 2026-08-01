@@ -195,3 +195,74 @@ def test_upgrade_requires_pyproject(
         and "pyproject.toml" in str(result.exception).lower()
         or result.stdout
     )
+
+
+def test_upgrade_stops_services_if_running(
+    runner: CliRunner,
+    mock_library_project: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    fake_process: FakeProcess,
+) -> None:
+    """Test that upgrade stops services before recreating venv."""
+    monkeypatch.chdir(mock_library_project)
+
+    # Create .env-services file to simulate running services
+    env_services = mock_library_project / ".env-services"
+    env_services.write_text("export SQLALCHEMY_DATABASE_URI=postgresql://test")
+
+    # Register docker-services-cli down command
+    fake_process.register(["uvx", "--with", "setuptools", "docker-services-cli", "down", "--env"])
+
+    # Register other commands
+    fake_process.register(["uv", "cache", "clean"])
+    fake_process.register(["uv", "venv", fake_process.any()])
+    fake_process.register([fake_process.any(), "-m", "pip", "install", "setuptools"])
+    fake_process.register(
+        ["uv", "pip", "install", "--prerelease", "allow", fake_process.any()],
+        occurrences=2,
+    )
+
+    result = runner.invoke(app, ["library", "upgrade"])
+
+    # Should have called docker-services-cli down
+    assert (
+        fake_process.call_count(
+            ["uvx", "--with", "setuptools", "docker-services-cli", "down", "--env"]
+        )
+        >= 1
+    )
+    # .env-services should be removed
+    assert not env_services.exists()
+    assert result.exit_code == 0
+
+
+def test_upgrade_skips_stopping_if_no_services_running(
+    runner: CliRunner,
+    mock_library_project: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    fake_process: FakeProcess,
+) -> None:
+    """Test that upgrade doesn't try to stop services if none are running."""
+    monkeypatch.chdir(mock_library_project)
+
+    # No .env-services file (no running services)
+
+    # Register commands - but NOT docker-services-cli down
+    fake_process.register(["uv", "cache", "clean"])
+    fake_process.register(["uv", "venv", fake_process.any()])
+    fake_process.register([fake_process.any(), "-m", "pip", "install", "setuptools"])
+    fake_process.register(
+        ["uv", "pip", "install", "--prerelease", "allow", fake_process.any()],
+        occurrences=2,
+    )
+
+    result = runner.invoke(app, ["library", "upgrade"])
+
+    # Should NOT have called docker-services-cli down
+    assert (
+        fake_process.call_count(
+            ["uvx", "--with", "setuptools", "docker-services-cli", "down", "--env"]
+        )
+        == 0
+    )
+    assert result.exit_code == 0

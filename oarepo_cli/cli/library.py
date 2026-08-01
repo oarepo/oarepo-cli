@@ -10,6 +10,7 @@ from typing import Annotated
 import typer
 
 from oarepo_cli.core.context import discover_context
+from oarepo_cli.services.services_lifecycle import ServicesLifecycleManager
 from oarepo_cli.services.venv import VenvRequirements, VirtualEnvironmentManager
 
 # Create the library subcommand group
@@ -71,20 +72,34 @@ def library_upgrade() -> None:
     """Clean cache and recreate virtual environment from scratch.
 
     This command:
-    1. Removes the existing virtual environment (if present)
-    2. Cleans the uv cache to ensure fresh package downloads
-    3. Recreates the virtual environment with all dependencies
+    1. Stops running services (if any)
+    2. Removes the existing virtual environment (if present)
+    3. Cleans the uv cache to ensure fresh package downloads
+    4. Recreates the virtual environment with all dependencies
 
     Use this when you need to completely refresh your development environment,
     for example after updating OARepo or when dependencies become corrupted.
-
-    Note: This does not stop services. Use 'oarepo-cli library stop' first
-    if you have services running.
     """
     # Discover project context
     context = discover_context()
 
     typer.secho("🔄 Upgrading environment...", fg=typer.colors.BRIGHT_BLUE, bold=True)
+
+    # Stop services if running
+    services_mgr = ServicesLifecycleManager(
+        config=context.config, project_root=context.root_directory
+    )
+    if services_mgr.are_services_running():
+        typer.secho("🛑 Stopping services...", fg=typer.colors.CYAN)
+        try:
+            services_mgr.stop_services()
+            typer.secho("  ✓ Services stopped", fg=typer.colors.GREEN)
+        except Exception as e:
+            typer.secho(
+                f"  ⚠ Warning: Failed to stop services: {e}",
+                fg=typer.colors.YELLOW,
+                err=True,
+            )
 
     # Clean uv cache
     typer.secho("🧹 Cleaning uv cache...", fg=typer.colors.CYAN)
