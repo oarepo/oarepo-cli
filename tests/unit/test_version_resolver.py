@@ -21,6 +21,11 @@ if TYPE_CHECKING:
 
 def test_version_range_parsing_gte_lt(mocker: MockerFixture) -> None:
     """Test parsing >=3.12,<3.15 constraint returns [3.12, 3.13, 3.14]."""
+    # Mock KNOWN_PYTHON_VERSIONS to include test versions
+    mocker.patch(
+        "oarepo_cli.services.version_resolver.KNOWN_PYTHON_VERSIONS",
+        ["3.14", "3.13", "3.12", "3.11", "3.10"],
+    )
     # Mock all Python versions as available
     mocker.patch(
         "oarepo_cli.services.version_resolver.shutil.which",
@@ -46,6 +51,11 @@ requires-python = ">=3.12,<3.15"
 
 def test_version_range_parsing_gte_only(mocker: MockerFixture) -> None:
     """Test parsing >=3.11 constraint returns all versions >= 3.11."""
+    # Mock KNOWN_PYTHON_VERSIONS to include test versions
+    mocker.patch(
+        "oarepo_cli.services.version_resolver.KNOWN_PYTHON_VERSIONS",
+        ["3.14", "3.13", "3.12", "3.11", "3.10"],
+    )
     # Mock all Python versions as available
     mocker.patch(
         "oarepo_cli.services.version_resolver.shutil.which",
@@ -74,6 +84,11 @@ requires-python = ">=3.11"
 
 def test_version_range_parsing_eq_constraint(mocker: MockerFixture) -> None:
     """Test parsing ==3.12.* constraint returns only 3.12.x versions."""
+    # Mock KNOWN_PYTHON_VERSIONS to include test versions
+    mocker.patch(
+        "oarepo_cli.services.version_resolver.KNOWN_PYTHON_VERSIONS",
+        ["3.14", "3.13", "3.12", "3.11", "3.10"],
+    )
     # Mock all Python versions as available
     mocker.patch(
         "oarepo_cli.services.version_resolver.shutil.which",
@@ -145,20 +160,50 @@ def test_version_mismatch_error_when_no_compatible_version(mocker: MockerFixture
     assert "No Python version available" in str(exc_info.value)
 
 
-def test_oarepo_python_compatibility_validation_placeholder() -> None:
-    """Test that validate_compatibility currently accepts all combinations (placeholder)."""
+def test_oarepo_python_compatibility_validation() -> None:
+    """Test validate_compatibility with the actual compatibility matrix.
+
+    Based on OAREPO_PYTHON_COMPATIBILITY:
+    - OARepo 14 requires Python 3.14
+    """
     resolver = VersionResolver()
 
-    # Currently this should not raise for any combination
-    # TODO: Update tests when compatibility matrix is implemented
-    resolver.validate_compatibility("3.12", 13)
-    resolver.validate_compatibility("3.12", 14)
-    resolver.validate_compatibility("3.14", 13)
+    # Valid combinations should not raise
     resolver.validate_compatibility("3.14", 14)
+
+    # Invalid combinations should raise VersionMismatchError
+    with pytest.raises(VersionMismatchError, match="not compatible"):
+        resolver.validate_compatibility("3.13", 14)
+
+    with pytest.raises(VersionMismatchError, match="not compatible"):
+        resolver.validate_compatibility("3.12", 14)
+
+    # Unknown OARepo versions should not raise (no compatibility data)
+    resolver.validate_compatibility("3.12", 99)  # Unknown version
+
+
+def test_is_compatible_convenience_method() -> None:
+    """Test is_compatible returns bool instead of raising."""
+    resolver = VersionResolver()
+
+    # Valid combination
+    assert resolver.is_compatible("3.14", 14) is True
+
+    # Invalid combinations
+    assert resolver.is_compatible("3.13", 14) is False
+    assert resolver.is_compatible("3.12", 14) is False
+
+    # Unknown OARepo version (no compatibility data, returns True)
+    assert resolver.is_compatible("3.12", 99) is True
 
 
 def test_extract_oarepo_versions_with_python_resolution(mocker: MockerFixture) -> None:
     """Test full resolution including OARepo version extraction."""
+    # Mock KNOWN_PYTHON_VERSIONS to include test versions
+    mocker.patch(
+        "oarepo_cli.services.version_resolver.KNOWN_PYTHON_VERSIONS",
+        ["3.14", "3.13", "3.12", "3.11", "3.10"],
+    )
     # Mock all Python versions as available
     mocker.patch(
         "oarepo_cli.services.version_resolver.shutil.which",
@@ -204,8 +249,14 @@ def test_version_info_is_immutable() -> None:
         info.oarepo_versions = [15]  # type: ignore
 
 
-def test_parse_requires_python_with_complex_constraint() -> None:
+def test_parse_requires_python_with_complex_constraint(mocker: MockerFixture) -> None:
     """Test parsing complex version constraints using packaging library."""
+    # Mock KNOWN_PYTHON_VERSIONS to include test versions
+    mocker.patch(
+        "oarepo_cli.services.version_resolver.KNOWN_PYTHON_VERSIONS",
+        ["3.14", "3.13", "3.12", "3.11", "3.10"],
+    )
+
     resolver = VersionResolver()
 
     # Test various constraint formats

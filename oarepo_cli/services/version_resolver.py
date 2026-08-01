@@ -15,7 +15,7 @@ if TYPE_CHECKING:
 from packaging.specifiers import SpecifierSet
 from packaging.version import Version
 
-from oarepo_cli.constants import KNOWN_PYTHON_VERSIONS
+from oarepo_cli.constants import KNOWN_PYTHON_VERSIONS, OAREPO_PYTHON_COMPATIBILITY
 from oarepo_cli.core.errors import VersionMismatchError
 from oarepo_cli.services.pyproject_reader import PyProjectReader
 
@@ -117,25 +117,72 @@ class VersionResolver:
             "Please install one of these versions or adjust your requires-python constraint."
         )
 
-    def validate_compatibility(self, python: str, oarepo: int) -> None:
-        """Validate that a Python version is compatible with an OARepo version.
+    def is_compatible(self, python: str, oarepo: int) -> bool:
+        """Check if a Python version is compatible with an OARepo version.
 
         Args:
             python: Python version string (e.g., "3.12")
             oarepo: OARepo major version (e.g., 14)
 
+        Returns:
+            True if the combination is compatible, False otherwise
+        """
+        try:
+            self.validate_compatibility(python, oarepo)
+            return True
+        except VersionMismatchError:
+            return False
+
+    def validate_compatibility(self, python: str, oarepo: int) -> None:
+        """Validate that a Python version is compatible with an OARepo version.
+
+        Args:
+            python: Python version string (e.g., "3.12" or "python3.12")
+            oarepo: OARepo major version (e.g., 14)
+
         Raises:
             VersionMismatchError: If the combination is incompatible
         """
-        # TODO: Add actual compatibility matrix when known
-        # For now, we assume all combinations are valid
-        # This can be extended with a lookup table like:
-        # COMPATIBILITY_MATRIX = {
-        #     13: ["3.10", "3.11", "3.12"],
-        #     14: ["3.11", "3.12", "3.13"],
-        # }
-        _ = python  # Suppress unused variable warning until implementation
-        _ = oarepo  # Suppress unused variable warning until implementation
+        if oarepo not in OAREPO_PYTHON_COMPATIBILITY:
+            # Unknown OARepo version - we don't have compatibility data
+            # This is not necessarily an error, just means we can't validate
+            return
+
+        # Extract version from binary name if needed (e.g., "python3.14" -> "3.14")
+        python_version = self._extract_version_from_binary(python)
+
+        compatible_versions = OAREPO_PYTHON_COMPATIBILITY[oarepo]
+        if python_version not in compatible_versions:
+            raise VersionMismatchError(
+                f"Python {python_version} is not compatible with OARepo version {oarepo}. "
+                f"Compatible Python versions: {', '.join(compatible_versions)}"
+            )
+
+    def _extract_version_from_binary(self, python: str) -> str:
+        """Extract version string from Python binary path or name.
+
+        Examples:
+            "python3.14" -> "3.14"
+            "/usr/bin/python3.13" -> "3.13"
+            "3.14" -> "3.14" (already a version)
+            "python3" -> "3"
+
+        Args:
+            python: Python binary path, name, or version string
+
+        Returns:
+            Version string extracted from input
+        """
+        # Get the binary name without path
+        binary_name = python.split("/")[-1]
+
+        # If it doesn't start with "python", assume it's already a version
+        if not binary_name.startswith("python"):
+            return binary_name
+
+        # Remove "python" prefix
+        version_str = binary_name[6:]  # Remove "python" (6 chars)
+        return version_str if version_str else "3"  # Default to "3" if just "python"
 
     def _parse_requires_python(self, constraint: str) -> list[str]:
         """Parse a requires-python constraint into a list of discrete versions.

@@ -181,43 +181,43 @@ For unit-level tests, call `run()`/`stream()`/`get_output()` directly against re
 ### Step 1.3: Configuration Model
 **Goal**: Typed configuration from env vars and files.
 
-- [ ] Implement `core/config.py` with dataclasses: `BuildConfig`, `TestConfig`, `VenvConfig`, `PythonConfig`, `OARepoConfig`, `ServicesConfig`, `ModelConfig`, `TranslationsConfig`, `CeleryConfig`, `LicenseConfig`, `SecurityConfig`, `CliConfig`
-- [ ] `CliConfig.from_env()` reads environment variables
-- [ ] `CliConfig.from_pyproject()` reads `[tool.oarepo-cli]` section
-- [ ] Merge strategy: defaults < pyproject < env vars < CLI flags
+- [x] Implement `core/config.py` with dataclasses: `BuildConfig`, `TestConfig`, `VenvConfig`, `PythonConfig`, `OARepoConfig`, `ServicesConfig`, `ModelConfig`, `TranslationsConfig`, `CeleryConfig`, `LicenseConfig`, `SecurityConfig`, `CliConfig`
+- [x] `CliConfig.from_env()` reads environment variables
+- [x] `CliConfig.from_pyproject()` reads `[tool.oarepo-cli]` section
+- [x] Merge strategy: defaults < pyproject < env vars < CLI flags
 
 **Deliverables**:
 - Complete configuration model
 - Multi-source configuration loading
 
 **Tests** (`tests/unit/test_config.py`):
-- [ ] Test default values for all configs
-- [ ] Test environment variable overrides
-- [ ] Test pyproject.toml overrides
-- [ ] Test precedence order (CLI > env > pyproject > defaults)
-- [ ] Test invalid config values raise `ValidationError`
+- [x] Test default values for all configs
+- [x] Test environment variable overrides
+- [x] Test pyproject.toml overrides
+- [x] Test precedence order (CLI > env > pyproject > defaults)
+- [x] Test invalid config values raise `ValidationError`
 
 ---
 
 ### Step 1.4: Project Context Discovery
 **Goal**: Discover and validate project context at startup.
 
-- [ ] Implement `core/context.py` with `ProjectContext` dataclass
-- [ ] Fields: `root_directory`, `pyproject_path`, `venv_path`, `python_binary`, `oarepo_version`
-- [ ] Computed properties: `code_directories`, `instance_path`, `assets_path`
-- [ ] `ContextBuilder` fluent API for construction with validation
-- [ ] Auto-discovery of `pyproject.toml` in cwd and parents
+- [x] Implement `core/context.py` with `ProjectContext` dataclass
+- [x] Fields: `root_directory`, `pyproject_path`, `venv_path`, `python_binary`, `oarepo_version`
+- [x] Computed properties: `code_directories`, `instance_path`, `assets_path`
+- [x] `ContextBuilder` fluent API for construction with validation
+- [x] Auto-discovery of `pyproject.toml` in cwd and parents
 
 **Deliverables**:
 - Immutable project context object
 - Validation during discovery
 
 **Tests** (`tests/unit/test_context.py`):
-- [ ] Test context discovery from valid project
-- [ ] Test error when pyproject.toml missing
-- [ ] Test computed properties (code directories)
-- [ ] Test builder pattern with overrides
-- [ ] Test validation fails for incompatible versions
+- [x] Test context discovery from valid project
+- [x] Test error when pyproject.toml missing
+- [x] Test computed properties (code directories)
+- [x] Test builder pattern with overrides
+- [x] Test validation fails for incompatible versions
 
 ---
 
@@ -226,18 +226,18 @@ For unit-level tests, call `run()`/`stream()`/`get_output()` directly against re
 ### Step 2.1: Venv Requirements Model
 **Goal**: Define requirements for virtual environment setup.
 
-- [ ] Implement `services/venv.py` with `VenvRequirements` dataclass
-- [ ] Fields: `python_binary`, `oarepo_version`, `extras`, `editable`
-- [ ] Validation: ensure Python version supports OARepo version
+- [x] Implement `services/venv.py` with `VenvRequirements` dataclass
+- [x] Fields: `python_binary`, `oarepo_version`, `extras`, `editable`
+- [x] Validation: ensure Python version supports OARepo version
 
 **Deliverables**:
 - Venv requirements model
 - Validation logic
 
 **Tests** (`tests/unit/test_venv_requirements.py`):
-- [ ] Test requirements creation with defaults
-- [ ] Test validation of Python-OARepo compatibility
-- [ ] Test editable flag handling
+- [x] Test requirements creation with defaults
+- [x] Test validation of Python-OARepo compatibility
+- [x] Test editable flag handling
 
 ---
 
