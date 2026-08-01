@@ -456,21 +456,22 @@ For unit-level tests, call `run()`/`stream()`/`get_output()` directly against re
 ### Step 3.7: Library `test` Command
 **Goal**: Implement `oarepo-cli library test` command.
 
-- [ ] Implement `library_test()` function
-- [ ] Options: `--skip-services`, `--with-coverage`, positional `args`
-- [ ] Inject orchestrator and call `run_tests()`
-- [ ] Display results with colors
-- [ ] Exit with pytest exit code
+- [x] Implement `library_test()` function
+- [x] Options: `--skip-services`, `--with-coverage`, pass-through args via `ctx.args`
+- [x] Create orchestrator and call `run_tests()`
+- [x] Display results with colors
+- [x] Exit with pytest exit code
 
 **Deliverables**:
 - Working `test` command
 
 **Tests** (`tests/integration/test_library_test.py`):
-- [ ] Test tests run successfully
-- [ ] Test coverage enabled with flag
-- [ ] Test skip-services works
-- [ ] Test extra pytest args passed through
-- [ ] Characterization test: output matches bash
+- [x] Test tests run successfully
+- [x] Test coverage enabled with flag
+- [x] Test skip-services works
+- [x] Test extra pytest args passed through (using `--` separator)
+- [x] Test exit code on failure
+- [x] Test combined flags
 
 ---
 

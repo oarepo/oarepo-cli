@@ -11,6 +11,7 @@ import typer
 
 from oarepo_cli.core.context import discover_context
 from oarepo_cli.services.services_lifecycle import ServicesLifecycleManager
+from oarepo_cli.services.test_orchestrator import TestOrchestrator
 from oarepo_cli.services.venv import VenvRequirements, VirtualEnvironmentManager
 from oarepo_cli.ui import ConsoleOutput
 
@@ -259,3 +260,87 @@ def services_stop() -> None:
     Stops all running Docker services and removes the .env-services file.
     """
     _stop_services_impl()
+
+
+@library_app.command(
+    "test",
+    context_settings={"allow_extra_args": True, "allow_interspersed_args": False},
+)
+def library_test(
+    ctx: typer.Context,
+    skip_services: Annotated[
+        bool, typer.Option("--skip-services", help="Skip starting/stopping Docker services")
+    ] = False,
+    with_coverage: Annotated[
+        bool, typer.Option("--with-coverage", help="Enable coverage reporting")
+    ] = False,
+) -> None:
+    """Run pytest tests with optional coverage and services.
+
+    Runs the project's test suite using pytest. By default, Docker services
+    (database, search, etc.) are started before running tests and stopped
+    afterward.
+
+    Use --skip-services to run tests without starting services (faster for
+    unit tests that don't need external dependencies).
+
+    Use --with-coverage to generate coverage reports (HTML and terminal).
+
+    Any additional arguments after the command are passed directly to pytest.
+    Note: pytest flags must come after oarepo-cli flags.
+
+    Examples:
+        oarepo-cli library test
+        oarepo-cli library test --with-coverage
+        oarepo-cli library test --skip-services
+        oarepo-cli library test -v tests/unit/
+        oarepo-cli library test --with-coverage -- -x -k test_specific
+    """
+    # Get extra args from context
+    pytest_args = ctx.args if ctx.args else []
+
+    # Discover project context
+    context = discover_context()
+
+    # Create console output handler
+    console = ConsoleOutput(quiet=False)
+
+    console.info("🧪 Running tests...", fg=typer.colors.BRIGHT_BLUE, bold=True)
+
+    # Create orchestrator and run tests
+    orchestrator = TestOrchestrator(context=context)
+
+    try:
+        result = orchestrator.run_tests(
+            pytest_args=pytest_args,
+            coverage=with_coverage,
+            skip_services=skip_services,
+        )
+
+        # Display result
+        if result.success:
+            console.success(
+                "✨ ✓ All tests passed!",
+                fg=typer.colors.BRIGHT_GREEN,
+                bold=True,
+            )
+        else:
+            console.error(
+                "❌ Tests failed!",
+                fg=typer.colors.BRIGHT_RED,
+                bold=True,
+            )
+
+        # Exit with pytest's exit code
+        raise typer.Exit(code=result.return_code)
+
+    except Exception as e:
+        # Catch any orchestration errors (not pytest failures)
+        if not isinstance(e, typer.Exit):
+            console.error(
+                f"❌ Error running tests: {e}",
+                fg=typer.colors.BRIGHT_RED,
+                bold=True,
+            )
+            raise typer.Exit(code=1) from e
+        raise
