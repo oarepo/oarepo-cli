@@ -20,6 +20,8 @@ Before starting implementation of a new step, create a new branch from `cli-as-p
 
 After implementing a step, create a PR with the changes and request a review. The target branch of the PR will be `cli-as-python`.
 
+Mark the action items in implementation-steps.md correctly when working
+on a step or finishing it.
 
 ## Where to look
 
@@ -49,6 +51,8 @@ These are architectural decisions already made — don't re-litigate them, just 
 - **Single `oarepo-cli` executable** with `library`, `repository` subcommand groups plus a top-level `repo-install`, built with Typer.
 - **No premature abstraction.** Only introduce a protocol/abstraction when there are 2+ concrete implementations (real + fake counts).
 - **Preserve exit codes, stdout/stderr, flag names, and `.env-services` file format exactly** — this is a behavior-preserving rewrite, not a redesign. See the compatibility matrix in `00-main-architecture.md` §1 and §8/§Compatibility Matrix (main doc + README).
+- **Never** rename imports unless absolutely necessary, do not use pattern like `from oarepo_cli.core.errors import ConfigurationError as ConfigurationError`
+- **Always** run the format & lint & type checkers (make check) after your changes
 
 ## Dev commands
 

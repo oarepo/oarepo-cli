@@ -64,40 +64,40 @@ Per-phase deliverable. Steps within a phase can often be parallelized; see each 
 ### Step 0.2: Core Error Handling System
 **Goal**: Establish exception hierarchy and error handling patterns.
 
-- [ ] Define `core/errors.py` with base `OARepoError` class
-- [ ] Create specific exceptions: `ConfigurationError`, `VersionMismatchError`, `ProcessExecutionError`, `FileNotFoundError`, `ValidationError`, `LockAcquisitionError`
-- [ ] Implement exit code constants for each exception type
-- [ ] Add `ProcessExecutionError` with command, returncode, stdout, stderr attributes
-- [ ] Create utility function `safe_run()` that wraps process execution with consistent error handling
+- [x] Define `core/errors.py` with base `OARepoError` class
+- [x] Create specific exceptions: `ConfigurationError`, `VersionMismatchError`, `ProcessExecutionError`, `FileNotFoundError`, `ValidationError`, `LockAcquisitionError`
+- [x] Implement exit code constants for each exception type
+- [x] Add `ProcessExecutionError` with command, returncode, stdout, stderr attributes
+- [x] Create utility function `safe_run()` that wraps process execution with consistent error handling
 
 **Deliverables**:
-- Complete exception hierarchy in `core/errors.py`
-- Documented error handling patterns
+- [x] Complete exception hierarchy in `core/errors.py`
+- [x] Documented error handling patterns
 
-**Tests** (`tests/unit/test_errors.py`):
-- [ ] Test each exception type can be raised and caught
-- [ ] Test `ProcessExecutionError` formats message correctly
-- [ ] Test `safe_run()` raises on non-zero exit codes
-- [ ] Test `safe_run()` returns result on success
-- [ ] Test custom exit codes are preserved
+**Tests** (`tests/core/test_errors.py`):
+- [x] Test each exception type can be raised and caught
+- [x] Test `ProcessExecutionError` formats message correctly
+- [x] Test `safe_run()` raises on non-zero exit codes
+- [x] Test `safe_run()` returns result on success
+- [x] Test custom exit codes are preserved
 
 ---
 
 ### Step 0.3: Platform Detection Utilities
 **Goal**: Abstract platform-specific behavior.
 
-- [ ] Implement `core/platform.py` with `PlatformDetector` class
-- [ ] Methods: `is_macos()`, `is_linux()`, `is_windows()`, `get_venv_bin_dir()`, `get_venv_python()`, `needs_dyld_fix()`, `get_celery_pool_recommendation()`
-- [ ] Add platform-specific test fixtures
+- [x] Implement `core/platform.py` with `PlatformDetector` class
+- [x] Methods: `is_macos()`, `is_linux()`, `is_windows()`, `get_venv_bin_dir()`, `get_venv_python()`, `needs_dyld_fix()`, `get_celery_pool_recommendation()`
+- [x] Add platform-specific test fixtures
 
 **Deliverables**:
-- Platform detection utilities
-- Centralized platform logic
+- [x] Platform detection utilities
+- [x] Centralized platform logic
 
-**Tests** (`tests/unit/test_platform.py`):
-- [ ] Test platform detection methods return correct values
-- [ ] Test `get_venv_bin_dir()` returns `bin` on Unix, `Scripts` on Windows
-- [ ] Test `get_celery_pool_recommendation()` returns `threads` on macOS
+**Tests** (`tests/core/test_platform.py`):
+- [x] Test platform detection methods return correct values
+- [x] Test `get_venv_bin_dir()` returns `bin` on Unix, `Scripts` on Windows
+- [x] Test `get_celery_pool_recommendation()` returns `threads` on macOS
 
 ---
 
@@ -949,7 +949,7 @@ Per-phase deliverable. Steps within a phase can often be parallelized; see each 
 
 | Phase | Steps | Status |
 |-------|-------|--------|
-| 0: Project Setup | 7 | [ ] |
+| 0: Project Setup | 7 | [~] (2/7 complete) |
 | 1: Core Domain Models | 4 | [ ] |
 | 2: Virtual Environment | 3 | [ ] |
 | 3: Library Commands | 12 | [ ] |
@@ -957,7 +957,7 @@ Per-phase deliverable. Steps within a phase can often be parallelized; see each 
 | 5: Repository Installer | 3 | [ ] |
 | 6: Hardening | 5 | [ ] |
 | 7: Release Prep | 2 | [ ] |
-| **Total** | **46** | **[ ]** |
+| **Total** | **46** | **[~] (2/46 complete)** |
 
 ---
 
