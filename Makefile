@@ -1,14 +1,23 @@
 # SPDX-FileCopyrightText: 2026 CESNET z.s.p.o.
 # SPDX-License-Identifier: MIT
 
-.PHONY: help install install-dev install-tests test lint format check type-check clean pre-commit-setup pre-commit-run
+.PHONY: help test lint format check type-check clean pre-commit-setup pre-commit-run
+
+VENV_DIR := .venv
+VENV_BIN := $(VENV_DIR)/bin
+MARKER_DIR := $(VENV_DIR)/markers
+
+# Marker file constants
+INSTALL := $(MARKER_DIR)/install
+INSTALL_DEV := $(MARKER_DIR)/install-dev
+INSTALL_TESTS := $(MARKER_DIR)/install-tests
+INSTALL_ALL := $(MARKER_DIR)/install-all
 
 # Default target
 help:
 	@echo "OARepo CLI - Available targets:"
 	@echo ""
 	@echo "  Installation:"
-	@echo "    install        - Install package with minimal dependencies"
 	@echo "    install-dev    - Install package with dev dependencies (ruff, ty, pre-commit)"
 	@echo "    install-tests  - Install package with test dependencies (pytest, pytest-cov)"
 	@echo "    install-all    - Install package with all dependencies"
@@ -25,36 +34,52 @@ help:
 	@echo "    pre-commit-run   - Run pre-commit on all files"
 	@echo ""
 	@echo "  Cleanup:"
-	@echo "    clean          - Remove build artifacts and cache directories"
+	@echo "    clean          - Remove build artifacts, cache directories, and virtualenv"
+
+# Virtual environment creation with uv (includes marker directory)
+$(VENV_DIR):
+	uv venv $(VENV_DIR)
+	mkdir -p $(MARKER_DIR)
+
+# Installation targets (marker files as prerequisites)
+$(INSTALL): $(VENV_DIR)
+	uv pip install -e .
+	touch $@
+
+$(INSTALL_DEV): $(INSTALL)
+	uv pip install -e ".[dev]"
+	touch $@
+
+$(INSTALL_TESTS): $(INSTALL)
+	uv pip install -e ".[tests]"
+	touch $@
+
+$(INSTALL_ALL): $(VENV_DIR)
+	uv pip install -e ".[dev,tests]"
+	touch $@
 
 # Installation targets
-install:
-	pip install -e .
+install-dev: $(INSTALL_DEV)
 
-install-dev:
-	pip install -e ".[dev]"
+install-tests: $(INSTALL_TESTS)
 
-install-tests:
-	pip install -e ".[tests]"
-
-install-all:
-	pip install -e ".[dev,tests]"
+install-all: $(INSTALL_ALL)
 
 # Development targets
-test:
-	pytest
+test: install-tests
+	$(VENV_BIN)/pytest
 
-lint:
-	ruff check .
+lint: install-dev
+	$(VENV_BIN)/ruff check .
 
-format:
-	ruff format .
+format: install-dev
+	$(VENV_BIN)/ruff format .
 
 check: lint format type-check
 	@echo "All checks passed!"
 
-type-check:
-	ty check --python-version 3.14 .
+type-check: install-dev
+	$(VENV_BIN)/ty check --python-version 3.14 .
 
 clean:
 	rm -rf build/ dist/ *.egg-info/ .eggs/
@@ -63,10 +88,11 @@ clean:
 	find . -type d -name "__pycache__" -exec rm -rf {} + 2>/dev/null || true
 	find . -type f -name "*.py[cod]" -delete 2>/dev/null || true
 	find . -type f -name "*$$py.class" -delete 2>/dev/null || true
+	rm -rf $(VENV_DIR)
 
 # Pre-commit targets
-pre-commit-setup:
-	pre-commit install
+pre-commit-setup: install-dev
+	$(VENV_BIN)/pre-commit install
 
-pre-commit-run:
-	pre-commit run --all-files
+pre-commit-run: install-dev
+	$(VENV_BIN)/pre-commit run --all-files
