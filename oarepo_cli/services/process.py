@@ -14,7 +14,7 @@ from typing import TYPE_CHECKING
 if TYPE_CHECKING:
     from collections.abc import Iterator, Sequence
 
-from oarepo_cli.constants import STREAM_ENV_DEFAULTS
+from oarepo_cli.constants import OAREPO_ENV_DEFAULTS, STREAM_ENV_DEFAULTS
 
 # Environment variables that should be stripped when running subprocesses
 # to prevent oarepo-cli's own venv from leaking into project venvs
@@ -102,18 +102,24 @@ def _strip_venv_vars(env: dict[str, str]) -> dict[str, str]:
     return cleaned
 
 
-def _merge_env(env: dict[str, str] | None, strip_venv: bool = True) -> dict[str, str] | None:
+def _merge_env(
+    env: dict[str, str] | None,
+    strip_venv: bool = True,
+    include_oarepo_defaults: bool = True,
+) -> dict[str, str] | None:
     """Merge custom environment with parent environment.
 
     Args:
         env: Custom environment variables to merge (None = no custom vars)
         strip_venv: If True, strip VIRTUAL_ENV and related variables to prevent
                     oarepo-cli's own venv from leaking into subprocesses
+        include_oarepo_defaults: If True, include OARepo default environment variables
+                                 (UV_EXTRA_INDEX_URL, INVENIO_* settings, etc.)
 
     Returns:
         Merged environment or None if env was None and strip_venv is False
     """
-    if env is None and not strip_venv:
+    if env is None and not strip_venv and not include_oarepo_defaults:
         return None
 
     # Start with parent environment
@@ -123,7 +129,13 @@ def _merge_env(env: dict[str, str] | None, strip_venv: bool = True) -> dict[str,
     if strip_venv:
         run_env = _strip_venv_vars(run_env)
 
-    # Apply custom environment
+    # Add OARepo defaults (only if not already set in parent environment)
+    if include_oarepo_defaults:
+        for key, value in OAREPO_ENV_DEFAULTS.items():
+            if key not in run_env:
+                run_env[key] = value
+
+    # Apply custom environment (overrides everything)
     if env is not None:
         run_env.update(env)
 
@@ -249,6 +261,11 @@ def stream(
     """
     # Start with parent environment, strip venv vars if requested
     run_env = _strip_venv_vars(dict(os.environ)) if strip_venv else dict(os.environ)
+
+    # Add OARepo defaults (only if not already set)
+    for key, value in OAREPO_ENV_DEFAULTS.items():
+        if key not in run_env:
+            run_env[key] = value
 
     # Add streaming defaults
     run_env.update(STREAM_ENV_DEFAULTS)

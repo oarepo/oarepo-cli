@@ -117,14 +117,49 @@ def test_merge_env_strips_venv_by_default(monkeypatch: pytest.MonkeyPatch) -> No
     assert "OTHER" in result
 
 
+def test_merge_env_includes_oarepo_defaults(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Test that _merge_env includes OARepo defaults by default."""
+    # Clear any existing UV_EXTRA_INDEX_URL to test the default
+    monkeypatch.delenv("UV_EXTRA_INDEX_URL", raising=False)
+
+    result = process._merge_env(None)
+
+    assert result is not None
+    assert "UV_EXTRA_INDEX_URL" in result
+    assert "gitlab.cesnet.cz" in result["UV_EXTRA_INDEX_URL"]
+    assert "INVENIO_APP_THEME" in result
+
+
+def test_merge_env_preserves_existing_oarepo_vars(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Test that existing OARepo env vars are not overwritten."""
+    custom_index = "https://custom.pypi.org/simple"
+    monkeypatch.setenv("UV_EXTRA_INDEX_URL", custom_index)
+
+    result = process._merge_env(None)
+
+    assert result is not None
+    # Should preserve the existing value, not overwrite with default
+    assert result["UV_EXTRA_INDEX_URL"] == custom_index
+
+
+def test_merge_env_can_skip_oarepo_defaults(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Test that OARepo defaults can be skipped."""
+    monkeypatch.delenv("UV_EXTRA_INDEX_URL", raising=False)
+
+    result = process._merge_env(None, include_oarepo_defaults=False)
+
+    assert result is not None
+    assert "UV_EXTRA_INDEX_URL" not in result
+
+
 def test_merge_env_can_preserve_venv(monkeypatch: pytest.MonkeyPatch) -> None:
     """Test that _merge_env can preserve venv variables when requested."""
     monkeypatch.setenv("VIRTUAL_ENV", "/path/to/venv")
     monkeypatch.setenv("OTHER", "value")
 
-    result = process._merge_env(None, strip_venv=False)
+    result = process._merge_env(None, strip_venv=False, include_oarepo_defaults=False)
 
-    assert result is None  # None input + no strip = None
+    assert result is None  # None input + no strip + no defaults = None
 
 
 def test_merge_env_custom_vars_override(monkeypatch: pytest.MonkeyPatch) -> None:
