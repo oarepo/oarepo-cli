@@ -317,37 +317,101 @@ class CliConfig:
         if not configs:
             return cls()
 
-        result = configs[0]
+        # Pre-compute default values for comparison
+        default_build = BuildConfig()
+        default_test = TestingConfig()
+        default_venv = VenvConfig()
+        default_services = ServicesConfig()
+        default_model = ModelConfig()
+        default_celery = CeleryConfig()
+        default_license = LicenseConfig()
+        default_security = SecurityConfig()
 
-        for config in configs[1:]:
+        # Start with defaults
+        result = cls()
+
+        for config in configs:
+            # Merge each nested config - prefer non-default values from config
             result = CliConfig(
-                build=BuildConfig(editable=config.build.editable),
-                test=TestingConfig(
-                    coverage=config.test.coverage,
-                    skip_services=config.test.skip_services,
+                build=BuildConfig(
+                    editable=config.build.editable
+                    if config.build.editable != default_build.editable
+                    else result.build.editable,
                 ),
-                venv=VenvConfig(path=config.venv.path),
-                python=PythonConfig(binary=config.python.binary),
-                oarepo=OARepoConfig(version=config.oarepo.version),
+                test=TestingConfig(
+                    coverage=config.test.coverage
+                    if config.test.coverage != default_test.coverage
+                    else result.test.coverage,
+                    skip_services=config.test.skip_services
+                    if config.test.skip_services != default_test.skip_services
+                    else result.test.skip_services,
+                ),
+                venv=VenvConfig(
+                    path=config.venv.path
+                    if config.venv.path != default_venv.path
+                    else result.venv.path,
+                ),
+                python=PythonConfig(
+                    binary=config.python.binary
+                    if config.python.binary is not None
+                    else result.python.binary,
+                ),
+                oarepo=OARepoConfig(
+                    version=config.oarepo.version
+                    if config.oarepo.version is not None
+                    else result.oarepo.version,
+                ),
                 services=ServicesConfig(
-                    skip=config.services.skip,
-                    db=config.services.db,
-                    search=config.services.search,
-                    mq=config.services.mq,
-                    cache=config.services.cache,
-                    s3=config.services.s3,
+                    skip=config.services.skip
+                    if config.services.skip != default_services.skip
+                    else result.services.skip,
+                    db=config.services.db
+                    if config.services.db != default_services.db
+                    else result.services.db,
+                    search=config.services.search
+                    if config.services.search != default_services.search
+                    else result.services.search,
+                    mq=config.services.mq
+                    if config.services.mq != default_services.mq
+                    else result.services.mq,
+                    cache=config.services.cache
+                    if config.services.cache != default_services.cache
+                    else result.services.cache,
+                    s3=config.services.s3
+                    if config.services.s3 != default_services.s3
+                    else result.services.s3,
                 ),
                 model=ModelConfig(
-                    template_url=config.model.template_url,
-                    template_version=config.model.template_version,
+                    template_url=config.model.template_url
+                    if config.model.template_url != default_model.template_url
+                    else result.model.template_url,
+                    template_version=config.model.template_version
+                    if config.model.template_version != default_model.template_version
+                    else result.model.template_version,
                 ),
-                translations=TranslationsConfig(overlay_dir=config.translations.overlay_dir),
+                translations=TranslationsConfig(
+                    overlay_dir=config.translations.overlay_dir
+                    if config.translations.overlay_dir is not None
+                    else result.translations.overlay_dir,
+                ),
                 celery=CeleryConfig(
-                    pool_type=config.celery.pool_type,
-                    concurrency=config.celery.concurrency,
+                    pool_type=config.celery.pool_type
+                    if config.celery.pool_type != default_celery.pool_type
+                    else result.celery.pool_type,
+                    concurrency=config.celery.concurrency
+                    if config.celery.concurrency != default_celery.concurrency
+                    else result.celery.concurrency,
                 ),
-                license=LicenseConfig(organization=config.license.organization),
-                security=SecurityConfig(demo_user_password=config.security.demo_user_password),
+                license=LicenseConfig(
+                    organization=config.license.organization
+                    if config.license.organization != default_license.organization
+                    else result.license.organization,
+                ),
+                security=SecurityConfig(
+                    demo_user_password=config.security.demo_user_password
+                    if config.security.demo_user_password != default_security.demo_user_password
+                    else result.security.demo_user_password,
+                ),
             )
 
         return result
