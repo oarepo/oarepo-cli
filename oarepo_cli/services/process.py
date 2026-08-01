@@ -16,6 +16,15 @@ if TYPE_CHECKING:
 
 from oarepo_cli.constants import STREAM_ENV_DEFAULTS
 
+# Environment variables that should be stripped when running subprocesses
+# to prevent oarepo-cli's own venv from leaking into project venvs
+VENV_ENV_VARS = {
+    "VIRTUAL_ENV",  # Path to active venv
+    "VIRTUAL_ENV_PROMPT",  # Venv prompt customization
+    "_OLD_VIRTUAL_PATH",  # Original PATH before venv activation
+    "_OLD_VIRTUAL_PYTHONHOME",  # Original PYTHONHOME before venv activation
+}
+
 
 @dataclass
 class ProcessResult:
@@ -55,11 +64,69 @@ class ProcessResult:
         return self
 
 
-def _merge_env(env: dict[str, str] | None) -> dict[str, str] | None:
-    if env is None:
+def _strip_venv_vars(env: dict[str, str]) -> dict[str, str]:
+    """Strip virtual environment variables from environment.
+
+    When oarepo-cli is called from within its own venv, VIRTUAL_ENV and
+    related variables would leak into subprocesses and cause them to use
+    the wrong venv. This function removes those variables and also strips
+    the venv's bin directory from PATH.
+
+    Args:
+        env: Environment dictionary to clean
+
+    Returns:
+        New environment dictionary without venv variables
+    """
+    cleaned = {k: v for k, v in env.items() if k not in VENV_ENV_VARS}
+
+    # Strip venv bin directory from PATH if VIRTUAL_ENV was set
+    if "VIRTUAL_ENV" in env and "PATH" in cleaned:
+        venv_path = env["VIRTUAL_ENV"]
+        # Venv bin directories follow platform conventions:
+        # Unix: {venv}/bin, Windows: {venv}\\Scripts
+        if sys.platform == "win32":
+            venv_bin = f"{venv_path}\\Scripts"
+        else:
+            venv_bin = f"{venv_path}/bin"
+
+        # Remove venv bin from PATH
+        path_parts = cleaned["PATH"].split(os.pathsep)
+        cleaned_path_parts = [
+            p
+            for p in path_parts
+            if not (p == venv_bin or p.rstrip("/\\") == venv_bin.rstrip("/\\"))
+        ]
+        cleaned["PATH"] = os.pathsep.join(cleaned_path_parts)
+
+    return cleaned
+
+
+def _merge_env(env: dict[str, str] | None, strip_venv: bool = True) -> dict[str, str] | None:
+    """Merge custom environment with parent environment.
+
+    Args:
+        env: Custom environment variables to merge (None = no custom vars)
+        strip_venv: If True, strip VIRTUAL_ENV and related variables to prevent
+                    oarepo-cli's own venv from leaking into subprocesses
+
+    Returns:
+        Merged environment or None if env was None and strip_venv is False
+    """
+    if env is None and not strip_venv:
         return None
+
+    # Start with parent environment
     run_env = dict(**os.environ)
-    run_env.update(env)
+
+    # Strip venv variables if requested
+    if strip_venv:
+        run_env = _strip_venv_vars(run_env)
+
+    # Apply custom environment
+    if env is not None:
+        run_env.update(env)
+
     return run_env
 
 
@@ -72,6 +139,7 @@ def run(
     check: bool = True,
     forward_stdout: bool = False,
     timeout: float | None = None,
+    strip_venv: bool = True,
 ) -> ProcessResult:
     """Execute a command and wait for completion. Never uses shell=True.
 
@@ -83,6 +151,8 @@ def run(
         check: Raise ProcessExecutionError on non-zero exit code
         forward_stdout: Stream output to console while capturing
         timeout: Maximum execution time in seconds
+        strip_venv: Strip VIRTUAL_ENV and related variables (default: True)
+                    to prevent oarepo-cli's own venv from leaking
 
     Returns:
         ProcessResult with exit code, output, and timing
@@ -93,7 +163,7 @@ def run(
     """
     from oarepo_cli.core.errors import ProcessExecutionError, TimeoutExceeded
 
-    run_env = _merge_env(env)
+    run_env = _merge_env(env, strip_venv=strip_venv)
     start_time = time.time()
 
     try:
@@ -157,6 +227,7 @@ def stream(
     *,
     cwd: Path | None = None,
     env: dict[str, str] | None = None,
+    strip_venv: bool = True,
 ) -> Iterator[str]:
     """Execute a command and yield output lines as they're produced.
 
@@ -171,11 +242,18 @@ def stream(
         command: List of command arguments
         cwd: Working directory for the command
         env: Environment variables (merged with parent, PYTHONUNBUFFERED=1 default)
+        strip_venv: Strip VIRTUAL_ENV and related variables (default: True)
 
     Yields:
         Lines of stdout interleaved with stderr
     """
-    run_env = dict(os.environ, **STREAM_ENV_DEFAULTS)
+    # Start with parent environment, strip venv vars if requested
+    run_env = _strip_venv_vars(dict(os.environ)) if strip_venv else dict(os.environ)
+
+    # Add streaming defaults
+    run_env.update(STREAM_ENV_DEFAULTS)
+
+    # Apply custom environment
     if env is not None:
         run_env.update(env)
 
@@ -203,6 +281,7 @@ def get_output(
     *,
     cwd: Path | None = None,
     env: dict[str, str] | None = None,
+    strip_venv: bool = True,
 ) -> str:
     """Execute a command and return stripped stdout.
 
@@ -212,6 +291,7 @@ def get_output(
         command: List of command arguments
         cwd: Working directory for the command
         env: Environment variables (merged with parent)
+        strip_venv: Strip VIRTUAL_ENV and related variables (default: True)
 
     Returns:
         Stripped stdout output
@@ -222,5 +302,6 @@ def get_output(
         env=env,
         capture_output=True,
         check=False,
+        strip_venv=strip_venv,
     )
     return result.stdout.strip()
