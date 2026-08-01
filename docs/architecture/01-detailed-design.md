@@ -20,9 +20,7 @@ graph TB
     end
 
     subgraph "Services Layer"
-        PROC[process.py<br/>ProcessExecutor]
-        FS[filesystem.py<br/>FileSystem]
-        ENV[environment.py<br/>EnvironmentProvider]
+        PROC[process.py<br/>run/stream/get_output]
         NET[network.py<br/>NetworkClient]
         VENV[venv.py<br/>VenvManager]
         VER[version_resolver.py<br/>VersionResolver]
@@ -37,9 +35,6 @@ graph TB
     end
 
     subgraph "Adapters Layer"
-        SUB[subprocess_executor.py<br/>Real ProcessExecutor]
-        REALFS[real_filesystem.py<br/>Real FileSystem]
-        REALENV[real_environment.py<br/>Real Environment]
         HTTP[http_client.py<br/>HTTP Client]
     end
 
@@ -54,14 +49,11 @@ graph TB
 
     CTX --> TOML
     CTX --> VER
-    CTX --> ENV
 
     VER --> PROC
     VENV --> PROC
-    VENV --> FS
 
     SVC --> PROC
-    SVC --> ENV
 
     TEST --> PROC
     XFRM --> PROC
@@ -70,9 +62,6 @@ graph TB
     IDX --> PROC
     SRV --> PROC
 
-    SUB -.-> PROC
-    REALFS -.-> FS
-    REALENV -.-> ENV
     HTTP -.-> NET
 
     style MAIN fill:#e1f5ff
@@ -92,6 +81,7 @@ graph LR
         ERR[errors.py]
         PLT[platform.py]
         SIG[signals.py]
+        PROC[process.py<br/>plain functions, no protocol]
     end
 
     subgraph "Domain Models"
@@ -102,9 +92,6 @@ graph LR
     end
 
     subgraph "Protocols / Interfaces"
-        PROC_P[ProcessExecutor<br/>Protocol]
-        FS_P[FileSystem<br/>Protocol]
-        ENV_P[EnvironmentProvider<br/>Protocol]
         NET_P[NetworkClient<br/>Protocol]
     end
 
@@ -124,9 +111,6 @@ graph LR
     end
 
     subgraph "Concrete Adapters"
-        SUB[subprocess_executor.py]
-        REALFS[real_filesystem.py]
-        REALENV[real_environment.py]
         HTTP[http_client.py]
     end
 
@@ -136,26 +120,23 @@ graph LR
 
     CTX --> TOML
     CTX --> VER
-    CTX --> ENV_P
 
-    VER --> PROC_P
+    VER --> PROC
 
-    VENV --> PROC_P
-    VENV --> FS_P
+    VENV --> PROC
     VENV --> VER
 
-    SVC --> PROC_P
-    SVC --> ENV_P
+    SVC --> PROC
 
-    TEST --> PROC_P
+    TEST --> PROC
 
-    XFRM --> PROC_P
-    MDL --> PROC_P
+    XFRM --> PROC
+    MDL --> PROC
     MDL --> NET_P
-    PKG --> PROC_P
+    PKG --> PROC
     PKG --> TOML
-    IDX --> PROC_P
-    SRV --> PROC_P
+    IDX --> PROC
+    SRV --> PROC
     SRV --> SVC
 
     CLI --> CTX
@@ -169,14 +150,11 @@ graph LR
     CLI --> IDX
     CLI --> SRV
 
-    SUB --> PROC_P
-    REALFS --> FS_P
-    REALENV --> ENV_P
     HTTP --> NET_P
 
     style ERR fill:#ffebee
     style CTX fill:#e3f2fd
-    style PROC_P fill:#f3e5f5
+    style PROC fill:#f3e5f5
     style VENV fill:#e8f5e9
     style CLI fill:#fff3e0
 ```
@@ -192,7 +170,7 @@ sequenceDiagram
     participant Ctx as core/context.py
     participant Venv as services/venv.py
     participant Proc as services/process.py
-    participant Env as services/environment.py
+    participant Svc as services/services_lifecycle.py
     participant Test as services/test_orchestrator.py
 
     User->>CLI: library test --with-coverage
@@ -209,10 +187,10 @@ sequenceDiagram
         Proc-->>CLI: ProcessResult(0, ...)
     end
 
-    CLI->>Env: get_service_env()
-    Env->>Proc: run(["docker-services-cli", "up", ...])
-    Proc-->>Env: ProcessResult(0, env_file)
-    Env-->>CLI: {DB_URL, SEARCH_URL, ...}
+    CLI->>Svc: start_services(config)
+    Svc->>Proc: run(["docker-services-cli", "up", ...])
+    Proc-->>Svc: ProcessResult(0, env_file)
+    Svc-->>CLI: {DB_URL, SEARCH_URL, ...}
 
     CLI->>Test: run_tests(ctx, args, coverage=True, env_vars)
     Test->>Proc: run(["pytest", "--cov=...", ...], env={...})
@@ -324,14 +302,15 @@ stateDiagram-v2
     end note
 ```
 
-## 6. Key Protocol Interfaces
+## 6. Key Interfaces
 
-### ProcessExecutor Protocol
+### Process Execution Helper
+
+Plain module-level functions, not a `Protocol`/`ABC` — there is exactly one real way to run a subprocess, so nothing is gained by making this swappable. Every service imports `oarepo_cli.services.process` and calls `process.run(...)` directly; no constructor injection.
 
 ```python
 # services/process.py
 
-from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Optional, Sequence, Iterator
@@ -364,74 +343,67 @@ class ProcessResult:
         return self
 
 
-class ProcessExecutor(ABC):
-    """Abstract interface for executing external processes."""
+def run(
+    command: Sequence[str],
+    *,
+    cwd: Optional[Path] = None,
+    env: Optional[dict[str, str]] = None,
+    capture_output: bool = True,
+    check: bool = True,
+    forward_stdout: bool = False,
+    timeout: Optional[float] = None,
+) -> ProcessResult:
+    """
+    Execute a command and wait for completion. Never uses shell=True.
 
-    @abstractmethod
-    def run(
-        self,
-        command: Sequence[str],
-        *,
-        cwd: Optional[Path] = None,
-        env: Optional[dict[str, str]] = None,
-        capture_output: bool = True,
-        check: bool = True,
-        forward_stdout: bool = False,
-        timeout: Optional[float] = None,
-    ) -> ProcessResult:
-        """
-        Execute a command and wait for completion.
+    Args:
+        command: List of arguments (never shell string)
+        cwd: Working directory
+        env: Environment variables (merged with parent)
+        capture_output: Capture stdout/stderr strings
+        check: Raise on non-zero exit code
+        forward_stdout: Stream output while capturing
+        timeout: Maximum execution time in seconds
 
-        Args:
-            command: List of arguments (never shell string)
-            cwd: Working directory
-            env: Environment variables (merged with parent)
-            capture_output: Capture stdout/stderr strings
-            check: Raise on non-zero exit code
-            forward_stdout: Stream output while capturing
-            timeout: Maximum execution time in seconds
+    Returns:
+        ProcessResult with exit code, output, timing
 
-        Returns:
-            ProcessResult with exit code, output, timing
+    Raises:
+        ProcessExecutionError: If check=True and returncode != 0
+        TimeoutExceeded: If timeout is exceeded
+    """
+    ...
 
-        Raises:
-            ProcessExecutionError: If check=True and returncode != 0
-            TimeoutExceeded: If timeout is exceeded
-        """
-        pass
 
-    @abstractmethod
-    def stream(
-        self,
-        command: Sequence[str],
-        *,
-        cwd: Optional[Path] = None,
-        env: Optional[dict[str, str]] = None,
-    ) -> Iterator[str]:
-        """
-        Execute a command and yield output lines as they're produced.
+def stream(
+    command: Sequence[str],
+    *,
+    cwd: Optional[Path] = None,
+    env: Optional[dict[str, str]] = None,
+) -> Iterator[str]:
+    """
+    Execute a command and yield output lines as they're produced.
 
-        Use for long-running commands where real-time output is needed.
+    Use for long-running commands where real-time output is needed.
 
-        Yields:
-            Lines of stdout interleaved with stderr
-        """
-        pass
+    Yields:
+        Lines of stdout interleaved with stderr
+    """
+    ...
 
-    @abstractmethod
-    def get_output(
-        self,
-        command: Sequence[str],
-        *,
-        cwd: Optional[Path] = None,
-        env: Optional[dict[str, str]] = None,
-    ) -> str:
-        """
-        Execute a command and return stripped stdout.
 
-        Convenience method for commands like `python -c "print(...)"`.
-        """
-        pass
+def get_output(
+    command: Sequence[str],
+    *,
+    cwd: Optional[Path] = None,
+    env: Optional[dict[str, str]] = None,
+) -> str:
+    """
+    Execute a command and return stripped stdout.
+
+    Convenience function for commands like `python -c "print(...)"`.
+    """
+    ...
 ```
 
 ### VirtualEnvironmentManager Interface
@@ -439,9 +411,12 @@ class ProcessExecutor(ABC):
 ```python
 # services/venv.py
 
+import shutil
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Optional
+
+from oarepo_cli.services import process
 
 
 @dataclass
@@ -459,14 +434,7 @@ class VenvRequirements:
 class VirtualEnvironmentManager:
     """Manages Python virtual environments via uv."""
 
-    def __init__(
-        self,
-        process: ProcessExecutor,
-        filesystem: FileSystem,
-        config: CliConfig,
-    ):
-        self._process = process
-        self._fs = filesystem
+    def __init__(self, config: CliConfig):
         self._config = config
 
     def ensure_venv(
@@ -490,10 +458,10 @@ class VirtualEnvironmentManager:
         """
         venv_path = self._config.venv.path
 
-        if force and self._fs.exists(venv_path):
-            self._fs.rmtree(venv_path)
+        if force and venv_path.exists():
+            shutil.rmtree(venv_path)
 
-        if not self._fs.exists(venv_path):
+        if not venv_path.exists():
             self._create_venv(requirements.python_binary, venv_path)
 
         self._install_dependencies(requirements, venv_path)
@@ -502,7 +470,7 @@ class VirtualEnvironmentManager:
 
     def _create_venv(self, python: str, path: Path) -> None:
         """Create fresh virtual environment."""
-        self._process.run(
+        process.run(
             ["uv", "venv", "--python", python, "--seed", str(path)],
             check=True,
         )
@@ -514,7 +482,7 @@ class VirtualEnvironmentManager:
     ) -> None:
         """Install OARepo and project dependencies."""
         # Install setuptools first (required by uv pip)
-        self._process.run(
+        process.run(
             [str(venv_path / "bin" / "python"), "-m", "pip", "install", "setuptools"],
             check=True,
         )
@@ -523,7 +491,7 @@ class VirtualEnvironmentManager:
         oarepo_constraint = self._build_oarepo_constraint(requirements)
 
         # Install oarepo with extras
-        self._process.run(
+        process.run(
             [
                 "uv",
                 "pip",
@@ -535,7 +503,7 @@ class VirtualEnvironmentManager:
 
         # Install project itself
         if requirements.editable:
-            self._process.run(
+            process.run(
                 ["uv", "pip", "install", "-e", ".[dev,tests,...]"],
                 check=True,
             )
@@ -549,8 +517,8 @@ class VirtualEnvironmentManager:
     def cleanup(self) -> None:
         """Remove virtual environment and related files."""
         venv_path = self._config.venv.path
-        if self._fs.exists(venv_path):
-            self._fs.rmtree(venv_path)
+        if venv_path.exists():
+            shutil.rmtree(venv_path)
 ```
 
 ### PyProjectReader Interface
@@ -620,9 +588,6 @@ class PyProjectData:
 class PyProjectReader:
     """Reads and validates pyproject.toml files."""
 
-    def __init__(self, filesystem: FileSystem):
-        self._fs = filesystem
-
     def read(self, path: Path) -> PyProjectData:
         """
         Read and parse pyproject.toml.
@@ -636,10 +601,10 @@ class PyProjectReader:
         Raises:
             ConfigurationError: If file missing or invalid TOML
         """
-        if not self._fs.exists(path):
+        if not path.exists():
             raise ConfigurationError(f"pyproject.toml not found at {path}")
 
-        content = self._fs.read_text(path)
+        content = path.read_text()
 
         try:
             import tomllib
@@ -716,11 +681,7 @@ def library_venv(
     config = CliConfig.from_env()
     config.build.editable = not no_editable
 
-    venv_mgr = VirtualEnvironmentManager(
-        process=SubprocessExecutor(),
-        filesystem=RealFileSystem(),
-        config=config,
-    )
+    venv_mgr = VirtualEnvironmentManager(config=config)
 
     requirements = VenvRequirements(
         python_binary=ctx.python_binary,
@@ -746,7 +707,6 @@ def library_test(
     config.test.skip_services = skip_services
 
     orchestrator = TestOrchestrator(
-        process=SubprocessExecutor(),
         context=ctx,
         config=config,
     )
@@ -780,7 +740,6 @@ def repository_install() -> None:
     ctx = ProjectContext.from_cwd()
 
     installer = RepositoryInstaller(
-        process=SubprocessExecutor(),
         context=ctx,
         config=CliConfig.from_env(),
     )
@@ -798,7 +757,6 @@ def repository_run(
     ctx = ProjectContext.from_cwd()
 
     runner = ServerRunner(
-        process=SubprocessExecutor(),
         signal_handler=SignalHandler(),
         context=ctx,
     )
@@ -828,7 +786,7 @@ def test_parse_package_name(tmp_path: Path):
     """
     (tmp_path / "pyproject.toml").write_text(toml_content)
 
-    reader = PyProjectReader(FakeFileSystem())
+    reader = PyProjectReader()
     data = reader.read(tmp_path / "pyproject.toml")
 
     assert data.name == "oarepo-test-package"
@@ -844,7 +802,7 @@ def test_extract_oarepo_versions(tmp_path: Path):
     """
     (tmp_path / "pyproject.toml").write_text(toml_content)
 
-    reader = PyProjectReader(FakeFileSystem())
+    reader = PyProjectReader()
     data = reader.read(tmp_path / "pyproject.toml")
 
     assert data.oarepo_versions == [13, 14]
@@ -853,63 +811,60 @@ def test_extract_oarepo_versions(tmp_path: Path):
 def test_invalid_toml_raises_error(tmp_path: Path):
     (tmp_path / "pyproject.toml").write_text("invalid [[[[ toml")
 
-    reader = PyProjectReader(FakeFileSystem())
+    reader = PyProjectReader()
 
     with pytest.raises(ConfigurationError):
         reader.read(tmp_path / "pyproject.toml")
 ```
 
-### Contract Tests for Adapters
+### Process Execution Tests
+
+No fixture, no injected executor — `process.run()` is a plain function, called directly with real, trivial, always-available commands.
 
 ```python
-# tests/contracts/test_subprocess_executor.py
+# tests/unit/test_process.py
 
 import pytest
-from oarepo_cli.adapters.subprocess_executor import SubprocessExecutor
+from oarepo_cli.services import process
 from oarepo_cli.services.process import ProcessExecutionError
 
 
-@pytest.fixture
-def executor():
-    return SubprocessExecutor()
-
-
-def test_returns_exit_code(executor):
-    result = executor.run(["python", "-c", "import sys; sys.exit(42)"])
+def test_returns_exit_code():
+    result = process.run(["python", "-c", "import sys; sys.exit(42)"])
     assert result.returncode == 42
 
 
-def test_captures_stdout(executor):
-    result = executor.run(["echo", "hello world"])
+def test_captures_stdout():
+    result = process.run(["echo", "hello world"])
     assert "hello world" in result.stdout
 
 
-def test_raises_on_check_true(executor):
+def test_raises_on_check_true():
     with pytest.raises(ProcessExecutionError) as exc_info:
-        executor.run(["python", "-c", "import sys; sys.exit(1)"], check=True)
+        process.run(["python", "-c", "import sys; sys.exit(1)"], check=True)
 
     assert exc_info.value.returncode == 1
 
 
-def test_does_not_raise_on_check_false(executor):
-    result = executor.run(
+def test_does_not_raise_on_check_false():
+    result = process.run(
         ["python", "-c", "import sys; sys.exit(1)"],
         check=False,
     )
     assert result.returncode == 1
 
 
-def test_environment_is_inherited(executor):
-    result = executor.run(
+def test_environment_is_inherited():
+    result = process.run(
         ["python", "-c", "import os; print(os.environ['TEST_VAR'])"],
         env={"TEST_VAR": "test_value"},
     )
     assert result.stdout.strip() == "test_value"
 
 
-def test_shell_injection_prevented(executor):
+def test_shell_injection_prevented():
     # This should NOT execute the rm command
-    result = executor.run(
+    result = process.run(
         ["echo", "; rm -rf /"],
         check=False,
     )
@@ -1030,6 +985,7 @@ def extract_commands(help_text: str) -> set[str]:
 import pytest
 import signal
 from unittest.mock import patch
+from oarepo_cli.services import process
 from oarepo_cli.services.venv import VirtualEnvironmentManager
 from oarepo_cli.core.errors import ProcessExecutionError
 
@@ -1039,7 +995,7 @@ def test_venv_cleanup_on_interrupt(tmp_path):
     manager = VirtualEnvironmentManager(...)
 
     # Simulate interrupt during venv creation
-    with patch.object(manager._process, "run") as mock_run:
+    with patch.object(process, "run") as mock_run:
         mock_run.side_effect = KeyboardInterrupt()
 
         with pytest.raises(KeyboardInterrupt):
@@ -1051,10 +1007,8 @@ def test_venv_cleanup_on_interrupt(tmp_path):
 
 def test_process_timeout_handling():
     """Long-running processes respect timeout parameter."""
-    executor = SubprocessExecutor()
-
     with pytest.raises(TimeoutExceeded):
-        executor.run(
+        process.run(
             ["sleep", "100"],
             timeout=1.0,
         )
@@ -1102,7 +1056,6 @@ class ProcessExecutionError(OARepoError):
 
 
 def safe_run(
-    executor: ProcessExecutor,
     command: list[str],
     *,
     hide_errors: bool = False,
@@ -1112,7 +1065,6 @@ def safe_run(
     Wrap process execution with consistent error handling.
 
     Args:
-        executor: ProcessExecutor instance
         command: Command to run
         hide_errors: Suppress error output (for optional features)
         expected_codes: Acceptable non-zero exit codes
@@ -1123,7 +1075,7 @@ def safe_run(
     Raises:
         ProcessExecutionError: For unexpected failures
     """
-    result = executor.run(command, check=False)
+    result = run(command, check=False)
 
     if expected_codes and result.returncode in expected_codes:
         return result
@@ -1147,6 +1099,7 @@ def safe_run(
 ```python
 # services/repository_installer.py
 
+import shutil
 from contextlib import contextmanager
 
 
@@ -1189,7 +1142,7 @@ class RepositoryInstaller:
         """Attempt best-effort cleanup based on operation type."""
         if operation_name == "repository installation":
             # Remove created files/directories
-            self._fs.rmtree(self._ctx.instance_path, ignore_errors=True)
+            shutil.rmtree(self._ctx.instance_path, ignore_errors=True)
         # Add more rollback handlers as needed
 ```
 

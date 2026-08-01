@@ -101,86 +101,34 @@ Per-phase deliverable. Steps within a phase can often be parallelized; see each 
 
 ---
 
-### Step 0.4: Process Executor Protocol & Fake Implementation
-**Goal**: Define abstraction for subprocess execution with test double.
+### Step 0.4: Process Execution Helper
+**Goal**: Provide a single, safe way to run subprocesses, used directly by every service — no protocol, no dependency injection.
 
-- [x] Define `services/process.py` with `ProcessResult` dataclass
-- [x] Define `ProcessExecutor` protocol with `run()`, `stream()`, `get_output()` methods
-- [x] Implement `FakeProcessExecutor` in `tests/fakes.py`
-- [x] Register command responses and simulate outputs in fake executor
+A shared subprocess helper is still justified, unlike the `FileSystem`/`EnvironmentProvider` protocols considered (and dropped) earlier in this plan: it centralizes real logic worth not duplicating per call site — never `shell=True`, UTF-8 decoding, timeout → `TimeoutExceeded` translation with partial-output capture, env-dict merging, optional output streaming. What it does *not* need is a `Protocol`/`ABC` with constructor-injected implementations: there is exactly one real way to run a subprocess (same reasoning that killed `EnvironmentProvider`), and — critically — a hand-registered fake has no independent behavior worth verifying against a shared "contract," so trying to give it one (see the old Step 0.4/0.5 split and the retired `FakeProcessExecutor`) only produced dead weight: unused regex matching, a `time.sleep()`-based fake timing simulator, and a `execute_real_commands` escape hatch that silently re-ran real subprocesses to paper over the fact the fake had nothing of its own to assert.
 
-**Deliverables**:
-- [x] ProcessExecutor protocol definition
-- [x] Fully functional fake implementation for testing
+Where a fake genuinely earns its keep is at the **OS boundary**, for the services built on top (`VirtualEnvironmentManager`, `ServicesLifecycleManager`, `ModelManager`, ...) that shell out to slow, optional, side-effecting external tools — `uv`, `docker-services-cli`, `copier`, `invenio-cli`. Those workflow tests need to avoid actually invoking those tools while still asserting which commands ran and in what order. [`pytest-subprocess`](https://pytest-subprocess.readthedocs.io/) (its `fake_process` fixture) does this by patching `subprocess.Popen` process-wide, so it intercepts calls transparently — no injected executor required. See Step 2.2 and onward for its use in workflow tests.
 
-**Tests** (`tests/contracts/test_process_executor.py`):
-- [x] Contract tests verify fake executor satisfies protocol
-- [x] Test `run()` captures stdout/stderr correctly
-- [x] Test `run()` respects `check=True/False`
-- [x] Test `get_output()` returns stripped stdout
-- [x] Test environment variables are passed correctly
-
----
-
-### Step 0.5: Real Subprocess Executor Implementation
-**Goal**: Implement real subprocess execution using stdlib.
-
-- [x] Implement `adapters/subprocess_executor.py` with `SubprocessExecutor` class
-- [x] Never use `shell=True`; always pass args as list
-- [x] Implement timeout handling
-- [x] Implement signal forwarding (basic version)
-- [x] Ensure proper encoding handling (UTF-8)
+- [ ] Define `services/process.py` with `ProcessResult` dataclass
+- [ ] Implement `run()`, `stream()`, `get_output()` as plain module-level functions wrapping `subprocess.run`/`Popen` (not a class, not an `ABC` — no swappable implementation exists)
+- [ ] Never use `shell=True`; always pass args as list
+- [ ] Implement timeout handling → `TimeoutExceeded`, with partial output captured
+- [ ] Ensure proper encoding handling (UTF-8)
+- [ ] Add `pytest-subprocess` as a dev dependency, for use starting in Phase 2's workflow tests
 
 **Deliverables**:
-- [x] Production-ready subprocess executor
-- [x] Safe execution without shell injection risks
-- [x] Added `TimeoutExceeded` exception for timeout handling
+- [ ] `services/process.py`: production-ready, safe subprocess execution — no `adapters/subprocess_executor.py`, no `ProcessExecutor` protocol, no `tests/fakes.py::FakeProcessExecutor`
+- [ ] Safe execution without shell injection risks
 
-**Tests** (`tests/integration/test_subprocess_executor.py`):
-- [x] Test successful command execution
-- [x] Test error capture on failure
-- [x] Test timeout raises `TimeoutExceeded`
-- [x] Test environment variable inheritance
-- [x] Test working directory parameter
-- [x] Test shell injection is prevented (literal output, not executed)
-
----
-
-### Step 0.6: Filesystem Abstraction
-**Goal**: Define filesystem protocol with a real implementation.
-
-- [ ] Define `services/filesystem.py` with `FileSystem` protocol
-- [ ] Methods: `exists()`, `read_text()`, `write_text()`, `rmtree()`, `mkdir()`, `symlink()`, `is_executable()`
-- [ ] Implement `RealFileSystem` in `adapters/real_filesystem.py`
-
-**Deliverables**:
-- FileSystem protocol
-- Real implementation
-
-**Tests** (`tests/contracts/test_filesystem.py`):
-- [ ] Contract tests for `RealFileSystem`
-- [ ] Test read/write operations
-- [ ] Test directory creation and removal
-- [ ] Test symlink creation
-- [ ] Test executable detection
-
----
-
-### Step 0.7: Environment Provider
-**Goal**: Abstract environment variable access.
-
-- [ ] Define `services/environment.py` with `EnvironmentProvider` protocol
-- [ ] Methods: `get()`, `set()`, `get_all()`, `merge()`
-- [ ] Implement `RealEnvironmentProvider` wrapping `os.environ`
-
-**Deliverables**:
-- Environment abstraction
-- Real implementation
-
-**Tests** (`tests/unit/test_environment.py`):
-- [ ] Test get/set operations
-- [ ] Test merge with parent environment
-- [ ] Test real environment provider (using monkeypatch for os.environ if needed)
+**Tests** (`tests/unit/test_process.py`, replacing the former split between `tests/contracts/test_process_executor.py` and `tests/integration/test_subprocess_executor.py`):
+- [ ] Test successful command execution, using trivial, always-available real commands (`echo`, `true`, `false`, `python3 -c`) — call `process.run(...)` directly, no fixture/DI needed
+- [ ] Test error capture on failure
+- [ ] Test `check=True/False` behavior
+- [ ] Test timeout raises `TimeoutExceeded`
+- [ ] Test environment variable inheritance
+- [ ] Test working directory parameter
+- [ ] Test shell injection is prevented (literal output, not executed)
+- [ ] Test `get_output()` returns stripped stdout
+- [ ] Test `stream()` yields lines
 
 ---
 
@@ -309,7 +257,7 @@ Per-phase deliverable. Steps within a phase can often be parallelized; see each 
 - uv integration
 
 **Tests** (`tests/workflow/test_venv_workflow.py`):
-- [ ] Test venv creation with fake executor
+- [ ] Test venv creation with `pytest-subprocess` faking `uv`/`pip` calls
 - [ ] Test setuptools installed first
 - [ ] Test oarepo installed with correct version constraint
 - [ ] Test editable vs non-editable modes
@@ -424,7 +372,7 @@ Per-phase deliverable. Steps within a phase can often be parallelized; see each 
 - Environment file handling
 
 **Tests** (`tests/workflow/test_services_lifecycle.py`):
-- [ ] Test services start with fake executor
+- [ ] Test services start with `pytest-subprocess` faking `docker-services-cli`
 - [ ] Test `.env-services` file written
 - [ ] Test services stop removes file
 - [ ] Test environment variables loaded from file
@@ -671,7 +619,7 @@ Per-phase deliverable. Steps within a phase can often be parallelized; see each 
 - Model management service
 
 **Tests** (`tests/workflow/test_model_manager.py`):
-- [ ] Test model creation with fake executor
+- [ ] Test model creation with `pytest-subprocess` faking `copier`
 - [ ] Test model update with answers file
 - [ ] Test template URL handling
 - [ ] Integration test: create real model (slow)
@@ -948,7 +896,7 @@ Per-phase deliverable. Steps within a phase can often be parallelized; see each 
 
 | Phase | Steps | Status |
 |-------|-------|--------|
-| 0: Project Setup | 7 | [~] (2/7 complete) |
+| 0: Project Setup | 4 | [~] (3/4 complete) |
 | 1: Core Domain Models | 4 | [ ] |
 | 2: Virtual Environment | 3 | [ ] |
 | 3: Library Commands | 12 | [ ] |
@@ -956,7 +904,7 @@ Per-phase deliverable. Steps within a phase can often be parallelized; see each 
 | 5: Repository Installer | 3 | [ ] |
 | 6: Hardening | 5 | [ ] |
 | 7: Release Prep | 2 | [ ] |
-| **Total** | **46** | **[~] (2/46 complete)** |
+| **Total** | **43** | **[~] (3/43 complete)** |
 
 ---
 
