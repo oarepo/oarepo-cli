@@ -121,6 +121,23 @@ def test_stream_yields_lines() -> None:
     assert "line3" in lines
 
 
+def test_stream_sets_pythonunbuffered_by_default() -> None:
+    lines = list(
+        process.stream(["python3", "-c", "import os; print(os.environ.get('PYTHONUNBUFFERED'))"])
+    )
+    assert lines == ["1"]
+
+
+def test_stream_allows_overriding_pythonunbuffered() -> None:
+    lines = list(
+        process.stream(
+            ["python3", "-c", "import os; print(os.environ.get('PYTHONUNBUFFERED'))"],
+            env={"PYTHONUNBUFFERED": "0"},
+        )
+    )
+    assert lines == ["0"]
+
+
 def test_capture_output_false_returns_empty_strings() -> None:
     result = process.run(["echo", "hidden"], capture_output=False, check=False)
     assert result.stdout == ""

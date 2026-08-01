@@ -150,6 +150,9 @@ def run(
         ) from exc
 
 
+_STREAM_ENV_DEFAULTS = {"PYTHONUNBUFFERED": "1"}
+
+
 def stream(
     command: Sequence[str],
     *,
@@ -160,15 +163,22 @@ def stream(
 
     Use for long-running commands where real-time output is needed.
 
+    Sets PYTHONUNBUFFERED=1 by default: stdout isn't a TTY here (it's a pipe),
+    so a Python child (e.g. `invenio run`) would otherwise block-buffer its
+    output and defeat real-time streaming. Pass PYTHONUNBUFFERED explicitly in
+    `env` to override. This has no effect on non-Python commands.
+
     Args:
         command: List of command arguments
         cwd: Working directory for the command
-        env: Environment variables (merged with parent)
+        env: Environment variables (merged with parent, PYTHONUNBUFFERED=1 default)
 
     Yields:
         Lines of stdout interleaved with stderr
     """
-    run_env = _merge_env(env)
+    run_env = dict(os.environ, **_STREAM_ENV_DEFAULTS)
+    if env is not None:
+        run_env.update(env)
 
     process = subprocess.Popen(
         command,
