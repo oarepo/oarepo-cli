@@ -70,8 +70,12 @@ adds over inventing new tooling.
 ## Conventions
 
 - Python 3.14 (`requires-python = ">=3.14,<3.15"` in `pyproject.toml`).
-- License headers: every source file carries the CESNET MIT header (see any file
-  in `oarepo_cli/` or `tests/` for the exact block) and `from __future__ import annotations`.
+- License headers: every source file uses the simplified SPDX format:
+  ```python
+  # SPDX-FileCopyrightText: 2026 CESNET z.s.p.o.
+  # SPDX-License-Identifier: MIT
+  ```
+  Plus `from __future__ import annotations` at the top of each file.
 - Follow `implementation-steps.md`'s status flags when checking off work:
   `[ ]` not started, `[~]` in progress, `[x]` done (code + tests passing), `[!]` blocked.
 - When starting a new step, please create a new branch from `cli-as-python` and implement the step there.

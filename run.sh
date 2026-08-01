@@ -3,7 +3,7 @@
 # This script sets up a Python virtual environment, installs necessary packages,
 # runs tests and other tasks for libraries which are part of the OARepo Invenio RDM
 # flavour.
-# 
+#
 # Usage: ./run.sh --help
 #
 #

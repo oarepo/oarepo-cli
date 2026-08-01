@@ -5,29 +5,30 @@ build-backend = "hatchling.build"
 [project]
 name = "oarepo-cli"
 dynamic = ["version"]
-description = "A set of extensions to the invenio-cli package"
+description = "A standalone Python CLI for OARepo library and repository management"
 readme = "README.md"
 license = "MIT"
 dependencies = [
     "invenio-cli>=1.9.0,<2.0.0",
 ]
-requires-python = ">=3.13,<3.15"
-
+requires-python = ">=3.14,<3.15"
 
 [project.urls]
 Homepage = "https://github.com/oarepo/oarepo-cli"
 
 [project.optional-dependencies]
 dev = [
-    "pytest>=7.1.2",
+    "ruff>=0.9.0",
+    "ty>=0.0.1a10",
+    "pre-commit>=4.0.0",
 ]
 tests = [
     "pytest>=7.1.2",
+    "pytest-cov>=4.0.0",
 ]
-oarepo14= [
+oarepo14 = [
     # just for installation, no code dependency
 ]
-
 
 [tool.hatch.version]
 path = "oarepo_cli/__init__.py"
@@ -37,10 +38,81 @@ include = [
     "/oarepo_cli",
 ]
 
-[tool.pytest.ini_options]
-    testpaths = [
-        "tests"
-    ]
+# Ruff configuration
+[tool.ruff]
+target-version = "py313"  # Using 3.13 as max supported by ruff, but project uses 3.14
+line-length = 100
+src = ["oarepo_cli", "tests"]
 
-[tool.hatch.metadata]
-allow-direct-references = true
+[tool.ruff.lint]
+select = [
+    "E",   # pycodestyle errors
+    "W",   # pycodestyle warnings
+    "F",   # Pyflakes
+    "I",   # isort
+    "B",   # flake8-bugbear
+    "C4",  # flake8-comprehensions
+    "UP",  # pyupgrade
+    "ARG", # flake8-unused-arguments
+    "SIM", # flake8-simplify
+    "TCH", # flake8-type-checking
+    "PTH", # flake8-use-pathlib
+]
+ignore = [
+    "E501", # line-too-long (handled by formatter)
+]
+
+[tool.ruff.lint.isort]
+known-first-party = ["oarepo_cli"]
+
+[tool.ruff.format]
+quote-style = "double"
+indent-style = "space"
+skip-magic-trailing-comma = false
+line-ending = "auto"
+
+# Ty (type checker for Python 3.14+)
+# Use --python-version 3.14 when running ty check
+
+# Pytest configuration
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = [
+    "-ra",
+    "--strict-markers",
+    "--strict-config",
+    "--cov=oarepo_cli",
+    "--cov-report=term-missing",
+    "--cov-report=html",
+]
+markers = [
+    "slow: marks tests as slow (deselect with '-m \"not slow\"')",
+    "integration: marks tests as integration tests",
+    "characterization: marks tests as characterization tests",
+]
+
+# Coverage configuration
+[tool.coverage.run]
+source = ["oarepo_cli"]
+branch = true
+omit = [
+    "*/tests/*",
+    "*/__init__.py",
+]
+
+[tool.coverage.report]
+exclude_lines = [
+    "pragma: no cover",
+    "def __repr__",
+    "raise AssertionError",
+    "raise NotImplementedError",
+    "if __name__ == .__main__.:",
+    "if TYPE_CHECKING:",
+]
+
+[tool.coverage.html]
+directory = "htmlcov"
+
+# Pre-commit configuration (also in .pre-commit-config.yaml)
+[tool.pre-commit]
+skip = []

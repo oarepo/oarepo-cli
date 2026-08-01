@@ -10,7 +10,7 @@ This document provides a concise overview of the architecture for replacing OARe
 
 The current OARepo development workflow relies on three bash scripts:
 - `library_runner.sh` - Manages Python library development environments
-- `repository_runner.sh` - Manages Invenio repository instances  
+- `repository_runner.sh` - Manages Invenio repository instances
 - `repository_installer.sh` - Scaffolds new repositories from templates
 
 **Issues with current approach:**
@@ -70,7 +70,7 @@ oarepo_cli/
     └── fake_*        # Test doubles
 ```
 
-**See:** [00-main-architecture.md](./00-main-architecture.md) for full feature inventory  
+**See:** [00-main-architecture.md](./00-main-architecture.md) for full feature inventory
 **See:** [01-detailed-design.md](./01-detailed-design.md) for component specifications
 
 ---
@@ -84,13 +84,13 @@ graph TB
         LIB[library.py]
         REP[repository.py]
     end
-    
+
     subgraph "Core Layer"
         CTX[context.py]
         CFG[config.py]
         ERR[errors.py]
     end
-    
+
     subgraph "Services Layer"
         PROC[process.py<br/>Protocol]
         VENV[venv.py]
@@ -99,12 +99,12 @@ graph TB
         SVC[services_lifecycle.py]
         TEST[test_orchestrator.py]
     end
-    
+
     subgraph "Adapters Layer"
         SUB[subprocess_executor.py]
         FS[real_filesystem.py]
     end
-    
+
     MAIN --> LIB
     MAIN --> REP
     LIB --> CTX
@@ -131,6 +131,7 @@ class ProcessResult:
     stderr: str
     command: Sequence[str]
     duration_ms: int
+
 
 class ProcessExecutor(ABC):
     @abstractmethod
@@ -162,7 +163,7 @@ class VirtualEnvironmentManager:
 ```python
 class PyProjectReader:
     def read(self, path: Path) -> PyProjectData: ...
-    
+
     @property
     def name(self) -> str: ...
     @property
@@ -242,7 +243,7 @@ Development proceeds through 8 phases, from project scaffolding to release, work
 ### Intentionally Deprecated
 
 - Shell script distribution model
-- `.runner.sh` cached scripts  
+- `.runner.sh` cached scripts
 - Bash-based TOML parsing
 - **Self-update mechanism** (replaced entirely by pip package management)
 
@@ -348,19 +349,19 @@ Development proceeds through 8 phases, from project scaffolding to release, work
 
 ## 12. Open Questions
 
-1. **Windows support?**  
+1. **Windows support?**
    Current scripts target Linux/macOS. WSL2 recommendation for Windows users?
 
-2. **Minimum Python version?**  
+2. **Minimum Python version?**
    tomllib requires Python 3.11+. Should we require 3.11+ or support older?
 
-3. **Configuration file beyond pyproject.toml?**  
+3. **Configuration file beyond pyproject.toml?**
    Should we support `~/.config/oarepo/config.yaml` for user defaults?
 
-4. **Plugin system?**  
+4. **Plugin system?**
    Future extensibility vs complexity tradeoff. Defer until v2.0?
 
-5. **Telemetry?**  
+5. **Telemetry?**
    Anonymous usage metrics (opt-in)? Privacy considerations.
 
 ---
@@ -392,7 +393,7 @@ Development proceeds through 8 phases, from project scaffolding to release, work
 
 ---
 
-**Version:** 1.0.0  
-**Last Updated:** 2026-08-01  
-**Authors:** Senior Software Architect  
+**Version:** 1.0.0
+**Last Updated:** 2026-08-01
+**Authors:** Senior Software Architect
 **Review Status:** Pending maintainer review
