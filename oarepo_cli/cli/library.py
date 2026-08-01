@@ -12,6 +12,7 @@ import typer
 from oarepo_cli.core.context import discover_context
 from oarepo_cli.services.services_lifecycle import ServicesLifecycleManager
 from oarepo_cli.services.venv import VenvRequirements, VirtualEnvironmentManager
+from oarepo_cli.ui import ConsoleOutput
 
 # Create the library subcommand group
 library_app = typer.Typer(
@@ -46,7 +47,10 @@ def _start_services_impl() -> None:
     # Discover project context
     context = discover_context()
 
-    typer.secho("🚀 Starting services...", fg=typer.colors.BRIGHT_BLUE, bold=True)
+    # Console always shows output for service commands
+    console = ConsoleOutput(quiet=False)
+
+    console.info("🚀 Starting services...", fg=typer.colors.BRIGHT_BLUE, bold=True)
 
     # Start services using ServicesLifecycleManager
     services_mgr = ServicesLifecycleManager(
@@ -58,19 +62,17 @@ def _start_services_impl() -> None:
 
         if not env_vars:
             # Services were skipped (SKIP_SERVICES=1)
-            typer.secho("✓ Services skipped", fg=typer.colors.YELLOW)
+            console.info("✓ Services skipped", fg=typer.colors.YELLOW)
         else:
-            typer.secho(
+            console.success(
                 "✨ ✓ Services started successfully!", fg=typer.colors.BRIGHT_GREEN, bold=True
             )
-            typer.secho(
+            console.info(
                 f"  Environment variables written to {context.root_directory / '.env-services'}",
                 fg=typer.colors.GREEN,
             )
     except Exception as e:
-        typer.secho(
-            f"❌ Error starting services: {e}", fg=typer.colors.BRIGHT_RED, bold=True, err=True
-        )
+        console.error(f"❌ Error starting services: {e}", fg=typer.colors.BRIGHT_RED, bold=True)
         raise typer.Exit(code=1) from e
 
 
@@ -79,11 +81,14 @@ def _stop_services_impl() -> None:
     # Discover project context
     context = discover_context()
 
+    # Console always shows output for service commands
+    console = ConsoleOutput(quiet=False)
+
     if not (context.root_directory / ".env-services").exists():
-        typer.secho("✓ No services running", fg=typer.colors.YELLOW)
+        console.info("✓ No services running", fg=typer.colors.YELLOW)
         return
 
-    typer.secho("🛑 Stopping services...", fg=typer.colors.BRIGHT_BLUE, bold=True)
+    console.info("🛑 Stopping services...", fg=typer.colors.BRIGHT_BLUE, bold=True)
 
     # Stop services using ServicesLifecycleManager
     services_mgr = ServicesLifecycleManager(
@@ -92,11 +97,11 @@ def _stop_services_impl() -> None:
 
     try:
         services_mgr.stop_services()
-        typer.secho("✨ ✓ Services stopped successfully!", fg=typer.colors.BRIGHT_GREEN, bold=True)
-    except Exception as e:
-        typer.secho(
-            f"❌ Error stopping services: {e}", fg=typer.colors.BRIGHT_RED, bold=True, err=True
+        console.success(
+            "✨ ✓ Services stopped successfully!", fg=typer.colors.BRIGHT_GREEN, bold=True
         )
+    except Exception as e:
+        console.error(f"❌ Error stopping services: {e}", fg=typer.colors.BRIGHT_RED, bold=True)
         raise typer.Exit(code=1) from e
 
 
@@ -126,6 +131,9 @@ def library_venv(
     # Discover project context
     context = discover_context()
 
+    # Create console output handler
+    console = ConsoleOutput(quiet=quiet)
+
     # Build requirements from context
     requirements = VenvRequirements(
         python_binary=str(context.python_binary),
@@ -138,9 +146,8 @@ def library_venv(
     venv_mgr = VirtualEnvironmentManager(config=context.config)
     venv_path = venv_mgr.ensure_venv(requirements, force=force, quiet=quiet)
 
-    if not quiet:
-        typer.secho("✨ ✓ Virtual environment ready!", fg=typer.colors.BRIGHT_GREEN, bold=True)
-        typer.secho(f"  Path: {venv_path}", fg=typer.colors.GREEN)
+    console.success("✨ ✓ Virtual environment ready!", fg=typer.colors.BRIGHT_GREEN, bold=True)
+    console.info(f"  Path: {venv_path}", fg=typer.colors.GREEN)
 
 
 @library_app.command("upgrade")
@@ -161,46 +168,38 @@ def library_upgrade(
     # Discover project context
     context = discover_context()
 
-    if not quiet:
-        typer.secho("🔄 Upgrading environment...", fg=typer.colors.BRIGHT_BLUE, bold=True)
+    # Create console output handler
+    console = ConsoleOutput(quiet=quiet)
+
+    console.info("🔄 Upgrading environment...", fg=typer.colors.BRIGHT_BLUE, bold=True)
 
     # Stop services if running
     services_mgr = ServicesLifecycleManager(
         config=context.config, project_root=context.root_directory
     )
     if services_mgr.are_services_running():
-        if not quiet:
-            typer.secho("🛑 Stopping services...", fg=typer.colors.CYAN)
+        console.info("🛑 Stopping services...", fg=typer.colors.CYAN)
         try:
             services_mgr.stop_services()
-            if not quiet:
-                typer.secho("  ✓ Services stopped", fg=typer.colors.GREEN)
+            console.info("  ✓ Services stopped", fg=typer.colors.GREEN)
         except Exception as e:
-            if not quiet:
-                typer.secho(
-                    f"  ⚠ Warning: Failed to stop services: {e}",
-                    fg=typer.colors.YELLOW,
-                    err=True,
-                )
+            console.warning(
+                f"  ⚠ Warning: Failed to stop services: {e}",
+                fg=typer.colors.YELLOW,
+            )
 
     # Clean uv cache
-    if not quiet:
-        typer.secho("🧹 Cleaning uv cache...", fg=typer.colors.CYAN)
+    console.info("🧹 Cleaning uv cache...", fg=typer.colors.CYAN)
     from oarepo_cli.services import process
 
     try:
         process.run(["uv", "cache", "clean"], check=True, interactive=not quiet)
-        if not quiet:
-            typer.secho("  ✓ Cache cleaned", fg=typer.colors.GREEN)
+        console.info("  ✓ Cache cleaned", fg=typer.colors.GREEN)
     except Exception as e:
-        if not quiet:
-            typer.secho(
-                f"  ⚠ Warning: Failed to clean uv cache: {e}", fg=typer.colors.YELLOW, err=True
-            )
+        console.warning(f"  ⚠ Warning: Failed to clean uv cache: {e}", fg=typer.colors.YELLOW)
 
     # Remove and recreate venv using VirtualEnvironmentManager
-    if not quiet:
-        typer.secho("🔨 Recreating virtual environment...", fg=typer.colors.CYAN)
+    console.info("🔨 Recreating virtual environment...", fg=typer.colors.CYAN)
 
     # Build requirements from context
     requirements = VenvRequirements(
@@ -214,9 +213,8 @@ def library_upgrade(
     venv_mgr = VirtualEnvironmentManager(config=context.config)
     venv_path = venv_mgr.ensure_venv(requirements, force=True, quiet=quiet)
 
-    if not quiet:
-        typer.secho("✨ ✓ Upgrade completed successfully!", fg=typer.colors.BRIGHT_GREEN, bold=True)
-        typer.secho(f"  Virtual environment ready at {venv_path}", fg=typer.colors.GREEN)
+    console.success("✨ ✓ Upgrade completed successfully!", fg=typer.colors.BRIGHT_GREEN, bold=True)
+    console.info(f"  Virtual environment ready at {venv_path}", fg=typer.colors.GREEN)
 
 
 @library_app.command("start")
