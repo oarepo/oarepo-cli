@@ -270,23 +270,23 @@ For unit-level tests, call `run()`/`stream()`/`get_output()` directly against re
 ### Step 2.3: Lock File Concurrency Control
 **Goal**: Prevent concurrent executions from corrupting state.
 
-- [ ] Implement `utils/locks.py` with `FileLock` class
-- [ ] Acquire lock with timeout
-- [ ] Release lock (idempotent)
-- [ ] Handle stale locks
-- [ ] Context manager support
+- [x] Implement `utils/locks.py` with `FileLock` class
+- [x] Acquire lock with timeout
+- [x] Release lock (idempotent)
+- [x] Handle stale locks
+- [x] Context manager support
 
 **Deliverables**:
 - File-based locking mechanism
 - Concurrent execution protection
 
 **Tests** (`tests/unit/test_locks.py`):
-- [ ] Test lock acquisition
-- [ ] Test lock release
-- [ ] Test concurrent acquisition fails
-- [ ] Test timeout raises `LockAcquisitionError`
-- [ ] Test stale lock recovery
-- [ ] Test idempotent release
+- [x] Test lock acquisition
+- [x] Test lock release
+- [x] Test concurrent acquisition fails
+- [x] Test timeout raises `LockAcquisitionError`
+- [x] Test stale lock recovery
+- [x] Test idempotent release
 
 ---
 
