@@ -3,13 +3,16 @@
 
 from __future__ import annotations
 
-from abc import ABC, abstractmethod
+import os
+import subprocess
+import sys
+import time
 from dataclasses import dataclass
+from pathlib import Path
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from collections.abc import Iterator, Sequence
-    from pathlib import Path
 
 
 @dataclass
@@ -50,71 +53,175 @@ class ProcessResult:
         return self
 
 
-class ProcessExecutor(ABC):
-    """Abstract interface for executing external processes."""
+def _merge_env(env: dict[str, str] | None) -> dict[str, str] | None:
+    if env is None:
+        return None
+    run_env = dict(**os.environ)
+    run_env.update(env)
+    return run_env
 
-    @abstractmethod
-    def run(
-        self,
-        command: Sequence[str],
-        *,
-        cwd: Path | None = None,
-        env: dict[str, str] | None = None,
-        capture_output: bool = True,
-        check: bool = True,
-        forward_stdout: bool = False,
-        timeout: float | None = None,
-    ) -> ProcessResult:
-        """
-        Execute a command and wait for completion.
 
-        Args:
-            command: List of arguments (never shell string)
-            cwd: Working directory
-            env: Environment variables (merged with parent)
-            capture_output: Capture stdout/stderr strings
-            check: Raise on non-zero exit code
-            forward_stdout: Stream output while capturing
-            timeout: Maximum execution time in seconds
+def run(
+    command: Sequence[str],
+    *,
+    cwd: Path | None = None,
+    env: dict[str, str] | None = None,
+    capture_output: bool = True,
+    check: bool = True,
+    forward_stdout: bool = False,
+    timeout: float | None = None,
+) -> ProcessResult:
+    """Execute a command and wait for completion. Never uses shell=True.
 
-        Returns:
-            ProcessResult with exit code, output, timing
+    Args:
+        command: List of command arguments (never a shell string)
+        cwd: Working directory for the command
+        env: Environment variables (merged with parent environment)
+        capture_output: Whether to capture stdout/stderr as strings
+        check: Raise ProcessExecutionError on non-zero exit code
+        forward_stdout: Stream output to console while capturing
+        timeout: Maximum execution time in seconds
 
-        Raises:
-            ProcessExecutionError: If check=True and returncode != 0
-            TimeoutExceeded: If timeout is exceeded
-        """
+    Returns:
+        ProcessResult with exit code, output, and timing
 
-    @abstractmethod
-    def stream(
-        self,
-        command: Sequence[str],
-        *,
-        cwd: Path | None = None,
-        env: dict[str, str] | None = None,
-    ) -> Iterator[str]:
-        """
-        Execute a command and yield output lines as they're produced.
+    Raises:
+        ProcessExecutionError: If check=True and return_code != 0
+        TimeoutExceeded: If timeout is exceeded
+    """
+    from oarepo_cli.core.errors import ProcessExecutionError, TimeoutExceeded
 
-        Use for long-running commands where real-time output is needed.
+    run_env = _merge_env(env)
+    start_time = time.time()
 
-        Yields:
-            Lines of stdout interleaved with stderr
-        """
+    try:
+        result = subprocess.run(
+            command,
+            cwd=cwd,
+            env=run_env,
+            capture_output=capture_output,
+            text=True,
+            encoding="utf-8",
+            errors="replace",
+            timeout=timeout,
+        )
 
-    @abstractmethod
-    def get_output(
-        self,
-        command: Sequence[str],
-        *,
-        cwd: Path | None = None,
-        env: dict[str, str] | None = None,
-    ) -> str:
-        """
-        Execute a command and return stripped stdout.
+        duration_ms = int((time.time() - start_time) * 1000)
 
-        Convenience method for commands like `python -c "print(...)"`.
+        process_result = ProcessResult(
+            return_code=result.returncode,
+            stdout=result.stdout if capture_output else "",
+            stderr=result.stderr if capture_output else "",
+            command=command,
+            cwd=cwd or Path.cwd(),
+            duration_ms=duration_ms,
+        )
 
-        Returns:
-            Stripped stdout output
-        """
+        if forward_stdout and capture_output:
+            if result.stdout:
+                print(result.stdout, end="")
+            if result.stderr:
+                print(result.stderr, end="", file=sys.stderr)
+
+        if check and result.returncode != 0:
+            raise ProcessExecutionError(
+                message=f"Command failed with exit code {result.returncode}",
+                command=list(command),
+                returncode=result.returncode,
+                stdout=result.stdout if capture_output else None,
+                stderr=result.stderr if capture_output else None,
+            )
+
+        return process_result
+
+    except subprocess.TimeoutExpired as exc:
+        stdout = ""
+        stderr = ""
+        if exc.stdout is not None:
+            stdout = exc.stdout.decode("utf-8", errors="replace")
+        if exc.stderr is not None:
+            stderr = exc.stderr.decode("utf-8", errors="replace")
+
+        raise TimeoutExceeded(
+            command=list(command),
+            timeout=timeout,
+            stdout=stdout,
+            stderr=stderr,
+        ) from exc
+
+
+_STREAM_ENV_DEFAULTS = {"PYTHONUNBUFFERED": "1"}
+
+
+def stream(
+    command: Sequence[str],
+    *,
+    cwd: Path | None = None,
+    env: dict[str, str] | None = None,
+) -> Iterator[str]:
+    """Execute a command and yield output lines as they're produced.
+
+    Use for long-running commands where real-time output is needed.
+
+    Sets PYTHONUNBUFFERED=1 by default: stdout isn't a TTY here (it's a pipe),
+    so a Python child (e.g. `invenio run`) would otherwise block-buffer its
+    output and defeat real-time streaming. Pass PYTHONUNBUFFERED explicitly in
+    `env` to override. This has no effect on non-Python commands.
+
+    Args:
+        command: List of command arguments
+        cwd: Working directory for the command
+        env: Environment variables (merged with parent, PYTHONUNBUFFERED=1 default)
+
+    Yields:
+        Lines of stdout interleaved with stderr
+    """
+    run_env = dict(os.environ, **_STREAM_ENV_DEFAULTS)
+    if env is not None:
+        run_env.update(env)
+
+    process = subprocess.Popen(
+        command,
+        cwd=cwd,
+        env=run_env,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.STDOUT,
+        text=True,
+        encoding="utf-8",
+        errors="replace",
+        bufsize=1,
+    )
+
+    if process.stdout is not None:
+        for line in process.stdout:
+            yield line.rstrip("\n")
+
+    process.wait()
+
+
+def get_output(
+    command: Sequence[str],
+    *,
+    cwd: Path | None = None,
+    env: dict[str, str] | None = None,
+) -> str:
+    """Execute a command and return stripped stdout.
+
+    Convenience function for commands like `python -c "print(...)"`.
+
+    Args:
+        command: List of command arguments
+        cwd: Working directory for the command
+        env: Environment variables (merged with parent)
+
+    Returns:
+        Stripped stdout output
+    """
+    result = run(
+        command,
+        cwd=cwd,
+        env=env,
+        capture_output=True,
+        check=False,
+    )
+    return result.stdout.strip()

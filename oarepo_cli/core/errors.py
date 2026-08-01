@@ -80,6 +80,38 @@ class LockAcquisitionError(OARepoError):
     exit_code: int = 15
 
 
+class TimeoutExceeded(OARepoError):
+    """Raised when a subprocess execution exceeds the timeout."""
+
+    exit_code: int = 16
+
+    def __init__(
+        self,
+        *,
+        command: list[str],
+        timeout: float | None,
+        stdout: str | None = None,
+        stderr: str | None = None,
+    ) -> None:
+        message = f"Command timed out after {timeout}s" if timeout else "Command timed out"
+        super().__init__(message)
+        self.command = command
+        self.timeout = timeout
+        self.stdout = stdout
+        self.stderr = stderr
+
+    def __str__(self) -> str:
+        parts = [super().__str__()]
+        parts.append(f"Command: {' '.join(self.command)}")
+        if self.timeout:
+            parts.append(f"Timeout: {self.timeout} seconds")
+        if self.stdout:
+            parts.append(f"Stdout: {self.stdout}")
+        if self.stderr:
+            parts.append(f"Stderr: {self.stderr}")
+        return "\n".join(parts)
+
+
 def safe_run(
     func: Callable[..., object],
     *args: object,

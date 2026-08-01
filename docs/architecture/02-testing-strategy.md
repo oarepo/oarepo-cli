@@ -7,7 +7,7 @@ This document defines the comprehensive testing strategy for the OARepo CLI Pyth
 ### Testing Principles
 
 1. **Test behavior, not implementation**: Focus on observable outcomes (exit codes, output, file system changes)
-2. **Isolate external dependencies**: Mock subprocess, network, and filesystem where appropriate
+2. **Isolate external dependencies**: Mock subprocess and network; filesystem code is tested against a real (temporary) filesystem via `tmp_path`, not mocked
 3. **Layered approach**: Unit tests → Contract tests → Integration tests → Characterization tests
 4. **Fast feedback**: Most tests should run in seconds without Docker or network access
 5. **Deterministic**: Tests must produce consistent results across platforms and environments
@@ -37,7 +37,7 @@ This document defines the comprehensive testing strategy for the OARepo CLI Pyth
 | Test Type | Count Target | Avg Runtime | Coverage Goal |
 |-----------|--------------|-------------|---------------|
 | Unit Tests | 200+ | <1s each | 90%+ lines |
-| Contract Tests | 30+ | <5s each | All adapters |
+| Contract Tests | 0 (reserved) | <5s each | Only protocols with 2+ real implementations (currently none) |
 | Workflow Tests | 50+ | <10s each | All workflows |
 | Integration Tests | 20+ | <60s each | Critical paths |
 | Characterization Tests | 40+ | <30s each | Command parity |
@@ -48,7 +48,7 @@ This document defines the comprehensive testing strategy for the OARepo CLI Pyth
 
 ### Scope
 
-Pure unit tests for logic that doesn't require external tools or filesystem access.
+Pure unit tests for logic that doesn't require external tools. Filesystem-touching cases (e.g. TOML parsing) use `tmp_path` for fast, deterministic access to a real filesystem — no mocking involved.
 
 ### Covered Components
 
@@ -58,6 +58,7 @@ Pure unit tests for logic that doesn't require external tools or filesystem acce
 - Context discovery algorithms (`context.py`)
 - Platform detection utilities (`platform.py`)
 - Error message formatting (`errors.py`)
+- Process execution (`process.py`) — plain functions, tested directly against real trivial commands, no fixture or fake
 
 ### Example: PyProjectReader and VersionResolver Tests
 
@@ -72,42 +73,37 @@ from oarepo_cli.services.pyproject_reader import (
     PyProjectData,
     ConfigurationError,
 )
-from tests.fakes import FakeFileSystem
 
 
-def test_parse_minimal_project():
+def test_parse_minimal_project(tmp_path: Path):
     """Parse basic project metadata."""
     toml_content = """
 [project]
 name = "test-package"
 requires-python = ">=3.12,<3.15"
 """
-    fs = FakeFileSystem(
-        {
-            "pyproject.toml": toml_content,
-        }
-    )
-    reader = PyProjectReader(fs)
-    data = reader.read(Path("pyproject.toml"))
+    (tmp_path / "pyproject.toml").write_text(toml_content)
+    reader = PyProjectReader()
+    data = reader.read(tmp_path / "pyproject.toml")
 
     assert data.name == "test-package"
     assert data.requires_python == ">=3.12,<3.15"
 
 
-def test_extract_oarepo_versions_single():
+def test_extract_oarepo_versions_single(tmp_path: Path):
     """Extract single OARepo version from optional dependencies."""
     toml_content = """
 [project.optional-dependencies]
 oarepo = ["oarepo14>=14.0.0,<15.0.0"]
 """
-    fs = FakeFileSystem({"pyproject.toml": toml_content})
-    reader = PyProjectReader(fs)
-    data = reader.read(Path("pyproject.toml"))
+    (tmp_path / "pyproject.toml").write_text(toml_content)
+    reader = PyProjectReader()
+    data = reader.read(tmp_path / "pyproject.toml")
 
     assert data.oarepo_versions == [14]
 
 
-def test_extract_oarepo_versions_multiple():
+def test_extract_oarepo_versions_multiple(tmp_path: Path):
     """Extract multiple OARepo versions."""
     toml_content = """
 [project.optional-dependencies]
@@ -116,44 +112,43 @@ oarepo = [
     "oarepo14>=14.0.0,<15.0.0",
 ]
 """
-    fs = FakeFileSystem({"pyproject.toml": toml_content})
-    reader = PyProjectReader(fs)
-    data = reader.read(Path("pyproject.toml"))
+    (tmp_path / "pyproject.toml").write_text(toml_content)
+    reader = PyProjectReader()
+    data = reader.read(tmp_path / "pyproject.toml")
 
     assert data.oarepo_versions == [13, 14]
 
 
-def test_missing_pyproject_raises_error():
+def test_missing_pyproject_raises_error(tmp_path: Path):
     """ConfigurationError when pyproject.toml not found."""
-    fs = FakeFileSystem({})
-    reader = PyProjectReader(fs)
+    reader = PyProjectReader()
 
     with pytest.raises(ConfigurationError) as exc_info:
-        reader.read(Path("nonexistent.toml"))
+        reader.read(tmp_path / "nonexistent.toml")
 
     assert "not found" in str(exc_info.value)
 
 
-def test_invalid_toml_raises_error():
+def test_invalid_toml_raises_error(tmp_path: Path):
     """ConfigurationError for malformed TOML."""
-    fs = FakeFileSystem({"pyproject.toml": "invalid [[[[ syntax"})
-    reader = PyProjectReader(fs)
+    (tmp_path / "pyproject.toml").write_text("invalid [[[[ syntax")
+    reader = PyProjectReader()
 
     with pytest.raises(ConfigurationError) as exc_info:
-        reader.read(Path("pyproject.toml"))
+        reader.read(tmp_path / "pyproject.toml")
 
     assert "Invalid TOML" in str(exc_info.value)
 
 
-def test_get_default_extras():
+def test_get_default_extras(tmp_path: Path):
     """Parse default_extras from tool.oarepo section."""
     toml_content = """
 [tool.oarepo]
 default_extras = ["dev", "tests"]
 """
-    fs = FakeFileSystem({"pyproject.toml": toml_content})
-    reader = PyProjectReader(fs)
-    data = reader.read(Path("pyproject.toml"))
+    (tmp_path / "pyproject.toml").write_text(toml_content)
+    reader = PyProjectReader()
+    data = reader.read(tmp_path / "pyproject.toml")
 
     assert data.default_extras == ["dev", "tests"]
 
@@ -166,16 +161,16 @@ default_extras = ["dev", "tests"]
         (">=3.12", None),  # No upper bound
     ],
 )
-def test_parse_python_constraint(constraint, expected):
+def test_parse_python_constraint(constraint, expected, tmp_path: Path):
     """Parse Python version constraints into discrete versions."""
     toml_content = f"""
 [project]
 name = "test"
 requires-python = "{constraint}"
 """
-    fs = FakeFileSystem({"pyproject.toml": toml_content})
-    reader = PyProjectReader(fs)
-    data = reader.read(Path("pyproject.toml"))
+    (tmp_path / "pyproject.toml").write_text(toml_content)
+    reader = PyProjectReader()
+    data = reader.read(tmp_path / "pyproject.toml")
 
     if expected is None:
         with pytest.raises(ConfigurationError):
@@ -184,47 +179,52 @@ requires-python = "{constraint}"
         assert data.python_version_range == expected
 ```
 
+`VersionResolver` calls `process.run()`/`process.get_output()` directly (no injected executor). For the two tests below that need to fake which Python binaries exist on `PATH`, use the `fake_process` fixture from `pytest-subprocess`, which patches `subprocess.Popen` for the duration of the test — no DI required.
+
 ```python
 # tests/unit/test_version_resolver.py
 """Unit tests for version resolution logic."""
 
 import pytest
 from oarepo_cli.services.version_resolver import VersionResolver, VersionMismatchError
-from tests.fakes import FakeProcessExecutor
 
 
-def test_find_highest_available_python():
+def test_find_highest_available_python(fake_process):
     """Select highest Python version that exists on system."""
-    resolver = VersionResolver(FakeProcessExecutor())
-
-    # Simulate system with Python 3.12 and 3.14
-    resolver._fs.set_executables(["python3.12", "python3.14"])
+    # Simulate system with Python 3.12 and 3.14 on PATH
+    fake_process.register(["which", "python3.12"], stdout="/usr/bin/python3.12")
+    fake_process.register(["which", "python3.13"], returncode=1)
+    fake_process.register(["which", "python3.14"], stdout="/usr/bin/python3.14")
+    resolver = VersionResolver()
 
     available = resolver.find_available_python(["3.12", "3.13", "3.14"])
     assert available == "3.14"
 
 
-def test_fallback_to_lower_version():
+def test_fallback_to_lower_version(fake_process):
     """Use lower version if highest not available."""
-    resolver = VersionResolver(FakeProcessExecutor())
-    resolver._fs.set_executables(["python3.12"])
+    fake_process.register(["which", "python3.12"], stdout="/usr/bin/python3.12")
+    fake_process.register(["which", "python3.13"], returncode=1)
+    fake_process.register(["which", "python3.14"], returncode=1)
+    resolver = VersionResolver()
 
     available = resolver.find_available_python(["3.13", "3.14"])
     assert available == "3.12"
 
 
-def test_no_compatible_version_raises_error():
+def test_no_compatible_version_raises_error(fake_process):
     """VersionMismatchError when no Python version available."""
-    resolver = VersionResolver(FakeProcessExecutor())
-    resolver._fs.set_executables([])
+    fake_process.register(["which", "python3.14"], returncode=1)
+    fake_process.register(["which", "python3.15"], returncode=1)
+    resolver = VersionResolver()
 
     with pytest.raises(VersionMismatchError):
         resolver.find_available_python(["3.14", "3.15"])
 
 
 def test_validate_oarepo_python_compatibility():
-    """Check that Python version supports OARepo version."""
-    resolver = VersionResolver(FakeProcessExecutor())
+    """Check that Python version supports OARepo version — pure logic, no subprocess involved."""
+    resolver = VersionResolver()
 
     # Python 3.14 required for OARepo 14
     resolver.validate_compatibility("3.14", 14)  # Should pass
@@ -233,129 +233,112 @@ def test_validate_oarepo_python_compatibility():
         resolver.validate_compatibility("3.12", 14)  # Too old
 ```
 
-### Fake Implementations
+### Example: Process Execution Tests
+
+`process.run()` is a plain function — call it directly with real, trivial, always-available commands. No fixture, no fake, no DI.
 
 ```python
-# tests/fakes.py
+# tests/unit/test_process.py
 
+import pytest
 from pathlib import Path
-from typing import Optional, Sequence
-from oarepo_cli.services.process import ProcessExecutor, ProcessResult
-from oarepo_cli.services.filesystem import FileSystem
+from oarepo_cli.services import process
+from oarepo_cli.services.process import ProcessExecutionError
+from oarepo_cli.core.errors import TimeoutExceeded
 
 
-class FakeFileSystem(FileSystem):
-    """In-memory filesystem for testing."""
-
-    def __init__(self, files: dict[str, str] | None = None):
-        self._files = files or {}
-        self._executables: set[str] = set()
-
-    def set_executables(self, executables: list[str]):
-        """Mock available system executables."""
-        self._executables = set(executables)
-
-    def exists(self, path: Path) -> bool:
-        return str(path) in self._files
-
-    def read_text(self, path: Path) -> str:
-        if str(path) not in self._files:
-            raise FileNotFoundError(f"File not found: {path}")
-        return self._files[str(path)]
-
-    def write_text(self, path: Path, content: str) -> None:
-        self._files[str(path)] = content
-
-    def rmtree(self, path: Path, ignore_errors: bool = False) -> None:
-        prefix = str(path) + "/"
-        self._files = {k: v for k, v in self._files.items() if not k.startswith(prefix)}
-
-    def mkdir(self, path: Path, parents: bool = False) -> None:
-        # Simplified: just track directory existence
-        pass
-
-    def symlink(self, target: Path, link_name: Path) -> None:
-        self._files[str(link_name)] = f"symlink:{target}"
-
-    def is_executable(self, path: str) -> bool:
-        return path in self._executables
+def test_returns_zero_exit_code_for_success():
+    result = process.run(["echo", "hello"], check=False)
+    assert result.returncode == 0
 
 
-class FakeProcessExecutor(ProcessExecutor):
-    """Fake process executor for testing."""
+def test_captures_stdout_correctly():
+    result = process.run(["echo", "test output"], check=False)
+    assert "test output" in result.stdout
 
-    def __init__(self):
-        self._commands: dict[list[str], ProcessResult] = {}
-        self._call_log: list[list[str]] = []
 
-    def register_response(
-        self,
-        command: list[str],
-        returncode: int = 0,
-        stdout: str = "",
-        stderr: str = "",
-    ):
-        """Register expected command response."""
-        self._commands[command] = ProcessResult(
-            returncode=returncode,
-            stdout=stdout,
-            stderr=stderr,
-            command=command,
-            cwd=Path.cwd(),
-            duration_ms=0,
-        )
+def test_captures_stderr_correctly():
+    result = process.run(
+        ["python3", "-c", "import sys; print('error', file=sys.stderr)"],
+        check=False,
+    )
+    assert "error" in result.stderr
 
-    def run(
-        self,
-        command: Sequence[str],
-        *,
-        cwd: Optional[Path] = None,
-        env: Optional[dict[str, str]] = None,
-        capture_output: bool = True,
-        check: bool = True,
-        forward_stdout: bool = False,
-        timeout: Optional[float] = None,
-    ) -> ProcessResult:
-        cmd_list = list(command)
-        self._call_log.append(cmd_list)
 
-        if cmd_list in self._commands:
-            result = self._commands[cmd_list]
-        else:
-            # Default behavior for unregistered commands
-            result = ProcessResult(
-                returncode=0,
-                stdout="",
-                stderr="",
-                command=cmd_list,
-                cwd=cwd or Path.cwd(),
-                duration_ms=0,
-            )
+def test_raises_on_nonzero_with_check_true():
+    with pytest.raises(ProcessExecutionError):
+        process.run(["python3", "-c", "import sys; sys.exit(42)"], check=True)
 
-        if check and result.returncode != 0:
-            from oarepo_cli.core.errors import ProcessExecutionError
 
-            raise ProcessExecutionError(
-                command=cmd_list,
-                returncode=result.returncode,
-                stdout=result.stdout,
-                stderr=result.stderr,
-            )
+def test_does_not_raise_on_nonzero_with_check_false():
+    result = process.run(
+        ["python3", "-c", "import sys; sys.exit(42)"],
+        check=False,
+    )
+    assert result.returncode == 42
 
-        return result
 
-    def stream(self, command, *, cwd=None, env=None):
-        yield from []
+def test_environment_variables_passed_correctly():
+    result = process.run(
+        ["python3", "-c", "import os; print(os.environ.get('TEST_VAR'))"],
+        env={"TEST_VAR": "test_value"},
+        check=False,
+    )
+    assert result.stdout.strip() == "test_value"
 
-    def get_output(self, command, *, cwd=None, env=None):
-        result = self.run(command, cwd=cwd, env=env, check=False)
-        return result.stdout.strip()
 
-    @property
-    def call_log(self) -> list[list[str]]:
-        """Return list of all executed commands."""
-        return self._call_log.copy()
+def test_cwd_parameter_sets_working_directory(tmp_path: Path):
+    (tmp_path / "test.txt").write_text("content")
+
+    result = process.run(["cat", "test.txt"], cwd=tmp_path, check=False)
+    assert "content" in result.stdout
+
+
+def test_shell_injection_prevented():
+    """Ensure arguments are not interpreted as shell commands."""
+    result = process.run(["echo", "; rm -rf / ;"], check=False)
+    # Output should be the literal string, not an executed command
+    assert "; rm -rf / ;" in result.stdout
+
+
+def test_timeout_raises_exception():
+    with pytest.raises(TimeoutExceeded):
+        process.run(["sleep", "100"], timeout=0.1)
+
+
+def test_get_output_returns_stripped_stdout():
+    assert process.get_output(["echo", "hello world"]) == "hello world"
+
+
+def test_stream_yields_lines():
+    lines = list(process.stream(["python3", "-c", "print('line1'); print('line2')"]))
+    assert lines == ["line1", "line2"]
 ```
+
+### Faking Subprocess Calls with `pytest-subprocess`
+
+Services that shell out to slow, optional, side-effecting external tools (`uv`, `docker-services-cli`, `copier`, `invenio-cli`) are tested by faking those tools at the OS boundary, not by injecting a hand-written test double. A hand-registered fake class has no independent behavior of its own to verify or maintain — it only returns whatever a test tells it to — so writing and maintaining one from scratch (command matching, call logging, reset semantics, and a way to fall through to a real subprocess for anything unregistered) is effort spent reinventing what a maintained library already does correctly.
+
+[`pytest-subprocess`](https://pytest-subprocess.readthedocs.io/) provides this via its `fake_process` fixture. It patches `subprocess.Popen` (and everything built on it — `subprocess.run`, our own `process.run()`/`stream()`/`get_output()`) for the duration of a test, so it intercepts calls transparently — no injected executor, no constructor parameter, no service needs to know it's under test:
+
+```python
+def test_creates_venv_if_missing(fake_process, tmp_path):
+    fake_process.register(
+        ["uv", "venv", "--python", "python3.14", "--seed", fspath(tmp_path / ".venv")]
+    )
+    fake_process.register(
+        [fspath(tmp_path / ".venv/bin/python"), "-m", "pip", "install", "setuptools"]
+    )
+    fake_process.register(["uv", "pip", "install", fake_process.any()])
+
+    manager = VirtualEnvironmentManager(config=make_config(venv_path=tmp_path / ".venv"))
+    manager.ensure_venv(VenvRequirements(python_binary="python3.14"))
+
+    # fake_process.calls records every intercepted command, in order, for assertions
+    assert any("venv" in call for call in fake_process.calls)
+```
+
+Unregistered commands raise a clear error by default — no silent success, no silent fallback to a real subprocess.
 
 ---
 
@@ -363,198 +346,9 @@ class FakeProcessExecutor(ProcessExecutor):
 
 ### Purpose
 
-Verify that adapter implementations satisfy their protocols. These tests ensure that swapping implementations (e.g., real vs fake) maintains consistent behavior.
+Verify that multiple *real* implementations of the same protocol behave identically. This tier only earns its place when a protocol genuinely has (or will have) more than one concrete backend to keep in sync — most of this codebase's boundaries (filesystem, environment variables, subprocess execution) have exactly one real implementation each, so they're called directly (`pathlib`, `os.environ`, `subprocess`) and tested directly instead — see §3 (Unit Tests) for `process.py`'s tests against real trivial commands, and `tmp_path`/`monkeypatch` for filesystem/environment code.
 
-### ProcessExecutor Contract Tests
-
-A single `executor` fixture, parametrized over each implementation, lets one set of test functions exercise every adapter — no subclassing needed.
-
-```python
-# tests/contracts/conftest.py
-
-import pytest
-from oarepo_cli.services.process import ProcessExecutor
-
-
-@pytest.fixture(params=["subprocess", "fake"])
-def executor(request) -> ProcessExecutor:
-    """Runs every dependent test once per ProcessExecutor implementation."""
-    if request.param == "subprocess":
-        from oarepo_cli.adapters.subprocess_executor import SubprocessExecutor
-
-        return SubprocessExecutor()
-
-    from tests.fakes import FakeProcessExecutor
-
-    return FakeProcessExecutor()
-```
-
-```python
-# tests/contracts/test_process_executor.py
-"""Contract tests for ProcessExecutor implementations."""
-
-import pytest
-from pathlib import Path
-from oarepo_cli.services.process import ProcessExecutor, ProcessExecutionError
-
-
-def test_returns_zero_exit_code_for_success(executor: ProcessExecutor):
-    result = executor.run(["echo", "hello"], check=False)
-    assert result.returncode == 0
-
-
-def test_captures_stdout_correctly(executor: ProcessExecutor):
-    result = executor.run(["echo", "test output"], check=False)
-    assert "test output" in result.stdout
-
-
-def test_captures_stderr_correctly(executor: ProcessExecutor):
-    result = executor.run(
-        ["python", "-c", "import sys; print('error', file=sys.stderr)"],
-        check=False,
-    )
-    assert "error" in result.stderr
-
-
-def test_raises_on_nonzero_with_check_true(executor: ProcessExecutor):
-    with pytest.raises(ProcessExecutionError):
-        executor.run(["python", "-c", "import sys; sys.exit(42)"], check=True)
-
-
-def test_does_not_raise_on_nonzero_with_check_false(executor: ProcessExecutor):
-    result = executor.run(
-        ["python", "-c", "import sys; sys.exit(42)"],
-        check=False,
-    )
-    assert result.returncode == 42
-
-
-def test_environment_variables_passed_correctly(executor: ProcessExecutor):
-    result = executor.run(
-        ["python", "-c", "import os; print(os.environ.get('TEST_VAR'))"],
-        env={"TEST_VAR": "test_value"},
-        check=False,
-    )
-    assert result.stdout.strip() == "test_value"
-
-
-def test_cwd_parameter_sets_working_directory(executor: ProcessExecutor, tmp_path: Path):
-    # Create a file in tmp_path
-    (tmp_path / "test.txt").write_text("content")
-
-    result = executor.run(
-        ["cat", "test.txt"],
-        cwd=tmp_path,
-        check=False,
-    )
-    assert "content" in result.stdout
-
-
-def test_command_is_stored_in_result(executor: ProcessExecutor):
-    result = executor.run(["echo", "test"], check=False)
-    assert "echo" in result.command
-    assert "test" in result.command
-
-
-def test_duration_is_positive(executor: ProcessExecutor):
-    result = executor.run(["echo", "test"], check=False)
-    assert result.duration_ms >= 0
-
-
-def test_shell_injection_prevented(executor: ProcessExecutor):
-    """Ensure arguments are not interpreted as shell commands."""
-    # This should NOT execute rm -rf /
-    result = executor.run(
-        ["echo", "; rm -rf / ;"],
-        check=False,
-    )
-    # Output should be literal string
-    assert "; rm -rf / ;" in result.stdout
-
-
-def test_timeout_raises_exception(executor: ProcessExecutor):
-    with pytest.raises(TimeoutExceeded):
-        executor.run(["sleep", "100"], timeout=0.1)
-```
-
-### FileSystem Contract Tests
-
-Same pattern: the `filesystem` fixture in `conftest.py` is parametrized over each adapter.
-
-```python
-# tests/contracts/conftest.py (continued)
-
-from oarepo_cli.services.filesystem import FileSystem
-
-
-@pytest.fixture(params=["real", "fake"])
-def filesystem(request) -> FileSystem:
-    """Runs every dependent test once per FileSystem implementation."""
-    if request.param == "real":
-        from oarepo_cli.adapters.real_filesystem import RealFileSystem
-
-        return RealFileSystem()
-
-    from tests.fakes import FakeFileSystem
-
-    return FakeFileSystem()
-```
-
-```python
-# tests/contracts/test_filesystem.py
-"""Contract tests for FileSystem implementations."""
-
-import pytest
-from pathlib import Path
-from oarepo_cli.services.filesystem import FileSystem
-
-
-def test_exists_returns_true_for_existing_file(filesystem: FileSystem, tmp_path: Path):
-    test_file = tmp_path / "test.txt"
-    test_file.write_text("content")
-    assert filesystem.exists(test_file)
-
-
-def test_exists_returns_false_for_missing_file(filesystem: FileSystem, tmp_path: Path):
-    assert not filesystem.exists(tmp_path / "nonexistent.txt")
-
-
-def test_read_text_returns_file_content(filesystem: FileSystem, tmp_path: Path):
-    test_file = tmp_path / "test.txt"
-    expected = "Hello, World!"
-    test_file.write_text(expected)
-
-    actual = filesystem.read_text(test_file)
-    assert actual == expected
-
-
-def test_write_text_creates_file(filesystem: FileSystem, tmp_path: Path):
-    target = tmp_path / "new.txt"
-    filesystem.write_text(target, "content")
-    assert target.exists()
-    assert target.read_text() == "content"
-
-
-def test_rmtree_removes_directory_and_contents(filesystem: FileSystem, tmp_path: Path):
-    subdir = tmp_path / "subdir"
-    subdir.mkdir()
-    (subdir / "file.txt").write_text("content")
-
-    filesystem.rmtree(subdir)
-    assert not subdir.exists()
-
-
-def test_mkdir_creates_directory(filesystem: FileSystem, tmp_path: Path):
-    target = tmp_path / "new_dir"
-    filesystem.mkdir(target)
-    assert target.is_dir()
-
-
-def test_mkdir_parents_creates_intermediate_directories(filesystem: FileSystem, tmp_path: Path):
-    target = tmp_path / "a" / "b" / "c"
-    filesystem.mkdir(target, parents=True)
-    assert target.is_dir()
-```
+`NetworkClient` is the one protocol in this codebase that could genuinely justify a contract suite (e.g. if both a `requests`- and `httpx`-backed adapter exist); add its contract tests here if and when that happens. Until then, this tier is intentionally empty rather than populated with a suite that has nothing to verify.
 
 ---
 
@@ -562,7 +356,7 @@ def test_mkdir_parents_creates_intermediate_directories(filesystem: FileSystem, 
 
 ### Purpose
 
-Test complete business workflows using fake adapters. These verify that services orchestrate correctly without requiring real external tools.
+Test complete business workflows without requiring real external tools — `uv`, `docker-services-cli`, `copier`, `pytest`, etc. are faked at the OS boundary via `pytest-subprocess`'s `fake_process` fixture (see §3), not through an injected executor.
 
 ### Example: Virtual Environment Setup Workflow
 
@@ -573,15 +367,12 @@ import pytest
 from pathlib import Path
 from oarepo_cli.services.venv import VirtualEnvironmentManager, VenvRequirements
 from oarepo_cli.services.config import CliConfig
-from tests.fakes import FakeFileSystem, FakeProcessExecutor
 
 
 @pytest.fixture
-def setup_manager():
-    """Set up a venv creation workflow with fakes."""
-    fs = FakeFileSystem(
-        {
-            "pyproject.toml": """
+def setup_manager(tmp_path: Path, fake_process):
+    """Set up a venv creation workflow with uv/pip faked via pytest-subprocess."""
+    (tmp_path / "pyproject.toml").write_text("""
 [project]
 name = "test-package"
 requires-python = ">=3.12,<3.15"
@@ -590,46 +381,45 @@ requires-python = ">=3.12,<3.15"
 oarepo = ["oarepo14>=14.0.0,<15.0.0"]
 dev = ["ruff", "mypy"]
 tests = ["pytest"]
-""",
-        }
-    )
-    fs.set_executables(["python3.12", "python3.14"])
+""")
 
-    process = FakeProcessExecutor()
-    # Register expected uv commands
-    process.register_response(["uv", "venv", "--python", "python3.14", "--seed", ".venv"])
-    process.register_response([".venv/bin/python", "-m", "pip", "install", "setuptools"])
-    process.register_response(["uv", "pip", "install", "oarepo[rdm,tests]>=14.0.0,<15.0.0"])
-    process.register_response(["uv", "pip", "install", "-e", ".[dev,tests,oarepo14]"])
+    fake_process.register(
+        ["uv", "venv", "--python", "python3.14", "--seed", str(tmp_path / ".venv")]
+    )
+    fake_process.register(
+        [str(tmp_path / ".venv/bin/python"), "-m", "pip", "install", "setuptools"]
+    )
+    fake_process.register(["uv", "pip", "install", "oarepo[rdm,tests]>=14.0.0,<15.0.0"])
+    fake_process.register(["uv", "pip", "install", "-e", ".[dev,tests,oarepo14]"])
 
     config = CliConfig.default()
-    config.venv.path = Path(".venv")
+    config.venv.path = tmp_path / ".venv"
 
-    manager = VirtualEnvironmentManager(process, fs, config)
-    return manager, process
+    manager = VirtualEnvironmentManager(config)
+    return manager, fake_process
 
 
 def test_creates_venv_if_missing(setup_manager):
-    manager, process = setup_manager
+    manager, fake_process = setup_manager
 
     manager.ensure_venv(VenvRequirements(python_binary="python3.14"))
 
-    # Verify uv venv was called
-    assert any("venv" in cmd for cmd in process.call_log)
+    # fake_process.calls records every intercepted command, in order
+    assert any("venv" in call for call in fake_process.calls)
 
 
 def test_installs_setuptools_first(setup_manager):
-    manager, process = setup_manager
+    manager, fake_process = setup_manager
 
     manager.ensure_venv(VenvRequirements(python_binary="python3.14"))
 
-    # setuptools should be first pip install
-    pip_commands = [cmd for cmd in process.call_log if "pip" in cmd]
-    assert "setuptools" in pip_commands[0]
+    # setuptools should be the first pip install
+    pip_calls = [call for call in fake_process.calls if "pip" in call]
+    assert "setuptools" in pip_calls[0]
 
 
 def test_installs_oarepo_with_correct_version(setup_manager):
-    manager, process = setup_manager
+    manager, fake_process = setup_manager
 
     manager.ensure_venv(
         VenvRequirements(
@@ -639,44 +429,48 @@ def test_installs_oarepo_with_correct_version(setup_manager):
     )
 
     # Check oarepo installation command
-    oarepo_cmd = next(cmd for cmd in process.call_log if "oarepo" in cmd)
-    assert ">=14.0.0,<15.0.0" in oarepo_cmd
+    oarepo_call = next(call for call in fake_process.calls if "oarepo" in str(call))
+    assert ">=14.0.0,<15.0.0" in str(oarepo_call)
 
 
 def test_respects_editable_flag(setup_manager):
-    manager, process = setup_manager
+    manager, fake_process = setup_manager
 
     # Non-editable mode
-    process.register_response(["uv", "build", "--wheel"])
-    process.register_response(["uv", "pip", "install", "dist/test_package-*.whl"])
+    fake_process.register(["uv", "build", "--wheel"])
+    fake_process.register(["uv", "pip", "install", fake_process.any()])
 
     manager.ensure_venv(VenvRequirements(python_binary="python3.14", editable=False))
 
     # Should build wheel instead of -e install
-    assert any("build" in cmd for cmd in process.call_log)
+    assert any("build" in call for call in fake_process.calls)
 
 
 def test_force_removes_existing_venv(setup_manager):
-    manager, process = setup_manager
-    manager._fs._files[".venv/placeholder"] = "exists"
+    manager, fake_process = setup_manager
+    venv_path = manager._config.venv.path
+    venv_path.mkdir(parents=True)
+    (venv_path / "placeholder").write_text("exists")
 
     manager.ensure_venv(
         VenvRequirements(python_binary="python3.14"),
         force=True,
     )
 
-    # Verify .venv was removed
-    assert ".venv/placeholder" not in manager._fs._files
+    # Verify the old .venv contents were removed before recreation
+    assert not (venv_path / "placeholder").exists()
 
 
 def test_skips_creation_if_exists(setup_manager):
-    manager, process = setup_manager
-    manager._fs._files[".venv/pyvenv.cfg"] = "exists"
+    manager, fake_process = setup_manager
+    venv_path = manager._config.venv.path
+    venv_path.mkdir(parents=True)
+    (venv_path / "pyvenv.cfg").write_text("exists")
 
     manager.ensure_venv(VenvRequirements(python_binary="python3.14"))
 
     # Should not call uv venv again
-    venv_calls = [cmd for cmd in process.call_log if "venv" in cmd]
+    venv_calls = [call for call in fake_process.calls if "venv" in call]
     assert len(venv_calls) == 0  # Already exists
 ```
 
@@ -690,30 +484,14 @@ from pathlib import Path
 from oarepo_cli.services.test_orchestrator import TestOrchestrator
 from oarepo_cli.core.context import ProjectContext
 from oarepo_cli.services.config import CliConfig
-from tests.fakes import FakeFileSystem, FakeProcessExecutor
 
 
 @pytest.fixture
-def setup_orchestrator():
-    """Set up a test execution workflow."""
-    fs = FakeFileSystem(
-        {
-            "pyproject.toml": """
-[project]
-name = "test-package"
-[project.optional-dependencies]
-tests = ["pytest"]
-""",
-            "src/test_package/module.py": "def hello(): pass",
-            "tests/test_module.py": "def test_hello(): pass",
-        }
-    )
-    fs.set_executables(["python3.14"])
-
-    process = FakeProcessExecutor()
-    process.register_response(["docker-services-cli", "up", ...])  # Start services
-    process.register_response(["pytest", ...])  # Run tests
-    process.register_response(["docker-services-cli", "down"])  # Stop services
+def setup_orchestrator(fake_process):
+    """Set up a test execution workflow with docker/pytest faked via pytest-subprocess."""
+    fake_process.register(["docker-services-cli", "up", fake_process.any()])  # Start services
+    fake_process.register(["pytest", fake_process.any()])  # Run tests
+    fake_process.register(["docker-services-cli", "down"])  # Stop services
 
     ctx = ProjectContext(
         root_directory=Path("."),
@@ -735,62 +513,62 @@ tests = ["pytest"]
     config.test.coverage = False
     config.test.skip_services = False
 
-    orchestrator = TestOrchestrator(process, ctx, config)
-    return orchestrator, process
+    orchestrator = TestOrchestrator(ctx, config)
+    return orchestrator, fake_process
 
 
 def test_starts_services_before_tests(setup_orchestrator):
-    orchestrator, process = setup_orchestrator
+    orchestrator, fake_process = setup_orchestrator
 
     orchestrator.run_tests()
 
     # Services should start before pytest
-    log = process.call_log
+    calls = list(fake_process.calls)
     services_up_idx = next(
-        i for i, cmd in enumerate(log) if "services" in str(cmd) and "up" in str(cmd)
+        i for i, call in enumerate(calls) if "services" in str(call) and "up" in str(call)
     )
-    pytest_idx = next(i for i, cmd in enumerate(log) if "pytest" in str(cmd))
+    pytest_idx = next(i for i, call in enumerate(calls) if "pytest" in str(call))
 
     assert services_up_idx < pytest_idx
 
 
 def test_stops_services_after_tests(setup_orchestrator):
-    orchestrator, process = setup_orchestrator
+    orchestrator, fake_process = setup_orchestrator
 
     orchestrator.run_tests()
 
-    log = process.call_log
-    pytest_idx = next(i for i, cmd in enumerate(log) if "pytest" in str(cmd))
+    calls = list(fake_process.calls)
+    pytest_idx = next(i for i, call in enumerate(calls) if "pytest" in str(call))
     services_down_idx = next(
-        i for i, cmd in enumerate(log) if "services" in str(cmd) and "down" in str(cmd)
+        i for i, call in enumerate(calls) if "services" in str(call) and "down" in str(call)
     )
 
     assert pytest_idx < services_down_idx
 
 
 def test_passes_coverage_flags_when_enabled(setup_orchestrator):
-    orchestrator, process = setup_orchestrator
+    orchestrator, fake_process = setup_orchestrator
     orchestrator._config.test.coverage = True
 
     orchestrator.run_tests()
 
-    pytest_cmd = next(cmd for cmd in process.call_log if "pytest" in str(cmd))
-    assert "--cov" in pytest_cmd
+    pytest_call = next(call for call in fake_process.calls if "pytest" in str(call))
+    assert "--cov" in str(pytest_call)
 
 
 def test_skips_services_when_configured(setup_orchestrator):
-    orchestrator, process = setup_orchestrator
+    orchestrator, fake_process = setup_orchestrator
     orchestrator._config.test.skip_services = True
 
     orchestrator.run_tests()
 
     # Should not start/stop services
-    assert not any("services" in str(cmd) for cmd in process.call_log)
+    assert not any("services" in str(call) for call in fake_process.calls)
 
 
 def test_returns_failure_status_on_test_failure(setup_orchestrator):
-    orchestrator, process = setup_orchestrator
-    process.register_response(["pytest", ...], returncode=1)
+    orchestrator, fake_process = setup_orchestrator
+    fake_process.register(["pytest", fake_process.any()], returncode=1)
 
     result = orchestrator.run_tests()
 
@@ -1258,6 +1036,7 @@ import pytest
 import signal
 import time
 from unittest.mock import patch, MagicMock
+from oarepo_cli.services import process
 from oarepo_cli.services.venv import VirtualEnvironmentManager
 from oarepo_cli.core.errors import ProcessExecutionError
 
@@ -1267,7 +1046,7 @@ def test_venv_cleanup_on_keyboard_interrupt(temp_project_dir):
     manager = VirtualEnvironmentManager(...)
 
     # Simulate interrupt during venv creation
-    with patch.object(manager._process, "run") as mock_run:
+    with patch.object(process, "run") as mock_run:
         mock_run.side_effect = KeyboardInterrupt()
 
         with pytest.raises(KeyboardInterrupt):
@@ -1279,10 +1058,8 @@ def test_venv_cleanup_on_keyboard_interrupt(temp_project_dir):
 
 def test_process_timeout_handling():
     """Long-running processes respect timeout parameter."""
-    executor = SubprocessExecutor()
-
     with pytest.raises(TimeoutExceeded):
-        executor.run(["sleep", "100"], timeout=1.0)
+        process.run(["sleep", "100"], timeout=1.0)
 
 
 def test_concurrent_execution_lock(temp_project_dir):

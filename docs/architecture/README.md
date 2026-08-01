@@ -39,7 +39,7 @@ oarepo-cli repo-install          # Repository installer
 **Key Design Decisions:**
 1. **Typer framework** - Type-safe CLI with auto-generated help
 2. **Single executable** - Shared config/state between modes
-3. **Dependency injection** - Testable abstractions around subprocess/filesystem
+3. **No unnecessary abstraction** - Subprocess execution, filesystem, and environment-variable access all call `subprocess`/`pathlib.Path`/`os.environ` directly (each has exactly one real implementation), tested against real temp state (`tmp_path`, `monkeypatch`) or, for slow external tools like `uv`/`docker-services-cli`, faked at the OS boundary with `pytest-subprocess`
 4. **No shell=True** - Safe process execution with list arguments
 5. **tomllib parser** - Robust TOML parsing (Python 3.11+)
 6. **Preserved compatibility** - Same commands, options, exit codes
@@ -59,15 +59,13 @@ oarepo_cli/
 │   ├── config.py     # Configuration model
 │   └── errors.py     # Exception hierarchy
 ├── services/         # Business logic
-│   ├── process.py    # ProcessExecutor protocol
+│   ├── process.py    # run()/stream()/get_output() — plain functions, no protocol
 │   ├── venv.py       # Virtual environment management
 │   ├── version_resolver.py
 │   ├── pyproject_reader.py
 │   └── ...           # Other domain services
-└── adapters/         # Concrete implementations
-    ├── subprocess_executor.py
-    ├── real_filesystem.py
-    └── fake_*        # Test doubles
+└── adapters/         # Concrete implementations for protocols with 2+ real backends
+    └── fake_*        # Test doubles for those protocols (e.g. NetworkClient)
 ```
 
 **See:** [00-main-architecture.md](./00-main-architecture.md) for full feature inventory
@@ -92,17 +90,12 @@ graph TB
     end
 
     subgraph "Services Layer"
-        PROC[process.py<br/>Protocol]
+        PROC[process.py<br/>run/stream/get_output]
         VENV[venv.py]
         VER[version_resolver.py]
         TOML[pyproject_reader.py]
         SVC[services_lifecycle.py]
         TEST[test_orchestrator.py]
-    end
-
-    subgraph "Adapters Layer"
-        SUB[subprocess_executor.py]
-        FS[real_filesystem.py]
     end
 
     MAIN --> LIB
@@ -114,14 +107,13 @@ graph TB
     VER --> PROC
     VENV --> PROC
     TEST --> PROC
-    SUB -.-> PROC
 ```
 
 ---
 
 ## 5. Key Interfaces
 
-### ProcessExecutor Protocol
+### Process Execution Helper
 
 ```python
 @dataclass
@@ -133,19 +125,16 @@ class ProcessResult:
     duration_ms: int
 
 
-class ProcessExecutor(ABC):
-    @abstractmethod
-    def run(
-        self,
-        command: Sequence[str],
-        *,
-        cwd: Optional[Path] = None,
-        env: Optional[dict[str, str]] = None,
-        check: bool = True,
-    ) -> ProcessResult: ...
+def run(
+    command: Sequence[str],
+    *,
+    cwd: Optional[Path] = None,
+    env: Optional[dict[str, str]] = None,
+    check: bool = True,
+) -> ProcessResult: ...
 ```
 
-**Purpose:** Abstract subprocess execution for testability. Never uses `shell=True`.
+**Purpose:** Run subprocesses safely and consistently. Never uses `shell=True`. Plain functions, not a protocol — there is exactly one real implementation, so every service calls `process.run(...)` directly.
 
 ### VirtualEnvironmentManager
 
@@ -195,7 +184,7 @@ class PyProjectReader:
 | Type | Count | Runtime | Coverage Goal |
 |------|-------|---------|---------------|
 | Unit | 200+ | <1s each | 90%+ lines |
-| Contract | 30+ | <5s each | All adapters |
+| Contract | 0 (reserved) | <5s each | Only protocols with 2+ real implementations (currently none) |
 | Workflow | 50+ | <10s each | All workflows |
 | Integration | 20+ | <60s each | Critical paths |
 | Characterization | 40+ | <30s each | Command parity |
@@ -271,14 +260,12 @@ Development proceeds through 8 phases, from project scaffolding to release, work
 - [ ] CliConfig model with env/file loading
 - [ ] Exception hierarchy (OARepoError base class)
 - [ ] Platform detection utilities
+- [ ] Process execution helper (`services/process.py`, plain functions, no protocol)
 - [ ] Signal handling for long-running processes
 
 ### Adapters
-- [ ] SubprocessExecutor (never shell=True)
-- [ ] RealFileSystem wrapper
-- [ ] RealEnvironmentProvider
 - [ ] HTTPClient for downloads
-- [ ] Fake implementations for testing
+- [ ] Fake implementations for protocols with a real swappable backend (e.g. NetworkClient)
 
 ### Services
 - [ ] PyProjectReader with tomllib
@@ -306,8 +293,8 @@ Development proceeds through 8 phases, from project scaffolding to release, work
 
 ### Testing
 - [ ] Unit tests for parsers, resolvers, configs
-- [ ] Contract tests for adapters
-- [ ] Workflow tests with fakes
+- [ ] Contract tests (only if/when a protocol gets a 2nd real implementation)
+- [ ] Workflow tests with `pytest-subprocess` faking slow external tools
 - [ ] Integration tests with real tools
 - [ ] Characterization tests (bash vs python)
 - [ ] Fault tolerance tests

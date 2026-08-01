@@ -121,9 +121,9 @@ The new implementation preserves all existing user-facing behavior while replaci
 ### 2.1 Design Principles
 
 1. **Maintainability first**: Clear separation of concerns, typed interfaces, minimal cleverness
-2. **Reuse where stable**: Shared infrastructure (process execution, filesystem, environment) but separate domain workflows
+2. **Reuse where stable**: Shared infrastructure (process execution, environment) but separate domain workflows
 3. **Behavioral compatibility**: Preserve exit codes, stdout/stderr streams, help text structure
-4. **Testability**: Dependency injection around subprocess, filesystem, network access
+4. **Testability**: Dependency injection around network access only, where a real alternate backend exists to swap in for testing. Filesystem, environment-variable, and subprocess-execution code call `pathlib.Path`/`os.environ`/`subprocess` directly with no injected protocol — there is exactly one real implementation of each, so a `Protocol`/`ABC` would only add indirection. They're tested against real (temporary) state instead: `tmp_path` for the filesystem, `monkeypatch` for environment variables, and `pytest-subprocess` (patches `subprocess.Popen` process-wide) for the slow, external, side-effecting tools (`uv`, `docker-services-cli`, `copier`) that workflow tests must avoid actually invoking
 5. **Explicit error handling**: Custom exception hierarchy, normalized error messages
 6. **No premature abstraction**: Only abstract when there are 2+ concrete implementations
 
@@ -184,9 +184,7 @@ oarepo_cli/
 │   └── signals.py              # Signal handling for long-running processes
 ├── services/
 │   ├── __init__.py
-│   ├── process.py              # ProcessExecutor protocol + implementations
-│   ├── filesystem.py           # FileSystem protocol + implementations
-│   ├── environment.py          # EnvironmentProvider protocol + implementations
+│   ├── process.py              # run()/stream()/get_output() — plain functions, no protocol
 │   ├── network.py              # NetworkClient protocol + implementations
 │   ├── venv.py                 # VirtualEnvironmentManager
 │   ├── version_resolver.py     # Python/OARepo version resolution
@@ -200,11 +198,8 @@ oarepo_cli/
 │   └── server.py               # Server/run command orchestration
 ├── adapters/
 │   ├── __init__.py
-│   ├── subprocess_executor.py  # Real subprocess.ProcessExecutor
-│   ├── real_filesystem.py      # Real os.PathLike operations
-│   ├── real_environment.py     # os.environ wrapper
 │   ├── http_client.py          # requests/httpx wrapper
-│   └── fake_*                  # Test doubles (see Testing Strategy)
+│   └── fake_*                  # Test doubles for protocols with a real swappable backend (e.g. NetworkClient)
 └── utils/
     ├── __init__.py
     ├── logging.py              # Structured logging setup
@@ -254,21 +249,20 @@ class ContextBuilder:
     def validate(self) -> ProjectContext: ...
 ```
 
-**Dependencies**: `pyproject_reader`, `version_resolver`, `filesystem`
+**Dependencies**: `pyproject_reader`, `version_resolver` (both use `pathlib.Path` directly for filesystem access)
 
-**Testing**: Unit tests with mocked filesystem returning synthetic pyproject.toml
+**Testing**: Unit tests using `tmp_path` with real synthetic pyproject.toml fixtures
 
 ---
 
-### 4.2 Process Executor (`services/process.py`)
+### 4.2 Process Execution Helper (`services/process.py`)
 
-**Responsibility**: Abstract subprocess execution with consistent error handling, environment injection, and output capture.
+**Responsibility**: Run subprocesses safely and consistently — never `shell=True`, UTF-8 output, timeout handling, env-dict merging. Plain module-level functions, called directly by every service; no protocol, no constructor injection, since there is exactly one real implementation.
 
 ```python
-from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Optional, Sequence
+from typing import Iterator, Optional, Sequence
 
 
 @dataclass
@@ -282,38 +276,43 @@ class ProcessResult:
     duration_ms: int
 
 
-class ProcessExecutor(ABC):
-    """Protocol for executing external processes."""
-
-    @abstractmethod
-    def run(
-        self,
-        command: Sequence[str],
-        cwd: Optional[Path] = None,
-        env: Optional[dict[str, str]] = None,
-        capture_output: bool = True,
-        check: bool = True,
-        forward_stdout: bool = False,
-    ) -> ProcessResult: ...
-
-    @abstractmethod
-    def stream(
-        self,
-        command: Sequence[str],
-        cwd: Optional[Path] = None,
-        env: Optional[dict[str, str]] = None,
-    ) -> Iterator[str]: ...  # Yields lines as they're produced
+def run(
+    command: Sequence[str],
+    *,
+    cwd: Optional[Path] = None,
+    env: Optional[dict[str, str]] = None,
+    capture_output: bool = True,
+    check: bool = True,
+    forward_stdout: bool = False,
+    timeout: Optional[float] = None,
+) -> ProcessResult:
+    """Execute a command and wait for completion. Never uses shell=True."""
+    ...
 
 
-class SubprocessExecutor(ProcessExecutor):
-    """Real implementation using subprocess module."""
+def stream(
+    command: Sequence[str],
+    *,
+    cwd: Optional[Path] = None,
+    env: Optional[dict[str, str]] = None,
+) -> Iterator[str]:
+    """Execute a command and yield output lines as they're produced."""
+    ...
 
-    # Never uses shell=True; always passes args as list
+
+def get_output(
+    command: Sequence[str],
+    *,
+    cwd: Optional[Path] = None,
+    env: Optional[dict[str, str]] = None,
+) -> str:
+    """Execute a command and return stripped stdout."""
+    ...
 ```
 
 **Dependencies**: None (pure stdlib)
 
-**Testing**: Contract tests verify exit code propagation, output capture, environment isolation
+**Testing**: Direct calls to `run()`/`stream()`/`get_output()` against trivial, always-available real commands (`echo`, `true`, `false`, `python3 -c`) verify exit code propagation, output capture, and environment isolation — no fixture or fake needed. Higher up the stack, services that shell out to slow/optional tools (`uv`, `docker-services-cli`, `copier`) are tested with `pytest-subprocess`, which fakes at the `subprocess.Popen` boundary rather than through an injected executor.
 
 ---
 
@@ -340,7 +339,7 @@ class VersionResolver(Protocol):
     def validate_compatibility(self, python: str, oarepo: int) -> None: ...
 ```
 
-**Dependencies**: `pyproject_reader`, `process_executor` (to check python binaries)
+**Dependencies**: `pyproject_reader`, `services/process.py` (calls `run()`/`get_output()` directly to check python binaries — no injected executor)
 
 **Testing**: Pure unit tests with synthetic TOML inputs
 
@@ -371,9 +370,9 @@ class VirtualEnvironmentManager:
     def get_site_packages(self) -> Path: ...
 ```
 
-**Dependencies**: `process_executor`, `filesystem`, `version_resolver`
+**Dependencies**: `services/process.py`, `version_resolver` (calls `process.run()` directly — no injected executor; uses `pathlib.Path` directly for filesystem access)
 
-**Testing**: Integration tests with temporary directories; mock process executor for unit tests
+**Testing**: Integration tests with temporary directories (real filesystem); `pytest-subprocess` fakes `uv`/`pip` calls for fast workflow-level tests
 
 ---
 
@@ -674,7 +673,7 @@ class CommandResult(Generic[T]):
 **Decision**: Never use `shell=True`. Always pass arguments as lists.
 
 **Implementation**:
-- `ProcessExecutor.run(["uv", "pip", "install", pkg])` not `run(f"uv pip install {pkg}")`
+- `process.run(["uv", "pip", "install", pkg])` not `run(f"uv pip install {pkg}")`
 - Validate and sanitize any user-provided strings before inclusion
 
 ---
