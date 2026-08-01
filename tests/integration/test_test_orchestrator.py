@@ -1,7 +1,7 @@
 # SPDX-FileCopyrightText: 2026 CESNET z.s.p.o.
 # SPDX-License-Identifier: MIT
 
-"""Workflow tests for test orchestrator using real testlib fixture."""
+"""Integration tests for test orchestrator using real testlib fixture."""
 
 from __future__ import annotations
 

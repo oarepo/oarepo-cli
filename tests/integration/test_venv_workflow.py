@@ -1,6 +1,6 @@
 # SPDX-FileCopyrightText: 2026 CESNET z.s.p.o.
 # SPDX-License-Identifier: MIT
-"""Workflow tests for VirtualEnvironmentManager using real testlib fixture.
+"""Integration tests for VirtualEnvironmentManager using real testlib fixture.
 
 These tests use the real testlib project (tests/testlib/) and execute
 actual subprocess calls to uv/pip to verify the complete venv creation

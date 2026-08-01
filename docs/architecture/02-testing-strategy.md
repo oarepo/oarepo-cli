@@ -21,15 +21,13 @@ This document defines the comprehensive testing strategy for the OARepo CLI Pyth
                         │ Characterization│
                         │ (Bash vs Python)│
                        ┌┴─────────────────┴┐
-                      │   Integration Tests │
+                      │   Integration Tests  │
                      ├───────────────────────┤
-                    │    Workflow Tests      │
-                   ├─────────────────────────┤
-                  │     Contract Tests        │
-                 ├─────────────────────────────┤
-                │        Unit Tests            │
-               └────────────────────────────────┘
-              (Most numerous, fastest, cheapest)
+                    │     Contract Tests      │
+                   ├───────────────────────────┤
+                  │         Unit Tests           │
+                 └───────────────────────────────┘
+                (Most numerous, fastest, cheapest)
 ```
 
 ### Test Distribution Target
@@ -38,8 +36,7 @@ This document defines the comprehensive testing strategy for the OARepo CLI Pyth
 |-----------|--------------|-------------|---------------|
 | Unit Tests | 200+ | <1s each | 90%+ lines |
 | Contract Tests | 0 (reserved) | <5s each | Only protocols with 2+ real implementations (currently none) |
-| Workflow Tests | 50+ | <10s each | All workflows |
-| Integration Tests | 20+ | <60s each | Critical paths |
+| Integration Tests | 70+ | <60s each | All workflows and critical paths |
 | Characterization Tests | 40+ | <30s each | Command parity |
 
 ---
@@ -317,28 +314,9 @@ def test_stream_yields_lines():
 
 ### Faking Subprocess Calls with `pytest-subprocess`
 
-Services that shell out to slow, optional, side-effecting external tools (`uv`, `docker-services-cli`, `copier`, `invenio-cli`) are tested by faking those tools at the OS boundary, not by injecting a hand-written test double. A hand-registered fake class has no independent behavior of its own to verify or maintain — it only returns whatever a test tells it to — so writing and maintaining one from scratch (command matching, call logging, reset semantics, and a way to fall through to a real subprocess for anything unregistered) is effort spent reinventing what a maintained library already does correctly.
+Services that shell out to slow, optional, side-effecting external tools (`uv`, `docker-services-cli`, `copier`, `invenio-cli`) — `VirtualEnvironmentManager`, `ServicesLifecycleManager`, `TestOrchestrator`, and friends — are exercised for real in §5 (Integration Tests) against the `tests/testlib/` fixture project, not through a faked OS boundary. That's a deliberate choice: a hand-registered fake has no independent behavior of its own to verify against, so a suite built entirely on fakes can pass while the real tool integration is broken — which is exactly what happened once in this codebase (a `VirtualEnvironmentManager` test suite built on faked `uv` calls didn't catch a `cwd`-dependent path bug that only surfaced against the real tool).
 
-[`pytest-subprocess`](https://pytest-subprocess.readthedocs.io/) provides this via its `fake_process` fixture. It patches `subprocess.Popen` (and everything built on it — `subprocess.run`, our own `process.run()`/`stream()`/`get_output()`) for the duration of a test, so it intercepts calls transparently — no injected executor, no constructor parameter, no service needs to know it's under test:
-
-```python
-def test_creates_venv_if_missing(fake_process, tmp_path):
-    fake_process.register(
-        ["uv", "venv", "--python", "python3.14", "--seed", fspath(tmp_path / ".venv")]
-    )
-    fake_process.register(
-        [fspath(tmp_path / ".venv/bin/python"), "-m", "pip", "install", "setuptools"]
-    )
-    fake_process.register(["uv", "pip", "install", fake_process.any()])
-
-    manager = VirtualEnvironmentManager(config=make_config(venv_path=tmp_path / ".venv"))
-    manager.ensure_venv(VenvRequirements(python_binary="python3.14"))
-
-    # fake_process.calls records every intercepted command, in order, for assertions
-    assert any("venv" in call for call in fake_process.calls)
-```
-
-Unregistered commands raise a clear error by default — no silent success, no silent fallback to a real subprocess.
+[`pytest-subprocess`](https://pytest-subprocess.readthedocs.io/)'s `fake_process` fixture — which patches `subprocess.Popen` (and everything built on it, including our own `process.run()`/`stream()`/`get_output()`) for the duration of a test — remains available as a dev dependency for the rare unit-level test that needs to simulate a specific absent or failing binary (e.g. `VersionResolver.find_available_python()` faking `which python3.14`, §3 above) without depending on what happens to be installed on the machine running the tests.
 
 ---
 
@@ -352,421 +330,95 @@ Verify that multiple *real* implementations of the same protocol behave identica
 
 ---
 
-## 5. Workflow Tests
+## 5. Integration Tests
 
 ### Purpose
 
-Test complete business workflows without requiring real external tools — `uv`, `docker-services-cli`, `copier`, `pytest`, etc. are faked at the OS boundary via `pytest-subprocess`'s `fake_process` fixture (see §3), not through an injected executor.
+Test complete workflows and commands against real external tools (`uv`, `docker-services-cli`, `pytest`) — nothing is faked at the OS boundary for this tier; that technique is reserved for the unit tests in §3 that need to simulate absent binaries. Integration tests operate at two complementary levels:
 
-### Example: Virtual Environment Setup Workflow
+- **Service-level**: instantiate a service/manager class directly (`VirtualEnvironmentManager`, `ServicesLifecycleManager`, `TestOrchestrator`) to verify orchestration logic without going through Typer's argument parsing.
+- **CLI-level**: invoke the full CLI via `CliRunner` against `oarepo_cli.cli.main.app`, exercising argument parsing and command wiring end-to-end.
 
-```python
-# tests/workflow/test_venv_workflow.py
+Both levels run against the same fixture project, `tests/testlib/` — a real, minimal OARepo library package checked into the repo — so every test exercises real `uv venv`/`uv pip install`/`pytest` behavior instead of a hand-maintained fake. Since `tests/testlib/` is shared across the whole suite, fixtures in `tests/conftest.py` keep every test starting and ending from a clean, isolated state:
 
-import pytest
-from pathlib import Path
-from oarepo_cli.services.venv import VirtualEnvironmentManager, VenvRequirements
-from oarepo_cli.services.config import CliConfig
-
-
-@pytest.fixture
-def setup_manager(tmp_path: Path, fake_process):
-    """Set up a venv creation workflow with uv/pip faked via pytest-subprocess."""
-    (tmp_path / "pyproject.toml").write_text("""
-[project]
-name = "test-package"
-requires-python = ">=3.12,<3.15"
-
-[project.optional-dependencies]
-oarepo = ["oarepo14>=14.0.0,<15.0.0"]
-dev = ["ruff", "mypy"]
-tests = ["pytest"]
-""")
-
-    fake_process.register(
-        ["uv", "venv", "--python", "python3.14", "--seed", str(tmp_path / ".venv")]
-    )
-    fake_process.register(
-        [str(tmp_path / ".venv/bin/python"), "-m", "pip", "install", "setuptools"]
-    )
-    fake_process.register(["uv", "pip", "install", "oarepo[rdm,tests]>=14.0.0,<15.0.0"])
-    fake_process.register(["uv", "pip", "install", "-e", ".[dev,tests,oarepo14]"])
-
-    config = CliConfig.default()
-    config.venv.path = tmp_path / ".venv"
-
-    manager = VirtualEnvironmentManager(config)
-    return manager, fake_process
-
-
-def test_creates_venv_if_missing(setup_manager):
-    manager, fake_process = setup_manager
-
-    manager.ensure_venv(VenvRequirements(python_binary="python3.14"))
-
-    # fake_process.calls records every intercepted command, in order
-    assert any("venv" in call for call in fake_process.calls)
-
-
-def test_installs_setuptools_first(setup_manager):
-    manager, fake_process = setup_manager
-
-    manager.ensure_venv(VenvRequirements(python_binary="python3.14"))
-
-    # setuptools should be the first pip install
-    pip_calls = [call for call in fake_process.calls if "pip" in call]
-    assert "setuptools" in pip_calls[0]
-
-
-def test_installs_oarepo_with_correct_version(setup_manager):
-    manager, fake_process = setup_manager
-
-    manager.ensure_venv(
-        VenvRequirements(
-            python_binary="python3.14",
-            oarepo_version=14,
-        )
-    )
-
-    # Check oarepo installation command
-    oarepo_call = next(call for call in fake_process.calls if "oarepo" in str(call))
-    assert ">=14.0.0,<15.0.0" in str(oarepo_call)
-
-
-def test_respects_editable_flag(setup_manager):
-    manager, fake_process = setup_manager
-
-    # Non-editable mode
-    fake_process.register(["uv", "build", "--wheel"])
-    fake_process.register(["uv", "pip", "install", fake_process.any()])
-
-    manager.ensure_venv(VenvRequirements(python_binary="python3.14", editable=False))
-
-    # Should build wheel instead of -e install
-    assert any("build" in call for call in fake_process.calls)
-
-
-def test_force_removes_existing_venv(setup_manager):
-    manager, fake_process = setup_manager
-    venv_path = manager._config.venv.path
-    venv_path.mkdir(parents=True)
-    (venv_path / "placeholder").write_text("exists")
-
-    manager.ensure_venv(
-        VenvRequirements(python_binary="python3.14"),
-        force=True,
-    )
-
-    # Verify the old .venv contents were removed before recreation
-    assert not (venv_path / "placeholder").exists()
-
-
-def test_skips_creation_if_exists(setup_manager):
-    manager, fake_process = setup_manager
-    venv_path = manager._config.venv.path
-    venv_path.mkdir(parents=True)
-    (venv_path / "pyvenv.cfg").write_text("exists")
-
-    manager.ensure_venv(VenvRequirements(python_binary="python3.14"))
-
-    # Should not call uv venv again
-    venv_calls = [call for call in fake_process.calls if "venv" in call]
-    assert len(venv_calls) == 0  # Already exists
-```
-
-### Example: Test Orchestration Workflow
-
-```python
-# tests/workflow/test_test_orchestrator.py
-
-import pytest
-from pathlib import Path
-from oarepo_cli.services.test_orchestrator import TestOrchestrator
-from oarepo_cli.core.context import ProjectContext
-from oarepo_cli.services.config import CliConfig
-
-
-@pytest.fixture
-def setup_orchestrator(fake_process):
-    """Set up a test execution workflow with docker/pytest faked via pytest-subprocess."""
-    fake_process.register(["docker-services-cli", "up", fake_process.any()])  # Start services
-    fake_process.register(["pytest", fake_process.any()])  # Run tests
-    fake_process.register(["docker-services-cli", "down"])  # Stop services
-
-    ctx = ProjectContext(
-        root_directory=Path("."),
-        pyproject_path=Path("pyproject.toml"),
-        venv_path=Path(".venv"),
-        python_binary="python3.14",
-        oarepo_version=14,
-    )
-    ctx._pyproject_data = PyProjectData(
-        raw={
-            "project": {
-                "name": "test-package",
-                "optional-dependencies": {"tests": ["pytest"]},
-            }
-        }
-    )
-
-    config = CliConfig.default()
-    config.test.coverage = False
-    config.test.skip_services = False
-
-    orchestrator = TestOrchestrator(ctx, config)
-    return orchestrator, fake_process
-
-
-def test_starts_services_before_tests(setup_orchestrator):
-    orchestrator, fake_process = setup_orchestrator
-
-    orchestrator.run_tests()
-
-    # Services should start before pytest
-    calls = list(fake_process.calls)
-    services_up_idx = next(
-        i for i, call in enumerate(calls) if "services" in str(call) and "up" in str(call)
-    )
-    pytest_idx = next(i for i, call in enumerate(calls) if "pytest" in str(call))
-
-    assert services_up_idx < pytest_idx
-
-
-def test_stops_services_after_tests(setup_orchestrator):
-    orchestrator, fake_process = setup_orchestrator
-
-    orchestrator.run_tests()
-
-    calls = list(fake_process.calls)
-    pytest_idx = next(i for i, call in enumerate(calls) if "pytest" in str(call))
-    services_down_idx = next(
-        i for i, call in enumerate(calls) if "services" in str(call) and "down" in str(call)
-    )
-
-    assert pytest_idx < services_down_idx
-
-
-def test_passes_coverage_flags_when_enabled(setup_orchestrator):
-    orchestrator, fake_process = setup_orchestrator
-    orchestrator._config.test.coverage = True
-
-    orchestrator.run_tests()
-
-    pytest_call = next(call for call in fake_process.calls if "pytest" in str(call))
-    assert "--cov" in str(pytest_call)
-
-
-def test_skips_services_when_configured(setup_orchestrator):
-    orchestrator, fake_process = setup_orchestrator
-    orchestrator._config.test.skip_services = True
-
-    orchestrator.run_tests()
-
-    # Should not start/stop services
-    assert not any("services" in str(call) for call in fake_process.calls)
-
-
-def test_returns_failure_status_on_test_failure(setup_orchestrator):
-    orchestrator, fake_process = setup_orchestrator
-    fake_process.register(["pytest", fake_process.any()], returncode=1)
-
-    result = orchestrator.run_tests()
-
-    assert result.status == CommandStatus.FAILURE
-    assert result.exit_code == 1
-```
-
----
-
-## 6. Integration Tests
-
-### Purpose
-
-End-to-end tests with real tools (uv, pytest, etc.) in isolated temporary directories. These verify actual behavior with minimal mocking.
+- `testlib_project`: path to `tests/testlib/`.
+- `clean_testlib`: wraps `testlib_project`, removing `.venv`, `.env-services`, coverage/build artifacts, and stopping any stray docker services, both before and after each test.
+- `test_context`: a ready-to-use `ProjectContext` pointed at `clean_testlib`'s `.venv`, for tests that need a full context rather than a bare path.
 
 ### Fixture Setup
 
 ```python
-# tests/integration/conftest.py
-
-import pytest
-import subprocess
-import tempfile
-from pathlib import Path
+# tests/conftest.py (excerpt)
 
 
 @pytest.fixture
-def temp_project_dir(tmp_path: Path) -> Path:
-    """Create a temporary directory with a minimal OARepo project."""
-    pyproject = tmp_path / "pyproject.toml"
-    pyproject.write_text("""
-[project]
-name = "oarepo-test-lib"
-requires-python = ">=3.12,<3.15"
-dynamic = ["version"]
-
-[project.optional-dependencies]
-oarepo = ["oarepo14>=14.0.0,<15.0.0"]
-dev = ["ruff"]
-tests = ["pytest"]
-
-[build-system]
-requires = ["hatchling"]
-build-backend = "hatchling.build"
-""")
-
-    src_dir = tmp_path / "src" / "oarepo_test_lib"
-    src_dir.mkdir(parents=True)
-    (src_dir / "__init__.py").write_text('__version__ = "0.1.0"')
-
-    tests_dir = tmp_path / "tests"
-    tests_dir.mkdir()
-    (tests_dir / "test_example.py").write_text("""
-def test_basic():
-    assert True
-""")
-
-    return tmp_path
+def testlib_project() -> Path:
+    """Path to the testlib fixture project."""
+    return Path(__file__).parent / "testlib"
 
 
 @pytest.fixture
-def uv_available() -> None:
-    """Skip test if uv is not installed."""
-    result = subprocess.run(["which", "uv"], capture_output=True)
-    if result.returncode != 0:
-        pytest.skip("uv not installed")
+def clean_testlib(testlib_project: Path) -> Iterator[Path]:
+    """Remove .venv, .env-services, coverage/build artifacts, and stop any
+    stray docker services, both before and after the test."""
+    ...
+    yield testlib_project
+    ...
+
+
+@pytest.fixture
+def test_context(clean_testlib: Path) -> ProjectContext:
+    """Ready-to-use ProjectContext pointed at clean_testlib's .venv."""
+    ...
 ```
 
-### Example Integration Tests
+### Example: Service-Level Test
+
+```python
+# tests/integration/test_venv_workflow.py
+
+
+def test_venv_creation_workflow_real_tools(
+    clean_testlib: Path,
+    testlib_venv_path: Path,
+) -> None:
+    """Test complete venv creation workflow with real uv/pip calls."""
+    config = CliConfig(venv=VenvConfig(path=testlib_venv_path))
+    manager = VirtualEnvironmentManager(config, project_root=clean_testlib)
+
+    result = manager.ensure_venv(
+        VenvRequirements(python_binary="python3.14", oarepo_version=14, editable=True)
+    )
+
+    assert result == testlib_venv_path
+    assert (result / "bin" / "python").exists()
+```
+
+### Example: CLI-Level Test
 
 ```python
 # tests/integration/test_library_venv.py
 
-import pytest
-from typer.testing import CliRunner
-from oarepo_cli.cli.main import app
 
-runner = CliRunner()
+def test_library_venv_creates_venv_real(
+    runner: CliRunner,
+    clean_testlib: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Test that 'library venv' creates a virtual environment."""
+    monkeypatch.chdir(clean_testlib)
 
-
-@pytest.mark.integration
-def test_library_venv_creates_environment(temp_project_dir: Path):
-    """Integration test: venv command creates virtual environment."""
-    result = runner.invoke(
-        app,
-        ["--cd", str(temp_project_dir), "library", "venv"],
-        catch_exceptions=False,
-    )
+    result = runner.invoke(app, ["library", "venv"], catch_exceptions=False)
 
     assert result.exit_code == 0
-    assert (temp_project_dir / ".venv").exists()
-    assert (temp_project_dir / ".venv" / "bin" / "python").exists()
-
-
-@pytest.mark.integration
-def test_library_venv_installs_oarepo(temp_project_dir: Path):
-    """Integration test: venv installs OARepo package."""
-    result = runner.invoke(
-        app,
-        ["--cd", str(temp_project_dir), "library", "venv"],
-        catch_exceptions=False,
-    )
-
-    assert result.exit_code == 0
-
-    # Verify oarepo is installed
-    check_result = runner.invoke(
-        app,
-        [
-            "--cd",
-            str(temp_project_dir),
-            "library",
-            "invenio",
-            "--skip-services",
-            "--",
-            "python",
-            "-c",
-            "import oarepo; print(oarepo.__version__)",
-        ],
-        catch_exceptions=False,
-    )
-
-    assert check_result.exit_code == 0
-    assert "oarepo" in check_result.stdout.lower()
-
-
-@pytest.mark.integration
-def test_library_test_runs_pytest(temp_project_dir: Path):
-    """Integration test: test command runs pytest successfully."""
-    # First create venv
-    runner.invoke(
-        app,
-        ["--cd", str(temp_project_dir), "library", "venv"],
-        catch_exceptions=False,
-    )
-
-    # Then run tests
-    result = runner.invoke(
-        app,
-        ["--cd", str(temp_project_dir), "library", "test", "--skip-services"],
-        catch_exceptions=False,
-    )
-
-    assert result.exit_code == 0
-    assert "passed" in result.stdout.lower()
-
-
-@pytest.mark.integration
-def test_library_lint_succeeds_on_clean_code(temp_project_dir: Path):
-    """Integration test: lint passes on properly formatted code."""
-    # Create venv first
-    runner.invoke(
-        app,
-        ["--cd", str(temp_project_dir), "library", "venv"],
-        catch_exceptions=False,
-    )
-
-    result = runner.invoke(
-        app,
-        ["--cd", str(temp_project_dir), "library", "lint"],
-        catch_exceptions=False,
-    )
-
-    # Should succeed on clean code
-    assert result.exit_code == 0
-
-
-@pytest.mark.integration
-def test_library_format_fixes_code(temp_project_dir: Path):
-    """Integration test: format command fixes formatting issues."""
-    # Create unformatted file
-    unformatted = temp_project_dir / "src" / "oarepo_test_lib" / "unformatted.py"
-    unformatted.write_text("x=1+2\n")  # Missing spaces
-
-    # Create venv first
-    runner.invoke(
-        app,
-        ["--cd", str(temp_project_dir), "library", "venv"],
-        catch_exceptions=False,
-    )
-
-    # Run formatter
-    result = runner.invoke(
-        app,
-        ["--cd", str(temp_project_dir), "library", "format"],
-        catch_exceptions=False,
-    )
-
-    assert result.exit_code == 0
-
-    # Verify file was reformatted
-    formatted_content = unformatted.read_text()
-    assert formatted_content == "x = 1 + 2\n"
+    assert (clean_testlib / ".venv" / "bin" / "python").exists()
 ```
+
+Real `uv`/`pip`/`docker-services-cli` calls make this the slowest tier below Characterization Tests — some cases take tens of seconds. Keep the bulk of coverage in Unit Tests and reserve this tier for orchestration and end-to-end command behavior that can't be verified any other way.
 
 ---
 
-## 7. Characterization Tests
+## 6. Characterization Tests
 
 ### Purpose
 
@@ -1022,7 +674,7 @@ def extract_commands(help_text: str) -> set[str]:
 
 ---
 
-## 8. Failure Injection Tests
+## 7. Failure Injection Tests
 
 ### Purpose
 
@@ -1155,7 +807,7 @@ def test_partial_self_update_keeps_old_version(temp_project_dir):
 
 ---
 
-## 9. Test Configuration and Execution
+## 8. Test Configuration and Execution
 
 ### pytest Configuration
 
@@ -1225,19 +877,6 @@ jobs:
       - name: Run contract tests
         run: pytest tests/contracts -v --tb=short
 
-  workflow-tests:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - name: Set up Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: "3.14"
-      - name: Install dependencies
-        run: pip install -e ".[dev]"
-      - name: Run workflow tests
-        run: pytest tests/workflow -v --tb=short
-
   integration-tests:
     runs-on: ubuntu-latest
     needs: [unit-tests, contract-tests]
@@ -1286,7 +925,7 @@ jobs:
 
 ---
 
-## 10. Test Data Fixtures
+## 9. Test Data Fixtures
 
 ### Sample Projects
 

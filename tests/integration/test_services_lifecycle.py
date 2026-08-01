@@ -1,7 +1,7 @@
 # SPDX-FileCopyrightText: 2026 CESNET z.s.p.o.
 # SPDX-License-Identifier: MIT
 
-"""Workflow tests for services lifecycle management using real testlib fixture.
+"""Integration tests for services lifecycle management using real testlib fixture.
 
 These tests use the real testlib project and execute actual docker-services-cli
 commands to verify the services lifecycle workflow.

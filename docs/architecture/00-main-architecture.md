@@ -123,7 +123,7 @@ The new implementation preserves all existing user-facing behavior while replaci
 1. **Maintainability first**: Clear separation of concerns, typed interfaces, minimal cleverness
 2. **Reuse where stable**: Shared infrastructure (process execution, environment) but separate domain workflows
 3. **Behavioral compatibility**: Preserve exit codes, stdout/stderr streams, help text structure
-4. **Testability**: Dependency injection around network access only, where a real alternate backend exists to swap in for testing. Filesystem, environment-variable, and subprocess-execution code call `pathlib.Path`/`os.environ`/`subprocess` directly with no injected protocol — there is exactly one real implementation of each, so a `Protocol`/`ABC` would only add indirection. They're tested against real (temporary) state instead: `tmp_path` for the filesystem, `monkeypatch` for environment variables, and `pytest-subprocess` (patches `subprocess.Popen` process-wide) for the slow, external, side-effecting tools (`uv`, `docker-services-cli`, `copier`) that workflow tests must avoid actually invoking
+4. **Testability**: Dependency injection around network access only, where a real alternate backend exists to swap in for testing. Filesystem, environment-variable, and subprocess-execution code call `pathlib.Path`/`os.environ`/`subprocess` directly with no injected protocol — there is exactly one real implementation of each, so a `Protocol`/`ABC` would only add indirection. They're tested against real (temporary) state instead: `tmp_path` for the filesystem, `monkeypatch` for environment variables, and `pytest-subprocess` (patches `subprocess.Popen` process-wide) for the unit tests in §3 of `02-testing-strategy.md` that need to simulate absent binaries — integration tests invoke the slow, external, side-effecting tools (`uv`, `docker-services-cli`, `copier`) for real against `tests/testlib/`
 5. **Explicit error handling**: Custom exception hierarchy, normalized error messages
 6. **No premature abstraction**: Only abstract when there are 2+ concrete implementations
 
@@ -312,7 +312,7 @@ def get_output(
 
 **Dependencies**: None (pure stdlib)
 
-**Testing**: Direct calls to `run()`/`stream()`/`get_output()` against trivial, always-available real commands (`echo`, `true`, `false`, `python3 -c`) verify exit code propagation, output capture, and environment isolation — no fixture or fake needed. Higher up the stack, services that shell out to slow/optional tools (`uv`, `docker-services-cli`, `copier`) are tested with `pytest-subprocess`, which fakes at the `subprocess.Popen` boundary rather than through an injected executor.
+**Testing**: Direct calls to `run()`/`stream()`/`get_output()` against trivial, always-available real commands (`echo`, `true`, `false`, `python3 -c`) verify exit code propagation, output capture, and environment isolation — no fixture or fake needed. Higher up the stack, services that shell out to slow/optional tools (`uv`, `docker-services-cli`, `copier`) are exercised for real in integration tests, not through a faked `subprocess.Popen` boundary.
 
 ---
 
@@ -372,7 +372,7 @@ class VirtualEnvironmentManager:
 
 **Dependencies**: `services/process.py`, `version_resolver` (calls `process.run()` directly — no injected executor; uses `pathlib.Path` directly for filesystem access)
 
-**Testing**: Integration tests with temporary directories (real filesystem); `pytest-subprocess` fakes `uv`/`pip` calls for fast workflow-level tests
+**Testing**: Integration tests against the real `tests/testlib/` fixture project, with `project_root` passed explicitly so every `uv`/`pip` invocation is absolute-path/`cwd`-independent (see `tests/integration/test_venv_workflow.py`)
 
 ---
 
