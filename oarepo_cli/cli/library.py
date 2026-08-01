@@ -11,6 +11,7 @@ import typer
 
 from oarepo_cli.core.context import discover_context
 from oarepo_cli.services.services_lifecycle import ServicesLifecycleManager
+from oarepo_cli.services.test_orchestrator import TestOrchestrator
 from oarepo_cli.services.venv import VenvRequirements, VirtualEnvironmentManager
 from oarepo_cli.ui import ConsoleOutput
 
@@ -42,8 +43,12 @@ def services_callback() -> None:
     """Services command group."""
 
 
-def _start_services_impl() -> None:
-    """Shared implementation for starting services."""
+def _start_services_impl(*, quiet: bool = False) -> None:
+    """Shared implementation for starting services.
+
+    Args:
+        quiet: If True, pass --quiet to docker-services-cli
+    """
     # Discover project context
     context = discover_context()
 
@@ -54,7 +59,7 @@ def _start_services_impl() -> None:
 
     # Start services using ServicesLifecycleManager
     services_mgr = ServicesLifecycleManager(
-        config=context.config, project_root=context.root_directory
+        config=context.config, project_root=context.root_directory, quiet=quiet
     )
 
     try:
@@ -76,8 +81,12 @@ def _start_services_impl() -> None:
         raise typer.Exit(code=1) from e
 
 
-def _stop_services_impl() -> None:
-    """Shared implementation for stopping services."""
+def _stop_services_impl(*, quiet: bool = False) -> None:
+    """Shared implementation for stopping services.
+
+    Args:
+        quiet: If True, pass --quiet to docker-services-cli
+    """
     # Discover project context
     context = discover_context()
 
@@ -92,7 +101,7 @@ def _stop_services_impl() -> None:
 
     # Stop services using ServicesLifecycleManager
     services_mgr = ServicesLifecycleManager(
-        config=context.config, project_root=context.root_directory
+        config=context.config, project_root=context.root_directory, quiet=quiet
     )
 
     try:
@@ -175,7 +184,7 @@ def library_upgrade(
 
     # Stop services if running
     services_mgr = ServicesLifecycleManager(
-        config=context.config, project_root=context.root_directory
+        config=context.config, project_root=context.root_directory, quiet=quiet
     )
     if services_mgr.are_services_running():
         console.info("🛑 Stopping services...", fg=typer.colors.CYAN)
@@ -218,7 +227,11 @@ def library_upgrade(
 
 
 @library_app.command("start")
-def library_start() -> None:
+def library_start(
+    quiet: Annotated[
+        bool, typer.Option("--quiet", "-q", help="Suppress docker-services-cli output")
+    ] = False,
+) -> None:
     """Start Docker services for development and testing.
 
     Starts the configured Docker services (database, search, message queue,
@@ -227,11 +240,15 @@ def library_start() -> None:
     The services are configured via environment variables or [tool.oarepo-cli.services]
     in pyproject.toml.
     """
-    _start_services_impl()
+    _start_services_impl(quiet=quiet)
 
 
 @services_app.command("start")
-def services_start() -> None:
+def services_start(
+    quiet: Annotated[
+        bool, typer.Option("--quiet", "-q", help="Suppress docker-services-cli output")
+    ] = False,
+) -> None:
     """Start Docker services for development and testing.
 
     Starts the configured Docker services (database, search, message queue,
@@ -240,22 +257,129 @@ def services_start() -> None:
     The services are configured via environment variables or [tool.oarepo-cli.services]
     in pyproject.toml.
     """
-    _start_services_impl()
+    _start_services_impl(quiet=quiet)
 
 
 @library_app.command("stop")
-def library_stop() -> None:
+def library_stop(
+    quiet: Annotated[
+        bool, typer.Option("--quiet", "-q", help="Suppress docker-services-cli output")
+    ] = False,
+) -> None:
     """Stop Docker services.
 
     Stops all running Docker services and removes the .env-services file.
     """
-    _stop_services_impl()
+    _stop_services_impl(quiet=quiet)
 
 
 @services_app.command("stop")
-def services_stop() -> None:
+def services_stop(
+    quiet: Annotated[
+        bool, typer.Option("--quiet", "-q", help="Suppress docker-services-cli output")
+    ] = False,
+) -> None:
     """Stop Docker services.
 
     Stops all running Docker services and removes the .env-services file.
     """
-    _stop_services_impl()
+    _stop_services_impl(quiet=quiet)
+
+
+@library_app.command(
+    "test",
+    context_settings={
+        "allow_extra_args": True,
+        "allow_interspersed_args": True,
+        "ignore_unknown_options": True,
+    },
+)
+def library_test(
+    ctx: typer.Context,
+    skip_services: Annotated[
+        bool, typer.Option("--skip-services", help="Skip starting/stopping Docker services")
+    ] = False,
+    with_coverage: Annotated[
+        bool, typer.Option("--with-coverage", help="Enable coverage reporting")
+    ] = False,
+    quiet: Annotated[
+        bool,
+        typer.Option(
+            "--quiet",
+            "-q",
+            help="Suppress service start/stop messages and docker-services-cli output",
+        ),
+    ] = False,
+) -> None:
+    """Run pytest tests with optional coverage and services.
+
+    Runs the project's test suite using pytest. By default, Docker services
+    (database, search, etc.) are started before running tests and stopped
+    afterward.
+
+    Use --skip-services to run tests without starting services (faster for
+    unit tests that don't need external dependencies).
+
+    Use --with-coverage to generate coverage reports (HTML and terminal).
+
+    Use --quiet to suppress service start/stop messages and docker-services-cli
+    output (pytest output is still shown).
+
+    Any additional arguments are passed directly to pytest.
+
+    Examples:
+        oarepo-cli library test
+        oarepo-cli library test --with-coverage
+        oarepo-cli library test --skip-services
+        oarepo-cli library test --quiet
+        oarepo-cli library test -v tests/unit/
+        oarepo-cli library test --with-coverage -x -k test_specific
+    """
+    # Get extra args from context
+    pytest_args = ctx.args if ctx.args else []
+
+    # Discover project context
+    context = discover_context()
+
+    # Create console output handler
+    console = ConsoleOutput(quiet=quiet)
+
+    console.info("🧪 Running tests...", fg=typer.colors.BRIGHT_BLUE, bold=True)
+
+    # Create orchestrator and run tests
+    orchestrator = TestOrchestrator(context=context, quiet=quiet)
+
+    try:
+        result = orchestrator.run_tests(
+            pytest_args=pytest_args,
+            coverage=with_coverage,
+            skip_services=skip_services,
+        )
+
+        # Display result
+        if result.success:
+            console.success(
+                "✨ ✓ All tests passed!",
+                fg=typer.colors.BRIGHT_GREEN,
+                bold=True,
+            )
+        else:
+            console.error(
+                "❌ Tests failed!",
+                fg=typer.colors.BRIGHT_RED,
+                bold=True,
+            )
+
+        # Exit with pytest's exit code
+        raise typer.Exit(code=result.return_code)
+
+    except Exception as e:
+        # Catch any orchestration errors (not pytest failures)
+        if not isinstance(e, typer.Exit):
+            console.error(
+                f"❌ Error running tests: {e}",
+                fg=typer.colors.BRIGHT_RED,
+                bold=True,
+            )
+            raise typer.Exit(code=1) from e
+        raise

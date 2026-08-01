@@ -585,3 +585,58 @@ def test_skip_services_override_via_parameter(
         )
         == 0
     )
+
+
+def test_passes_service_env_vars_to_pytest(
+    test_context: ProjectContext,
+    fake_process: FakeProcess,
+) -> None:
+    """Test that environment variables from .env-services are loaded when they exist."""
+    # Pre-create .env-services file (simulating what docker-services-cli would create)
+    env_file = test_context.root_directory / ".env-services"
+    env_file.write_text(
+        'export DATABASE_URL="postgresql://localhost:5432/test"\n'
+        'export SEARCH_URL="opensearch://localhost:9200"\n'
+        'export REDIS_URL="redis://localhost:6379"\n'
+    )
+
+    orchestrator = TestOrchestrator(test_context)
+
+    # Register commands
+    fake_process.register(
+        [
+            "uvx",
+            "--with",
+            "setuptools",
+            "docker-services-cli",
+            "up",
+            fake_process.any(),
+        ],
+        stdout='export DATABASE_URL="postgresql://localhost:5432/test"\nexport SEARCH_URL="opensearch://localhost:9200"\nexport REDIS_URL="redis://localhost:6379"\n',
+    )
+    fake_process.register(
+        ["uv", "pip", "install", "-e", ".[tests]"],
+        stdout="",
+    )
+    fake_process.register(
+        [str(test_context.venv_path / "bin" / "pytest")],
+        stdout="All tests passed\n",
+        returncode=0,
+    )
+    fake_process.register(
+        [
+            "uvx",
+            "--with",
+            "setuptools",
+            "docker-services-cli",
+            "down",
+            "--env",
+        ],
+        stdout="",
+    )
+
+    result = orchestrator.run_tests()
+
+    # Verify pytest was called
+    assert fake_process.call_count([str(test_context.venv_path / "bin" / "pytest")]) > 0
+    assert result.success
