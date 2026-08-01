@@ -67,6 +67,7 @@ adds over inventing new tooling.
 Use:
 - git
 - gh
+- uv for the Python package manager
 
 ### Reading PR review comments in this repository
 
