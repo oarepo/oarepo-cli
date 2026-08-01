@@ -9,11 +9,10 @@ actually creating virtual environments or installing packages.
 
 from __future__ import annotations
 
+from pathlib import Path
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from pathlib import Path
-
     from pytest_subprocess import FakeProcess
 
 import pytest
@@ -316,9 +315,7 @@ def test_non_editable_mode(fake_process: FakeProcess, tmp_path: Path) -> None:
     )
 
     # Change to tmp_path so relative paths work
-    from pathlib import Path as PathlibPath
-
-    old_cwd = PathlibPath.cwd()
+    old_cwd = Path.cwd()
     try:
         import os
 
@@ -479,9 +476,7 @@ def test_wheel_build_fails_when_no_wheel_found(fake_process: FakeProcess, tmp_pa
         callback=create_empty_dist,
     )
 
-    from pathlib import Path as PathlibPath
-
-    old_cwd = PathlibPath.cwd()
+    old_cwd = Path.cwd()
     try:
         import os
 
