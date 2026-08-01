@@ -501,22 +501,24 @@ For unit-level tests, call `run()`/`stream()`/`get_output()` directly against re
 ### Step 3.9: Library `shell` and `invenio` Commands
 **Goal**: Implement shell and invenio passthrough commands.
 
-- [ ] Implement `library_shell()` and `library_invenio()` functions
-- [ ] Options: `--skip-services`
-- [ ] Ensure venv exists
-- [ ] Start services if not skipped
-- [ ] Activate venv and exec bash/invenio
-- [ ] Pass through all arguments
+- [x] Implement `library_shell()` and `library_invenio()` functions
+- [x] Options: `--skip-services`
+- [x] Ensure venv exists
+- [x] Start services if not skipped
+- [x] Activate venv and exec bash/invenio
+- [x] Pass through all arguments
 
 **Deliverables**:
 - Shell and invenio commands
 - Argument passthrough
 
 **Tests** (`tests/integration/test_library_passthrough.py`):
-- [ ] Test shell starts interactive bash
-- [ ] Test invenio runs with args
-- [ ] Test skip-services skips service start
-- [ ] Test arguments passed correctly
+- [~] Test shell starts interactive bash
+- [~] Test invenio runs with args
+- [~] Test skip-services skips service start
+- [~] Test arguments passed correctly
+
+**Note**: Commands are implemented and functional. Tests are partially complete but need fixture refinement for subprocess mocking. The core functionality (venv activation, environment variable loading, argument passthrough via os.execve) is working correctly.
 
 ---
 
