@@ -270,7 +270,7 @@ def test_extra_pytest_args_passed_through(
         stdout="",
     )
 
-    result = runner.invoke(app, ["library", "test", "--", "-v", "-x", "tests/unit/"])
+    result = runner.invoke(app, ["library", "test", "-v", "-x", "tests/unit/"])
 
     # Should exit successfully
     assert result.exit_code == 0
@@ -364,4 +364,59 @@ def test_combined_flags(
     assert result.exit_code == 0
 
     # Verify no docker-services-cli was called
+    assert fake_process.call_count(["uvx", fake_process.any()]) == 0
+
+
+def test_interspersed_flags(
+    runner: CliRunner,
+    mock_test_project: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    fake_process: FakeProcess,
+) -> None:
+    """Test that pytest flags can be interspersed with oarepo-cli flags."""
+    monkeypatch.chdir(mock_test_project)
+
+    # Register docker-services-cli up
+    fake_process.register(
+        [
+            "uvx",
+            "--with",
+            "setuptools",
+            "docker-services-cli",
+            "up",
+            fake_process.any(),
+        ],
+        stdout="export DATABASE_URL=test\n",
+    )
+
+    # Register test dependency installation
+    fake_process.register(
+        ["uv", "pip", "install", "-e", ".[tests]"],
+        stdout="",
+    )
+
+    # Register pytest with mixed args
+    fake_process.register(
+        [
+            str(mock_test_project / ".venv" / "bin" / "pytest"),
+            "-v",
+            "-x",
+        ],
+        stdout="===== 10 passed in 0.5s =====\n",
+        returncode=0,
+    )
+
+    # Register docker-services-cli down
+    fake_process.register(
+        ["uvx", "--with", "setuptools", "docker-services-cli", "down", "--env"],
+        stdout="",
+    )
+
+    # Test with pytest flags interspersed
+    result = runner.invoke(app, ["library", "test", "-v", "--skip-services", "-x"])
+
+    # Should exit successfully
+    assert result.exit_code == 0
+
+    # Verify no docker-services-cli was called (because --skip-services)
     assert fake_process.call_count(["uvx", fake_process.any()]) == 0

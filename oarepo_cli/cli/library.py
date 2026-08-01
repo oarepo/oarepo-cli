@@ -264,7 +264,11 @@ def services_stop() -> None:
 
 @library_app.command(
     "test",
-    context_settings={"allow_extra_args": True, "allow_interspersed_args": False},
+    context_settings={
+        "allow_extra_args": True,
+        "allow_interspersed_args": True,
+        "ignore_unknown_options": True,
+    },
 )
 def library_test(
     ctx: typer.Context,
@@ -286,15 +290,14 @@ def library_test(
 
     Use --with-coverage to generate coverage reports (HTML and terminal).
 
-    Any additional arguments after the command are passed directly to pytest.
-    Note: pytest flags must come after oarepo-cli flags.
+    Any additional arguments are passed directly to pytest.
 
     Examples:
         oarepo-cli library test
         oarepo-cli library test --with-coverage
         oarepo-cli library test --skip-services
         oarepo-cli library test -v tests/unit/
-        oarepo-cli library test --with-coverage -- -x -k test_specific
+        oarepo-cli library test --with-coverage -x -k test_specific
     """
     # Get extra args from context
     pytest_args = ctx.args if ctx.args else []

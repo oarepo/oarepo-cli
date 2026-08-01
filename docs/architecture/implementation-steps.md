@@ -458,6 +458,7 @@ For unit-level tests, call `run()`/`stream()`/`get_output()` directly against re
 
 - [x] Implement `library_test()` function
 - [x] Options: `--skip-services`, `--with-coverage`, pass-through args via `ctx.args`
+- [x] Use `ignore_unknown_options=True` to allow pytest flags without `--` separator
 - [x] Create orchestrator and call `run_tests()`
 - [x] Display results with colors
 - [x] Exit with pytest exit code
@@ -469,9 +470,10 @@ For unit-level tests, call `run()`/`stream()`/`get_output()` directly against re
 - [x] Test tests run successfully
 - [x] Test coverage enabled with flag
 - [x] Test skip-services works
-- [x] Test extra pytest args passed through (using `--` separator)
+- [x] Test extra pytest args passed through (no `--` needed)
 - [x] Test exit code on failure
 - [x] Test combined flags
+- [x] Test interspersed flags
 
 ---
 
