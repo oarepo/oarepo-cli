@@ -318,22 +318,23 @@ For unit-level tests, call `run()`/`stream()`/`get_output()` directly against re
 ### Step 3.2: Library `venv` Command
 **Goal**: Implement `oarepo-cli library venv` command.
 
-- [ ] Implement `library_venv()` function in `cli/library.py`
-- [ ] Options: `--force`, `--no-editable`
-- [ ] Inject `ProjectContext` and `CliConfig`
-- [ ] Call `VirtualEnvironmentManager.ensure_venv()`
-- [ ] Display success message with venv path
+- [x] Implement `library_venv()` function in `cli/library.py`
+- [x] Options: `--force`, `--no-editable`
+- [x] Inject `ProjectContext` and `CliConfig`
+- [x] Call `VirtualEnvironmentManager.ensure_venv()`
+- [x] Display success message with venv path
 
 **Deliverables**:
 - Working `venv` command
 - Matches shell script behavior
 
 **Tests** (`tests/integration/test_library_venv.py`):
-- [ ] Test venv created in temp project
-- [ ] Test `--force` recreates existing venv
-- [ ] Test `--no-editable` builds wheel instead
-- [ ] Test help text matches shell script
-- [ ] Characterization test: exit code matches bash
+- [x] Test venv created in temp project
+- [x] Test `--force` recreates existing venv
+- [x] Test `--no-editable` builds wheel instead
+- [x] Test help text matches shell script
+- [x] Characterization test: exit code matches bash
+- [x] Additional: Test VIRTUAL_ENV stripping in `tests/services/test_process_venv_isolation.py`
 
 ---
 

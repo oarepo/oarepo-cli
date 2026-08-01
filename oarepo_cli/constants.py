@@ -22,5 +22,24 @@ OAREPO_PYTHON_COMPATIBILITY = {
 # Default environment variables for streaming subprocess output
 STREAM_ENV_DEFAULTS = {"PYTHONUNBUFFERED": "1"}
 
+# Default environment variables for package installation and OARepo operations
+# These match the values from the original bash scripts
+# Note: Environment variables already set take precedence (not overwritten)
+OAREPO_ENV_DEFAULTS = {
+    # UV/PIP extra index for OARepo packages (CESNET GitLab PyPI)
+    "UV_EXTRA_INDEX_URL": "https://gitlab.cesnet.cz/api/v4/projects/1408/packages/pypi/simple",
+    "PIP_EXTRA_INDEX_URL": "https://gitlab.cesnet.cz/api/v4/projects/1408/packages/pypi/simple",
+    # Invenio configuration
+    "INVENIO_APP_THEME": '["semantic-ui"]',
+    "INVENIO_WEBPACKEXT_NPM_PKG_CLS": "pynpm.package:PNPMPackage",
+    "INVENIO_JAVASCRIPT_PACKAGES_MANAGER": "pnpm",
+    "INVENIO_ASSETS_BUILDER": "rspack",
+    "INVENIO_THEME_FRONTPAGE": "False",
+    "INVENIO_THEME_CSS_TEMPLATE": "oarepo_ui/css.html",
+    "FLASK_DEBUG": "1",
+    # Locale settings
+    "LC_TIME": "en_US.UTF-8",
+}
+
 # Regex pattern for extracting OARepo major versions from dependency specifiers
 OAREPO_VERSION_RE = re.compile(r"oarepo(\d+)")
