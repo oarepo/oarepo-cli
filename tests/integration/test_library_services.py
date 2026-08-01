@@ -225,3 +225,89 @@ def test_stop_exit_code_on_failure(
 
     # Should exit with code 1
     assert result.exit_code == 1
+
+
+# Test the services subcommand aliases
+
+
+def test_services_start_alias(
+    runner: CliRunner,
+    mock_library_project: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    fake_process: FakeProcess,
+) -> None:
+    """Test that 'library services start' works as an alias."""
+    monkeypatch.chdir(mock_library_project)
+
+    # Mock docker-services-cli output
+    env_output = "export SQLALCHEMY_DATABASE_URI=postgresql://test\n"
+
+    # Register docker-services-cli up command
+    fake_process.register(
+        [
+            "uvx",
+            "--with",
+            "setuptools",
+            "docker-services-cli",
+            "up",
+            "--db",
+            "postgresql",
+            "--search",
+            "opensearch",
+            "--mq",
+            "rabbitmq",
+            "--cache",
+            "redis",
+            "--s3",
+            "minio",
+            "--env",
+        ],
+        stdout=env_output,
+    )
+
+    result = runner.invoke(app, ["library", "services", "start"])
+
+    # Should have created .env-services file
+    env_file = mock_library_project / ".env-services"
+    assert env_file.exists()
+    assert env_file.read_text() == env_output
+
+    # Should exit successfully
+    assert result.exit_code == 0
+
+
+def test_services_stop_alias(
+    runner: CliRunner,
+    mock_library_project: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    fake_process: FakeProcess,
+) -> None:
+    """Test that 'library services stop' works as an alias."""
+    monkeypatch.chdir(mock_library_project)
+
+    # Create existing .env-services file
+    env_file = mock_library_project / ".env-services"
+    env_file.write_text("export SQLALCHEMY_DATABASE_URI=postgresql://test\n")
+
+    # Register docker-services-cli down command
+    fake_process.register(["uvx", "--with", "setuptools", "docker-services-cli", "down", "--env"])
+
+    result = runner.invoke(app, ["library", "services", "stop"])
+
+    # Should have removed .env-services file
+    assert not env_file.exists()
+
+    # Should exit successfully
+    assert result.exit_code == 0
+
+
+def test_services_help_displays(
+    runner: CliRunner,
+) -> None:
+    """Test that 'library services --help' displays help text."""
+    result = runner.invoke(app, ["library", "services", "--help"])
+
+    assert result.exit_code == 0
+    assert "services" in result.stdout.lower()
+    assert "start" in result.stdout.lower()
+    assert "stop" in result.stdout.lower()
