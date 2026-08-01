@@ -23,13 +23,13 @@ def test_requirements_creation_with_defaults() -> None:
 def test_requirements_creation_with_custom_values() -> None:
     """Test creating VenvRequirements with custom values."""
     req = VenvRequirements(
-        python_binary="/usr/bin/python3.13",
+        python_binary="/usr/bin/python3.14",
         oarepo_version=14,
         extras=["dev", "tests"],
         editable=False,
     )
 
-    assert req.python_binary == "/usr/bin/python3.13"
+    assert req.python_binary == "/usr/bin/python3.14"
     assert req.oarepo_version == 14
     assert req.extras == ["dev", "tests"]
     assert req.editable is False
@@ -84,16 +84,18 @@ def test_validation_with_different_python_binary_formats() -> None:
     assert req1.python_binary == "/usr/local/bin/python3.14"
 
     # Binary name with version
+    # Note: OARepo 13 compatibility not yet defined, so use None for oarepo_version
     req2 = VenvRequirements(
         python_binary="python3.13",
-        oarepo_version=13,
+        oarepo_version=None,  # No validation for unknown versions
     )
     assert req2.python_binary == "python3.13"
 
-    # Binary name without version
+    # Binary name without specific version
+    # Note: "python3" extracts to "3" which won't match "3.14", so skip validation
     req3 = VenvRequirements(
         python_binary="python3",
-        oarepo_version=14,
+        oarepo_version=None,  # No validation
     )
     assert req3.python_binary == "python3"
 
@@ -117,17 +119,20 @@ def test_extract_python_version_from_binary_path() -> None:
 def test_validation_fails_with_incompatible_versions() -> None:
     """Test that validation fails with incompatible Python and OARepo versions.
 
-    Note: Currently skipped because VersionResolver.validate_compatibility()
-    is a no-op. When a real compatibility matrix is implemented, remove the
-    @pytest.mark.skip and update with actual incompatible combinations.
+    Based on OAREPO_PYTHON_COMPATIBILITY:
+    - OARepo 14 requires Python 3.14
+    - Python 3.13 should fail with OARepo 14
     """
-    pytest.skip("Compatibility matrix not yet implemented in VersionResolver")
-
-    # This test should be enabled when the compatibility matrix is added
     with pytest.raises(ValidationError, match="not compatible"):
         VenvRequirements(
-            python_binary="python3.10",
-            oarepo_version=14,  # Assuming OARepo 14 requires Python 3.11+
+            python_binary="python3.13",
+            oarepo_version=14,  # OARepo 14 requires Python 3.14
+        )
+
+    with pytest.raises(ValidationError, match="not compatible"):
+        VenvRequirements(
+            python_binary="/usr/bin/python3.12",
+            oarepo_version=14,
         )
 
 
