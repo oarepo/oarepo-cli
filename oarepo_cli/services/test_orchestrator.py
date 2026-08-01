@@ -36,6 +36,11 @@ class TestOrchestrator:
         self._services_manager = ServicesLifecycleManager(
             config=context.config, project_root=context.root_directory
         )
+        # Cache pyproject data to avoid multiple reads
+        from oarepo_cli.services.pyproject_reader import PyProjectReader
+
+        reader = PyProjectReader()
+        self._pyproject_data = reader.read(context.pyproject_path)
 
     def run_tests(
         self,
@@ -109,13 +114,7 @@ class TestOrchestrator:
         # Check if we're in a project with tests extra
         extras_to_install = []
 
-        # Read pyproject.toml to check for tests extra
-        from oarepo_cli.services.pyproject_reader import PyProjectReader
-
-        reader = PyProjectReader()
-        pyproject_data = reader.read(self._context.pyproject_path)
-
-        if "tests" in pyproject_data.raw.get("project", {}).get("optional-dependencies", {}):
+        if "tests" in self._pyproject_data.raw.get("project", {}).get("optional-dependencies", {}):
             extras_to_install.append("tests")
 
         # Install the project with tests extra if available
@@ -172,13 +171,7 @@ class TestOrchestrator:
 
         # Add coverage flags if enabled
         if use_coverage:
-            # Determine the package name for coverage
-            from oarepo_cli.services.pyproject_reader import PyProjectReader
-
-            reader = PyProjectReader()
-            pyproject_data = reader.read(self._context.pyproject_path)
-
-            package_name = pyproject_data.raw.get("project", {}).get("name", "")
+            package_name = self._pyproject_data.raw.get("project", {}).get("name", "")
             if package_name:
                 # Convert package name to module name (replace hyphens with underscores)
                 module_name = package_name.replace("-", "_")
