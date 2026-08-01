@@ -59,10 +59,11 @@ Pure unit tests for logic that doesn't require external tools or filesystem acce
 - Platform detection utilities (`platform.py`)
 - Error message formatting (`errors.py`)
 
-### Example: PyProjectReader Tests
+### Example: PyProjectReader and VersionResolver Tests
 
 ```python
 # tests/unit/test_pyproject_reader.py
+"""Unit tests for pyproject.toml parsing."""
 
 import pytest
 from pathlib import Path
@@ -74,150 +75,162 @@ from oarepo_cli.services.pyproject_reader import (
 from tests.fakes import FakeFileSystem
 
 
-class TestPyProjectReader:
-    """Unit tests for pyproject.toml parsing."""
-
-    def test_parse_minimal_project(self):
-        """Parse basic project metadata."""
-        toml_content = """
+def test_parse_minimal_project():
+    """Parse basic project metadata."""
+    toml_content = """
 [project]
 name = "test-package"
 requires-python = ">=3.12,<3.15"
 """
-        fs = FakeFileSystem(
-            {
-                "pyproject.toml": toml_content,
-            }
-        )
-        reader = PyProjectReader(fs)
-        data = reader.read(Path("pyproject.toml"))
+    fs = FakeFileSystem(
+        {
+            "pyproject.toml": toml_content,
+        }
+    )
+    reader = PyProjectReader(fs)
+    data = reader.read(Path("pyproject.toml"))
 
-        assert data.name == "test-package"
-        assert data.requires_python == ">=3.12,<3.15"
+    assert data.name == "test-package"
+    assert data.requires_python == ">=3.12,<3.15"
 
-    def test_extract_oarepo_versions_single(self):
-        """Extract single OARepo version from optional dependencies."""
-        toml_content = """
+
+def test_extract_oarepo_versions_single():
+    """Extract single OARepo version from optional dependencies."""
+    toml_content = """
 [project.optional-dependencies]
 oarepo = ["oarepo14>=14.0.0,<15.0.0"]
 """
-        fs = FakeFileSystem({"pyproject.toml": toml_content})
-        reader = PyProjectReader(fs)
-        data = reader.read(Path("pyproject.toml"))
+    fs = FakeFileSystem({"pyproject.toml": toml_content})
+    reader = PyProjectReader(fs)
+    data = reader.read(Path("pyproject.toml"))
 
-        assert data.oarepo_versions == [14]
+    assert data.oarepo_versions == [14]
 
-    def test_extract_oarepo_versions_multiple(self):
-        """Extract multiple OARepo versions."""
-        toml_content = """
+
+def test_extract_oarepo_versions_multiple():
+    """Extract multiple OARepo versions."""
+    toml_content = """
 [project.optional-dependencies]
 oarepo = [
     "oarepo13>=13.0.0,<14.0.0",
     "oarepo14>=14.0.0,<15.0.0",
 ]
 """
-        fs = FakeFileSystem({"pyproject.toml": toml_content})
-        reader = PyProjectReader(fs)
-        data = reader.read(Path("pyproject.toml"))
+    fs = FakeFileSystem({"pyproject.toml": toml_content})
+    reader = PyProjectReader(fs)
+    data = reader.read(Path("pyproject.toml"))
 
-        assert data.oarepo_versions == [13, 14]
+    assert data.oarepo_versions == [13, 14]
 
-    def test_missing_pyproject_raises_error(self):
-        """ConfigurationError when pyproject.toml not found."""
-        fs = FakeFileSystem({})
-        reader = PyProjectReader(fs)
 
-        with pytest.raises(ConfigurationError) as exc_info:
-            reader.read(Path("nonexistent.toml"))
+def test_missing_pyproject_raises_error():
+    """ConfigurationError when pyproject.toml not found."""
+    fs = FakeFileSystem({})
+    reader = PyProjectReader(fs)
 
-        assert "not found" in str(exc_info.value)
+    with pytest.raises(ConfigurationError) as exc_info:
+        reader.read(Path("nonexistent.toml"))
 
-    def test_invalid_toml_raises_error(self):
-        """ConfigurationError for malformed TOML."""
-        fs = FakeFileSystem({"pyproject.toml": "invalid [[[[ syntax"})
-        reader = PyProjectReader(fs)
+    assert "not found" in str(exc_info.value)
 
-        with pytest.raises(ConfigurationError) as exc_info:
-            reader.read(Path("pyproject.toml"))
 
-        assert "Invalid TOML" in str(exc_info.value)
+def test_invalid_toml_raises_error():
+    """ConfigurationError for malformed TOML."""
+    fs = FakeFileSystem({"pyproject.toml": "invalid [[[[ syntax"})
+    reader = PyProjectReader(fs)
 
-    def test_get_default_extras(self):
-        """Parse default_extras from tool.oarepo section."""
-        toml_content = """
+    with pytest.raises(ConfigurationError) as exc_info:
+        reader.read(Path("pyproject.toml"))
+
+    assert "Invalid TOML" in str(exc_info.value)
+
+
+def test_get_default_extras():
+    """Parse default_extras from tool.oarepo section."""
+    toml_content = """
 [tool.oarepo]
 default_extras = ["dev", "tests"]
 """
-        fs = FakeFileSystem({"pyproject.toml": toml_content})
-        reader = PyProjectReader(fs)
-        data = reader.read(Path("pyproject.toml"))
+    fs = FakeFileSystem({"pyproject.toml": toml_content})
+    reader = PyProjectReader(fs)
+    data = reader.read(Path("pyproject.toml"))
 
-        assert data.default_extras == ["dev", "tests"]
+    assert data.default_extras == ["dev", "tests"]
 
-    @pytest.mark.parametrize(
-        "constraint,expected",
-        [
-            (">=3.12,<3.15", ("3.12", "3.13", "3.14")),
-            (">=3.13,<3.14", ("3.13",)),
-            (">=3.12", None),  # No upper bound
-        ],
-    )
-    def test_parse_python_constraint(self, constraint, expected):
-        """Parse Python version constraints into discrete versions."""
-        toml_content = f"""
+
+@pytest.mark.parametrize(
+    "constraint,expected",
+    [
+        (">=3.12,<3.15", ("3.12", "3.13", "3.14")),
+        (">=3.13,<3.14", ("3.13",)),
+        (">=3.12", None),  # No upper bound
+    ],
+)
+def test_parse_python_constraint(constraint, expected):
+    """Parse Python version constraints into discrete versions."""
+    toml_content = f"""
 [project]
 name = "test"
 requires-python = "{constraint}"
 """
-        fs = FakeFileSystem({"pyproject.toml": toml_content})
-        reader = PyProjectReader(fs)
-        data = reader.read(Path("pyproject.toml"))
+    fs = FakeFileSystem({"pyproject.toml": toml_content})
+    reader = PyProjectReader(fs)
+    data = reader.read(Path("pyproject.toml"))
 
-        if expected is None:
-            with pytest.raises(ConfigurationError):
-                data.python_version_range
-        else:
-            assert data.python_version_range == expected
+    if expected is None:
+        with pytest.raises(ConfigurationError):
+            data.python_version_range
+    else:
+        assert data.python_version_range == expected
+```
+
+```python
+# tests/unit/test_version_resolver.py
+"""Unit tests for version resolution logic."""
+
+import pytest
+from oarepo_cli.services.version_resolver import VersionResolver, VersionMismatchError
+from tests.fakes import FakeProcessExecutor
 
 
-class TestVersionResolver:
-    """Unit tests for version resolution logic."""
+def test_find_highest_available_python():
+    """Select highest Python version that exists on system."""
+    resolver = VersionResolver(FakeProcessExecutor())
 
-    def test_find_highest_available_python(self):
-        """Select highest Python version that exists on system."""
-        resolver = VersionResolver(FakeProcessExecutor())
+    # Simulate system with Python 3.12 and 3.14
+    resolver._fs.set_executables(["python3.12", "python3.14"])
 
-        # Simulate system with Python 3.12 and 3.14
-        resolver._fs.set_executables(["python3.12", "python3.14"])
+    available = resolver.find_available_python(["3.12", "3.13", "3.14"])
+    assert available == "3.14"
 
-        available = resolver.find_available_python(["3.12", "3.13", "3.14"])
-        assert available == "3.14"
 
-    def test_fallback_to_lower_version(self):
-        """Use lower version if highest not available."""
-        resolver = VersionResolver(FakeProcessExecutor())
-        resolver._fs.set_executables(["python3.12"])
+def test_fallback_to_lower_version():
+    """Use lower version if highest not available."""
+    resolver = VersionResolver(FakeProcessExecutor())
+    resolver._fs.set_executables(["python3.12"])
 
-        available = resolver.find_available_python(["3.13", "3.14"])
-        assert available == "3.12"
+    available = resolver.find_available_python(["3.13", "3.14"])
+    assert available == "3.12"
 
-    def test_no_compatible_version_raises_error(self):
-        """VersionMismatchError when no Python version available."""
-        resolver = VersionResolver(FakeProcessExecutor())
-        resolver._fs.set_executables([])
 
-        with pytest.raises(VersionMismatchError):
-            resolver.find_available_python(["3.14", "3.15"])
+def test_no_compatible_version_raises_error():
+    """VersionMismatchError when no Python version available."""
+    resolver = VersionResolver(FakeProcessExecutor())
+    resolver._fs.set_executables([])
 
-    def test_validate_oarepo_python_compatibility(self):
-        """Check that Python version supports OARepo version."""
-        resolver = VersionResolver(FakeProcessExecutor())
+    with pytest.raises(VersionMismatchError):
+        resolver.find_available_python(["3.14", "3.15"])
 
-        # Python 3.14 required for OARepo 14
-        resolver.validate_compatibility("3.14", 14)  # Should pass
 
-        with pytest.raises(VersionMismatchError):
-            resolver.validate_compatibility("3.12", 14)  # Too old
+def test_validate_oarepo_python_compatibility():
+    """Check that Python version supports OARepo version."""
+    resolver = VersionResolver(FakeProcessExecutor())
+
+    # Python 3.14 required for OARepo 14
+    resolver.validate_compatibility("3.14", 14)  # Should pass
+
+    with pytest.raises(VersionMismatchError):
+        resolver.validate_compatibility("3.12", 14)  # Too old
 ```
 
 ### Fake Implementations
@@ -354,184 +367,193 @@ Verify that adapter implementations satisfy their protocols. These tests ensure 
 
 ### ProcessExecutor Contract Tests
 
+A single `executor` fixture, parametrized over each implementation, lets one set of test functions exercise every adapter — no subclassing needed.
+
+```python
+# tests/contracts/conftest.py
+
+import pytest
+from oarepo_cli.services.process import ProcessExecutor
+
+
+@pytest.fixture(params=["subprocess", "fake"])
+def executor(request) -> ProcessExecutor:
+    """Runs every dependent test once per ProcessExecutor implementation."""
+    if request.param == "subprocess":
+        from oarepo_cli.adapters.subprocess_executor import SubprocessExecutor
+
+        return SubprocessExecutor()
+
+    from tests.fakes import FakeProcessExecutor
+
+    return FakeProcessExecutor()
+```
+
 ```python
 # tests/contracts/test_process_executor.py
+"""Contract tests for ProcessExecutor implementations."""
 
 import pytest
 from pathlib import Path
 from oarepo_cli.services.process import ProcessExecutor, ProcessExecutionError
 
 
-@pytest.fixture
-def executor() -> ProcessExecutor:
-    """Override in each test to test different implementations."""
-    raise NotImplementedError("Each test must provide its own executor")
+def test_returns_zero_exit_code_for_success(executor: ProcessExecutor):
+    result = executor.run(["echo", "hello"], check=False)
+    assert result.returncode == 0
 
 
-class TestProcessExecutorContract:
-    """Contract tests for ProcessExecutor implementations."""
-
-    def test_returns_zero_exit_code_for_success(self, executor: ProcessExecutor):
-        result = executor.run(["echo", "hello"], check=False)
-        assert result.returncode == 0
-
-    def test_captures_stdout_correctly(self, executor: ProcessExecutor):
-        result = executor.run(["echo", "test output"], check=False)
-        assert "test output" in result.stdout
-
-    def test_captures_stderr_correctly(self, executor: ProcessExecutor):
-        result = executor.run(
-            ["python", "-c", "import sys; print('error', file=sys.stderr)"],
-            check=False,
-        )
-        assert "error" in result.stderr
-
-    def test_raises_on_nonzero_with_check_true(self, executor: ProcessExecutor):
-        with pytest.raises(ProcessExecutionError):
-            executor.run(["python", "-c", "import sys; sys.exit(42)"], check=True)
-
-    def test_does_not_raise_on_nonzero_with_check_false(self, executor: ProcessExecutor):
-        result = executor.run(
-            ["python", "-c", "import sys; sys.exit(42)"],
-            check=False,
-        )
-        assert result.returncode == 42
-
-    def test_environment_variables_passed_correctly(self, executor: ProcessExecutor):
-        result = executor.run(
-            ["python", "-c", "import os; print(os.environ.get('TEST_VAR'))"],
-            env={"TEST_VAR": "test_value"},
-            check=False,
-        )
-        assert result.stdout.strip() == "test_value"
-
-    def test_cwd_parameter_sets_working_directory(self, executor: ProcessExecutor, tmp_path: Path):
-        # Create a file in tmp_path
-        (tmp_path / "test.txt").write_text("content")
-
-        result = executor.run(
-            ["cat", "test.txt"],
-            cwd=tmp_path,
-            check=False,
-        )
-        assert "content" in result.stdout
-
-    def test_command_is_stored_in_result(self, executor: ProcessExecutor):
-        result = executor.run(["echo", "test"], check=False)
-        assert "echo" in result.command
-        assert "test" in result.command
-
-    def test_duration_is_positive(self, executor: ProcessExecutor):
-        result = executor.run(["echo", "test"], check=False)
-        assert result.duration_ms >= 0
-
-    def test_shell_injection_prevented(self, executor: ProcessExecutor):
-        """Ensure arguments are not interpreted as shell commands."""
-        # This should NOT execute rm -rf /
-        result = executor.run(
-            ["echo", "; rm -rf / ;"],
-            check=False,
-        )
-        # Output should be literal string
-        assert "; rm -rf / ;" in result.stdout
-
-    def test_timeout_raises_exception(self, executor: ProcessExecutor):
-        with pytest.raises(TimeoutExceeded):
-            executor.run(["sleep", "100"], timeout=0.1)
+def test_captures_stdout_correctly(executor: ProcessExecutor):
+    result = executor.run(["echo", "test output"], check=False)
+    assert "test output" in result.stdout
 
 
-# Concrete test classes for each implementation
+def test_captures_stderr_correctly(executor: ProcessExecutor):
+    result = executor.run(
+        ["python", "-c", "import sys; print('error', file=sys.stderr)"],
+        check=False,
+    )
+    assert "error" in result.stderr
 
 
-class TestSubprocessExecutor(TestProcessExecutorContract):
-    """Tests for real subprocess-based executor."""
-
-    @pytest.fixture
-    def executor(self) -> ProcessExecutor:
-        from oarepo_cli.adapters.subprocess_executor import SubprocessExecutor
-
-        return SubprocessExecutor()
+def test_raises_on_nonzero_with_check_true(executor: ProcessExecutor):
+    with pytest.raises(ProcessExecutionError):
+        executor.run(["python", "-c", "import sys; sys.exit(42)"], check=True)
 
 
-class TestFakeProcessExecutor(TestProcessExecutorContract):
-    """Tests for fake executor used in unit tests."""
+def test_does_not_raise_on_nonzero_with_check_false(executor: ProcessExecutor):
+    result = executor.run(
+        ["python", "-c", "import sys; sys.exit(42)"],
+        check=False,
+    )
+    assert result.returncode == 42
 
-    @pytest.fixture
-    def executor(self) -> ProcessExecutor:
-        return FakeProcessExecutor()
+
+def test_environment_variables_passed_correctly(executor: ProcessExecutor):
+    result = executor.run(
+        ["python", "-c", "import os; print(os.environ.get('TEST_VAR'))"],
+        env={"TEST_VAR": "test_value"},
+        check=False,
+    )
+    assert result.stdout.strip() == "test_value"
+
+
+def test_cwd_parameter_sets_working_directory(executor: ProcessExecutor, tmp_path: Path):
+    # Create a file in tmp_path
+    (tmp_path / "test.txt").write_text("content")
+
+    result = executor.run(
+        ["cat", "test.txt"],
+        cwd=tmp_path,
+        check=False,
+    )
+    assert "content" in result.stdout
+
+
+def test_command_is_stored_in_result(executor: ProcessExecutor):
+    result = executor.run(["echo", "test"], check=False)
+    assert "echo" in result.command
+    assert "test" in result.command
+
+
+def test_duration_is_positive(executor: ProcessExecutor):
+    result = executor.run(["echo", "test"], check=False)
+    assert result.duration_ms >= 0
+
+
+def test_shell_injection_prevented(executor: ProcessExecutor):
+    """Ensure arguments are not interpreted as shell commands."""
+    # This should NOT execute rm -rf /
+    result = executor.run(
+        ["echo", "; rm -rf / ;"],
+        check=False,
+    )
+    # Output should be literal string
+    assert "; rm -rf / ;" in result.stdout
+
+
+def test_timeout_raises_exception(executor: ProcessExecutor):
+    with pytest.raises(TimeoutExceeded):
+        executor.run(["sleep", "100"], timeout=0.1)
 ```
 
 ### FileSystem Contract Tests
 
+Same pattern: the `filesystem` fixture in `conftest.py` is parametrized over each adapter.
+
+```python
+# tests/contracts/conftest.py (continued)
+
+from oarepo_cli.services.filesystem import FileSystem
+
+
+@pytest.fixture(params=["real", "fake"])
+def filesystem(request) -> FileSystem:
+    """Runs every dependent test once per FileSystem implementation."""
+    if request.param == "real":
+        from oarepo_cli.adapters.real_filesystem import RealFileSystem
+
+        return RealFileSystem()
+
+    from tests.fakes import FakeFileSystem
+
+    return FakeFileSystem()
+```
+
 ```python
 # tests/contracts/test_filesystem.py
+"""Contract tests for FileSystem implementations."""
 
 import pytest
 from pathlib import Path
 from oarepo_cli.services.filesystem import FileSystem
 
 
-@pytest.fixture
-def filesystem() -> FileSystem:
-    raise NotImplementedError
+def test_exists_returns_true_for_existing_file(filesystem: FileSystem, tmp_path: Path):
+    test_file = tmp_path / "test.txt"
+    test_file.write_text("content")
+    assert filesystem.exists(test_file)
 
 
-class TestFileSystemContract:
-    def test_exists_returns_true_for_existing_file(self, filesystem: FileSystem, tmp_path: Path):
-        test_file = tmp_path / "test.txt"
-        test_file.write_text("content")
-        assert filesystem.exists(test_file)
-
-    def test_exists_returns_false_for_missing_file(self, filesystem: FileSystem, tmp_path: Path):
-        assert not filesystem.exists(tmp_path / "nonexistent.txt")
-
-    def test_read_text_returns_file_content(self, filesystem: FileSystem, tmp_path: Path):
-        test_file = tmp_path / "test.txt"
-        expected = "Hello, World!"
-        test_file.write_text(expected)
-
-        actual = filesystem.read_text(test_file)
-        assert actual == expected
-
-    def test_write_text_creates_file(self, filesystem: FileSystem, tmp_path: Path):
-        target = tmp_path / "new.txt"
-        filesystem.write_text(target, "content")
-        assert target.exists()
-        assert target.read_text() == "content"
-
-    def test_rmtree_removes_directory_and_contents(self, filesystem: FileSystem, tmp_path: Path):
-        subdir = tmp_path / "subdir"
-        subdir.mkdir()
-        (subdir / "file.txt").write_text("content")
-
-        filesystem.rmtree(subdir)
-        assert not subdir.exists()
-
-    def test_mkdir_creates_directory(self, filesystem: FileSystem, tmp_path: Path):
-        target = tmp_path / "new_dir"
-        filesystem.mkdir(target)
-        assert target.is_dir()
-
-    def test_mkdir_parents_creates_intermediate_directories(
-        self, filesystem: FileSystem, tmp_path: Path
-    ):
-        target = tmp_path / "a" / "b" / "c"
-        filesystem.mkdir(target, parents=True)
-        assert target.is_dir()
+def test_exists_returns_false_for_missing_file(filesystem: FileSystem, tmp_path: Path):
+    assert not filesystem.exists(tmp_path / "nonexistent.txt")
 
 
-class TestRealFileSystem(TestFileSystemContract):
-    @pytest.fixture
-    def filesystem(self) -> FileSystem:
-        from oarepo_cli.adapters.real_filesystem import RealFileSystem
+def test_read_text_returns_file_content(filesystem: FileSystem, tmp_path: Path):
+    test_file = tmp_path / "test.txt"
+    expected = "Hello, World!"
+    test_file.write_text(expected)
 
-        return RealFileSystem()
+    actual = filesystem.read_text(test_file)
+    assert actual == expected
 
 
-class TestFakeFileSystem(TestFileSystemContract):
-    @pytest.fixture
-    def filesystem(self) -> FileSystem:
-        return FakeFileSystem()
+def test_write_text_creates_file(filesystem: FileSystem, tmp_path: Path):
+    target = tmp_path / "new.txt"
+    filesystem.write_text(target, "content")
+    assert target.exists()
+    assert target.read_text() == "content"
+
+
+def test_rmtree_removes_directory_and_contents(filesystem: FileSystem, tmp_path: Path):
+    subdir = tmp_path / "subdir"
+    subdir.mkdir()
+    (subdir / "file.txt").write_text("content")
+
+    filesystem.rmtree(subdir)
+    assert not subdir.exists()
+
+
+def test_mkdir_creates_directory(filesystem: FileSystem, tmp_path: Path):
+    target = tmp_path / "new_dir"
+    filesystem.mkdir(target)
+    assert target.is_dir()
+
+
+def test_mkdir_parents_creates_intermediate_directories(filesystem: FileSystem, tmp_path: Path):
+    target = tmp_path / "a" / "b" / "c"
+    filesystem.mkdir(target, parents=True)
+    assert target.is_dir()
 ```
 
 ---
@@ -554,14 +576,12 @@ from oarepo_cli.services.config import CliConfig
 from tests.fakes import FakeFileSystem, FakeProcessExecutor
 
 
-class TestVirtualEnvironmentWorkflow:
-    """Test venv creation workflow with fakes."""
-
-    @pytest.fixture
-    def setup_manager(self):
-        fs = FakeFileSystem(
-            {
-                "pyproject.toml": """
+@pytest.fixture
+def setup_manager():
+    """Set up a venv creation workflow with fakes."""
+    fs = FakeFileSystem(
+        {
+            "pyproject.toml": """
 [project]
 name = "test-package"
 requires-python = ">=3.12,<3.15"
@@ -571,87 +591,93 @@ oarepo = ["oarepo14>=14.0.0,<15.0.0"]
 dev = ["ruff", "mypy"]
 tests = ["pytest"]
 """,
-            }
+        }
+    )
+    fs.set_executables(["python3.12", "python3.14"])
+
+    process = FakeProcessExecutor()
+    # Register expected uv commands
+    process.register_response(["uv", "venv", "--python", "python3.14", "--seed", ".venv"])
+    process.register_response([".venv/bin/python", "-m", "pip", "install", "setuptools"])
+    process.register_response(["uv", "pip", "install", "oarepo[rdm,tests]>=14.0.0,<15.0.0"])
+    process.register_response(["uv", "pip", "install", "-e", ".[dev,tests,oarepo14]"])
+
+    config = CliConfig.default()
+    config.venv.path = Path(".venv")
+
+    manager = VirtualEnvironmentManager(process, fs, config)
+    return manager, process
+
+
+def test_creates_venv_if_missing(setup_manager):
+    manager, process = setup_manager
+
+    manager.ensure_venv(VenvRequirements(python_binary="python3.14"))
+
+    # Verify uv venv was called
+    assert any("venv" in cmd for cmd in process.call_log)
+
+
+def test_installs_setuptools_first(setup_manager):
+    manager, process = setup_manager
+
+    manager.ensure_venv(VenvRequirements(python_binary="python3.14"))
+
+    # setuptools should be first pip install
+    pip_commands = [cmd for cmd in process.call_log if "pip" in cmd]
+    assert "setuptools" in pip_commands[0]
+
+
+def test_installs_oarepo_with_correct_version(setup_manager):
+    manager, process = setup_manager
+
+    manager.ensure_venv(
+        VenvRequirements(
+            python_binary="python3.14",
+            oarepo_version=14,
         )
-        fs.set_executables(["python3.12", "python3.14"])
+    )
 
-        process = FakeProcessExecutor()
-        # Register expected uv commands
-        process.register_response(["uv", "venv", "--python", "python3.14", "--seed", ".venv"])
-        process.register_response([".venv/bin/python", "-m", "pip", "install", "setuptools"])
-        process.register_response(["uv", "pip", "install", "oarepo[rdm,tests]>=14.0.0,<15.0.0"])
-        process.register_response(["uv", "pip", "install", "-e", ".[dev,tests,oarepo14]"])
+    # Check oarepo installation command
+    oarepo_cmd = next(cmd for cmd in process.call_log if "oarepo" in cmd)
+    assert ">=14.0.0,<15.0.0" in oarepo_cmd
 
-        config = CliConfig.default()
-        config.venv.path = Path(".venv")
 
-        manager = VirtualEnvironmentManager(process, fs, config)
-        return manager, process
+def test_respects_editable_flag(setup_manager):
+    manager, process = setup_manager
 
-    def test_creates_venv_if_missing(self, setup_manager):
-        manager, process = setup_manager
+    # Non-editable mode
+    process.register_response(["uv", "build", "--wheel"])
+    process.register_response(["uv", "pip", "install", "dist/test_package-*.whl"])
 
-        manager.ensure_venv(VenvRequirements(python_binary="python3.14"))
+    manager.ensure_venv(VenvRequirements(python_binary="python3.14", editable=False))
 
-        # Verify uv venv was called
-        assert any("venv" in cmd for cmd in process.call_log)
+    # Should build wheel instead of -e install
+    assert any("build" in cmd for cmd in process.call_log)
 
-    def test_installs_setuptools_first(self, setup_manager):
-        manager, process = setup_manager
 
-        manager.ensure_venv(VenvRequirements(python_binary="python3.14"))
+def test_force_removes_existing_venv(setup_manager):
+    manager, process = setup_manager
+    manager._fs._files[".venv/placeholder"] = "exists"
 
-        # setuptools should be first pip install
-        pip_commands = [cmd for cmd in process.call_log if "pip" in cmd]
-        assert "setuptools" in pip_commands[0]
+    manager.ensure_venv(
+        VenvRequirements(python_binary="python3.14"),
+        force=True,
+    )
 
-    def test_installs_oarepo_with_correct_version(self, setup_manager):
-        manager, process = setup_manager
+    # Verify .venv was removed
+    assert ".venv/placeholder" not in manager._fs._files
 
-        manager.ensure_venv(
-            VenvRequirements(
-                python_binary="python3.14",
-                oarepo_version=14,
-            )
-        )
 
-        # Check oarepo installation command
-        oarepo_cmd = next(cmd for cmd in process.call_log if "oarepo" in cmd)
-        assert ">=14.0.0,<15.0.0" in oarepo_cmd
+def test_skips_creation_if_exists(setup_manager):
+    manager, process = setup_manager
+    manager._fs._files[".venv/pyvenv.cfg"] = "exists"
 
-    def test_respects_editable_flag(self, setup_manager):
-        manager, process = setup_manager
+    manager.ensure_venv(VenvRequirements(python_binary="python3.14"))
 
-        # Non-editable mode
-        process.register_response(["uv", "build", "--wheel"])
-        process.register_response(["uv", "pip", "install", "dist/test_package-*.whl"])
-
-        manager.ensure_venv(VenvRequirements(python_binary="python3.14", editable=False))
-
-        # Should build wheel instead of -e install
-        assert any("build" in cmd for cmd in process.call_log)
-
-    def test_force_removes_existing_venv(self, setup_manager):
-        manager, process = setup_manager
-        manager._fs._files[".venv/placeholder"] = "exists"
-
-        manager.ensure_venv(
-            VenvRequirements(python_binary="python3.14"),
-            force=True,
-        )
-
-        # Verify .venv was removed
-        assert ".venv/placeholder" not in manager._fs._files
-
-    def test_skips_creation_if_exists(self, setup_manager):
-        manager, process = setup_manager
-        manager._fs._files[".venv/pyvenv.cfg"] = "exists"
-
-        manager.ensure_venv(VenvRequirements(python_binary="python3.14"))
-
-        # Should not call uv venv again
-        venv_calls = [cmd for cmd in process.call_log if "venv" in cmd]
-        assert len(venv_calls) == 0  # Already exists
+    # Should not call uv venv again
+    venv_calls = [cmd for cmd in process.call_log if "venv" in cmd]
+    assert len(venv_calls) == 0  # Already exists
 ```
 
 ### Example: Test Orchestration Workflow
@@ -667,106 +693,109 @@ from oarepo_cli.services.config import CliConfig
 from tests.fakes import FakeFileSystem, FakeProcessExecutor
 
 
-class TestTestOrchestratorWorkflow:
-    """Test test execution workflow."""
-
-    @pytest.fixture
-    def setup_orchestrator(self):
-        fs = FakeFileSystem(
-            {
-                "pyproject.toml": """
+@pytest.fixture
+def setup_orchestrator():
+    """Set up a test execution workflow."""
+    fs = FakeFileSystem(
+        {
+            "pyproject.toml": """
 [project]
 name = "test-package"
 [project.optional-dependencies]
 tests = ["pytest"]
 """,
-                "src/test_package/module.py": "def hello(): pass",
-                "tests/test_module.py": "def test_hello(): pass",
+            "src/test_package/module.py": "def hello(): pass",
+            "tests/test_module.py": "def test_hello(): pass",
+        }
+    )
+    fs.set_executables(["python3.14"])
+
+    process = FakeProcessExecutor()
+    process.register_response(["docker-services-cli", "up", ...])  # Start services
+    process.register_response(["pytest", ...])  # Run tests
+    process.register_response(["docker-services-cli", "down"])  # Stop services
+
+    ctx = ProjectContext(
+        root_directory=Path("."),
+        pyproject_path=Path("pyproject.toml"),
+        venv_path=Path(".venv"),
+        python_binary="python3.14",
+        oarepo_version=14,
+    )
+    ctx._pyproject_data = PyProjectData(
+        raw={
+            "project": {
+                "name": "test-package",
+                "optional-dependencies": {"tests": ["pytest"]},
             }
-        )
-        fs.set_executables(["python3.14"])
+        }
+    )
 
-        process = FakeProcessExecutor()
-        process.register_response(["docker-services-cli", "up", ...])  # Start services
-        process.register_response(["pytest", ...])  # Run tests
-        process.register_response(["docker-services-cli", "down"])  # Stop services
+    config = CliConfig.default()
+    config.test.coverage = False
+    config.test.skip_services = False
 
-        ctx = ProjectContext(
-            root_directory=Path("."),
-            pyproject_path=Path("pyproject.toml"),
-            venv_path=Path(".venv"),
-            python_binary="python3.14",
-            oarepo_version=14,
-        )
-        ctx._pyproject_data = PyProjectData(
-            raw={
-                "project": {
-                    "name": "test-package",
-                    "optional-dependencies": {"tests": ["pytest"]},
-                }
-            }
-        )
+    orchestrator = TestOrchestrator(process, ctx, config)
+    return orchestrator, process
 
-        config = CliConfig.default()
-        config.test.coverage = False
-        config.test.skip_services = False
 
-        orchestrator = TestOrchestrator(process, ctx, config)
-        return orchestrator, process
+def test_starts_services_before_tests(setup_orchestrator):
+    orchestrator, process = setup_orchestrator
 
-    def test_starts_services_before_tests(self, setup_orchestrator):
-        orchestrator, process = setup_orchestrator
+    orchestrator.run_tests()
 
-        orchestrator.run_tests()
+    # Services should start before pytest
+    log = process.call_log
+    services_up_idx = next(
+        i for i, cmd in enumerate(log) if "services" in str(cmd) and "up" in str(cmd)
+    )
+    pytest_idx = next(i for i, cmd in enumerate(log) if "pytest" in str(cmd))
 
-        # Services should start before pytest
-        log = process.call_log
-        services_up_idx = next(
-            i for i, cmd in enumerate(log) if "services" in str(cmd) and "up" in str(cmd)
-        )
-        pytest_idx = next(i for i, cmd in enumerate(log) if "pytest" in str(cmd))
+    assert services_up_idx < pytest_idx
 
-        assert services_up_idx < pytest_idx
 
-    def test_stops_services_after_tests(self, setup_orchestrator):
-        orchestrator, process = setup_orchestrator
+def test_stops_services_after_tests(setup_orchestrator):
+    orchestrator, process = setup_orchestrator
 
-        orchestrator.run_tests()
+    orchestrator.run_tests()
 
-        log = process.call_log
-        pytest_idx = next(i for i, cmd in enumerate(log) if "pytest" in str(cmd))
-        services_down_idx = next(
-            i for i, cmd in enumerate(log) if "services" in str(cmd) and "down" in str(cmd)
-        )
+    log = process.call_log
+    pytest_idx = next(i for i, cmd in enumerate(log) if "pytest" in str(cmd))
+    services_down_idx = next(
+        i for i, cmd in enumerate(log) if "services" in str(cmd) and "down" in str(cmd)
+    )
 
-        assert pytest_idx < services_down_idx
+    assert pytest_idx < services_down_idx
 
-    def test_passes_coverage_flags_when_enabled(self, setup_orchestrator):
-        orchestrator, process = setup_orchestrator
-        orchestrator._config.test.coverage = True
 
-        orchestrator.run_tests()
+def test_passes_coverage_flags_when_enabled(setup_orchestrator):
+    orchestrator, process = setup_orchestrator
+    orchestrator._config.test.coverage = True
 
-        pytest_cmd = next(cmd for cmd in process.call_log if "pytest" in str(cmd))
-        assert "--cov" in pytest_cmd
+    orchestrator.run_tests()
 
-    def test_skips_services_when_configured(self, setup_orchestrator):
-        orchestrator, process = setup_orchestrator
-        orchestrator._config.test.skip_services = True
+    pytest_cmd = next(cmd for cmd in process.call_log if "pytest" in str(cmd))
+    assert "--cov" in pytest_cmd
 
-        orchestrator.run_tests()
 
-        # Should not start/stop services
-        assert not any("services" in str(cmd) for cmd in process.call_log)
+def test_skips_services_when_configured(setup_orchestrator):
+    orchestrator, process = setup_orchestrator
+    orchestrator._config.test.skip_services = True
 
-    def test_returns_failure_status_on_test_failure(self, setup_orchestrator):
-        orchestrator, process = setup_orchestrator
-        process.register_response(["pytest", ...], returncode=1)
+    orchestrator.run_tests()
 
-        result = orchestrator.run_tests()
+    # Should not start/stop services
+    assert not any("services" in str(cmd) for cmd in process.call_log)
 
-        assert result.status == CommandStatus.FAILURE
-        assert result.exit_code == 1
+
+def test_returns_failure_status_on_test_failure(setup_orchestrator):
+    orchestrator, process = setup_orchestrator
+    process.register_response(["pytest", ...], returncode=1)
+
+    result = orchestrator.run_tests()
+
+    assert result.status == CommandStatus.FAILURE
+    assert result.exit_code == 1
 ```
 
 ---
@@ -1097,105 +1126,110 @@ def comparator(sample_library: Path):
     )
 
 
-class TestLibraryCommandParity:
-    """Verify library commands produce equivalent outputs."""
-
-    def test_help_output_structure(self, comparator: BashPythonComparator):
-        """Help text should contain same commands."""
-        result = comparator.compare(["--help"])
-
-        assert result["exit_code_match"]
-
-        # Extract command lists from help
-        bash_cmds = extract_commands(result["bash"].stdout)
-        python_cmds = extract_commands(result["python"].stdout)
-
-        assert set(bash_cmds) == set(python_cmds)
-
-    def test_oarepo_versions_json_format(self, comparator: BashPythonComparator):
-        """oarepo-versions should return valid JSON."""
-        result = comparator.compare(["oarepo-versions"])
-
-        assert result["exit_code_match"]
-
-        # Both should produce valid JSON
-        import json
-
-        bash_json = json.loads(result["bash"].stdout)
-        python_json = json.loads(result["python"].stdout)
-
-        # Keys should match
-        assert set(bash_json.keys()) == set(python_json.keys())
-
-        # Versions should be identical
-        assert bash_json["oarepo_versions"] == python_json["oarepo_versions"]
-        assert bash_json["python_versions"] == python_json["python_versions"]
-
-    def test_venv_force_recreates_environment(self, comparator: BashPythonComparator):
-        """Both should recreate venv with --force flag."""
-        # First create initial venv
-        comparator.run_bash(["venv"])
-        comparator.run_python(["venv"])
-
-        # Now force recreate
-        bash_result = comparator.run_bash(["venv", "--force"])
-        python_result = comparator.run_python(["venv", "--force"])
-
-        # Both should succeed
-        assert bash_result.exit_code == 0
-        assert python_result.exit_code == 0
-
-    def test_lint_exit_codes(self, comparator: BashPythonComparator):
-        """Lint should return same exit codes for clean/dirty code."""
-        # Test on clean code
-        clean_result = comparator.compare(["lint"])
-        assert clean_result["exit_code_match"]
-
-        # Introduce linting error
-        # ... (setup dirty code)
-
-        # Both should fail with same exit code
-        dirty_result = comparator.compare(["lint"])
-        assert dirty_result["bash"].exit_code == dirty_result["python"].exit_code
-        assert dirty_result["bash"].exit_code != 0
+# --- Library command parity ---
 
 
-class TestRepositoryCommandParity:
-    """Verify repository commands produce equivalent outputs."""
+def test_help_output_structure(comparator: BashPythonComparator):
+    """Help text should contain same commands."""
+    result = comparator.compare(["--help"])
 
-    def test_install_creates_instance_path(self, comparator: BashPythonComparator):
-        """Install should create instance path in both implementations."""
-        # Note: This is a slow integration test
-        pytestmark = pytest.mark.slow
+    assert result["exit_code_match"]
 
-        bash_result = comparator.run_bash(["install"])
-        python_result = comparator.run_python(["install"])
+    # Extract command lists from help
+    bash_cmds = extract_commands(result["bash"].stdout)
+    python_cmds = extract_commands(result["python"].stdout)
 
-        assert bash_result.exit_code == 0
-        assert python_result.exit_code == 0
+    assert set(bash_cmds) == set(python_cmds)
 
-        # Both should create .invenio.private
-        assert (comparator.test_dir / ".invenio.private").exists()
 
-    def test_reset_confirms_with_user(self, comparator: BashPythonComparator):
-        """Reset should prompt for confirmation in both."""
-        # Test with "no" answer
-        bash_no = comparator.run_bash_with_input(["reset"], "no\n")
-        python_no = comparator.run_python_with_input(["reset"], "no\n")
+def test_oarepo_versions_json_format(comparator: BashPythonComparator):
+    """oarepo-versions should return valid JSON."""
+    result = comparator.compare(["oarepo-versions"])
 
-        assert bash_no.exit_code == 0  # Cancelled gracefully
-        assert python_no.exit_code == 0
+    assert result["exit_code_match"]
 
-        # Repository should still exist
-        assert (comparator.test_dir / ".venv").exists()
+    # Both should produce valid JSON
+    import json
 
-    def test_services_subcommands(self, comparator: BashPythonComparator):
-        """Services subcommands should have matching behavior."""
-        for subcmd in ["setup", "start", "stop", "destroy"]:
-            result = comparator.compare(["services", subcmd])
+    bash_json = json.loads(result["bash"].stdout)
+    python_json = json.loads(result["python"].stdout)
 
-            # Exit codes should match (may be non-zero if Docker not running)
-            assert result["exit_code_match"], f"Exit code mismatch for services {subcmd}"
+    # Keys should match
+    assert set(bash_json.keys()) == set(python_json.keys())
+
+    # Versions should be identical
+    assert bash_json["oarepo_versions"] == python_json["oarepo_versions"]
+    assert bash_json["python_versions"] == python_json["python_versions"]
+
+
+def test_venv_force_recreates_environment(comparator: BashPythonComparator):
+    """Both should recreate venv with --force flag."""
+    # First create initial venv
+    comparator.run_bash(["venv"])
+    comparator.run_python(["venv"])
+
+    # Now force recreate
+    bash_result = comparator.run_bash(["venv", "--force"])
+    python_result = comparator.run_python(["venv", "--force"])
+
+    # Both should succeed
+    assert bash_result.exit_code == 0
+    assert python_result.exit_code == 0
+
+
+def test_lint_exit_codes(comparator: BashPythonComparator):
+    """Lint should return same exit codes for clean/dirty code."""
+    # Test on clean code
+    clean_result = comparator.compare(["lint"])
+    assert clean_result["exit_code_match"]
+
+    # Introduce linting error
+    # ... (setup dirty code)
+
+    # Both should fail with same exit code
+    dirty_result = comparator.compare(["lint"])
+    assert dirty_result["bash"].exit_code == dirty_result["python"].exit_code
+    assert dirty_result["bash"].exit_code != 0
+
+
+# --- Repository command parity ---
+
+
+def test_install_creates_instance_path(comparator: BashPythonComparator):
+    """Install should create instance path in both implementations."""
+    # Note: This is a slow integration test
+    pytestmark = pytest.mark.slow
+
+    bash_result = comparator.run_bash(["install"])
+    python_result = comparator.run_python(["install"])
+
+    assert bash_result.exit_code == 0
+    assert python_result.exit_code == 0
+
+    # Both should create .invenio.private
+    assert (comparator.test_dir / ".invenio.private").exists()
+
+
+def test_reset_confirms_with_user(comparator: BashPythonComparator):
+    """Reset should prompt for confirmation in both."""
+    # Test with "no" answer
+    bash_no = comparator.run_bash_with_input(["reset"], "no\n")
+    python_no = comparator.run_python_with_input(["reset"], "no\n")
+
+    assert bash_no.exit_code == 0  # Cancelled gracefully
+    assert python_no.exit_code == 0
+
+    # Repository should still exist
+    assert (comparator.test_dir / ".venv").exists()
+
+
+def test_services_subcommands(comparator: BashPythonComparator):
+    """Services subcommands should have matching behavior."""
+    for subcmd in ["setup", "start", "stop", "destroy"]:
+        result = comparator.compare(["services", subcmd])
+
+        # Exit codes should match (may be non-zero if Docker not running)
+        assert result["exit_code_match"], f"Exit code mismatch for services {subcmd}"
 
 
 def extract_commands(help_text: str) -> set[str]:
@@ -1218,6 +1252,7 @@ Verify robustness under failure conditions: interrupted operations, missing tool
 
 ```python
 # tests/fault_tolerance/test_interrupted_operations.py
+"""Test graceful handling of interrupts and failures."""
 
 import pytest
 import signal
@@ -1227,109 +1262,118 @@ from oarepo_cli.services.venv import VirtualEnvironmentManager
 from oarepo_cli.core.errors import ProcessExecutionError
 
 
-class TestInterruptHandling:
-    """Test graceful handling of interrupts and failures."""
+def test_venv_cleanup_on_keyboard_interrupt(temp_project_dir):
+    """Partial venv creation should be cleaned up on Ctrl+C."""
+    manager = VirtualEnvironmentManager(...)
 
-    def test_venv_cleanup_on_keyboard_interrupt(self, temp_project_dir):
-        """Partial venv creation should be cleaned up on Ctrl+C."""
-        manager = VirtualEnvironmentManager(...)
+    # Simulate interrupt during venv creation
+    with patch.object(manager._process, "run") as mock_run:
+        mock_run.side_effect = KeyboardInterrupt()
 
-        # Simulate interrupt during venv creation
-        with patch.object(manager._process, "run") as mock_run:
-            mock_run.side_effect = KeyboardInterrupt()
+        with pytest.raises(KeyboardInterrupt):
+            manager.ensure_venv(VenvRequirements(...))
 
-            with pytest.raises(KeyboardInterrupt):
-                manager.ensure_venv(VenvRequirements(...))
-
-            # Verify partial artifacts were cleaned up
-            assert not (temp_project_dir / ".venv").exists()
-
-    def test_process_timeout_handling(self):
-        """Long-running processes respect timeout parameter."""
-        executor = SubprocessExecutor()
-
-        with pytest.raises(TimeoutExceeded):
-            executor.run(["sleep", "100"], timeout=1.0)
-
-    def test_concurrent_execution_lock(self, temp_project_dir):
-        """Second invocation should wait for first to complete."""
-        # Start first process
-        process1 = subprocess.Popen(
-            ["oarepo-cli", "library", "venv"],
-            cwd=temp_project_dir,
-        )
-
-        # Give it time to acquire lock
-        time.sleep(0.5)
-
-        # Try to start second process
-        process2 = subprocess.Popen(
-            ["oarepo-cli", "library", "venv"],
-            cwd=temp_project_dir,
-        )
-
-        # Second should fail with lock error
-        process2.wait()
-        assert process2.returncode != 0
-
-        process1.wait()
-
-    def test_malformed_pyproject_toml_error_message(self, temp_project_dir):
-        """Clear error message for invalid TOML."""
-        (temp_project_dir / "pyproject.toml").write_text("invalid [[[ toml")
-
-        result = runner.invoke(app, ["library", "venv"])
-
-        assert result.exit_code != 0
-        assert "Invalid TOML" in result.stdout or "Invalid TOML" in result.stderr
-
-    def test_missing_python_version_error(self, temp_project_dir):
-        """Clear error when required Python version unavailable."""
-        # Configure for Python 3.99 which doesn't exist
-        manager = VirtualEnvironmentManager(...)
-
-        with pytest.raises(VersionMismatchError) as exc_info:
-            manager.ensure_venv(VenvRequirements(python_binary="python3.99"))
-
-        assert "3.99" in str(exc_info.value)
-        assert "install" in str(exc_info.value).lower()
-
-    def test_docker_unavailable_graceful_degradation(self, temp_project_dir):
-        """Commands that don't need Docker should work without it."""
-        # Docker not running
-        manager = TestOrchestrator(...)
-        manager._config.test.skip_services = True
-
-        # Should still run pytest even if Docker unavailable
-        result = manager.run_tests()
-
-        # Test may fail but not due to Docker
-        assert "docker" not in str(result.error).lower()
+        # Verify partial artifacts were cleaned up
+        assert not (temp_project_dir / ".venv").exists()
 
 
-class TestRollbackBehavior:
-    """Test rollback on partial failures."""
+def test_process_timeout_handling():
+    """Long-running processes respect timeout parameter."""
+    executor = SubprocessExecutor()
 
-    def test_failed_install_rolls_back_changes(self, temp_project_dir):
-        """Failed installation should remove created files."""
-        installer = RepositoryInstaller(...)
+    with pytest.raises(TimeoutExceeded):
+        executor.run(["sleep", "100"], timeout=1.0)
 
-        # Simulate failure during installation
-        with patch.object(installer, "_configure_services") as mock:
-            mock.side_effect = ProcessExecutionError(...)
 
-            with pytest.raises(ProcessExecutionError):
-                installer.install()
+def test_concurrent_execution_lock(temp_project_dir):
+    """Second invocation should wait for first to complete."""
+    # Start first process
+    process1 = subprocess.Popen(
+        ["oarepo-cli", "library", "venv"],
+        cwd=temp_project_dir,
+    )
 
-            # Instance path should be removed
-            assert not installer._ctx.instance_path.exists()
+    # Give it time to acquire lock
+    time.sleep(0.5)
 
-    def test_partial_self_update_keeps_old_version(self, temp_project_dir):
-        """Failed self-update should preserve working script."""
-        # Download new version
-        # Validate fails
-        # Verify old version still in place
-        ...
+    # Try to start second process
+    process2 = subprocess.Popen(
+        ["oarepo-cli", "library", "venv"],
+        cwd=temp_project_dir,
+    )
+
+    # Second should fail with lock error
+    process2.wait()
+    assert process2.returncode != 0
+
+    process1.wait()
+
+
+def test_malformed_pyproject_toml_error_message(temp_project_dir):
+    """Clear error message for invalid TOML."""
+    (temp_project_dir / "pyproject.toml").write_text("invalid [[[ toml")
+
+    result = runner.invoke(app, ["library", "venv"])
+
+    assert result.exit_code != 0
+    assert "Invalid TOML" in result.stdout or "Invalid TOML" in result.stderr
+
+
+def test_missing_python_version_error(temp_project_dir):
+    """Clear error when required Python version unavailable."""
+    # Configure for Python 3.99 which doesn't exist
+    manager = VirtualEnvironmentManager(...)
+
+    with pytest.raises(VersionMismatchError) as exc_info:
+        manager.ensure_venv(VenvRequirements(python_binary="python3.99"))
+
+    assert "3.99" in str(exc_info.value)
+    assert "install" in str(exc_info.value).lower()
+
+
+def test_docker_unavailable_graceful_degradation(temp_project_dir):
+    """Commands that don't need Docker should work without it."""
+    # Docker not running
+    manager = TestOrchestrator(...)
+    manager._config.test.skip_services = True
+
+    # Should still run pytest even if Docker unavailable
+    result = manager.run_tests()
+
+    # Test may fail but not due to Docker
+    assert "docker" not in str(result.error).lower()
+```
+
+```python
+# tests/fault_tolerance/test_rollback_behavior.py
+"""Test rollback on partial failures."""
+
+import pytest
+from unittest.mock import patch
+from oarepo_cli.core.errors import ProcessExecutionError
+
+
+def test_failed_install_rolls_back_changes(temp_project_dir):
+    """Failed installation should remove created files."""
+    installer = RepositoryInstaller(...)
+
+    # Simulate failure during installation
+    with patch.object(installer, "_configure_services") as mock:
+        mock.side_effect = ProcessExecutionError(...)
+
+        with pytest.raises(ProcessExecutionError):
+            installer.install()
+
+        # Instance path should be removed
+        assert not installer._ctx.instance_path.exists()
+
+
+def test_partial_self_update_keeps_old_version(temp_project_dir):
+    """Failed self-update should preserve working script."""
+    # Download new version
+    # Validate fails
+    # Verify old version still in place
+    ...
 ```
 
 ---
@@ -1344,7 +1388,6 @@ class TestRollbackBehavior:
 [pytest]
 testpaths = tests
 python_files = test_*.py
-python_classes = Test*
 python_functions = test_*
 
 # Markers
