@@ -8,7 +8,7 @@ from __future__ import annotations
 import re
 
 # Python versions supported by the CLI (highest first for efficiency)
-KNOWN_PYTHON_VERSIONS = ["3.14", "3.13", "3.12", "3.11", "3.10"]
+KNOWN_PYTHON_VERSIONS = ["3.14"]
 
 # OARepo version to compatible Python versions mapping
 # Based on the old library_runner.sh implementation
