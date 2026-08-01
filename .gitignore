@@ -191,9 +191,7 @@ cython_debug/
 # .vscode/
 
 # Ruff stuff:
-.ruff.toml
 .ruff_cache/
-.mypy.ini
 
 # PyPI configuration file
 .pypirc

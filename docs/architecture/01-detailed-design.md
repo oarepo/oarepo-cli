@@ -10,7 +10,7 @@ graph TB
         REP[repository.py<br/>Repository Commands]
         SHARED[shared.py<br/>Shared Options]
     end
-    
+
     subgraph "Core Layer"
         CTX[context.py<br/>ProjectContext]
         CFG[config.py<br/>CliConfig]
@@ -18,7 +18,7 @@ graph TB
         PLT[platform.py<br/>Platform Detection]
         SIG[signals.py<br/>Signal Handling]
     end
-    
+
     subgraph "Services Layer"
         PROC[process.py<br/>ProcessExecutor]
         FS[filesystem.py<br/>FileSystem]
@@ -35,46 +35,46 @@ graph TB
         IDX[index_manager.py<br/>Index Manager]
         SRV[server.py<br/>Server Runner]
     end
-    
+
     subgraph "Adapters Layer"
         SUB[subprocess_executor.py<br/>Real ProcessExecutor]
         REALFS[real_filesystem.py<br/>Real FileSystem]
         REALENV[real_environment.py<br/>Real Environment]
         HTTP[http_client.py<br/>HTTP Client]
     end
-    
+
     MAIN --> LIB
     MAIN --> REP
     LIB --> SHARED
     REP --> SHARED
-    
+
     MAIN --> CFG
     LIB --> CTX
     REP --> CTX
-    
+
     CTX --> TOML
     CTX --> VER
     CTX --> ENV
-    
+
     VER --> PROC
     VENV --> PROC
     VENV --> FS
-    
+
     SVC --> PROC
     SVC --> ENV
-    
+
     TEST --> PROC
     XFRM --> PROC
     MDL --> PROC
     PKG --> PROC
     IDX --> PROC
     SRV --> PROC
-    
+
     SUB -.-> PROC
     REALFS -.-> FS
     REALENV -.-> ENV
     HTTP -.-> NET
-    
+
     style MAIN fill:#e1f5ff
     style LIB fill:#fff4e1
     style REP fill:#fff4e1
@@ -93,21 +93,21 @@ graph LR
         PLT[platform.py]
         SIG[signals.py]
     end
-    
+
     subgraph "Domain Models"
         CTX[context.py]
         CFG[config.py]
         VER[version_resolver.py]
         TOML[pyproject_reader.py]
     end
-    
+
     subgraph "Protocols / Interfaces"
         PROC_P[ProcessExecutor<br/>Protocol]
         FS_P[FileSystem<br/>Protocol]
         ENV_P[EnvironmentProvider<br/>Protocol]
         NET_P[NetworkClient<br/>Protocol]
     end
-    
+
     subgraph "Business Services"
         VENV[venv.py]
         SVC[services_lifecycle.py]
@@ -118,37 +118,37 @@ graph LR
         IDX[index_manager.py]
         SRV[server.py]
     end
-    
+
     subgraph "CLI Layer"
         CLI[cli/*.py]
     end
-    
+
     subgraph "Concrete Adapters"
         SUB[subprocess_executor.py]
         REALFS[real_filesystem.py]
         REALENV[real_environment.py]
         HTTP[http_client.py]
     end
-    
+
     ERR -.->|base class| CTX
     ERR -.->|base class| CFG
     ERR -.->|base class| VER
-    
+
     CTX --> TOML
     CTX --> VER
     CTX --> ENV_P
-    
+
     VER --> PROC_P
-    
+
     VENV --> PROC_P
     VENV --> FS_P
     VENV --> VER
-    
+
     SVC --> PROC_P
     SVC --> ENV_P
-    
+
     TEST --> PROC_P
-    
+
     XFRM --> PROC_P
     MDL --> PROC_P
     MDL --> NET_P
@@ -157,7 +157,7 @@ graph LR
     IDX --> PROC_P
     SRV --> PROC_P
     SRV --> SVC
-    
+
     CLI --> CTX
     CLI --> CFG
     CLI --> VENV
@@ -168,12 +168,12 @@ graph LR
     CLI --> PKG
     CLI --> IDX
     CLI --> SRV
-    
+
     SUB --> PROC_P
     REALFS --> FS_P
     REALENV --> ENV_P
     HTTP --> NET_P
-    
+
     style ERR fill:#ffebee
     style CTX fill:#e3f2fd
     style PROC_P fill:#f3e5f5
@@ -194,36 +194,36 @@ sequenceDiagram
     participant Proc as services/process.py
     participant Env as services/environment.py
     participant Test as services/test_orchestrator.py
-    
+
     User->>CLI: library test --with-coverage
     CLI->>Ctx: ProjectContext.from_cwd()
     Ctx-->>CLI: ProjectContext(root, venv, python, version)
-    
+
     CLI->>Venv: ensure_venv(config)
     Venv->>Proc: run(["uv", "venv", ...])
     Proc-->>Venv: ProcessResult(0, ...)
     Venv-->>CLI: venv_path
-    
+
     alt coverage enabled
         CLI->>Proc: run(["uv", "pip", "install", "pytest-cov"])
         Proc-->>CLI: ProcessResult(0, ...)
     end
-    
+
     CLI->>Env: get_service_env()
     Env->>Proc: run(["docker-services-cli", "up", ...])
     Proc-->>Env: ProcessResult(0, env_file)
     Env-->>CLI: {DB_URL, SEARCH_URL, ...}
-    
+
     CLI->>Test: run_tests(ctx, args, coverage=True, env_vars)
     Test->>Proc: run(["pytest", "--cov=...", ...], env={...})
     Proc-->>Test: ProcessResult(exit_code, stdout, stderr)
     Test-->>CLI: CommandResult(status, exit_code)
-    
+
     alt services not skipped
         CLI->>Proc: run(["docker-services-cli", "down"])
         Proc-->>CLI: ProcessResult(0, ...)
     end
-    
+
     CLI-->>User: Exit code from pytest
 ```
 
@@ -241,32 +241,32 @@ sequenceDiagram
     participant Trans as services/translations.py
     participant Cli as services/invenio_cli.py
     participant Svc as services/services_lifecycle.py
-    
+
     User->>CLI: repository install
     CLI->>Ctx: ProjectContext.from_cwd()
     Ctx-->>CLI: ProjectContext
-    
+
     CLI->>Venv: ensure_venv(config)
     Venv->>Proc: run(["uv", "sync", ...])
     Proc-->>Venv: ProcessResult
-    
+
     CLI->>Trans: copy_translations(ctx)
     Trans->>Proc: run(["python", "-c", "import site; ..."])
     Proc-->>Trans: site_packages_path
     Trans->>Proc: cp -R src/. site_packages/
-    
+
     CLI->>Cli: install(ctx)
     Cli->>Proc: run(["invenio-cli", "install"])
     Proc-->>Cli: ProcessResult
-    
+
     CLI->>Svc: configure_local_ports(ctx)
     Svc->>Proc: read(variables file)
     Proc-->>Svc: port mappings
     Svc->>Proc: write(.invenio.private)
-    
+
     CLI->>Trans: compile_be_translations()
     Trans->>Cli: run(["invenio-cli", "translations", "compile"])
-    
+
     CLI-->>User: Success message with next steps
 ```
 
@@ -277,47 +277,47 @@ Example: `oarepo-cli repository run`
 ```mermaid
 stateDiagram-v2
     [*] --> Idle
-    
+
     Idle --> Starting: user runs 'run' command
     Starting --> ServicesSetup: venv ready
     ServicesSetup --> DockerStart: setup complete
     DockerStart --> CeleryCheck: services up
-    
+
     CeleryCheck --> CeleryBackground: --no-celery=false
     CeleryCheck --> DirectRun: --no-celery=true
-    
+
     CeleryBackground --> WaitForSignal: worker started
     DirectRun --> WaitForSignal: invenio run started
-    
+
     WaitForSignal --> CleaningUp: SIGINT/SIGTERM
     WaitForSignal --> Running: background mode
-    
+
     Running --> CleaningUp: user stops or error
-    
+
     CleaningUp --> StopCelery: celery running
     CleaningUp --> StopDocker: no celery
-    
+
     StopCelery --> TerminateWorker: celery stopped
     TerminateWorker --> StopDocker: worker terminated
-    
+
     StopDocker --> CleanupComplete: docker down
     CleanupComplete --> [*]
-    
+
     note right of Starting
         Load config, validate pyproject.toml,
         resolve Python version
     end note
-    
+
     note right of ServicesSetup
         Create venv if needed,
         install dependencies
     end note
-    
+
     note right of DockerStart
         Run docker compose up -d,
         wait for health checks
     end note
-    
+
     note right of CleaningUp
         Signal handler ensures
         graceful shutdown
@@ -336,21 +336,23 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Optional, Sequence, Iterator
 
+
 @dataclass
 class ProcessResult:
     """Result of a subprocess execution."""
+
     returncode: int
     stdout: str
     stderr: str
     command: Sequence[str]
     cwd: Path
     duration_ms: int
-    
+
     @property
     def success(self) -> bool:
         return self.returncode == 0
-    
-    def check(self) -> 'ProcessResult':
+
+    def check(self) -> "ProcessResult":
         """Raise ProcessExecutionError if command failed."""
         if not self.success:
             raise ProcessExecutionError(
@@ -361,9 +363,10 @@ class ProcessResult:
             )
         return self
 
+
 class ProcessExecutor(ABC):
     """Abstract interface for executing external processes."""
-    
+
     @abstractmethod
     def run(
         self,
@@ -378,7 +381,7 @@ class ProcessExecutor(ABC):
     ) -> ProcessResult:
         """
         Execute a command and wait for completion.
-        
+
         Args:
             command: List of arguments (never shell string)
             cwd: Working directory
@@ -387,16 +390,16 @@ class ProcessExecutor(ABC):
             check: Raise on non-zero exit code
             forward_stdout: Stream output while capturing
             timeout: Maximum execution time in seconds
-            
+
         Returns:
             ProcessResult with exit code, output, timing
-            
+
         Raises:
             ProcessExecutionError: If check=True and returncode != 0
             TimeoutExceeded: If timeout is exceeded
         """
         pass
-    
+
     @abstractmethod
     def stream(
         self,
@@ -407,14 +410,14 @@ class ProcessExecutor(ABC):
     ) -> Iterator[str]:
         """
         Execute a command and yield output lines as they're produced.
-        
+
         Use for long-running commands where real-time output is needed.
-        
+
         Yields:
             Lines of stdout interleaved with stderr
         """
         pass
-    
+
     @abstractmethod
     def get_output(
         self,
@@ -425,7 +428,7 @@ class ProcessExecutor(ABC):
     ) -> str:
         """
         Execute a command and return stripped stdout.
-        
+
         Convenience method for commands like `python -c "print(...)"`.
         """
         pass
@@ -440,20 +443,22 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Optional
 
+
 @dataclass
 class VenvRequirements:
     python_binary: str
     oarepo_version: Optional[int] = None
     extras: list[str] = None
     editable: bool = True
-    
+
     def __post_init__(self):
         if self.extras is None:
             self.extras = []
 
+
 class VirtualEnvironmentManager:
     """Manages Python virtual environments via uv."""
-    
+
     def __init__(
         self,
         process: ProcessExecutor,
@@ -463,7 +468,7 @@ class VirtualEnvironmentManager:
         self._process = process
         self._fs = filesystem
         self._config = config
-    
+
     def ensure_venv(
         self,
         requirements: VenvRequirements,
@@ -471,37 +476,37 @@ class VirtualEnvironmentManager:
     ) -> Path:
         """
         Ensure virtual environment exists with required packages.
-        
+
         Args:
             requirements: Python version, OARepo version, extras
             force: Remove existing venv and recreate
-            
+
         Returns:
             Path to virtual environment
-            
+
         Raises:
             VersionMismatchError: If Python version incompatible
             ProcessExecutionError: If uv commands fail
         """
         venv_path = self._config.venv.path
-        
+
         if force and self._fs.exists(venv_path):
             self._fs.rmtree(venv_path)
-            
+
         if not self._fs.exists(venv_path):
             self._create_venv(requirements.python_binary, venv_path)
-            
+
         self._install_dependencies(requirements, venv_path)
-        
+
         return venv_path
-    
+
     def _create_venv(self, python: str, path: Path) -> None:
         """Create fresh virtual environment."""
         self._process.run(
             ["uv", "venv", "--python", python, "--seed", str(path)],
             check=True,
         )
-    
+
     def _install_dependencies(
         self,
         requirements: VenvRequirements,
@@ -513,19 +518,21 @@ class VirtualEnvironmentManager:
             [str(venv_path / "bin" / "python"), "-m", "pip", "install", "setuptools"],
             check=True,
         )
-        
+
         # Build oarepo version constraint
         oarepo_constraint = self._build_oarepo_constraint(requirements)
-        
+
         # Install oarepo with extras
         self._process.run(
             [
-                "uv", "pip", "install",
+                "uv",
+                "pip",
+                "install",
                 f"oarepo[{oarepo_constraint}]",
             ],
             check=True,
         )
-        
+
         # Install project itself
         if requirements.editable:
             self._process.run(
@@ -534,11 +541,11 @@ class VirtualEnvironmentManager:
             )
         else:
             self._build_and_install_wheel(requirements)
-    
+
     def upgrade_environment(self) -> None:
         """Clean cache and recreate venv from scratch."""
         self.ensure_venv(VenvRequirements(...), force=True)
-    
+
     def cleanup(self) -> None:
         """Remove virtual environment and related files."""
         venv_path = self._config.venv.path
@@ -555,92 +562,94 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
+
 @dataclass
 class PyProjectData:
     """Parsed pyproject.toml with typed accessors."""
+
     raw: dict[str, Any]
-    
+
     @property
     def name(self) -> str:
         """Package name from [project].name."""
         return self.raw["project"]["name"]
-    
+
     @property
     def homepage(self) -> str:
         """Homepage URL from [project].urls.Homepage."""
         return self.raw["project"]["urls"]["Homepage"]
-    
+
     @property
     def requires_python(self) -> str:
         """Python version constraint from [project].requires-python."""
         return self.raw["project"]["requires-python"]
-    
+
     @property
     def dependencies(self) -> list[str]:
         """List of dependency specifiers."""
         return self.raw["project"].get("dependencies", [])
-    
+
     @property
     def optional_dependencies(self) -> dict[str, list[str]]:
         """Optional extra dependencies."""
         return self.raw["project"].get("optional-dependencies", {})
-    
+
     @property
     def oarepo_versions(self) -> list[int]:
         """Extract OARepo versions from dependency constraints.
-        
+
         Looks for patterns like:
           oarepo13 = ">=13.0.0,<14.0.0"
           oarepo14 = ">=14.0.0,<15.0.0"
         """
         versions = []
         deps = self.optional_dependencies.get("oarepo", [])
-        
+
         for dep in deps:
             if match := re.match(r"oarepo(\d+)", dep):
                 versions.append(int(match.group(1)))
-                
+
         return sorted(set(versions))
-    
+
     @property
     def default_extras(self) -> list[str]:
         """Default extras to always install."""
-        return self.raw.get("tool", {}).get("oarepo", {}).get(
-            "default_extras", []
-        )
+        return self.raw.get("tool", {}).get("oarepo", {}).get("default_extras", [])
+
 
 class PyProjectReader:
     """Reads and validates pyproject.toml files."""
-    
+
     def __init__(self, filesystem: FileSystem):
         self._fs = filesystem
-    
+
     def read(self, path: Path) -> PyProjectData:
         """
         Read and parse pyproject.toml.
-        
+
         Args:
             path: Path to pyproject.toml
-            
+
         Returns:
             Typed PyProjectData object
-            
+
         Raises:
             ConfigurationError: If file missing or invalid TOML
         """
         if not self._fs.exists(path):
             raise ConfigurationError(f"pyproject.toml not found at {path}")
-            
+
         content = self._fs.read_text(path)
-        
+
         try:
             import tomllib
+
             data = tomllib.loads(content)
         except tomllib.TOMLDecodeError as e:
             raise ConfigurationError(f"Invalid TOML in {path}: {e}")
-            
+
         return PyProjectData(raw=data)
-    
+
     def read_from_cwd(self) -> PyProjectData:
         """Convenience method to read pyproject.toml in current directory."""
         return self.read(Path.cwd() / "pyproject.toml")
@@ -667,22 +676,20 @@ app = typer.Typer(
 app.add_typer(library_app, name="library", help="Library development commands")
 app.add_typer(repository_app, name="repository", help="Repository management commands")
 
+
 # Global options
 @app.callback()
 def callback(
     ctx: typer.Context,
-    verbose: Annotated[
-        bool, typer.Option("--verbose", "-v", help="Enable verbose output")
-    ] = False,
-    config: Annotated[
-        str | None, typer.Option("--config", "-c", help="Config file path")
-    ] = None,
+    verbose: Annotated[bool, typer.Option("--verbose", "-v", help="Enable verbose output")] = False,
+    config: Annotated[str | None, typer.Option("--config", "-c", help="Config file path")] = None,
 ):
     """Global callback for shared options."""
     if verbose:
         configure_logging(level="DEBUG")
     if config:
         ctx.obj = {"config_path": config}
+
 
 if __name__ == "__main__":
     app()
@@ -698,6 +705,7 @@ from pathlib import Path
 
 library_app = typer.Typer(help="Commands for library development")
 
+
 @library_app.command("venv")
 def library_venv(
     force: Annotated[bool, typer.Option("--force", "-f")] = False,
@@ -707,22 +715,23 @@ def library_venv(
     ctx = ProjectContext.from_cwd()
     config = CliConfig.from_env()
     config.build.editable = not no_editable
-    
+
     venv_mgr = VirtualEnvironmentManager(
         process=SubprocessExecutor(),
         filesystem=RealFileSystem(),
         config=config,
     )
-    
+
     requirements = VenvRequirements(
         python_binary=ctx.python_binary,
         oarepo_version=ctx.oarepo_version,
         extras=ctx.pyproject.default_extras,
         editable=not no_editable,
     )
-    
+
     venv_path = venv_mgr.ensure_venv(requirements, force=force)
     typer.echo(f"Virtual environment ready at {venv_path}")
+
 
 @library_app.command("test")
 def library_test(
@@ -735,21 +744,22 @@ def library_test(
     config = CliConfig.from_env()
     config.test.coverage = with_coverage
     config.test.skip_services = skip_services
-    
+
     orchestrator = TestOrchestrator(
         process=SubprocessExecutor(),
         context=ctx,
         config=config,
     )
-    
+
     result = orchestrator.run_tests(pytest_args=args or [])
-    
+
     if result.status == CommandStatus.SUCCESS:
         typer.echo("All tests passed!", fg="green")
     else:
         typer.echo("Tests failed!", fg="red")
-        
+
     raise typer.Exit(result.exit_code)
+
 
 # ... more commands (lint, format, start, stop, etc.)
 ```
@@ -763,19 +773,21 @@ import typer
 
 repository_app = typer.Typer(help="Commands for repository management")
 
+
 @repository_app.command("install")
 def repository_install() -> None:
     """Install repository in virtual environment."""
     ctx = ProjectContext.from_cwd()
-    
+
     installer = RepositoryInstaller(
         process=SubprocessExecutor(),
         context=ctx,
         config=CliConfig.from_env(),
     )
-    
+
     installer.install()
     typer.echo("Repository installed successfully!", fg="green")
+
 
 @repository_app.command("run")
 def repository_run(
@@ -784,14 +796,15 @@ def repository_run(
 ) -> None:
     """Start repository server."""
     ctx = ProjectContext.from_cwd()
-    
+
     runner = ServerRunner(
         process=SubprocessExecutor(),
         signal_handler=SignalHandler(),
         context=ctx,
     )
-    
+
     runner.run(no_services=no_services, no_celery=no_celery)
+
 
 # ... more commands (services, model, index, reset, etc.)
 ```
@@ -807,17 +820,19 @@ import pytest
 from pathlib import Path
 from oarepo_cli.services.pyproject_reader import PyProjectReader, PyProjectData
 
+
 def test_parse_package_name(tmp_path: Path):
     toml_content = """
     [project]
     name = "oarepo-test-package"
     """
     (tmp_path / "pyproject.toml").write_text(toml_content)
-    
+
     reader = PyProjectReader(FakeFileSystem())
     data = reader.read(tmp_path / "pyproject.toml")
-    
+
     assert data.name == "oarepo-test-package"
+
 
 def test_extract_oarepo_versions(tmp_path: Path):
     toml_content = """
@@ -828,17 +843,18 @@ def test_extract_oarepo_versions(tmp_path: Path):
     ]
     """
     (tmp_path / "pyproject.toml").write_text(toml_content)
-    
+
     reader = PyProjectReader(FakeFileSystem())
     data = reader.read(tmp_path / "pyproject.toml")
-    
+
     assert data.oarepo_versions == [13, 14]
+
 
 def test_invalid_toml_raises_error(tmp_path: Path):
     (tmp_path / "pyproject.toml").write_text("invalid [[[[ toml")
-    
+
     reader = PyProjectReader(FakeFileSystem())
-    
+
     with pytest.raises(ConfigurationError):
         reader.read(tmp_path / "pyproject.toml")
 ```
@@ -852,23 +868,28 @@ import pytest
 from oarepo_cli.adapters.subprocess_executor import SubprocessExecutor
 from oarepo_cli.services.process import ProcessExecutionError
 
+
 @pytest.fixture
 def executor():
     return SubprocessExecutor()
+
 
 def test_returns_exit_code(executor):
     result = executor.run(["python", "-c", "import sys; sys.exit(42)"])
     assert result.returncode == 42
 
+
 def test_captures_stdout(executor):
     result = executor.run(["echo", "hello world"])
     assert "hello world" in result.stdout
 
+
 def test_raises_on_check_true(executor):
     with pytest.raises(ProcessExecutionError) as exc_info:
         executor.run(["python", "-c", "import sys; sys.exit(1)"], check=True)
-    
+
     assert exc_info.value.returncode == 1
+
 
 def test_does_not_raise_on_check_false(executor):
     result = executor.run(
@@ -877,12 +898,14 @@ def test_does_not_raise_on_check_false(executor):
     )
     assert result.returncode == 1
 
+
 def test_environment_is_inherited(executor):
     result = executor.run(
         ["python", "-c", "import os; print(os.environ['TEST_VAR'])"],
         env={"TEST_VAR": "test_value"},
     )
     assert result.stdout.strip() == "test_value"
+
 
 def test_shell_injection_prevented(executor):
     # This should NOT execute the rm command
@@ -905,13 +928,15 @@ from oarepo_cli.cli.main import app
 
 runner = CliRunner()
 
+
 def test_library_help_shows_commands():
     result = runner.invoke(app, ["library", "--help"])
-    
+
     assert result.exit_code == 0
     assert "venv" in result.stdout
     assert "test" in result.stdout
     assert "lint" in result.stdout
+
 
 @pytest.mark.integration
 def test_library_venv_creates_environment(tmp_path):
@@ -922,12 +947,12 @@ def test_library_venv_creates_environment(tmp_path):
     name = "test-package"
     requires-python = ">=3.12,<3.15"
     """)
-    
+
     result = runner.invoke(
         app,
         ["--cd", str(tmp_path), "library", "venv"],
     )
-    
+
     # Should create .venv directory
     assert (tmp_path / ".venv").exists()
     assert result.exit_code == 0
@@ -945,6 +970,7 @@ from typer.testing import CliRunner
 
 runner = CliRunner()
 
+
 def run_bash_command(cmd: list[str], cwd: str) -> tuple[int, str, str]:
     """Execute shell script command and return results."""
     result = subprocess.run(
@@ -956,17 +982,22 @@ def run_bash_command(cmd: list[str], cwd: str) -> tuple[int, str, str]:
     )
     return result.returncode, result.stdout, result.stderr
 
+
 def run_python_command(cmd: list[str], cwd: str) -> tuple[int, str, str]:
     """Execute oarepo-cli command and return results."""
     result = runner.invoke(app, cmd, catch_exceptions=False)
     return result.exit_code, result.stdout, result.stderr
 
+
 @pytest.mark.compatibility
-@pytest.mark.parametrize("command", [
-    ["library", "--help"],
-    ["library", "oarepo-versions"],
-    ["repository", "--help"],
-])
+@pytest.mark.parametrize(
+    "command",
+    [
+        ["library", "--help"],
+        ["library", "oarepo-versions"],
+        ["repository", "--help"],
+    ],
+)
 def test_help_output_matches(command: list[str], sample_library_dir: str):
     """Ensure Python CLI help matches shell script help structure."""
     bash_code, bash_out, bash_err = run_bash_command(
@@ -974,15 +1005,16 @@ def test_help_output_matches(command: list[str], sample_library_dir: str):
         sample_library_dir,
     )
     py_code, py_out, py_err = run_python_command(command, sample_library_dir)
-    
+
     # Exit codes should match
     assert bash_code == py_code, f"Exit code mismatch for {command}"
-    
+
     # Help text should contain same commands
     bash_commands = extract_commands(bash_out)
     py_commands = extract_commands(py_out)
-    
+
     assert set(bash_commands) == set(py_commands)
+
 
 def extract_commands(help_text: str) -> set[str]:
     """Parse command names from help output."""
@@ -1001,29 +1033,32 @@ from unittest.mock import patch
 from oarepo_cli.services.venv import VirtualEnvironmentManager
 from oarepo_cli.core.errors import ProcessExecutionError
 
+
 def test_venv_cleanup_on_interrupt(tmp_path):
     """Ensure partial venv creation is cleaned up on SIGINT."""
     manager = VirtualEnvironmentManager(...)
-    
+
     # Simulate interrupt during venv creation
     with patch.object(manager._process, "run") as mock_run:
         mock_run.side_effect = KeyboardInterrupt()
-        
+
         with pytest.raises(KeyboardInterrupt):
             manager.ensure_venv(VenvRequirements(...))
-        
+
         # Verify partial artifacts were cleaned up
         assert not (tmp_path / ".venv").exists()
+
 
 def test_process_timeout_handling():
     """Long-running processes respect timeout parameter."""
     executor = SubprocessExecutor()
-    
+
     with pytest.raises(TimeoutExceeded):
         executor.run(
             ["sleep", "100"],
             timeout=1.0,
         )
+
 
 def test_signal_propagation_to_children():
     """Parent process forwards signals to child processes."""
@@ -1038,9 +1073,10 @@ def test_signal_propagation_to_children():
 ```python
 # services/process.py
 
+
 class ProcessExecutionError(OARepoError):
     """Raised when an external command fails."""
-    
+
     def __init__(
         self,
         command: list[str],
@@ -1052,17 +1088,18 @@ class ProcessExecutionError(OARepoError):
         self.returncode = returncode
         self.stdout = stdout
         self.stderr = stderr
-        
+
         # Format human-readable message
         msg_lines = [
             f"Command failed: {' '.join(command)}",
             f"Exit code: {returncode}",
         ]
-        
+
         if stderr.strip():
             msg_lines.append(f"Error output:\n{stderr}")
-            
+
         super().__init__("\n".join(msg_lines))
+
 
 def safe_run(
     executor: ProcessExecutor,
@@ -1073,24 +1110,24 @@ def safe_run(
 ) -> ProcessResult:
     """
     Wrap process execution with consistent error handling.
-    
+
     Args:
         executor: ProcessExecutor instance
         command: Command to run
         hide_errors: Suppress error output (for optional features)
         expected_codes: Acceptable non-zero exit codes
-        
+
     Returns:
         ProcessResult
-        
+
     Raises:
         ProcessExecutionError: For unexpected failures
     """
     result = executor.run(command, check=False)
-    
+
     if expected_codes and result.returncode in expected_codes:
         return result
-        
+
     if result.returncode != 0:
         if hide_errors:
             logger.debug(f"Command failed (expected): {command}")
@@ -1101,7 +1138,7 @@ def safe_run(
                 stdout=result.stdout,
                 stderr=result.stderr,
             )
-    
+
     return result
 ```
 
@@ -1111,6 +1148,7 @@ def safe_run(
 # services/repository_installer.py
 
 from contextlib import contextmanager
+
 
 @contextmanager
 def transactional_operation(operation_name: str):
@@ -1128,6 +1166,7 @@ def transactional_operation(operation_name: str):
             logger.error(f"Rollback failed: {rollback_error}")
         raise
 
+
 class RepositoryInstaller:
     def install(self) -> None:
         with transactional_operation("repository installation"):
@@ -1135,17 +1174,17 @@ class RepositoryInstaller:
             self._setup_instance()
             self._configure_services()
             self._compile_translations()
-    
+
     def _install_dependencies(self):
         try:
             self._venv_mgr.ensure_venv(...)
         except ProcessExecutionError as e:
             raise DependencyInstallationError(str(e)) from e
-    
+
     def _setup_instance(self):
         # Create symlinks, directories
         pass
-    
+
     def rollback_operation(self, operation_name: str):
         """Attempt best-effort cleanup based on operation type."""
         if operation_name == "repository installation":
@@ -1162,38 +1201,39 @@ class RepositoryInstaller:
 import platform
 from pathlib import Path
 
+
 class PlatformDetector:
     """Detects and handles platform-specific differences."""
-    
+
     @staticmethod
     def is_macos() -> bool:
         return platform.system() == "Darwin"
-    
+
     @staticmethod
     def is_linux() -> bool:
         return platform.system() == "Linux"
-    
+
     @staticmethod
     def is_windows() -> bool:
         return platform.system() == "Windows"
-    
+
     @staticmethod
     def get_venv_bin_dir(venv_path: Path) -> Path:
         """Get platform-specific bin directory."""
         if PlatformDetector.is_windows():
             return venv_path / "Scripts"
         return venv_path / "bin"
-    
+
     @staticmethod
     def get_venv_python(venv_path: Path) -> Path:
         """Get platform-specific Python executable."""
         return PlatformDetector.get_venv_bin_dir(venv_path) / "python"
-    
+
     @staticmethod
     def needs_dyld_fix() -> bool:
         """macOS requires DYLD_LIBRARY_PATH workaround."""
         return PlatformDetector.is_macos()
-    
+
     @staticmethod
     def get_celery_pool_recommendation() -> str:
         """macOS prefers threads over prefork for Celery."""
@@ -1214,20 +1254,22 @@ from typing import Literal
 ColorLevel = Literal["DEBUG", "INFO", "WARNING", "ERROR"]
 
 COLORS: dict[ColorLevel, str] = {
-    "DEBUG": "\033[36m",    # Cyan
-    "INFO": "\033[37m",     # White
+    "DEBUG": "\033[36m",  # Cyan
+    "INFO": "\033[37m",  # White
     "WARNING": "\033[33m",  # Yellow
-    "ERROR": "\033[31m",    # Red
+    "ERROR": "\033[31m",  # Red
 }
 RESET = "\033[0m"
 
+
 class ColoredFormatter(logging.Formatter):
     """Format log records with ANSI colors."""
-    
+
     def format(self, record: logging.LogRecord) -> str:
         color = COLORS.get(record.levelname, RESET)
         message = super().format(record)
         return f"{color}{message}{RESET}"
+
 
 def configure_logging(
     level: ColorLevel = "INFO",
@@ -1235,16 +1277,16 @@ def configure_logging(
     quiet: bool = False,
 ) -> None:
     """Configure application logging."""
-    
+
     root_logger = logging.getLogger("oarepo_cli")
     root_logger.setLevel(level)
-    
+
     # Clear existing handlers
     root_logger.handlers.clear()
-    
+
     if quiet:
         return
-    
+
     if json_mode:
         # Structured JSON logging for CI/automation
         handler = logging.StreamHandler(sys.stdout)
@@ -1252,10 +1294,8 @@ def configure_logging(
     else:
         # Human-readable colored output
         handler = logging.StreamHandler(sys.stderr)
-        handler.setFormatter(ColoredFormatter(
-            "%(levelname)s: %(message)s"
-        ))
-    
+        handler.setFormatter(ColoredFormatter("%(levelname)s: %(message)s"))
+
     root_logger.addHandler(handler)
 ```
 

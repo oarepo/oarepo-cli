@@ -1,16 +1,18 @@
-#
-# Copyright (c) 2025 CESNET z.s.p.o.
-#
-# This file is a part of oarepo-cli (see https://github.com/oarepo/oarepo-cli).
-#
-# oarepo-cli is free software; you can redistribute it and/or modify it
-# under the terms of the MIT License; see LICENSE file for more details.
-#
+# SPDX-FileCopyrightText: 2026 CESNET z.s.p.o.
+# SPDX-License-Identifier: MIT
 
 from __future__ import annotations
 
 
-# Dummy test so CI pipeline would not fail due to no tests present
+def test_version():
+    """Test that the package has a version defined."""
+    from oarepo_cli import __version__
+
+    assert __version__ is not None
+    assert isinstance(__version__, str)
+    assert len(__version__) > 0
+
+
 def test_dummy():
     """Create a dummy function for testing purposes."""
     assert True

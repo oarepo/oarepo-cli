@@ -180,7 +180,7 @@ These settings can still be overridden by environment variables and command-line
 
 **What changed:** The `self-update` command has been **completely removed** from the Python CLI.
 
-**Reason:** 
+**Reason:**
 - Incompatible with Python package distribution model (pip/PyPI)
 - Security concerns with downloading and executing remote scripts
 - Unnecessary when `pip install --upgrade` provides identical functionality
@@ -204,7 +204,7 @@ pip install --upgrade oarepo-cli
 
 **What changed:** The Python CLI no longer exports environment variables to the parent shell.
 
-**Old behavior:** 
+**Old behavior:**
 ```bash
 $ ./run.sh shell
 $ echo $DB_URL  # Would show the service URL
@@ -411,25 +411,25 @@ oarepo-cli library venv
 
 ## 11. FAQ
 
-**Q: Do I need to reinstall my virtual environments?**  
+**Q: Do I need to reinstall my virtual environments?**
 A: No, the Python CLI uses the same `.venv` directory structure. Existing venvs will work.
 
-**Q: Can I still use the shell scripts during transition?**  
+**Q: Can I still use the shell scripts during transition?**
 A: Yes, they'll remain available until v2.0.0. However, we recommend migrating to Python CLI for new projects.
 
-**Q: What happens to my `.runner.sh` cached scripts?**  
+**Q: What happens to my `.runner.sh` cached scripts?**
 A: They become obsolete. The Python CLI is installed via pip and updated that way.
 
-**Q: Is the Python CLI slower?**  
+**Q: Is the Python CLI slower?**
 A: Negligibly for most operations (~50-100ms startup overhead). Heavy operations (tests, builds) are dominated by external tools.
 
-**Q: Can I contribute to the Python CLI?**  
+**Q: Can I contribute to the Python CLI?**
 A: Absolutely! See the CONTRIBUTING.md file for development setup instructions.
 
-**Q: What if I find a bug during migration?**  
+**Q: What if I find a bug during migration?**
 A: Report it on GitHub with labels `migration` and `bug`. Include both bash and Python outputs for comparison.
 
-**Q: Will Windows be supported?**  
+**Q: Will Windows be supported?**
 A: Not in v1.x. Linux and macOS are the primary targets. Windows users should use WSL2.
 
 ---

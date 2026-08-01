@@ -67,12 +67,40 @@ pytest
 When Phase 0 lands, prefer whatever `ruff check` / `ty check` / `pytest` config it
 adds over inventing new tooling.
 
+## Tools
+
+Use:
+- git
+- gh
+
+### Reading PR review comments in this repository
+
+When you are working on a branch and need to check for new comments in the associated PR (target branch: `cli-as-python`), use these commands:
+
+```bash
+# 1. Find the PR number for your current branch
+git remote get-url origin | sed 's/.*github.com\///' | sed 's/\.git$//'
+gh pr list --state open -R oarepo/oarepo-cli --json number,headRefName
+
+# 2. Get inline file comments (most common type of review feedback)
+# Replace <PR_NUMBER> with the actual number from step 1
+gh api repos/oarepo/oarepo-cli/pulls/<PR_NUMBER>/comments
+```
+
+The API endpoint returns JSON with `path`, `line`, `original_line`, and `body` fields, which tell you exactly which file and line the comment refers to.
+
+**Example:** If the output shows a comment on `pyproject.toml` at line 43, read that file and look for the specific issue mentioned in `body`.
+
 ## Conventions
 
 - Python 3.14 (`requires-python = ">=3.14,<3.15"` in `pyproject.toml`).
-- License headers: every source file carries the CESNET MIT header (see any file
-  in `oarepo_cli/` or `tests/` for the exact block) and `from __future__ import annotations`.
+- License headers: every source file uses the simplified SPDX format:
+  ```python
+  # SPDX-FileCopyrightText: 2026 CESNET z.s.p.o.
+  # SPDX-License-Identifier: MIT
+  ```
+  Plus `from __future__ import annotations` at the top of each file.
 - Follow `implementation-steps.md`'s status flags when checking off work:
   `[ ]` not started, `[~]` in progress, `[x]` done (code + tests passing), `[!]` blocked.
-- When starting a new step, please create a new branch from `cli-as-python` and implement the step there.
-- After implementing a step, please create a PR with the changes and request a review. The target branch of the PR will be `cli-as-python`.
+- When starting a new step, create a new branch from `cli-as-python` (note: you might be on a different branch / not up-to-date) and implement the step there.
+- After implementing a step, create a PR with the changes and request a review. The target branch of the PR will be `cli-as-python`.

@@ -40,24 +40,24 @@ Per-phase deliverable. Steps within a phase can often be parallelized; see each 
 ### Step 0.1: Initialize Project Structure
 **Goal**: Create basic project layout with tooling configured.
 
-- [ ] Create directory structure (`oarepo_cli/`, `tests/`, `docs/`)
-- [ ] Initialize `pyproject.toml` with Poetry/pip configuration
-- [ ] Configure `ruff` for linting and formatting
-- [ ] Configure `mypy` or `ty` for type checking
-- [ ] Configure `pytest` with coverage settings
-- [ ] Add pre-commit hooks for ruff, mypy/ty
-- [ ] Create `.gitignore` and basic CI workflow file
+- [x] Create directory structure (`oarepo_cli/`, `tests/`, `docs/`)
+- [x] Initialize `pyproject.toml` with Poetry/pip configuration
+- [x] Configure `ruff` for linting and formatting
+- [x] Configure `mypy` or `ty` for type checking
+- [x] Configure `pytest` with coverage settings
+- [x] Add pre-commit hooks for ruff, mypy/ty
+- [x] Create `.gitignore` and basic CI workflow file
 
 **Deliverables**:
-- Project scaffolding committed to git
-- `make` targets or scripts for common operations (test, lint, format)
-- Pre-commit hooks installed and working
+- [x] Project scaffolding committed to git
+- [x] `make` targets or scripts for common operations (test, lint, format)
+- [x] Pre-commit hooks installed and working
 
 **Tests**:
-- [ ] `pytest --co` shows no errors
-- [ ] `ruff check .` passes with zero issues
-- [ ] `ty check oarepo_cli/` (or mypy) passes with zero errors
-- [ ] `pre-commit run --all-files` succeeds
+- [x] `pytest --co` shows no errors
+- [x] `ruff check .` passes with zero issues
+- [x] `ty check oarepo_cli/` (or mypy) passes with zero errors
+- [x] `pre-commit run --all-files` succeeds
 
 ---
 
@@ -971,5 +971,5 @@ Per-phase deliverable. Steps within a phase can often be parallelized; see each 
 
 ---
 
-**Last Updated**: 2026-08-01  
+**Last Updated**: 2026-08-01
 **Version**: 1.0.0

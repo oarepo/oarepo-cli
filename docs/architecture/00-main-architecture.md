@@ -150,7 +150,7 @@ The new implementation preserves all existing user-facing behavior while replaci
 
 ```bash
 oarepo-cli library <command>    # Library runner replacement
-oarepo-cli repository <command> # Repository runner replacement  
+oarepo-cli repository <command> # Repository runner replacement
 oarepo-cli repo-install         # Repository installer (top-level for convenience)
 ```
 
@@ -225,16 +225,17 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Optional
 
+
 @dataclass
 class ProjectContext:
     """Immutable project context discovered at startup."""
-    
-    root_directory: Path              # Directory containing pyproject.toml
-    pyproject_path: Path              # Full path to pyproject.toml
-    venv_path: Path                   # Resolved virtual environment path
-    python_binary: Path               # Resolved Python executable
-    oarepo_version: int               # Resolved OARepo version
-    
+
+    root_directory: Path  # Directory containing pyproject.toml
+    pyproject_path: Path  # Full path to pyproject.toml
+    venv_path: Path  # Resolved virtual environment path
+    python_binary: Path  # Resolved Python executable
+    oarepo_version: int  # Resolved OARepo version
+
     # Computed properties
     @property
     def code_directories(self) -> list[Path]: ...
@@ -243,12 +244,13 @@ class ProjectContext:
     @property
     def assets_path(self) -> Optional[Path]: ...
 
+
 class ContextBuilder:
     """Fluent builder for constructing ProjectContext with validation."""
-    
-    def from_cwd(self) -> 'ContextBuilder': ...
-    def with_python_override(self, path: Path) -> 'ContextBuilder': ...
-    def with_oarepo_version(self, version: int) -> 'ContextBuilder': ...
+
+    def from_cwd(self) -> "ContextBuilder": ...
+    def with_python_override(self, path: Path) -> "ContextBuilder": ...
+    def with_oarepo_version(self, version: int) -> "ContextBuilder": ...
     def validate(self) -> ProjectContext: ...
 ```
 
@@ -268,18 +270,21 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Optional, Sequence
 
+
 @dataclass
 class ProcessResult:
     """Result of a subprocess execution."""
+
     returncode: int
     stdout: str
     stderr: str
     command: Sequence[str]
     duration_ms: int
 
+
 class ProcessExecutor(ABC):
     """Protocol for executing external processes."""
-    
+
     @abstractmethod
     def run(
         self,
@@ -290,7 +295,7 @@ class ProcessExecutor(ABC):
         check: bool = True,
         forward_stdout: bool = False,
     ) -> ProcessResult: ...
-    
+
     @abstractmethod
     def stream(
         self,
@@ -299,8 +304,10 @@ class ProcessExecutor(ABC):
         env: Optional[dict[str, str]] = None,
     ) -> Iterator[str]: ...  # Yields lines as they're produced
 
+
 class SubprocessExecutor(ProcessExecutor):
     """Real implementation using subprocess module."""
+
     # Never uses shell=True; always passes args as list
 ```
 
@@ -319,11 +326,13 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Protocol
 
+
 @dataclass
 class VersionInfo:
     oarepo_versions: list[int]
     python_versions: list[str]  # e.g., ["3.12", "3.13"]
     node_versions: list[int]
+
 
 class VersionResolver(Protocol):
     def resolve_from_pyproject(self, pyproject_path: Path) -> VersionInfo: ...
@@ -346,12 +355,14 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Optional
 
+
 @dataclass
 class VenvConfig:
     python_binary: str
     extras: list[str]
     editable: bool = True
     oarepo_version: Optional[int] = None
+
 
 class VirtualEnvironmentManager:
     def ensure_venv(self, config: VenvConfig, force: bool = False) -> Path: ...
@@ -375,6 +386,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
+
 @dataclass
 class PyProjectModel:
     name: str
@@ -383,6 +395,7 @@ class PyProjectModel:
     oarepo_dependencies: dict[str, str]  # {version_range: constraint}
     default_extras: list[str]
     custom_sections: dict[str, Any]
+
 
 class PyProjectReader:
     def read(self, path: Path) -> PyProjectModel: ...
@@ -402,33 +415,48 @@ class PyProjectReader:
 ```python
 # core/errors.py
 
+
 class OARepoError(Exception):
     """Base exception for all oarepo-cli errors."""
+
     exit_code: int = 1
+
 
 class ConfigurationError(OARepoError):
     """Invalid or missing configuration (pyproject.toml, env vars)."""
+
     exit_code = 2
+
 
 class VersionMismatchError(ConfigurationError):
     """Incompatible Python or OARepo version."""
+
     exit_code = 3
+
 
 class ProcessExecutionError(OARepoError):
     """External command failed."""
+
     def __init__(self, command: list[str], returncode: int, stdout: str, stderr: str): ...
+
     exit_code = 4
+
 
 class FileNotFoundError(OARepoError):
     """Required file or directory missing."""
+
     exit_code = 5
+
 
 class ValidationError(OARepoError):
     """User input failed validation."""
+
     exit_code = 6
+
 
 class LockAcquisitionError(OARepoError):
     """Could not acquire operation lock (concurrent execution)."""
+
     exit_code = 7
 ```
 
@@ -443,26 +471,32 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Optional
 
+
 @dataclass
 class BuildConfig:
     editable: bool = True
+
 
 @dataclass
 class TestConfig:
     coverage: bool = False
     skip_services: bool = False
 
+
 @dataclass
 class VenvConfig:
     path: Path = Path(".venv")
+
 
 @dataclass
 class PythonConfig:
     binary: Optional[str] = None  # None = auto-detect
 
-@dataclass 
+
+@dataclass
 class OARepoConfig:
     version: Optional[int] = None  # None = first from pyproject.toml
+
 
 @dataclass
 class ServicesConfig:
@@ -473,27 +507,33 @@ class ServicesConfig:
     cache: str = "redis"
     s3: str = "minio"
 
+
 @dataclass
 class ModelConfig:
     template_url: str = "https://github.com/oarepo/nrp-model-copier"
     template_version: str = "rdm-14"
 
+
 @dataclass
 class TranslationsConfig:
     overlay_dir: Optional[Path] = None
+
 
 @dataclass
 class CeleryConfig:
     pool_type: str = "threads"  # macOS workaround
     concurrency: int = 10
 
+
 @dataclass
 class LicenseConfig:
     organization: str = "CESNET z.s.p.o"
 
+
 @dataclass
 class SecurityConfig:
     demo_user_password: str = "123456"  # Warn if not changed
+
 
 @dataclass
 class CliConfig:
@@ -508,9 +548,9 @@ class CliConfig:
     celery: CeleryConfig
     license: LicenseConfig
     security: SecurityConfig
-    
+
     @classmethod
-    def from_env_and_files(cls, root: Path) -> 'CliConfig': ...
+    def from_env_and_files(cls, root: Path) -> "CliConfig": ...
 ```
 
 ---
@@ -524,13 +564,16 @@ from dataclasses import dataclass
 from enum import Enum
 from typing import Generic, TypeVar
 
+
 class CommandStatus(Enum):
     SUCCESS = 0
     FAILURE = 1
     PARTIAL = 2  # Some steps succeeded, others failed (rollback attempted)
     CANCELLED = 3  # User interrupted
 
-T = TypeVar('T')
+
+T = TypeVar("T")
+
 
 @dataclass
 class CommandResult(Generic[T]):
@@ -540,7 +583,7 @@ class CommandResult(Generic[T]):
     output: T | None = None
     warnings: list[str] = None
     errors: list[str] = None
-    
+
     def is_success(self) -> bool: ...
     def raise_on_failure(self) -> None: ...  # Raises OARepoError on failure
 ```
@@ -551,7 +594,7 @@ class CommandResult(Generic[T]):
 
 ### ADR-001: CLI Framework Selection
 
-**Status**: Accepted  
+**Status**: Accepted
 **Date**: 2026-08-01
 
 **Context**: Need a CLI framework that supports nested subcommands, typed options, and matches the existing shell script UX.
@@ -566,7 +609,7 @@ class CommandResult(Generic[T]):
 
 ### ADR-002: Single vs Multiple Executables
 
-**Status**: Accepted  
+**Status**: Accepted
 **Date**: 2026-08-01
 
 **Context**: Should library and repository runners be separate executables?
@@ -582,7 +625,7 @@ class CommandResult(Generic[T]):
 
 ### ADR-003: Self-Update Mechanism
 
-**Status**: Rejected for Python implementation  
+**Status**: Rejected for Python implementation
 **Date**: 2026-08-01
 
 **Context**: Shell scripts self-update by downloading from GitHub. Should Python version do the same?
@@ -605,7 +648,7 @@ class CommandResult(Generic[T]):
 
 ### ADR-004: Environment Mutation
 
-**Status**: Accepted  
+**Status**: Accepted
 **Date**: 2026-08-01
 
 **Context**: Shell scripts export many environment variables that persist across commands.
@@ -623,7 +666,7 @@ class CommandResult(Generic[T]):
 
 ### ADR-005: Subprocess Execution Safety
 
-**Status**: Accepted  
+**Status**: Accepted
 **Date**: 2026-08-01
 
 **Context**: Shell scripts use string interpolation in subprocess calls, creating injection risks.
