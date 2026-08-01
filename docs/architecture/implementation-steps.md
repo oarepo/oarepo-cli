@@ -431,25 +431,25 @@ For unit-level tests, call `run()`/`stream()`/`get_output()` directly against re
 ### Step 3.6: Test Orchestrator
 **Goal**: Orchestrate pytest execution with services.
 
-- [ ] Implement `services/test_orchestrator.py` with `TestOrchestrator` class
-- [ ] Method: `run_tests(pytest_args=[], coverage=False, skip_services=False)` → CommandResult
-- [ ] Start services if not skipped
-- [ ] Install pytest-cov if coverage enabled
-- [ ] Run pytest with appropriate args
-- [ ] Stop services after tests
-- [ ] Return structured result
+- [x] Implement `services/test_orchestrator.py` with `TestOrchestrator` class
+- [x] Method: `run_tests(pytest_args=[], coverage=False, skip_services=False)` → CommandResult
+- [x] Start services if not skipped
+- [x] Install pytest-cov if coverage enabled
+- [x] Run pytest with appropriate args
+- [x] Stop services after tests
+- [x] Return structured result
 
 **Deliverables**:
 - Test orchestration service
 - Coverage support
 
 **Tests** (`tests/workflow/test_test_orchestrator.py`):
-- [ ] Test services start before pytest
-- [ ] Test services stop after pytest
-- [ ] Test coverage flags added when enabled
-- [ ] Test skip_services skips start/stop
-- [ ] Test failure status returned on pytest failure
-- [ ] Integration test: run real pytest in temp project
+- [x] Test services start before pytest
+- [x] Test services stop after pytest
+- [x] Test coverage flags added when enabled
+- [x] Test skip_services skips start/stop
+- [x] Test failure status returned on pytest failure
+- [x] Integration test: run real pytest in temp project
 
 ---
 
