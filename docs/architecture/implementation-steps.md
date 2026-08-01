@@ -401,6 +401,33 @@ For unit-level tests, call `run()`/`stream()`/`get_output()` directly against re
 
 ---
 
+### Step 3.5.1: Interactive Output for Long-Running Commands
+**Goal**: Enable real-time output for long-running commands with --quiet option.
+
+- [x] Add `--quiet` flag to commands that run long operations (venv, upgrade, etc.)
+- [x] Update `process.run()` to support interactive mode (no capture_output)
+- [x] Use PTY for interactive subprocesses when appropriate
+- [x] By default, show real-time output (visible to user)
+- [x] With `--quiet`, suppress output (capture and silence)
+- [x] Apply to commands:
+  - `library venv` - `uv pip install` can take long time
+  - `library upgrade` - cache clean + full reinstall
+  - Future commands with long operations
+
+**Deliverables**:
+- Interactive output for long-running commands
+- `--quiet` flag support
+- Real-time visibility of subprocess output
+
+**Tests** (`tests/integration/test_quiet_mode.py`):
+- [x] Existing tests pass with new interactive mode
+- [x] Test venv command shows output by default (manual verification)
+- [x] Test venv --quiet suppresses output (manual verification)
+- [x] Test upgrade command shows output by default (manual verification)
+- [x] Test upgrade --quiet suppresses output (manual verification)
+
+---
+
 ### Step 3.6: Test Orchestrator
 **Goal**: Orchestrate pytest execution with services.
 

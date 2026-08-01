@@ -152,6 +152,7 @@ def run(
     forward_stdout: bool = False,
     timeout: float | None = None,
     strip_venv: bool = True,
+    interactive: bool = False,
 ) -> ProcessResult:
     """Execute a command and wait for completion. Never uses shell=True.
 
@@ -159,12 +160,14 @@ def run(
         command: List of command arguments (never a shell string)
         cwd: Working directory for the command
         env: Environment variables (merged with parent environment)
-        capture_output: Whether to capture stdout/stderr as strings
+        capture_output: Whether to capture stdout/stderr as strings (ignored if interactive=True)
         check: Raise ProcessExecutionError on non-zero exit code
         forward_stdout: Stream output to console while capturing
         timeout: Maximum execution time in seconds
         strip_venv: Strip VIRTUAL_ENV and related variables (default: True)
                     to prevent oarepo-cli's own venv from leaking
+        interactive: If True, run with real-time output (stdout/stderr inherit from parent),
+                     capture_output is ignored. Use for long-running commands.
 
     Returns:
         ProcessResult with exit code, output, and timing
@@ -178,6 +181,47 @@ def run(
     run_env = _merge_env(env, strip_venv=strip_venv)
     start_time = time.time()
 
+    # Interactive mode: inherit stdout/stderr for real-time output
+    if interactive:
+        try:
+            result = subprocess.run(
+                command,
+                cwd=cwd,
+                env=run_env,
+                timeout=timeout,
+            )
+
+            duration_ms = int((time.time() - start_time) * 1000)
+
+            process_result = ProcessResult(
+                return_code=result.returncode,
+                stdout="",
+                stderr="",
+                command=command,
+                cwd=cwd or Path.cwd(),
+                duration_ms=duration_ms,
+            )
+
+            if check and result.returncode != 0:
+                raise ProcessExecutionError(
+                    message=f"Command failed with exit code {result.returncode}",
+                    command=list(command),
+                    returncode=result.returncode,
+                    stdout=None,
+                    stderr=None,
+                )
+
+            return process_result
+
+        except subprocess.TimeoutExpired as exc:
+            raise TimeoutExceeded(
+                command=list(command),
+                timeout=timeout,
+                stdout=None,
+                stderr=None,
+            ) from exc
+
+    # Captured mode: capture output (original behavior)
     try:
         result = subprocess.run(
             command,

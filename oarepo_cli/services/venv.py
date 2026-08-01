@@ -100,6 +100,7 @@ class VirtualEnvironmentManager:
         self,
         requirements: VenvRequirements,
         force: bool = False,
+        quiet: bool = False,
     ) -> Path:
         """Ensure virtual environment exists with required packages.
 
@@ -110,6 +111,7 @@ class VirtualEnvironmentManager:
         Args:
             requirements: Python version, OARepo version, extras to install
             force: If True, remove existing venv and recreate from scratch
+            quiet: If True, suppress command output (for --quiet flag)
 
         Returns:
             Path to the virtual environment directory
@@ -124,9 +126,9 @@ class VirtualEnvironmentManager:
             shutil.rmtree(venv_path)
 
         if not venv_path.exists():
-            self._create_venv(requirements.python_binary, venv_path)
+            self._create_venv(requirements.python_binary, venv_path, quiet=quiet)
 
-        self._install_dependencies(requirements, venv_path)
+        self._install_dependencies(requirements, venv_path, quiet=quiet)
 
         return venv_path
 
@@ -151,12 +153,13 @@ class VirtualEnvironmentManager:
         if venv_path.exists():
             shutil.rmtree(venv_path)
 
-    def _create_venv(self, python: str, path: Path) -> None:
+    def _create_venv(self, python: str, path: Path, quiet: bool = False) -> None:
         """Create fresh virtual environment using uv.
 
         Args:
             python: Python executable path or name (e.g., "python3.14")
             path: Path where the venv should be created
+            quiet: If True, suppress command output
 
         Raises:
             ProcessExecutionError: If uv venv command fails
@@ -164,12 +167,14 @@ class VirtualEnvironmentManager:
         process.run(
             ["uv", "venv", "--python", python, "--seed", str(path)],
             check=True,
+            interactive=not quiet,
         )
 
     def _install_dependencies(
         self,
         requirements: VenvRequirements,
         venv_path: Path,
+        quiet: bool = False,
     ) -> None:
         """Install OARepo and project dependencies.
 
@@ -181,6 +186,7 @@ class VirtualEnvironmentManager:
         Args:
             requirements: Requirements specifying what to install
             venv_path: Path to the virtual environment
+            quiet: If True, suppress command output
 
         Raises:
             ProcessExecutionError: If any pip install command fails
@@ -194,6 +200,7 @@ class VirtualEnvironmentManager:
         process.run(
             [str(python_path), "-m", "pip", "install", "setuptools"],
             check=True,
+            interactive=not quiet,
         )
 
         # Build oarepo version constraint and install
@@ -209,13 +216,14 @@ class VirtualEnvironmentManager:
                     f"oarepo[{oarepo_constraint}]",
                 ],
                 check=True,
+                interactive=not quiet,
             )
 
         # Install project itself
         if requirements.editable:
-            self._install_editable(requirements)
+            self._install_editable(requirements, quiet=quiet)
         else:
-            self._build_and_install_wheel(requirements)
+            self._build_and_install_wheel(requirements, quiet=quiet)
 
     def _build_oarepo_constraint(self, requirements: VenvRequirements) -> str:
         """Build OARepo package constraint string.
@@ -240,11 +248,12 @@ class VirtualEnvironmentManager:
 
         return ",".join(constraint_parts)
 
-    def _install_editable(self, requirements: VenvRequirements) -> None:
+    def _install_editable(self, requirements: VenvRequirements, quiet: bool = False) -> None:
         """Install project in editable mode.
 
         Args:
             requirements: Requirements with extras to install
+            quiet: If True, suppress command output
 
         Raises:
             ProcessExecutionError: If pip install fails
@@ -260,13 +269,15 @@ class VirtualEnvironmentManager:
         process.run(
             ["uv", "pip", "install", "--prerelease", "allow", "-e", f".[{extras_str}]"],
             check=True,
+            interactive=not quiet,
         )
 
-    def _build_and_install_wheel(self, requirements: VenvRequirements) -> None:
+    def _build_and_install_wheel(self, requirements: VenvRequirements, quiet: bool = False) -> None:
         """Build wheel and install (non-editable mode).
 
         Args:
             requirements: Requirements with extras to install
+            quiet: If True, suppress command output
 
         Raises:
             ProcessExecutionError: If build or install fails
@@ -277,7 +288,7 @@ class VirtualEnvironmentManager:
             shutil.rmtree(dist_dir)
 
         # Build wheel
-        process.run(["uv", "build", "--wheel"], check=True)
+        process.run(["uv", "build", "--wheel"], check=True, interactive=not quiet)
 
         # Find the built wheel
         wheels = list(dist_dir.glob("*.whl"))
@@ -306,4 +317,5 @@ class VirtualEnvironmentManager:
                 f"{wheel_path}[{extras_str}]",
             ],
             check=True,
+            interactive=not quiet,
         )
