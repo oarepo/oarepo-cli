@@ -14,7 +14,7 @@ from typing import TYPE_CHECKING
 if TYPE_CHECKING:
     from collections.abc import Iterator, Sequence
 
-from oarepo_cli.constants import OAREPO_ENV_DEFAULTS, STREAM_ENV_DEFAULTS
+from oarepo_cli.configuration.constants import OAREPO_ENV_DEFAULTS, STREAM_ENV_DEFAULTS
 
 # Environment variables that should be stripped when running subprocesses
 # to prevent oarepo-cli's own venv from leaking into project venvs

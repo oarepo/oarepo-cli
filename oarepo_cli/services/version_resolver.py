@@ -15,7 +15,7 @@ if TYPE_CHECKING:
 from packaging.specifiers import SpecifierSet
 from packaging.version import Version
 
-from oarepo_cli.constants import KNOWN_PYTHON_VERSIONS, OAREPO_PYTHON_COMPATIBILITY
+from oarepo_cli.configuration.constants import KNOWN_PYTHON_VERSIONS, OAREPO_PYTHON_COMPATIBILITY
 from oarepo_cli.core.errors import VersionMismatchError
 from oarepo_cli.services.pyproject_reader import PyProjectReader
 

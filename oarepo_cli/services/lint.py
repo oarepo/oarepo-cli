@@ -12,6 +12,7 @@ from typing import TYPE_CHECKING
 if TYPE_CHECKING:
     from oarepo_cli.core.context import ProjectContext
 
+from oarepo_cli.configuration import resources
 from oarepo_cli.services import process
 
 
@@ -32,63 +33,6 @@ def _tool_path(name: str) -> str:
     """
     candidate = Path(sys.executable).parent / name
     return str(candidate) if candidate.exists() else name
-
-
-RUFF_TOML = """\
-target-version = "py314"
-line-length = 120
-indent-width = 4
-
-[lint]
-select = [ "ALL" ]
-ignore = [
-    "FIX002",  # exclude TODO comments
-    "TD003",   # Missing issue link for this TODO
-    "TD002",   # Missing author in TODO
-    "N806",    # Variable name should be lowercase as we dynamically create classes
-    "ANN204",  # Missing return type annotation for __init__
-    "ANN401",  # Any in *args/**kwargs
-    "TRY003",  # Avoid long exception messages
-    "EM101",   # Avoid using string literal in exception
-    "EM102",   # Avoid using f-string literal in exception
-    "TRY301",  # Avoid raising/catching the same exception type
-    "PLC0415",  # Place imports to the top of the file
-    "PGH004",  # Use specific noqa for pylint
-    "TID252",  # Prefer absolute imports
-    "D203",    # Using D211
-    "D213",    # Using D212 (multi-line-summary-first-line) instead
-    "COM812",
-    "FBT001",  # Avoid using boolean function parameters
-    "FBT002",  # Avoid using boolean function parameters
-]
-
-[lint.per-file-ignores]
-"__init__.py" = ["E402"]
-"**/{tests,docs,tools}/*" = [
-    "E402",
-    "S101",
-    "ANN001",
-    "ARG001",
-    "D103",
-    "ANN201",
-    "D100",
-    "INP",
-    "PLR",
-    "PLC"
-    ]
-
-[format]
-docstring-code-format = true
-docstring-code-line-length = 40
-"""
-
-MYPY_INI = """\
-[mypy]
-warn_return_any = True
-warn_unused_configs = True
-warn_unreachable = True
-follow_untyped_imports = True
-"""
 
 
 def _iter_python_files(directories: list[Path]) -> list[Path]:
@@ -177,7 +121,7 @@ class LintRunner:
         root = self._context.root_directory
         code_directories = self._context.code_directories
 
-        _write_config(root / ".ruff.toml", RUFF_TOML)
+        _write_config(root / ".ruff.toml", resources.read_text("ruff.toml.tmpl"))
 
         ruff = _tool_path("ruff")
         result = process.run(
@@ -217,7 +161,7 @@ class LintRunner:
                 + [f"{len(missing_annotations)} file(s) are missing future annotations."],
             )
 
-        _write_config(root / ".mypy.ini", MYPY_INI)
+        _write_config(root / ".mypy.ini", resources.read_text("mypy.ini.tmpl"))
 
         venv_python = self._context.venv_path / "bin" / "python"
         result = process.run(
@@ -253,7 +197,7 @@ class LintRunner:
 
         ruff_toml = root / ".ruff.toml"
         if not ruff_toml.exists():
-            _write_config(ruff_toml, RUFF_TOML)
+            _write_config(ruff_toml, resources.read_text("ruff.toml.tmpl"))
 
         result = process.run(
             [ruff, "format", "--exclude", "pyproject.toml"],
