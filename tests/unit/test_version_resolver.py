@@ -118,7 +118,7 @@ def test_finding_highest_available_python(mocker: MockerFixture) -> None:
     resolver = VersionResolver()
 
     # Mock shutil.which to simulate python3.14 and python3.12 being available
-    def mock_which(name: str) -> str | None:
+    def mock_which(name: str, **_kwargs: object) -> str | None:
         if name in ("python3.14", "python3.12"):
             return f"/usr/bin/{name}"
         return None
@@ -135,7 +135,7 @@ def test_fallback_to_lower_version_if_highest_unavailable(mocker: MockerFixture)
     resolver = VersionResolver()
 
     # Mock shutil.which to simulate only python3.12 being available
-    def mock_which(name: str) -> str | None:
+    def mock_which(name: str, **_kwargs: object) -> str | None:
         if name == "python3.12":
             return "/usr/bin/python3.12"
         return None

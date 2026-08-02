@@ -360,6 +360,52 @@ tests = ["oarepo>=13.0.0,<14.0.0"]
     assert context.oarepo_version == 14
 
 
+def test_python_autodetect_ignores_active_venv(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Auto-detecting the Python binary must exclude the currently active venv.
+
+    Regression test: running oarepo-cli from inside a project with its own
+    venv activated (VIRTUAL_ENV/PATH pointing at that project's own .venv)
+    previously resolved python_binary to that venv's own interpreter. That's
+    harmless for a plain `install` on an existing venv (uv sync just reuses
+    it), but `repository upgrade` removes the venv *before* reinstalling --
+    so recreating it with a python_binary that lived inside the very venv
+    just deleted fails with "No interpreter found at path ...".
+    """
+    (tmp_path / "pyproject.toml").write_text(
+        """
+[project]
+name = "test-project"
+requires-python = ">=3.14,<3.15"
+
+[tool.oarepo-cli]
+oarepo = { version = 14 }
+"""
+    )
+
+    # A fake "activated venv" interpreter that must NOT be picked...
+    venv_bin = tmp_path / "project-venv" / "bin"
+    venv_bin.mkdir(parents=True)
+    venv_python = venv_bin / "python3.14"
+    venv_python.write_text("#!/bin/sh\n")
+    venv_python.chmod(0o755)
+
+    # ...and a real "system" interpreter that should be picked instead.
+    system_bin = tmp_path / "system-bin"
+    system_bin.mkdir()
+    system_python = system_bin / "python3.14"
+    system_python.write_text("#!/bin/sh\n")
+    system_python.chmod(0o755)
+
+    monkeypatch.setenv("VIRTUAL_ENV", str(tmp_path / "project-venv"))
+    monkeypatch.setenv("PATH", f"{venv_bin}:{system_bin}")
+
+    context = ContextBuilder().from_directory(tmp_path).validate()
+
+    assert context.python_binary == system_python
+
+
 def test_oarepo_version_env_override(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """Test that OAREPO_VERSION environment variable overrides auto-detection."""
     (tmp_path / "pyproject.toml").write_text(

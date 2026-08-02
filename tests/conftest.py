@@ -15,7 +15,7 @@ from typing import TYPE_CHECKING
 import pytest
 
 if TYPE_CHECKING:
-    from collections.abc import Iterator
+    from collections.abc import Callable, Iterator
 
 from oarepo_cli.core.config import CliConfig, ServicesConfig, TestingConfig
 from oarepo_cli.core.context import ProjectContext
@@ -247,3 +247,20 @@ def clean_testrepo(testrepo_project: Path) -> Iterator[Path]:
     reset_testrepo_state(testrepo_project)
     yield testrepo_project
     reset_testrepo_state(testrepo_project)
+
+
+@pytest.fixture(scope="session")
+def reset_testrepo_state_fn() -> Callable[[Path], None]:
+    """Session-scoped fixture handle for ``reset_testrepo_state``.
+
+    Lets test modules that need a broader-than-function fixture scope (e.g.
+    a module-scoped "run this expensive command once" fixture, which can't
+    depend on the function-scoped ``clean_testrepo``) reuse the same reset
+    logic via normal fixture injection, instead of ``from tests.conftest
+    import reset_testrepo_state`` -- an absolute ``tests.*`` import that
+    breaks pytest's rootdir-based collection once combined with the nested
+    ``tests/testlib/tests/`` directory (both resolve to a top-level `tests`
+    package/namespace, and Python's import system doesn't like it: manifests
+    as ``ModuleNotFoundError: No module named 'tests.test_sample'``).
+    """
+    return reset_testrepo_state

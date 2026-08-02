@@ -102,6 +102,24 @@ def _strip_venv_vars(env: dict[str, str]) -> dict[str, str]:
     return cleaned
 
 
+def get_system_path() -> str:
+    """Return PATH with the currently active venv's bin directory stripped out.
+
+    Mirrors ``repository_runner.sh``'s ``get_highest_available_python``,
+    which temporarily removes the activated venv from PATH before searching
+    for a system Python interpreter. Without this, resolving e.g.
+    ``python3.14`` while a project's own venv is activated finds that
+    venv's own interpreter -- which is wrong for anything that needs to
+    (re)create that very venv, e.g. ``shutil.which()`` calls used to pick
+    the interpreter for ``uv venv --python ...`` after ``repository
+    upgrade`` has just removed it.
+
+    Returns:
+        PATH string with the active venv's bin directory removed, if any
+    """
+    return _strip_venv_vars(dict(os.environ)).get("PATH", os.environ.get("PATH", ""))
+
+
 def _merge_env(
     env: dict[str, str] | None,
     strip_venv: bool = True,

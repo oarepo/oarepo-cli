@@ -23,24 +23,25 @@ from pathlib import Path
 from typing import TYPE_CHECKING
 
 import pytest
-from tests.conftest import reset_testrepo_state
 from typer.testing import CliRunner
 
 from oarepo_cli.cli.main import app
 
 if TYPE_CHECKING:
-    from collections.abc import Iterator
+    from collections.abc import Callable, Iterator
 
 
 @pytest.fixture(scope="module")
-def installed_repo(testrepo_project: Path) -> Iterator[Path]:
+def installed_repo(
+    testrepo_project: Path, reset_testrepo_state_fn: Callable[[Path], None]
+) -> Iterator[Path]:
     """Run a real `oarepo-cli repository install` once, shared by this module's tests.
 
-    Uses ``reset_testrepo_state`` directly rather than the (function-scoped)
-    ``clean_testrepo`` fixture, since a full install is too slow to redo for
-    every test function -- see that function's docstring.
+    Uses ``reset_testrepo_state_fn`` (session-scoped) rather than the
+    function-scoped ``clean_testrepo``, since a full install is too slow to
+    redo for every test function -- see that fixture's docstring.
     """
-    reset_testrepo_state(testrepo_project)
+    reset_testrepo_state_fn(testrepo_project)
     previous_cwd = Path.cwd()
     os.chdir(testrepo_project)
     try:
@@ -50,7 +51,7 @@ def installed_repo(testrepo_project: Path) -> Iterator[Path]:
         yield testrepo_project
     finally:
         os.chdir(previous_cwd)
-        reset_testrepo_state(testrepo_project)
+        reset_testrepo_state_fn(testrepo_project)
 
 
 def _site_packages(repo: Path) -> Path:

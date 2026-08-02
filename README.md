@@ -497,7 +497,7 @@ The `repository` subcommand provides tools for managing full OARepo repository i
 | Command | Description | Status |
 |---------|-------------|--------|
 | [`install`](#repository-install) | Install repository in virtual environment | ✅ Implemented |
-| `upgrade` | Clean cache and reinstall | 🔜 Phase 4.2 |
+| [`upgrade`](#repository-upgrade) | Clean cache and reinstall | ✅ Implemented |
 | `services` | Manage Docker services | 🔜 Phase 4.3 |
 | `model` | Create/update record models | 🔜 Phase 4.4 |
 | `local` | Manage local package dependencies | 🔜 Phase 4.5 |
@@ -522,7 +522,7 @@ oarepo-cli repository install
 **What it does:**
 1. Creates/syncs virtual environment with `uv sync` (reads `pyproject.toml`)
 2. Copies translation overlays from `oarepo/collected_translations` to site-packages
-3. Detects instance path via `invenio shell` (`app.instance_path`)
+3. Resolves instance path (`INVENIO_INSTANCE_PATH` env var, else `<venv>/var/instance` — Invenio's own default, computed directly rather than booting `invenio shell`)
 4. Creates instance directory and symlinks `invenio.cfg`
 5. Runs `invenio-cli install` (sets up assets, database tables, etc.)
 6. Configures local service ports in `.invenio.private` (reads from `variables` file)
@@ -546,9 +546,41 @@ oarepo-cli repository install --quiet
 - Better error messages (Python exceptions vs. bash set -e)
 - No parent-shell environment mutation (writes `.invenio.private` instead)
 
+### `repository upgrade`
+
+Cleans the virtual environment, uv cache, and lockfile, then fully reinstalls the repository.
+
+```bash
+oarepo-cli repository upgrade
+```
+
+**Options:**
+- `--quiet` / `-q`: Suppress output from subprocesses (uv, invenio-cli, etc.)
+
+**What it does:**
+1. Removes the virtual environment (`.venv`), if present
+2. Removes `uv.lock`, if present
+3. Cleans the uv cache with `uv cache clean --force`
+4. Reinstalls the repository (same steps as `repository install`)
+
+**Examples:**
+```bash
+# Standard upgrade
+oarepo-cli repository upgrade
+
+# Quiet mode (suppress subprocess output)
+oarepo-cli repository upgrade --quiet
+```
+
+**Exit codes:**
+- `0`: Upgrade successful
+- `1`: Upgrade failed (subprocess error, missing files, etc.)
+
+Use this after updating OARepo/RDM version pins, or when the environment needs a clean rebuild.
+
 ### Other Repository Commands
 
-_Commands below are to be implemented in Phase 4 (steps 4.2-4.11)._
+_Commands below are to be implemented in Phase 4 (steps 4.3-4.11)._
 
 ## Configuration
 
