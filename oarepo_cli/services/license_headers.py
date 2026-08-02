@@ -205,9 +205,12 @@ def _build_spdx_header(year: str, organization: str, comment_style: CommentStyle
             f"// SPDX-FileCopyrightText: {year} {organization}\n// SPDX-License-Identifier: MIT\n\n"
         )
     else:  # JINJA
+        # Single multi-line comment to avoid extra blank lines when rendered
         return (
-            f"{{# SPDX-FileCopyrightText: {year} {organization} #}}\n"
-            "{# SPDX-License-Identifier: MIT #}\n\n"
+            f"{{#\n"
+            f"SPDX-FileCopyrightText: {year} {organization}\n"
+            f"SPDX-License-Identifier: MIT\n"
+            "#}\n"
         )
 
 

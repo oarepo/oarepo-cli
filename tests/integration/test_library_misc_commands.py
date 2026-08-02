@@ -171,10 +171,20 @@ def test_license_headers_adds_to_jinja(
 
     assert result.exit_code == 0
     content = jinja_file.read_text()
-    # Check that it has SPDX headers with {# #} style comments
-    assert "{# spdx-filecopyrighttext:" in content.lower()
-    assert "{# spdx-license-identifier: mit #}" in content.lower()
+
+    # Check that it has SPDX headers in a Jinja comment block
+    assert "spdx-filecopyrighttext:" in content.lower()
+    assert "spdx-license-identifier: mit" in content.lower()
+    assert "{#" in content and "#}" in content
     # Check that DOCTYPE is preserved at the start
     assert content.startswith("<!DOCTYPE html>")
     # Check that the template content is preserved
     assert "{{ content }}" in content
+
+    # Verify format: DOCTYPE, then multi-line {# comment #}, then content
+    lines = content.split("\n")
+    assert lines[0] == "<!DOCTYPE html>"
+    assert lines[1] == "{#"  # Start of multi-line comment
+    assert "SPDX-FileCopyrightText" in lines[2]
+    assert "SPDX-License-Identifier" in lines[3]
+    assert lines[4] == "#}"  # End of multi-line comment
