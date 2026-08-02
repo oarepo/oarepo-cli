@@ -748,15 +748,15 @@ from dependency constraints instead of requiring explicit configuration. Step
 ### Step 4.1: Repository `install` Command
 **Goal**: Implement repository installation.
 
-- [ ] Implement `repository_install()` function
-- [ ] Ensure venv exists
-- [ ] Sync dependencies with `uv sync`
-- [ ] Copy translations overlay
-- [ ] Get instance path via invenio shell
-- [ ] Create symlinks for invenio.cfg
-- [ ] Run `invenio-cli install`
-- [ ] Configure local service ports in `.invenio.private`
-- [ ] Compile backend translations
+- [x] Implement `repository_install()` function
+- [x] Ensure venv exists
+- [x] Sync dependencies with `uv sync`
+- [x] Copy translations overlay
+- [x] Get instance path via invenio shell
+- [x] Create symlinks for invenio.cfg
+- [x] Run `invenio-cli install`
+- [x] Configure local service ports in `.invenio.private`
+- [x] Compile backend translations
 
 **Deliverables**:
 - Working install command

@@ -1,7 +1,7 @@
 # SPDX-FileCopyrightText: 2026 CESNET z.s.p.o.
 # SPDX-License-Identifier: MIT
 
-"""Translation management for OARepo library projects."""
+"""Translation management for OARepo library and repository projects."""
 
 from __future__ import annotations
 
@@ -55,3 +55,77 @@ def run_translations(
         check=False,
         interactive=not quiet,
     )
+
+
+def copy_translations(
+    context: ProjectContext,
+    *,
+    collected_translations_dir: str | None = None,
+    quiet: bool = False,
+) -> None:
+    """Copy translation overlay from oarepo collected_translations to site-packages.
+
+    Mirrors ``repository_runner.sh``'s ``copy_translations`` function: overlays
+    collected translations onto the site-packages directory to customize
+    Invenio translations for OARepo repositories.
+
+    Args:
+        context: Project context with paths and configuration
+        collected_translations_dir: Optional override for COLLECTED_TRANSLATIONS_DIR env var
+        quiet: If True, suppress status messages
+
+    Raises:
+        ProcessExecutionError: If site-packages detection or copy fails
+    """
+    # Get site-packages directory from the venv Python
+    result = process.run(
+        ["uv", "run", "--no-sync", "python", "-c", "import site; print(site.getsitepackages()[0])"],
+        cwd=context.root_directory,
+        check=True,
+        interactive=False,
+    )
+    site_packages = Path(result.stdout.strip())
+
+    # Determine source directory
+    if collected_translations_dir is None:
+        # Default: oarepo/collected_translations in site-packages
+        src = site_packages / "oarepo" / "collected_translations"
+    else:
+        src = Path(collected_translations_dir)
+
+    # Check if source exists
+    if not src.exists():
+        if not quiet:
+            import sys
+
+            print(
+                f"\n⚠️  No translations to overlay (looked at: {src}), skipping",
+                file=sys.stderr,
+            )
+        return
+
+    if not quiet:
+        import sys
+
+        print(
+            f"\n→ Overlaying translations from {src} onto {site_packages}",
+            file=sys.stderr,
+        )
+
+    # Use cp -R to recursively copy and merge
+    # The /. pattern copies contents and merges into existing directories (works on both BSD and GNU cp)
+    import shutil
+
+    # Python's shutil.copytree with dirs_exist_ok=True is equivalent to cp -R
+    # Copy all items from src into site_packages
+    for item in src.iterdir():
+        dest = site_packages / item.name
+        if item.is_dir():
+            shutil.copytree(item, dest, dirs_exist_ok=True)
+        else:
+            shutil.copy2(item, dest)
+
+    if not quiet:
+        import sys
+
+        print("✓ Translation overlay applied\n", file=sys.stderr)
