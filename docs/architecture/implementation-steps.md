@@ -708,23 +708,23 @@ from dependency constraints instead of requiring explicit configuration. Step
 - [x] Update `VirtualEnvironmentManager._install_dependencies()` to use `uv sync` instead of `uv pip install`
 - [x] Build extras list correctly for `--extra` flags (e.g., `--extra dev --extra tests --extra oarepo14`)
 - [x] Ensure `uv.lock` is in `.gitignore` for libraries (already at line 208)
-- [ ] Update unit tests in `tests/unit/test_venv_manager.py` to expect `uv sync` commands
-- [ ] Update integration tests in `tests/integration/test_library_venv_manager.py` to verify sync behavior
+- [x] Update unit tests in `tests/unit/test_venv_sync.py` to expect `uv sync` commands
+- [x] Update integration tests in `tests/integration/test_library_venv_sync.py` to verify sync behavior
 - [x] Add migration guide entry (§5.7) documenting the switch from pip to sync
 
 **Deliverables**:
 - [x] Modified `VirtualEnvironmentManager._install_dependencies()` method
-- [ ] Updated unit tests expecting `uv sync` instead of `uv pip install`
-- [ ] Updated integration tests verifying lockfile generation and sync behavior
+- [x] Updated unit tests expecting `uv sync` instead of `uv pip install`
+- [x] Updated integration tests verifying lockfile generation and sync behavior
 - [x] Migration guide entry explaining the change and its impact
 
-**Tests** (`tests/unit/test_venv_manager.py`, `tests/integration/test_library_venv_manager.py`):
-- [ ] Unit test: verify `uv sync` called with correct extras
-- [ ] Unit test: verify `--extra` flags built correctly from extras list
-- [ ] Unit test: verify editable install still uses `-e .`
-- [ ] Integration test: verify `uv.lock` generated in library directory
-- [ ] Integration test: verify dependencies installed correctly via sync
-- [ ] Integration test: verify extras (dev, tests, oarepo14) activated correctly
+**Tests** (`tests/unit/test_venv_sync.py`, `tests/integration/test_library_venv_sync.py`):
+- [x] Unit test: verify `uv sync` called with correct extras
+- [x] Unit test: verify `--extra` flags built correctly from extras list
+- [x] Unit test: verify editable install uses `uv sync`, non-editable uses wheel build
+- [x] Integration test: verify `uv.lock` generated in library directory
+- [x] Integration test: verify dependencies installed correctly via sync
+- [x] Integration test: verify extras (dev, tests, oarepo14) activated correctly
 
 **Migration impact**:
 - `uv sync` replaces `uv pip install`, generating a `uv.lock` file in library directories
