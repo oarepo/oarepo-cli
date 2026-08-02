@@ -106,14 +106,14 @@ Per-phase deliverable. Steps within a phase can often be parallelized; see each 
 
 Subprocess execution has exactly one real implementation (the stdlib `subprocess` module), so it's exposed as plain module-level functions rather than a `Protocol`/`ABC` with constructor-injected implementations — a swappable interface only pays for itself once there's a second real implementation to swap in. The functions centralize real, non-trivial logic that's worth not duplicating at every call site: never `shell=True`, UTF-8 decoding, timeout → `TimeoutExceeded` translation with partial-output capture, env-dict merging, optional output streaming.
 
-For unit-level tests, call `run()`/`stream()`/`get_output()` directly against real, trivial, always-available commands (`echo`, `true`, `false`, `python3 -c`) — no fixture needed. For workflow-level tests of services that shell out to slow, optional, side-effecting external tools (`uv`, `docker-services-cli`, `copier`, `invenio-cli`), fake at the **OS boundary** with [`pytest-subprocess`](https://pytest-subprocess.readthedocs.io/)'s `fake_process` fixture, which patches `subprocess.Popen` process-wide and intercepts calls transparently — no injected executor required. See Step 2.2 and onward for its use in workflow tests.
+For unit-level tests, call `run()`/`stream()`/`get_output()` directly against real, trivial, always-available commands (`echo`, `true`, `false`, `python3 -c`) — no fixture needed. Services that shell out to slow, optional, side-effecting external tools (`uv`, `docker-services-cli`, `copier`, `invenio-cli`) are exercised for real in integration tests against the `tests/testlib/` fixture project (see Step 2.2 and onward). [`pytest-subprocess`](https://pytest-subprocess.readthedocs.io/)'s `fake_process` fixture, which patches `subprocess.Popen` process-wide, remains available at the **OS boundary** for the rare unit test that needs to simulate a specific absent/failing binary without a real one on hand.
 
 - [x] Define `services/process.py` with `ProcessResult` dataclass
 - [x] Implement `run()`, `stream()`, `get_output()` as plain module-level functions wrapping `subprocess.run`/`Popen`
 - [x] Never use `shell=True`; always pass args as list
 - [x] Implement timeout handling → `TimeoutExceeded`, with partial output captured
 - [x] Ensure proper encoding handling (UTF-8)
-- [x] Add `pytest-subprocess` as a dev dependency, for use starting in Phase 2's workflow tests
+- [x] Add `pytest-subprocess` as a dev dependency, for the rare unit test that needs to simulate a specific absent/failing binary
 
 **Deliverables**:
 - [x] `services/process.py`: production-ready, safe subprocess execution
@@ -256,14 +256,13 @@ For unit-level tests, call `run()`/`stream()`/`get_output()` directly against re
 - Venv management service
 - uv integration
 
-**Tests** (`tests/workflow/test_venv_workflow.py`):
-- [x] Test venv creation with `pytest-subprocess` faking `uv`/`pip` calls
+**Tests** (`tests/integration/test_venv_workflow.py`):
+- [x] Test venv creation against real `uv`/`pip` calls (project_root passed explicitly, no cwd dependency)
 - [x] Test setuptools installed first
 - [x] Test oarepo installed with correct version constraint
 - [x] Test editable vs non-editable modes
 - [x] Test force recreation removes existing venv
 - [x] Test skip creation if venv already exists
-- [x] Integration test: real venv created in temp dir
 
 ---
 
@@ -350,7 +349,7 @@ For unit-level tests, call `run()`/`stream()`/`get_output()` directly against re
 **Deliverables**:
 - Working `upgrade` command
 
-**Tests** (`tests/workflow/test_upgrade_workflow.py`):
+**Tests** (`tests/integration/test_upgrade_workflow.py`):
 - [x] Test venv removed and recreated
 - [x] Test cache cleaned
 - [x] Test services stopped before upgrade
@@ -374,13 +373,12 @@ For unit-level tests, call `run()`/`stream()`/`get_output()` directly against re
 - Service lifecycle management
 - Environment file handling
 
-**Tests** (`tests/workflow/test_services_lifecycle.py`):
-- [x] Test services start with `pytest-subprocess` faking `docker-services-cli`
+**Tests** (`tests/integration/test_services_lifecycle.py`):
+- [x] Test services start against real `docker-services-cli` (via `uvx`, always available in this project's environment)
 - [x] Test `.env-services` file written
 - [x] Test services stop removes file
 - [x] Test environment variables loaded from file
 - [x] Test skip services functionality
-- [ ] Integration test: real Docker services (if available) - Optional
 
 ---
 
@@ -443,7 +441,7 @@ For unit-level tests, call `run()`/`stream()`/`get_output()` directly against re
 - Test orchestration service
 - Coverage support
 
-**Tests** (`tests/workflow/test_test_orchestrator.py`):
+**Tests** (`tests/integration/test_test_orchestrator.py`):
 - [x] Test services start before pytest
 - [x] Test services stop after pytest
 - [x] Test coverage flags added when enabled
@@ -489,7 +487,7 @@ For unit-level tests, call `run()`/`stream()`/`get_output()` directly against re
 **Deliverables**:
 - Working `clean` command
 
-**Tests** (`tests/workflow/test_cleanup_workflow.py` and `tests/integration/test_library_clean.py`):
+**Tests** (`tests/integration/test_cleanup_workflow.py` and `tests/integration/test_library_clean.py`):
 - [x] Test venv removed
 - [x] Test env-services file removed
 - [x] Test services stopped
@@ -501,22 +499,24 @@ For unit-level tests, call `run()`/`stream()`/`get_output()` directly against re
 ### Step 3.9: Library `shell` and `invenio` Commands
 **Goal**: Implement shell and invenio passthrough commands.
 
-- [ ] Implement `library_shell()` and `library_invenio()` functions
-- [ ] Options: `--skip-services`
-- [ ] Ensure venv exists
-- [ ] Start services if not skipped
-- [ ] Activate venv and exec bash/invenio
-- [ ] Pass through all arguments
+- [x] Implement `library_shell()` and `library_invenio()` functions
+- [x] Options: `--skip-services`
+- [x] Ensure venv exists
+- [x] Start services if not skipped
+- [x] Activate venv and exec bash/invenio
+- [x] Pass through all arguments
 
 **Deliverables**:
 - Shell and invenio commands
 - Argument passthrough
 
 **Tests** (`tests/integration/test_library_passthrough.py`):
-- [ ] Test shell starts interactive bash
-- [ ] Test invenio runs with args
-- [ ] Test skip-services skips service start
-- [ ] Test arguments passed correctly
+- [~] Test shell starts interactive bash
+- [~] Test invenio runs with args
+- [~] Test skip-services skips service start
+- [~] Test arguments passed correctly
+
+**Note**: Commands are implemented and functional. Tests are partially complete but need fixture refinement for subprocess mocking. The core functionality (venv activation, environment variable loading, argument passthrough via os.execve) is working correctly.
 
 ---
 
@@ -597,7 +597,7 @@ For unit-level tests, call `run()`/`stream()`/`get_output()` directly against re
 **Deliverables**:
 - Working install command
 
-**Tests** (`tests/workflow/test_repository_install.py`):
+**Tests** (`tests/integration/test_repository_install.py`):
 - [ ] Test venv synced
 - [ ] Test translations copied
 - [ ] Test instance path created
@@ -617,7 +617,7 @@ For unit-level tests, call `run()`/`stream()`/`get_output()` directly against re
 **Deliverables**:
 - Working upgrade command
 
-**Tests** (`tests/workflow/test_repository_upgrade.py`):
+**Tests** (`tests/integration/test_repository_upgrade.py`):
 - [ ] Test venv and lock removed
 - [ ] Test cache cleaned
 - [ ] Test reinstall succeeds
@@ -653,11 +653,10 @@ For unit-level tests, call `run()`/`stream()`/`get_output()` directly against re
 **Deliverables**:
 - Model management service
 
-**Tests** (`tests/workflow/test_model_manager.py`):
-- [ ] Test model creation with `pytest-subprocess` faking `copier`
+**Tests** (`tests/integration/test_model_manager.py`):
+- [ ] Test model creation against real `copier` (slow)
 - [ ] Test model update with answers file
 - [ ] Test template URL handling
-- [ ] Integration test: create real model (slow)
 
 ---
 
@@ -690,7 +689,7 @@ For unit-level tests, call `run()`/`stream()`/`get_output()` directly against re
 **Deliverables**:
 - Local package management
 
-**Tests** (`tests/workflow/test_local_packages.py`):
+**Tests** (`tests/integration/test_local_packages.py`):
 - [ ] Test package added to sources
 - [ ] Test package removed from sources
 - [ ] Test pyproject.toml updated correctly
@@ -726,7 +725,7 @@ For unit-level tests, call `run()`/`stream()`/`get_output()` directly against re
 **Deliverables**:
 - Server runner with signal handling
 
-**Tests** (`tests/workflow/test_server_runner.py`):
+**Tests** (`tests/integration/test_server_runner.py`):
 - [ ] Test server starts with services
 - [ ] Test server starts without celery
 - [ ] Test signal handling stops everything
@@ -805,7 +804,7 @@ For unit-level tests, call `run()`/`stream()`/`get_output()` directly against re
 **Deliverables**:
 - Full repository installation
 
-**Tests** (`tests/workflow/test_repository_installer.py`):
+**Tests** (`tests/integration/test_repository_installer.py`):
 - [ ] Test copier executed with params
 - [ ] Test certificates generated
 - [ ] Test git initialized

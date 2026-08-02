@@ -39,7 +39,7 @@ oarepo-cli repo-install          # Repository installer
 **Key Design Decisions:**
 1. **Typer framework** - Type-safe CLI with auto-generated help
 2. **Single executable** - Shared config/state between modes
-3. **No unnecessary abstraction** - Subprocess execution, filesystem, and environment-variable access all call `subprocess`/`pathlib.Path`/`os.environ` directly (each has exactly one real implementation), tested against real temp state (`tmp_path`, `monkeypatch`) or, for slow external tools like `uv`/`docker-services-cli`, faked at the OS boundary with `pytest-subprocess`
+3. **No unnecessary abstraction** - Subprocess execution, filesystem, and environment-variable access all call `subprocess`/`pathlib.Path`/`os.environ` directly (each has exactly one real implementation), tested against real temp state (`tmp_path`, `monkeypatch`) or, for slow external tools like `uv`/`docker-services-cli`, exercised for real in integration tests against the `tests/testlib/` fixture project
 4. **No shell=True** - Safe process execution with list arguments
 5. **tomllib parser** - Robust TOML parsing (Python 3.11+)
 6. **Preserved compatibility** - Same commands, options, exit codes
@@ -173,8 +173,7 @@ class PyProjectReader:
 
 ```
                     Characterization Tests (Bash vs Python)
-                Integration Tests (real tools, isolated dirs)
-            Workflow Tests (fakes, complete scenarios)
+        Integration Tests (real tools, service-level and CLI-level)
         Contract Tests (adapter protocol compliance)
     Unit Tests (pure logic, fastest, most numerous)
 ```
@@ -185,8 +184,7 @@ class PyProjectReader:
 |------|-------|---------|---------------|
 | Unit | 200+ | <1s each | 90%+ lines |
 | Contract | 0 (reserved) | <5s each | Only protocols with 2+ real implementations (currently none) |
-| Workflow | 50+ | <10s each | All workflows |
-| Integration | 20+ | <60s each | Critical paths |
+| Integration | 70+ | <60s each | All workflows and critical paths |
 | Characterization | 40+ | <30s each | Command parity |
 
 **See:** [02-testing-strategy.md](./02-testing-strategy.md) for complete testing documentation
@@ -294,8 +292,7 @@ Development proceeds through 8 phases, from project scaffolding to release, work
 ### Testing
 - [ ] Unit tests for parsers, resolvers, configs
 - [ ] Contract tests (only if/when a protocol gets a 2nd real implementation)
-- [ ] Workflow tests with `pytest-subprocess` faking slow external tools
-- [ ] Integration tests with real tools
+- [ ] Integration tests with real tools (service-level and CLI-level)
 - [ ] Characterization tests (bash vs python)
 - [ ] Fault tolerance tests
 

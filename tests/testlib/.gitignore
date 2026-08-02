@@ -1,0 +1,26 @@
+# This is a fixture project used by integration/workflow tests (see tests/conftest.py).
+# Keep the project sources, ignore everything the tests create/install at runtime.
+
+# Virtual environment
+.venv/
+
+# Build / packaging artifacts
+build/
+dist/
+*.egg-info/
+
+# Byte-compiled files
+__pycache__/
+*.py[codz]
+
+# Test / coverage artifacts
+.pytest_cache/
+.coverage
+.coverage.*
+htmlcov/
+
+# Services state written by `library start`/`library stop`
+.env-services
+
+# uv lockfile (this package is a member of the root uv workspace)
+uv.lock

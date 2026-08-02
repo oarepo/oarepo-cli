@@ -13,6 +13,7 @@ if TYPE_CHECKING:
 
 from oarepo_cli.services import process
 from oarepo_cli.services.services_lifecycle import ServicesLifecycleManager
+from oarepo_cli.services.venv import VenvRequirements, VirtualEnvironmentManager
 
 
 class TestOrchestrator:
@@ -78,46 +79,46 @@ class TestOrchestrator:
         service_env_vars = {}
 
         try:
-            # Start services if not skipped
+            # Start services if not skipped, unless already running (fast
+            # path: just load the existing connection details in that case)
             if not should_skip_services:
-                # Show info message before starting services
-                if not self._quiet:
+                already_running = self._services_manager.are_services_running()
+
+                if not already_running and not self._quiet:
                     from oarepo_cli.ui import ConsoleOutput
 
                     console = ConsoleOutput(quiet=False)
                     console.info("🚀 Starting services...", fg=None, bold=True)
 
-                self._services_manager.start_services()
-                services_started = True
+                service_env_vars = self._services_manager.start_services_if_needed()
+                services_started = not already_running
 
-                # Load environment variables from .env-services file
-                service_env_vars = self._services_manager.load_service_env()
-
-                if not self._quiet and console:
+                if services_started and not self._quiet and console:
                     console.info("  ✓ Services started", fg=None)
 
-            # Ensure venv exists before trying to install dependencies
-            if not self._context.venv_path.exists():
-                if not self._quiet:
-                    if console is None:
-                        from oarepo_cli.ui import ConsoleOutput
+            # Ensure venv exists before trying to install dependencies (fast
+            # path: skip reinstalling if the venv directory is already there)
+            venv_existed = self._context.venv_path.exists()
+            if not venv_existed and not self._quiet:
+                if console is None:
+                    from oarepo_cli.ui import ConsoleOutput
 
-                        console = ConsoleOutput(quiet=False)
-                    console.info("🔨 Creating virtual environment...", fg=None, bold=True)
+                    console = ConsoleOutput(quiet=False)
+                console.info("🔨 Creating virtual environment...", fg=None, bold=True)
 
-                from oarepo_cli.services.venv import VenvRequirements, VirtualEnvironmentManager
+            requirements = VenvRequirements(
+                python_binary=str(self._context.python_binary),
+                oarepo_version=self._context.oarepo_version,
+                extras=[],
+                editable=True,
+            )
+            venv_mgr = VirtualEnvironmentManager(
+                config=self._context.config, project_root=self._context.root_directory
+            )
+            venv_mgr.ensure_venv_fast(requirements, quiet=self._quiet)
 
-                requirements = VenvRequirements(
-                    python_binary=str(self._context.python_binary),
-                    oarepo_version=self._context.oarepo_version,
-                    extras=[],
-                    editable=True,
-                )
-                venv_mgr = VirtualEnvironmentManager(config=self._context.config)
-                venv_mgr.ensure_venv(requirements, force=False, quiet=self._quiet)
-
-                if not self._quiet and console:
-                    console.info("  ✓ Virtual environment created", fg=None)
+            if not venv_existed and not self._quiet and console:
+                console.info("  ✓ Virtual environment created", fg=None)
 
             # Ensure pytest and coverage are installed if needed
             self._ensure_test_dependencies(use_coverage)

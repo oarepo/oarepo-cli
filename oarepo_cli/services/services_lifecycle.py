@@ -86,6 +86,26 @@ class ServicesLifecycleManager:
 
         return env_vars
 
+    def start_services_if_needed(self) -> dict[str, str]:
+        """Start services unless already running, and return connection env vars.
+
+        If .env-services already exists, services are presumably already
+        running: skip re-invoking docker-services-cli (slow, hits Docker)
+        and just load the existing environment variables instead. Intended
+        for commands that just need connection details available on every
+        invocation (shell, invenio, test) rather than restarting services
+        each time.
+
+        Returns:
+            Dictionary of environment variables for connecting to services
+
+        Raises:
+            ProcessExecutionError: If docker-services-cli fails
+        """
+        if self.are_services_running():
+            return self.load_service_env()
+        return self.start_services()
+
     def stop_services(self) -> None:
         """Stop Docker services and clean up.
 

@@ -5,11 +5,14 @@
 
 from __future__ import annotations
 
+import os
 from typing import Annotated
 
 import typer
 
 from oarepo_cli.core.context import discover_context
+from oarepo_cli.core.platform import get_platform_detector
+from oarepo_cli.services import process
 from oarepo_cli.services.services_lifecycle import ServicesLifecycleManager
 from oarepo_cli.services.test_orchestrator import TestOrchestrator
 from oarepo_cli.services.venv import VenvRequirements, VirtualEnvironmentManager
@@ -79,6 +82,33 @@ def _start_services_impl(*, quiet: bool = False) -> None:
     except Exception as e:
         console.error(f"❌ Error starting services: {e}", fg=typer.colors.BRIGHT_RED, bold=True)
         raise typer.Exit(code=1) from e
+
+
+def _start_services_if_needed_impl(*, quiet: bool = False) -> dict[str, str]:
+    """Start services unless already running, and return connection env vars.
+
+    Delegates the "already running?" check to ServicesLifecycleManager
+    itself; only shows the usual start messages (via _start_services_impl())
+    when services actually need to start. Intended for commands that just
+    need connection details available on every invocation (shell, invenio,
+    test) rather than restarting services each time.
+
+    Args:
+        quiet: If True, pass --quiet to docker-services-cli if it runs
+
+    Returns:
+        Dictionary of environment variables for connecting to services
+    """
+    context = discover_context()
+    services_mgr = ServicesLifecycleManager(
+        config=context.config, project_root=context.root_directory, quiet=quiet
+    )
+
+    if services_mgr.are_services_running():
+        return services_mgr.load_service_env()
+
+    _start_services_impl(quiet=quiet)
+    return services_mgr.load_service_env()
 
 
 def _stop_services_impl(*, quiet: bool = False) -> None:
@@ -152,7 +182,7 @@ def library_venv(
     )
 
     # Create/verify venv
-    venv_mgr = VirtualEnvironmentManager(config=context.config)
+    venv_mgr = VirtualEnvironmentManager(config=context.config, project_root=context.root_directory)
     venv_path = venv_mgr.ensure_venv(requirements, force=force, quiet=quiet)
 
     console.success("✨ ✓ Virtual environment ready!", fg=typer.colors.BRIGHT_GREEN, bold=True)
@@ -323,7 +353,6 @@ def library_upgrade(
 
     # Clean uv cache
     console.info("🧹 Cleaning uv cache...", fg=typer.colors.CYAN)
-    from oarepo_cli.services import process
 
     try:
         process.run(["uv", "cache", "clean"], check=True, interactive=not quiet)
@@ -343,7 +372,7 @@ def library_upgrade(
     )
 
     # Create/verify venv with force=True to recreate
-    venv_mgr = VirtualEnvironmentManager(config=context.config)
+    venv_mgr = VirtualEnvironmentManager(config=context.config, project_root=context.root_directory)
     venv_path = venv_mgr.ensure_venv(requirements, force=True, quiet=quiet)
 
     console.success("✨ ✓ Upgrade completed successfully!", fg=typer.colors.BRIGHT_GREEN, bold=True)
@@ -507,3 +536,243 @@ def library_test(
             )
             raise typer.Exit(code=1) from e
         raise
+
+
+@library_app.command("shell")
+def library_shell(
+    skip_services: Annotated[
+        bool, typer.Option("--skip-services", help="Skip starting Docker services")
+    ] = False,
+) -> None:
+    """Start an interactive bash shell in the project's virtual environment.
+
+    Opens a bash shell with the virtual environment activated and all
+    environment variables from .env-services loaded. By default, Docker
+    services are started before opening the shell.
+
+    Use --skip-services to skip starting services (useful if services are
+    already running or not needed).
+
+    Examples:
+        oarepo-cli library shell
+        oarepo-cli library shell --skip-services
+    """
+    # Discover project context
+    context = discover_context()
+
+    # Console always shows output for passthrough commands
+    console = ConsoleOutput(quiet=False)
+
+    # Ensure venv exists
+    console.info("🔧 Checking virtual environment...", fg=typer.colors.BRIGHT_BLUE, bold=True)
+    venv_mgr = VirtualEnvironmentManager(config=context.config, project_root=context.root_directory)
+    requirements = VenvRequirements(
+        python_binary=str(context.python_binary),
+        oarepo_version=context.oarepo_version,
+        editable=context.config.build.editable,
+    )
+
+    try:
+        venv_path = venv_mgr.ensure_venv_fast(requirements, quiet=True)
+    except Exception as e:
+        console.error(
+            f"❌ Error ensuring virtual environment: {e}",
+            fg=typer.colors.BRIGHT_RED,
+            bold=True,
+        )
+        import traceback  # noqa: TID251
+
+        traceback.print_exc()
+        raise typer.Exit(code=1) from e
+
+    # Start services unless already running or explicitly skipped, and load
+    # the environment variables needed to connect to them
+    if skip_services:
+        services_mgr = ServicesLifecycleManager(
+            config=context.config, project_root=context.root_directory
+        )
+        service_env = services_mgr.load_service_env()
+    else:
+        service_env = _start_services_if_needed_impl(quiet=False)
+
+    # Get platform-specific paths
+    platform = get_platform_detector()
+    bin_dir = platform.get_venv_bin_dir()
+
+    # Build environment for the shell
+    shell_env = dict(os.environ)
+
+    # Add service environment variables
+    shell_env.update(service_env)
+
+    # Set VIRTUAL_ENV and update PATH
+    shell_env["VIRTUAL_ENV"] = str(venv_path)
+    venv_bin_path = str(venv_path / bin_dir)
+    shell_env["PATH"] = f"{venv_bin_path}{os.pathsep}{shell_env.get('PATH', '')}"
+
+    # Advertise the venv to prompt tools that read it directly (uv's own
+    # activate script sets this too). Use the project name rather than
+    # ".venv" since it's the more useful thing to see in the prompt.
+    shell_env["VIRTUAL_ENV_PROMPT"] = context.root_directory.name
+
+    # Fallback PS1 for plain bash with no prompt tool of its own. Only takes
+    # effect if nothing later in shell startup (rc files, prompt tools that
+    # respect this convention) resets it — VIRTUAL_ENV_DISABLE_PROMPT lets
+    # users who prefer their own prompt opt out entirely.
+    if "VIRTUAL_ENV_DISABLE_PROMPT" not in shell_env:
+        shell_env["PS1"] = f"({context.root_directory.name}) \\u@\\h:\\w\\$ "
+
+    # Drop PROMPT_COMMAND: prompt tools (e.g. starship) set it to recompute
+    # PS1 before every prompt render, so an inherited value would silently
+    # override PS1 above the moment the first prompt is drawn.
+    shell_env.pop("PROMPT_COMMAND", None)
+
+    # Suppress macOS's "default interactive shell is now zsh" nag: it's printed
+    # on every interactive bash startup and reads like something went wrong.
+    shell_env["BASH_SILENCE_DEPRECATION_WARNING"] = "1"
+
+    console.info(
+        "🐚 Starting bash shell in virtual environment...",
+        fg=typer.colors.BRIGHT_GREEN,
+        bold=True,
+    )
+    console.info("   Type 'exit' or press Ctrl+D to exit the shell.", fg=typer.colors.GREEN)
+
+    # Execute bash with the prepared environment
+    # Use os.execve to replace current process (like the old shell script did)
+    try:
+        bash_path = platform.get_default_shell()
+        os.execve(bash_path, ["bash"], shell_env)
+    except OSError as e:
+        console.error(
+            f"❌ Failed to start shell: {e}",
+            fg=typer.colors.BRIGHT_RED,
+            bold=True,
+        )
+        raise typer.Exit(code=1) from e
+
+
+@library_app.command(
+    "invenio",
+    context_settings={
+        "allow_extra_args": True,
+        "allow_interspersed_args": True,
+        "ignore_unknown_options": True,
+        # Don't let Click intercept --help: this is a passthrough to the
+        # real invenio CLI, so --help must reach invenio_args and produce
+        # invenio's own --help output, not oarepo-cli's.
+        "help_option_names": [],
+    },
+)
+def library_invenio(
+    ctx: typer.Context,
+    skip_services: Annotated[
+        bool, typer.Option("--skip-services", help="Skip starting Docker services")
+    ] = False,
+) -> None:
+    """Run invenio commands in the project's virtual environment.
+
+    Executes invenio CLI commands with the virtual environment activated and
+    all environment variables from .env-services loaded. By default, Docker
+    services are started before running the command.
+
+    Use --skip-services to skip starting services (useful if services are
+    already running or not needed).
+
+    Any additional arguments are passed directly to invenio.
+
+    Examples:
+        oarepo-cli library invenio db upgrade
+        oarepo-cli library invenio run
+        oarepo-cli library invenio --skip-services shell
+        oarepo-cli library invenio users create admin@example.com --password admin
+    """
+    # Get extra args from context (these are the invenio command args)
+    invenio_args = ctx.args if ctx.args else []
+
+    if not invenio_args:
+        typer.echo("Error: No invenio command provided.")
+        typer.echo("Example: oarepo-cli library invenio db upgrade")
+        raise typer.Exit(code=1)
+
+    # Discover project context
+    context = discover_context()
+
+    # Console always shows output for passthrough commands
+    console = ConsoleOutput(quiet=False)
+
+    # Ensure venv exists
+    console.info("🔧 Checking virtual environment...", fg=typer.colors.BRIGHT_BLUE, bold=True)
+    venv_mgr = VirtualEnvironmentManager(config=context.config, project_root=context.root_directory)
+    requirements = VenvRequirements(
+        python_binary=str(context.python_binary),
+        oarepo_version=context.oarepo_version,
+        editable=context.config.build.editable,
+    )
+
+    try:
+        venv_path = venv_mgr.ensure_venv_fast(requirements, quiet=True)
+    except Exception as e:
+        console.error(
+            f"❌ Error ensuring virtual environment: {e}",
+            fg=typer.colors.BRIGHT_RED,
+            bold=True,
+        )
+        raise typer.Exit(code=1) from e
+
+    # Start services unless already running or explicitly skipped, and load
+    # the environment variables needed to connect to them
+    if skip_services:
+        services_mgr = ServicesLifecycleManager(
+            config=context.config, project_root=context.root_directory
+        )
+        service_env = services_mgr.load_service_env()
+    else:
+        service_env = _start_services_if_needed_impl(quiet=False)
+
+    # Get platform-specific paths
+    platform = get_platform_detector()
+    bin_dir = platform.get_venv_bin_dir()
+    invenio_path = venv_path / bin_dir / "invenio"
+
+    # Check if invenio executable exists
+    if not invenio_path.exists():
+        console.error(
+            "❌ invenio command not found in virtual environment.",
+            fg=typer.colors.BRIGHT_RED,
+            bold=True,
+        )
+        console.info(
+            "   Make sure your project has invenio installed.",
+            fg=typer.colors.YELLOW,
+        )
+        raise typer.Exit(code=1)
+
+    # Build environment for the command
+    cmd_env = dict(os.environ)
+
+    # Add service environment variables
+    cmd_env.update(service_env)
+
+    # Set VIRTUAL_ENV and update PATH
+    cmd_env["VIRTUAL_ENV"] = str(venv_path)
+    venv_bin_path = str(venv_path / bin_dir)
+    cmd_env["PATH"] = f"{venv_bin_path}{os.pathsep}{cmd_env.get('PATH', '')}"
+
+    console.info(
+        f"🚀 Running: invenio {' '.join(invenio_args)}",
+        fg=typer.colors.BRIGHT_GREEN,
+        bold=True,
+    )
+
+    # Execute invenio with the prepared environment
+    # Use os.execve to replace current process (preserves exit codes)
+    try:
+        os.execve(str(invenio_path), ["invenio", *invenio_args], cmd_env)
+    except OSError as e:
+        console.error(
+            f"❌ Failed to run invenio: {e}",
+            fg=typer.colors.BRIGHT_RED,
+            bold=True,
+        )
+        raise typer.Exit(code=1) from e
