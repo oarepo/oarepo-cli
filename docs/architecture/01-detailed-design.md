@@ -564,25 +564,88 @@ class PyProjectData:
 
     @property
     def oarepo_versions(self) -> list[int]:
-        """Extract OARepo versions from dependency constraints.
+        """Extract OARepo major versions from dependency constraints.
 
-        Looks for patterns like:
-          oarepo13 = ">=13.0.0,<14.0.0"
-          oarepo14 = ">=14.0.0,<15.0.0"
+        Scans [project].dependencies and [project].optional-dependencies for
+        'oarepo' package references and extracts major version numbers from
+        version constraints.
+
+        Supports patterns like:
+          oarepo>=14.0.0,<15.0.0  → 14
+          oarepo>=13.0.0,<14.0.0  → 13
+          oarepo==14.0.5         → 14
+
+        Returns:
+            List of unique major versions, sorted highest-first.
+            Example: [14, 13] for a project using oarepo 14 in main deps
+                     and oarepo 13 in tests extra.
+
+        Note:
+            This replaces the Step 3.12 approach of reading from
+            [tool.oarepo-cli].version, eliminating duplicate configuration.
+            Version constraints are parsed using packaging.specifiers.
         """
-        versions = []
-        deps = self.optional_dependencies.get("oarepo", [])
+        versions = set()
 
-        for dep in deps:
-            if match := re.match(r"oarepo(\d+)", dep):
-                versions.append(int(match.group(1)))
+        # Scan main dependencies
+        for dep in self.dependencies:
+            if version := _extract_oarepo_version_from_specifier(dep):
+                versions.add(version)
 
-        return sorted(set(versions))
+        # Scan all optional dependency groups
+        for extra_deps in self.optional_dependencies.values():
+            for dep in extra_deps:
+                if version := _extract_oarepo_version_from_specifier(dep):
+                    versions.add(version)
+
+        return sorted(versions, reverse=True)  # Highest first
 
     @property
     def default_extras(self) -> list[str]:
         """Default extras to always install."""
         return self.raw.get("tool", {}).get("oarepo", {}).get("default_extras", [])
+
+
+def _extract_oarepo_version_from_specifier(dep_spec: str) -> int | None:
+    """Extract major version from an oarepo dependency specifier.
+
+    Args:
+        dep_spec: A PEP 508 dependency specifier, e.g.:
+                  "oarepo>=14.0.0,<15.0.0"
+                  "oarepo==14.0.5"
+                  "oarepo[search]>=13.0.0,<14.0.0"
+
+    Returns:
+        The major version number if the package is 'oarepo', else None.
+        Returns None for invalid specifiers (logs warning).
+
+    Example:
+        >>> _extract_oarepo_version_from_specifier("oarepo>=14.0.0,<15.0.0")
+        14
+        >>> _extract_oarepo_version_from_specifier("other-package>=1.0")
+        None
+    """
+    from packaging.requirements import Requirement, InvalidRequirement
+    import logging
+
+    try:
+        req = Requirement(dep_spec)
+    except InvalidRequirement:
+        logging.warning(f"Invalid dependency specifier: {dep_spec}")
+        return None
+
+    if req.name != "oarepo":
+        return None
+
+    # Extract major version from specifiers (>=X.Y.Z or ==X.Y.Z patterns)
+    for spec in req.specifier:
+        if spec.operator in (">=", "==", "~="):
+            # Parse version string (e.g., "14.0.0" -> 14)
+            version_str = spec.version
+            major = int(version_str.split(".")[0])
+            return major
+
+    return None
 
 
 class PyProjectReader:

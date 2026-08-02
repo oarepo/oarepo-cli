@@ -285,45 +285,71 @@ Step 3.12](./implementation-steps.md) and [00-main-architecture.md
 
 **What changed:** The OARepo version is now configured in `[tool.oarepo-cli]`
 instead of being inferred from `[project.optional-dependencies]` keys.
+### 5.6 `oarepo-versions` now extracts from dependency constraints (Step 3.13)
 
-**Old approach** (bash script):
+**Old approach** (bash script, scanned for `oarepoXX` keys):
 ```toml
 [project.optional-dependencies]
 oarepo14 = ["oarepo>=14.0.0,<15.0.0"]
 oarepo13 = ["oarepo>=13.0.0,<14.0.0"]
 ```
 
-**New approach** (Python CLI):
+**Interim approach** (Step 3.12, explicit configuration - now **deprecated**):
 ```toml
 [tool.oarepo-cli]
 version = 14
 ```
 
-**Reason:**
-- Aligns with the `[tool.oarepo-cli]` configuration section used for other
-  CLI settings
-- Simplifies configuration: projects target a single OARepo version, not
-  multiple simultaneously
-- Provides a canonical location for version discovery, consistent with how
-  the CLI reads other settings via `CliConfig.from_pyproject()`
+**New approach** (Step 3.13, extracted from standard dependencies):
+```toml
+# Main dependencies (most common)
+[project.dependencies]
+oarepo = ">=14.0.0,<15.0.0"
 
-**Migration:** Add `[tool.oarepo-cli]` section with `version` key to your
-`pyproject.toml`. The JSON output format remains compatible (still returns a
-list, now with a single element):
-
-```bash
-# Old bash output (multi-version)
-./run.sh oarepo-versions
-{"oarepo_versions": ["13", "14"], ...}
-
-# New Python CLI output (single version)
-oarepo-cli library oarepo-versions
-{"oarepo_versions": ["14"], ...}
+# OR in optional dependencies
+[project.optional-dependencies]
+dev = ["oarepo>=14.0.0,<15.0.0"]
+tests = ["oarepo>=13.0.0,<14.0.0"]  # supports multi-version
 ```
 
-**Note:** The optional-dependencies keys (`oarepo14`, etc.) are no longer
-used by the CLI for version discovery, but you may keep them for dependency
-management purposes.
+**Reason:**
+- **Single source of truth**: Version information is extracted from where it
+  must already be declared (dependency specs), not duplicated in tool config
+- **Standard Python packaging**: Aligns with PEP 621 and how pip/uv/poetry
+  already consume version constraints
+- **Zero configuration**: Projects using standard dependency declarations work
+  out-of-the-box
+- **Multi-version support**: Unlike the Step 3.12 config approach, this can
+  detect multiple oarepo versions across different extras (restoring bash
+  behavior)
+
+**Migration:**
+
+1. **If you added `[tool.oarepo-cli].version` in Step 3.12**: Remove it. The
+   CLI will now extract the version from your existing `oarepo` dependency in
+   `[project.dependencies]` or `[project.optional-dependencies]`.
+
+2. **If you have standard oarepo dependencies**: No action needed! The CLI
+   automatically detects version constraints from patterns like:
+   - `oarepo>=14.0.0,<15.0.0` → version 14
+   - `oarepo==14.0.5` → version 14
+   - Multiple versions in different extras → returns all, highest-first
+
+3. **If you have no oarepo dependency**: The command returns an empty list
+   (same as before if `[tool.oarepo-cli].version` was missing).
+
+**Output format** (unchanged, still JSON):
+```bash
+# Single version
+oarepo-cli library oarepo-versions
+{"oarepo_versions": [14], "python_versions": ["3.14"], ...}
+
+# Multi-version (if oarepo appears in multiple extras with different constraints)
+{"oarepo_versions": [14, 13], "python_versions": ["3.14"], ...}
+```
+
+**Note:** The `[tool.oarepo-cli].version` key from Step 3.12 is ignored with a
+warning if present. The CLI always reads from dependency constraints now.
 
 ---
 

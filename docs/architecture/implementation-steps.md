@@ -658,8 +658,44 @@ them to describe the shipped behavior once this step lands).
 - [x] Test versions extracted correctly
 - [x] Test configuration from `[tool.oarepo-cli].version`
 
-**Note**: This is an intentional divergence from the bash script's multi-version
-approach. See `docs/architecture/00-main-architecture.md` §1.1.2 for rationale.
+**Note**: This approach is **superseded by Step 3.13**, which extracts versions
+from dependency constraints instead of requiring explicit configuration. Step
+3.12 remains functional but the `[tool.oarepo-cli].version` key is deprecated.
+
+---
+
+### Step 3.13: Refactor `oarepo-versions` to Extract from Dependencies
+**Goal**: Replace `[tool.oarepo-cli].version` configuration with automatic extraction from main/optional dependencies.
+
+- [ ] Update `PyProjectData.oarepo_versions()` to scan `dependencies` and `optional-dependencies` for `oarepo` package
+- [ ] Parse version constraints (e.g., `"oarepo>=14.0.0,<15.0.0"` → major version `14`)
+- [ ] Return list of major versions sorted highest-first
+- [ ] Support both main dependencies and dev/tests extras
+- [ ] Remove reliance on `[tool.oarepo-cli].version` key
+
+**Deliverables**:
+- [ ] Updated `PyProjectData.oarepo_versions` property
+- [ ] Updated architectural docs (00-main-architecture.md §1.1.2, 01-detailed-design.md §6.3, 03-migration-guide.md §5.6)
+
+**Tests** (`tests/unit/test_pyproject_reader.py`, `tests/integration/test_library_versions.py`):
+- [ ] Test extraction from main dependencies: `oarepo>=14.0.0,<15.0.0` → `[14]`
+- [ ] Test extraction from optional dependencies (dev, tests extras)
+- [ ] Test multiple constraints: `oarepo>=13.0.0,<14.0.0` and `oarepo>=14.0.0,<15.0.0` → `[14, 13]` (highest first)
+- [ ] Test exact version pins: `oarepo==14.0.5` → `[14]`
+- [ ] Test no oarepo dependency → `[]`
+- [ ] Test invalid constraint format (gracefully ignore/log warning)
+- [ ] Integration test: JSON output still valid after refactor
+
+**Migration impact**:
+- Existing `[tool.oarepo-cli].version` configuration becomes **deprecated but not removed** (CLI ignores it with a warning if present)
+- Projects using standard dependency declarations automatically work without config changes
+- See updated migration guide for transition plan
+
+**Rationale**:
+- Eliminates duplicate configuration: the oarepo version is already declared in dependencies
+- Aligns with standard Python packaging practices (version constraints live in `[project]` section)
+- Supports projects with multiple oarepo versions in different extras (e.g., dev with v14, tests with v13)
+- Makes the CLI less opinionated about project structure
 
 ---
 
