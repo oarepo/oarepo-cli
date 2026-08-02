@@ -705,18 +705,18 @@ from dependency constraints instead of requiring explicit configuration. Step
 ### Step 3.14: Migrate Library venv/install to `uv sync`
 **Goal**: Replace `uv pip install` with `uv sync` for library dependency installation, unifying the approach with repository installation.
 
-- [ ] Update `VirtualEnvironmentManager._install_dependencies()` to use `uv sync` instead of `uv pip install`
-- [ ] Build extras list correctly for `--extra` flags (e.g., `--extra dev --extra tests --extra oarepo14`)
-- [ ] Ensure `uv.lock` is in `.gitignore` for libraries (already at line 208)
+- [x] Update `VirtualEnvironmentManager._install_dependencies()` to use `uv sync` instead of `uv pip install`
+- [x] Build extras list correctly for `--extra` flags (e.g., `--extra dev --extra tests --extra oarepo14`)
+- [x] Ensure `uv.lock` is in `.gitignore` for libraries (already at line 208)
 - [ ] Update unit tests in `tests/unit/test_venv_manager.py` to expect `uv sync` commands
 - [ ] Update integration tests in `tests/integration/test_library_venv_manager.py` to verify sync behavior
-- [ ] Add migration guide entry (§5.7) documenting the switch from pip to sync
+- [x] Add migration guide entry (§5.7) documenting the switch from pip to sync
 
 **Deliverables**:
-- [ ] Modified `VirtualEnvironmentManager._install_dependencies()` method
+- [x] Modified `VirtualEnvironmentManager._install_dependencies()` method
 - [ ] Updated unit tests expecting `uv sync` instead of `uv pip install`
 - [ ] Updated integration tests verifying lockfile generation and sync behavior
-- [ ] Migration guide entry explaining the change and its impact
+- [x] Migration guide entry explaining the change and its impact
 
 **Tests** (`tests/unit/test_venv_manager.py`, `tests/integration/test_library_venv_manager.py`):
 - [ ] Unit test: verify `uv sync` called with correct extras
