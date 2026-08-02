@@ -61,53 +61,75 @@ requested explicitly, not derived from the bash scripts:
   modifies target project files, only generates `.ruff.toml`/`ty.toml`,
   same as `lint`/`format` already do).
 
-#### 1.1.2 Intentional divergence: `oarepo-versions` uses `[tool.oarepo-cli]` configuration
+#### 1.1.2 Intentional divergence: `oarepo-versions` extracts from dependency constraints
 
-**Implemented in Step 3.12** — see [implementation-steps.md Step
-3.12](./implementation-steps.md).
+**To be implemented in Step 3.13** — see [implementation-steps.md Step
+3.13](./implementation-steps.md).
 
 The original bash script extracted OARepo versions by scanning
 `pyproject.toml` for keys like `oarepo14`, `oarepo13` in
 `[project.optional-dependencies]`, supporting multiple versions:
 
 ```bash
-egrep "^oarepo[0-9]{2}\s*=" pyproject.toml
+egrep "^oarepo[0-9]{2}\\s*=" pyproject.toml
 ```
 
-This approach is replaced with a cleaner configuration model that aligns
-with the `[tool.oarepo-cli]` section used throughout the Python CLI:
+The initial Python CLI implementation (Step 3.12) replaced this with a
+`[tool.oarepo-cli].version` configuration key. **Step 3.13 refactors this
+approach** to instead extract version information directly from dependency
+constraints in `[project.dependencies]` or `[project.optional-dependencies]`,
+eliminating the need for separate configuration.
 
-**Old bash approach** (multiple versions from optional-dependencies keys):
+**Old bash approach** (scanned optional-dependencies keys):
 ```toml
 [project.optional-dependencies]
 oarepo14 = ["oarepo>=14.0.0,<15.0.0"]
 oarepo13 = ["oarepo>=13.0.0,<14.0.0"]
 ```
 
-**New Python CLI approach** (single version from tool configuration):
+**Step 3.12 approach** (explicit configuration, now deprecated):
 ```toml
 [tool.oarepo-cli]
 version = 14
 ```
 
-**Rationale:**
-- Aligns with the `[tool.oarepo-cli]` configuration section used for other
-  CLI settings (`venv.path`, `services.*`, etc.)
-- Simplifies configuration: projects target a single OARepo version, not
-  multiple simultaneously
-- Removes dependency on optional-dependencies key names for configuration
-  discovery
-- Provides a canonical location for OARepo version that's consistent with
-  how the CLI discovers it elsewhere (via `CliConfig.from_pyproject()`)
+**New Step 3.13 approach** (extracted from standard dependency declarations):
+```toml
+[project.dependencies]
+oarepo = ">=14.0.0,<15.0.0"
 
-The JSON output format remains compatible (returns a single-element list):
+# OR in optional dependencies:
+[project.optional-dependencies]
+dev = ["oarepo>=14.0.0,<15.0.0"]
+tests = ["oarepo>=13.0.0,<14.0.0"]  # multi-version support
+```
+
+**Rationale:**
+- **Single source of truth**: Version information lives where it already must
+  be declared (in dependency specs), not duplicated in a tool-specific config
+- **Standard Python packaging**: Aligns with PEP 621 and how all other tools
+  (pip, uv, poetry) already consume version constraints
+- **Multi-version support restored**: Unlike the Step 3.12 single-version
+  config, this approach can detect multiple oarepo versions across different
+  extras (e.g., dev with v14, tests with v13) and return them highest-first
+- **Zero configuration**: Projects following standard packaging conventions
+  work out-of-the-box without any `[tool.oarepo-cli]` section
+- **Less opinionated**: The CLI doesn't dictate a specific configuration
+  structure beyond standard dependencies
+
+The JSON output format returns all detected major versions, sorted
+highest-first:
 ```json
 {
-  "oarepo_versions": ["14"],
+  "oarepo_versions": [14, 13],
   "python_versions": ["3.14"],
   "node_versions": ["24"]
 }
 ```
+
+For projects with a single oarepo dependency, the behavior is identical to
+Step 3.12 (single-element list). Projects with multiple versions in different
+extras now get all versions reported, restoring the bash script's capability.
 
 ### 1.2 Repository Installer Commands
 
