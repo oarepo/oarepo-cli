@@ -56,7 +56,7 @@ oarepo-cli library test
 | `./run.sh test` | `oarepo-cli library test` | Identical behavior |
 | `./run.sh test --skip-services` | `oarepo-cli library test --skip-services` | Same flag |
 | `./run.sh test --with-coverage` | `oarepo-cli library test --with-coverage` | Same flag |
-| `./run.sh oarepo-versions` | `oarepo-cli library oarepo-versions` | JSON output preserved |
+| `./run.sh oarepo-versions` | `oarepo-cli library oarepo-versions` | **Configuration change required** — see §5.6 |
 | `./run.sh clean` | `oarepo-cli library clean` | Identical behavior |
 | `./run.sh shell` | `oarepo-cli library shell` | Identical behavior |
 | `./run.sh shell --skip-services` | `oarepo-cli library shell --skip-services` | Same flag |
@@ -276,6 +276,54 @@ scripts had no equivalent split between "fix" and "check only" modes.
 files should switch to `library lint --no-fix` or `library check`.
 Scripts that want the old always-fix `format` behavior don't need to
 change anything, since `--fix` is the default.
+
+### 5.6 `oarepo-versions` configuration change
+
+**Status: Implemented in Step 3.12** — see [implementation-steps.md
+Step 3.12](./implementation-steps.md) and [00-main-architecture.md
+§1.1.2](./00-main-architecture.md).
+
+**What changed:** The OARepo version is now configured in `[tool.oarepo-cli]`
+instead of being inferred from `[project.optional-dependencies]` keys.
+
+**Old approach** (bash script):
+```toml
+[project.optional-dependencies]
+oarepo14 = ["oarepo>=14.0.0,<15.0.0"]
+oarepo13 = ["oarepo>=13.0.0,<14.0.0"]
+```
+
+**New approach** (Python CLI):
+```toml
+[tool.oarepo-cli]
+version = 14
+```
+
+**Reason:**
+- Aligns with the `[tool.oarepo-cli]` configuration section used for other
+  CLI settings
+- Simplifies configuration: projects target a single OARepo version, not
+  multiple simultaneously
+- Provides a canonical location for version discovery, consistent with how
+  the CLI reads other settings via `CliConfig.from_pyproject()`
+
+**Migration:** Add `[tool.oarepo-cli]` section with `version` key to your
+`pyproject.toml`. The JSON output format remains compatible (still returns a
+list, now with a single element):
+
+```bash
+# Old bash output (multi-version)
+./run.sh oarepo-versions
+{"oarepo_versions": ["13", "14"], ...}
+
+# New Python CLI output (single version)
+oarepo-cli library oarepo-versions
+{"oarepo_versions": ["14"], ...}
+```
+
+**Note:** The optional-dependencies keys (`oarepo14`, etc.) are no longer
+used by the CLI for version discovery, but you may keep them for dependency
+management purposes.
 
 ---
 

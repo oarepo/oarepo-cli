@@ -644,18 +644,22 @@ them to describe the shipped behavior once this step lands).
 ### Step 3.12: Library `oarepo-versions` Command
 **Goal**: Implement JSON version reporting.
 
-- [ ] Implement `library_oarepo_versions()` function
-- [ ] Parse pyproject.toml for oarepo versions
-- [ ] Resolve Python versions from constraints
-- [ ] Output JSON: `{"oarepo_versions": [...], "python_versions": [...], "node_versions": [...]}`
+- [x] Implement `library_oarepo_versions()` function
+- [x] Parse pyproject.toml for oarepo version from `[tool.oarepo-cli].version`
+- [x] Resolve Python versions from constraints
+- [x] Output JSON: `{"oarepo_versions": [...], "python_versions": [...], "node_versions": [...]}`
 
 **Deliverables**:
-- Version reporting command
+- [x] Version reporting command
+- [x] Uses `[tool.oarepo-cli].version` instead of scanning optional-dependencies keys (architectural change documented in 00-main-architecture.md §1.1.2)
 
 **Tests** (`tests/integration/test_library_versions.py`):
-- [ ] Test JSON output valid
-- [ ] Test versions extracted correctly
-- [ ] Characterization test: output matches bash exactly
+- [x] Test JSON output valid
+- [x] Test versions extracted correctly
+- [x] Test configuration from `[tool.oarepo-cli].version`
+
+**Note**: This is an intentional divergence from the bash script's multi-version
+approach. See `docs/architecture/00-main-architecture.md` §1.1.2 for rationale.
 
 ---
 
@@ -1011,14 +1015,14 @@ them to describe the shipped behavior once this step lands).
 | Phase | Steps | Status |
 |-------|-------|--------|
 | 0: Project Setup | 4 | [x] (4/4 complete) |
-| 1: Core Domain Models | 4 | [~] (2/4 complete) |
-| 2: Virtual Environment | 3 | [ ] |
-| 3: Library Commands | 12 | [ ] |
+| 1: Core Domain Models | 4 | [x] (4/4 complete) |
+| 2: Virtual Environment | 3 | [x] (3/3 complete) |
+| 3: Library Commands | 12 | [x] (12/12 complete) |
 | 4: Repository Commands | 10 | [ ] |
 | 5: Repository Installer | 3 | [ ] |
 | 6: Hardening | 5 | [ ] |
 | 7: Release Prep | 2 | [ ] |
-| **Total** | **43** | **[~] (6/43 complete)** |
+| **Total** | **43** | **[~] (23/43 complete)** |
 
 ---
 

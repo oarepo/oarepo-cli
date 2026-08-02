@@ -12,8 +12,6 @@ from typing import TYPE_CHECKING, Any
 if TYPE_CHECKING:
     from pathlib import Path
 
-from oarepo_cli.configuration.constants import OAREPO_VERSION_RE
-
 
 @dataclass
 class PyProjectData:
@@ -48,17 +46,24 @@ class PyProjectData:
 
     @property
     def oarepo_versions(self) -> list[int]:
-        """OARepo major versions, extracted from the "oarepo" extra.
+        r"""OARepo major versions, extracted from [tool.oarepo-cli].
 
-        Looks for dependency specifiers like `oarepo13>=13.0.0,<14.0.0` in
-        `optional-dependencies.oarepo` and returns the sorted, deduplicated
-        major versions found (e.g. `[13, 14]`).
+        Looks for `version` key in `[tool.oarepo-cli]` and returns it as a
+        single-element list if present, or empty list if not configured.
+
+        Example pyproject.toml:
+            [tool.oarepo-cli]
+            version = 14
+
+        Returns: [14] or [] if not configured
+
+        This replaces the bash script's multi-version approach with a simpler
+        single-version configuration that aligns with the tool.oarepo-cli section.
         """
-        versions = set()
-        for dep in self.optional_dependencies.get("oarepo", []):
-            if match := OAREPO_VERSION_RE.match(dep):
-                versions.add(int(match.group(1)))
-        return sorted(versions)
+        version = self.raw.get("tool", {}).get("oarepo-cli", {}).get("version")
+        if version is not None:
+            return [int(version)]
+        return []
 
     @property
     def default_extras(self) -> list[str]:

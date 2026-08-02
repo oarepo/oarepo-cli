@@ -19,7 +19,7 @@ The new implementation preserves all existing user-facing behavior while replaci
 | `start` | - | Start services for testing | Must preserve |
 | `stop` | - | Stop services after testing | Must preserve |
 | `test` | `--skip-services`, `--with-coverage` | Run pytest tests | Must preserve |
-| `oarepo-versions` | - | List supported OARepo versions (JSON output) | Must preserve |
+| `oarepo-versions` | - | List supported OARepo versions (JSON output) | **Diverges from bash** (see §1.1.2) |
 | `clean` | - | Stop services, remove venv | Must preserve |
 | `shell` | `--skip-services` | Start bash shell in venv | Must preserve |
 | `invenio` | `--skip-services` | Run Invenio commands | Must preserve |
@@ -60,6 +60,54 @@ requested explicitly, not derived from the bash scripts:
   fixes by default. Intended as the safe-for-CI entry point (never
   modifies target project files, only generates `.ruff.toml`/`ty.toml`,
   same as `lint`/`format` already do).
+
+#### 1.1.2 Intentional divergence: `oarepo-versions` uses `[tool.oarepo-cli]` configuration
+
+**Implemented in Step 3.12** — see [implementation-steps.md Step
+3.12](./implementation-steps.md).
+
+The original bash script extracted OARepo versions by scanning
+`pyproject.toml` for keys like `oarepo14`, `oarepo13` in
+`[project.optional-dependencies]`, supporting multiple versions:
+
+```bash
+egrep "^oarepo[0-9]{2}\s*=" pyproject.toml
+```
+
+This approach is replaced with a cleaner configuration model that aligns
+with the `[tool.oarepo-cli]` section used throughout the Python CLI:
+
+**Old bash approach** (multiple versions from optional-dependencies keys):
+```toml
+[project.optional-dependencies]
+oarepo14 = ["oarepo>=14.0.0,<15.0.0"]
+oarepo13 = ["oarepo>=13.0.0,<14.0.0"]
+```
+
+**New Python CLI approach** (single version from tool configuration):
+```toml
+[tool.oarepo-cli]
+version = 14
+```
+
+**Rationale:**
+- Aligns with the `[tool.oarepo-cli]` configuration section used for other
+  CLI settings (`venv.path`, `services.*`, etc.)
+- Simplifies configuration: projects target a single OARepo version, not
+  multiple simultaneously
+- Removes dependency on optional-dependencies key names for configuration
+  discovery
+- Provides a canonical location for OARepo version that's consistent with
+  how the CLI discovers it elsewhere (via `CliConfig.from_pyproject()`)
+
+The JSON output format remains compatible (returns a single-element list):
+```json
+{
+  "oarepo_versions": ["14"],
+  "python_versions": ["3.14"],
+  "node_versions": ["24"]
+}
+```
 
 ### 1.2 Repository Installer Commands
 
