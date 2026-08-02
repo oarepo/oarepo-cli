@@ -127,3 +127,54 @@ def test_license_headers_replaces_old_style_headers(
     # Check that the docstring and code are preserved
     assert '"""A module with old-style license header."""' in content
     assert "def test()" in content
+
+
+def test_license_headers_adds_to_javascript(
+    runner: CliRunner, lint_project: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Test that 'library license-headers' adds SPDX headers to JavaScript files."""
+    monkeypatch.chdir(lint_project)
+
+    # Create a JavaScript file without a license header
+    js_file = lint_project / "src" / "cleanlib" / "test.js"
+    js_file.write_text('"use strict";\n\nfunction test() {\n  return "hello";\n}\n')
+
+    result = runner.invoke(app, ["library", "license-headers", "--quiet"], catch_exceptions=False)
+
+    assert result.exit_code == 0
+    content = js_file.read_text()
+    # Check that it has SPDX headers with // style comments
+    assert "// spdx-filecopyrighttext:" in content.lower()
+    assert "// spdx-license-identifier: mit" in content.lower()
+    # Check that the code is preserved
+    assert '"use strict"' in content
+    assert "function test()" in content
+
+
+def test_license_headers_adds_to_jinja(
+    runner: CliRunner, lint_project: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Test that 'library license-headers' adds SPDX headers to Jinja templates."""
+    monkeypatch.chdir(lint_project)
+
+    # Create a Jinja template without a license header
+    jinja_file = lint_project / "src" / "cleanlib" / "template.html"
+    jinja_file.write_text(
+        "<!DOCTYPE html>\n"
+        "<html>\n"
+        "<head><title>Test</title></head>\n"
+        "<body>{{ content }}</body>\n"
+        "</html>\n"
+    )
+
+    result = runner.invoke(app, ["library", "license-headers", "--quiet"], catch_exceptions=False)
+
+    assert result.exit_code == 0
+    content = jinja_file.read_text()
+    # Check that it has SPDX headers with {# #} style comments
+    assert "{# spdx-filecopyrighttext:" in content.lower()
+    assert "{# spdx-license-identifier: mit #}" in content.lower()
+    # Check that DOCTYPE is preserved at the start
+    assert content.startswith("<!DOCTYPE html>")
+    # Check that the template content is preserved
+    assert "{{ content }}" in content
