@@ -40,24 +40,24 @@ The `library` subcommand provides development tools for OARepo library packages.
 
 | Command | Description | Key Options |
 |---------|-------------|-------------|
-| `venv` | Set up virtual environment | `--force`, `--no-editable` |
-| `install` | Alias for `venv` | Same as `venv` |
-| `upgrade` | Clean cache and recreate venv | None |
-| `test` | Run pytest tests | `--skip-services`, `--with-coverage` |
-| `start` | Start Docker services | None |
-| `stop` | Stop Docker services | None |
-| `lint` | Run linters and type checkers | `--fix` / `--no-fix` (default: `--fix`) |
-| `format` | Format code with ruff | `--fix` / `--no-fix` (default: `--fix`) |
-| `check` | Read-only lint + format | None |
-| `shell` | Open bash shell in venv | `--skip-services` |
-| `invenio` | Run invenio commands | `--skip-services` |
-| `translations` | Extract/compile translations | None |
-| `license-headers` | Add MIT license headers | None |
-| `jslint` | Run ESLint and Prettier | None |
-| `jstest` | Run JavaScript tests (Jest) | `setup`, `--skip-services` |
-| `oarepo-versions` | List OARepo and Python versions | None (outputs JSON) |
-| `clean` | Remove venv and services | None |
-| `services` | Manage Docker services | `setup`, `start`, `stop`, `destroy` |
+| [`venv`](#library-venv) | Set up virtual environment | `--force`, `--no-editable` |
+| [`install`](#library-install) | Alias for `venv` | Same as `venv` |
+| [`upgrade`](#library-upgrade) | Clean cache and recreate venv | None |
+| [`test`](#library-test) | Run pytest tests | `--skip-services`, `--with-coverage` |
+| [`start`](#library-start--library-stop) | Start Docker services | None |
+| [`stop`](#library-start--library-stop) | Stop Docker services | None |
+| [`lint`](#library-lint) | Run linters and type checkers | `--fix` / `--no-fix` (default: `--fix`) |
+| [`format`](#library-format) | Format code with ruff | `--fix` / `--no-fix` (default: `--fix`) |
+| [`check`](#library-check) | Read-only lint + format | None |
+| [`shell`](#library-shell) | Open bash shell in venv | `--skip-services` |
+| [`invenio`](#library-invenio) | Run invenio commands | `--skip-services` |
+| [`translations`](#library-translations) | Extract/compile translations | None |
+| [`license-headers`](#library-license-headers) | Add MIT license headers | None |
+| [`jslint`](#library-jslint) | Run ESLint and Prettier | None |
+| [`jstest`](#library-jstest) | Run JavaScript tests (Jest) | `setup`, `--skip-services` |
+| [`oarepo-versions`](#library-oarepo-versions) | List OARepo and Python versions | None (outputs JSON) |
+| [`clean`](#library-clean) | Remove venv and services | None |
+| [`services`](#library-services) | Manage Docker services | `setup`, `start`, `stop`, `destroy` |
 
 ### `library venv`
 
