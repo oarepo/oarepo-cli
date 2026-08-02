@@ -178,25 +178,19 @@ class VirtualEnvironmentManager:
             return self._venv_path
         return self.ensure_venv(requirements, force=False, quiet=quiet)
 
-    def upgrade_environment(self, requirements: VenvRequirements) -> None:
-        """Clean cache and recreate venv from scratch.
-
-        Removes the existing virtual environment and recreates it with fresh
-        dependencies. Useful when dependencies become corrupted or outdated.
-
-        Args:
-            requirements: Requirements for the new environment
-        """
-        self.ensure_venv(requirements, force=True)
-
     def cleanup(self) -> None:
         """Remove virtual environment and related files.
 
-        Deletes the entire virtual environment directory. Does not fail if
-        the directory doesn't exist.
+        Deletes the entire virtual environment directory and the uv.lock file.
+        Does not fail if the directory or lock file doesn't exist.
         """
         if self._venv_path.exists():
             shutil.rmtree(self._venv_path)
+
+        # Also remove uv.lock since it's generated during venv setup
+        lock_file = self._project_root / "uv.lock"
+        if lock_file.exists():
+            lock_file.unlink()
 
     def _ensure_uv_lock_gitignored(self, quiet: bool = False) -> None:
         """Ensure uv.lock is in .gitignore.
@@ -396,8 +390,8 @@ class VirtualEnvironmentManager:
 
         wheel_path = wheels[0]
 
-        # Build extras list
-        extras = ["tests"]
+        # Build extras list - include dev and tests for consistency with editable mode
+        extras = ["dev", "tests"]
         if requirements.oarepo_version is not None:
             extras.append(f"oarepo{requirements.oarepo_version}")
         extras.extend(requirements.extras)

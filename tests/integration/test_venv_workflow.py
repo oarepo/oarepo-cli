@@ -228,8 +228,8 @@ def test_cleanup_removes_venv_real_tools(
     clean_testlib: Path,
     testlib_venv_path: Path,
 ) -> None:
-    """Test cleanup() removes the virtual environment."""
-    # First create a venv
+    """Test cleanup() removes the virtual environment and uv.lock."""
+    # First create a venv (which also generates uv.lock)
     config = CliConfig(venv=VenvConfig(path=testlib_venv_path))
     manager = VirtualEnvironmentManager(config, project_root=clean_testlib)
 
@@ -241,11 +241,16 @@ def test_cleanup_removes_venv_real_tools(
     manager.ensure_venv(requirements)
 
     assert testlib_venv_path.exists()
+    lock_file = clean_testlib / "uv.lock"
+    # Lock file should exist after venv creation
+    assert lock_file.exists()
 
     # Cleanup
     manager.cleanup()
 
     assert not testlib_venv_path.exists()
+    # Lock file should also be removed
+    assert not lock_file.exists()
 
 
 def test_cleanup_idempotent_when_venv_missing_real_tools(
@@ -262,6 +267,27 @@ def test_cleanup_idempotent_when_venv_missing_real_tools(
     manager.cleanup()
 
     assert not testlib_venv_path.exists()
+
+
+def test_cleanup_removes_orphaned_lock_file(
+    clean_testlib: Path,
+    testlib_venv_path: Path,
+) -> None:
+    """Test cleanup() removes uv.lock even if venv doesn't exist."""
+    config = CliConfig(venv=VenvConfig(path=testlib_venv_path))
+    manager = VirtualEnvironmentManager(config, project_root=clean_testlib)
+
+    # Create an orphaned lock file (venv doesn't exist)
+    lock_file = clean_testlib / "uv.lock"
+    lock_file.write_text("# fake lock file")
+
+    assert not testlib_venv_path.exists()
+    assert lock_file.exists()
+
+    # Cleanup should remove the lock file
+    manager.cleanup()
+
+    assert not lock_file.exists()
 
 
 def test_wheel_build_and_install_real_tools(
