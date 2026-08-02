@@ -24,7 +24,7 @@ def _tool_path(name: str) -> str:
     """Resolve a linter/type-checker binary installed alongside oarepo-cli.
 
     Args:
-        name: Console script name (e.g. "ruff", "mypy", "pyright")
+        name: Console script name (e.g. "ruff", "ty")
 
     Returns:
         Absolute path to the binary if found next to the current
@@ -113,7 +113,7 @@ class LintRunner:
         self._quiet = quiet
 
     def run_lint(self) -> process.ProcessResult:
-        """Run the full lint suite: ruff, license headers, future annotations, mypy, pyright.
+        """Run the full lint suite: ruff, license headers, future annotations, ty.
 
         Returns:
             ProcessResult of the first failing step, or a success result if all pass
@@ -161,26 +161,11 @@ class LintRunner:
                 + [f"{len(missing_annotations)} file(s) are missing future annotations."],
             )
 
-        _write_config(root / ".mypy.ini", resources.read_text("mypy.ini.tmpl"))
+        _write_config(root / "ty.toml", resources.read_text("ty.toml.tmpl"))
 
         venv_python = self._context.venv_path / "bin" / "python"
-        result = process.run(
-            [
-                _tool_path("mypy"),
-                str(code_directories[0]),
-                "--ignore-missing-imports",
-                "--exclude",
-                "os-v2",
-            ],
-            cwd=root,
-            check=False,
-            interactive=not self._quiet,
-        )
-        if not result.success:
-            return result
-
         return process.run(
-            [_tool_path("pyright"), "--pythonpath", str(venv_python), str(code_directories[0])],
+            [_tool_path("ty"), "check", "--python", str(venv_python), str(code_directories[0])],
             cwd=root,
             check=False,
             interactive=not self._quiet,

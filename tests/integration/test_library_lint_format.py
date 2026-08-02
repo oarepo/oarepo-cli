@@ -1,7 +1,7 @@
 # SPDX-FileCopyrightText: 2026 CESNET z.s.p.o.
 # SPDX-License-Identifier: MIT
 
-"""Integration tests for library lint/format commands using real ruff/mypy/pyright."""
+"""Integration tests for library lint/format commands using real ruff/ty."""
 
 from __future__ import annotations
 
@@ -107,7 +107,10 @@ def test_lint_passes_on_clean_code(
 
     assert result.exit_code == 0
     assert (lint_project / ".ruff.toml").exists()
-    assert (lint_project / ".mypy.ini").exists()
+    assert (lint_project / "ty.toml").exists()
+    # ty replaced mypy/pyright entirely (Step 3.9.1) - no .mypy.ini should
+    # ever get generated anymore.
+    assert not (lint_project / ".mypy.ini").exists()
 
 
 def test_lint_fails_on_dirty_code(
@@ -153,6 +156,35 @@ def test_lint_fails_when_future_annotations_missing(
         "# Copyright (c) 2026 Example Org.\n\n"
         '"""Sample clean module."""\n\n\n'
         "def greet() -> str:\n"
+        '    """Return a greeting message."""\n'
+        '    return "hello"\n'
+    )
+
+    result = runner.invoke(app, ["library", "lint", "--quiet"], catch_exceptions=False)
+
+    assert result.exit_code != 0
+
+
+def test_lint_fails_on_type_error(
+    runner: CliRunner, lint_project: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Test that 'library lint' exits non-zero when ty finds a real type error.
+
+    Exercises the ty check step specifically (Step 3.9.1's mypy/pyright ->
+    ty migration): the return type doesn't match the annotation, which
+    ruff/license/future-annotations checks don't catch, only a type checker
+    does.
+    """
+    monkeypatch.chdir(lint_project)
+
+    module = lint_project / "src" / "cleanlib" / "__init__.py"
+    module.write_text(
+        "# Copyright (c) 2026 Example Org.\n"
+        "#\n"
+        "# This file is a part of cleanlib.\n\n"
+        '"""Sample clean module."""\n\n'
+        "from __future__ import annotations\n\n\n"
+        "def greet() -> int:\n"
         '    """Return a greeting message."""\n'
         '    return "hello"\n'
     )

@@ -11,7 +11,7 @@ from importlib import resources
 def read_text(filename: str) -> str:
     """Read a bundled configuration template's contents.
 
-    Templates (e.g. ``ruff.toml.tmpl``, ``mypy.ini.tmpl``) are stored as real
+    Templates (e.g. ``ruff.toml.tmpl``, ``ty.toml.tmpl``) are stored as real
     data files in this package rather than embedded as Python string
     constants, and are only read from disk when a caller actually needs them
     (e.g. `library lint`/`library format` writing them out to a target

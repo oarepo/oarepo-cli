@@ -787,8 +787,8 @@ def library_lint(
 
     Runs, in order, stopping at the first failure: ruff check, ruff format
     --check, a license header check, a `from __future__ import annotations`
-    check, mypy, and pyright. Generates .ruff.toml and .mypy.ini config files
-    in the project root.
+    check, and ty check. Generates .ruff.toml and ty.toml config files in the
+    project root.
 
     Exits with the exit code of the first failing check.
     """
