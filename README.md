@@ -27,7 +27,6 @@ The CLI handles virtual environment management, dependency installation, Docker 
 The recommended way to use `oarepo-cli` for library development is via the wrapper script. This approach:
 - Isolates `oarepo-cli` in a local `.tools/venv` directory per project
 - Auto-installs on first run
-- Allows different CLI versions per project
 - Matches the familiar `./run.sh` pattern from the old bash scripts
 
 **Setup:**
