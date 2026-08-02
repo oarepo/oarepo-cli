@@ -97,28 +97,30 @@ class TestOrchestrator:
                     console.info("  ✓ Services started", fg=None)
 
             # Ensure venv exists before trying to install dependencies (fast
-            # path: skip reinstalling if the venv directory is already there)
+            # path: skip reinstalling - and validating requirements - if the
+            # venv directory is already there)
             venv_existed = self._context.venv_path.exists()
-            if not venv_existed and not self._quiet:
-                if console is None:
-                    from oarepo_cli.ui import ConsoleOutput
+            if not venv_existed:
+                if not self._quiet:
+                    if console is None:
+                        from oarepo_cli.ui import ConsoleOutput
 
-                    console = ConsoleOutput(quiet=False)
-                console.info("🔨 Creating virtual environment...", fg=None, bold=True)
+                        console = ConsoleOutput(quiet=False)
+                    console.info("🔨 Creating virtual environment...", fg=None, bold=True)
 
-            requirements = VenvRequirements(
-                python_binary=str(self._context.python_binary),
-                oarepo_version=self._context.oarepo_version,
-                extras=[],
-                editable=True,
-            )
-            venv_mgr = VirtualEnvironmentManager(
-                config=self._context.config, project_root=self._context.root_directory
-            )
-            venv_mgr.ensure_venv_fast(requirements, quiet=self._quiet)
+                requirements = VenvRequirements(
+                    python_binary=str(self._context.python_binary),
+                    oarepo_version=self._context.oarepo_version,
+                    extras=[],
+                    editable=True,
+                )
+                venv_mgr = VirtualEnvironmentManager(
+                    config=self._context.config, project_root=self._context.root_directory
+                )
+                venv_mgr.ensure_venv_fast(requirements, quiet=self._quiet)
 
-            if not venv_existed and not self._quiet and console:
-                console.info("  ✓ Virtual environment created", fg=None)
+                if not self._quiet and console:
+                    console.info("  ✓ Virtual environment created", fg=None)
 
             # Ensure pytest and coverage are installed if needed
             self._ensure_test_dependencies(use_coverage)

@@ -136,6 +136,11 @@ class VirtualEnvironmentManager:
         if force and venv_path.exists():
             shutil.rmtree(venv_path)
 
+        if venv_path.exists() and not self._is_valid_venv(venv_path):
+            # Directory is present but not a real venv (e.g. left behind by
+            # a crashed run) - treat like it doesn't exist and recreate it.
+            shutil.rmtree(venv_path)
+
         if not venv_path.exists():
             self._create_venv(requirements.python_binary, venv_path, quiet=quiet)
 
@@ -188,6 +193,21 @@ class VirtualEnvironmentManager:
         """
         if self._venv_path.exists():
             shutil.rmtree(self._venv_path)
+
+    def _is_valid_venv(self, venv_path: Path) -> bool:
+        """Check whether a directory is a real, usable virtual environment.
+
+        A directory merely existing (e.g. left behind by a crashed run, or
+        a stray file) isn't enough to skip creation - look for `pyvenv.cfg`,
+        the marker file both stdlib `venv` and `uv venv` write on creation.
+
+        Args:
+            venv_path: Path to check
+
+        Returns:
+            True if the directory looks like a real virtual environment
+        """
+        return (venv_path / "pyvenv.cfg").exists()
 
     def _create_venv(self, python: str, path: Path, quiet: bool = False) -> None:
         """Create fresh virtual environment using uv.
