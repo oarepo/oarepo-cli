@@ -827,18 +827,36 @@ default resolution rule. See
 ### Step 4.2: Repository `upgrade` Command
 **Goal**: Implement repository upgrade.
 
-- [ ] Implement `repository_upgrade()` function
-- [ ] Remove venv and uv.lock
-- [ ] Clean uv cache
-- [ ] Reinstall repository
+- [x] Implement `repository_upgrade()` function
+- [x] Remove venv and uv.lock
+- [x] Clean uv cache
+- [x] Reinstall repository
+
+`install`'s steps were extracted into `_install_repository()` (no top-level
+success/failure messaging) so `install` and `upgrade` share the exact same
+reinstall logic, mirroring how `repository_runner.sh`'s
+`upgrade_repository()` calls `install_repository()` directly. Uses
+`VirtualEnvironmentManager.cleanup()` for venv+lock removal (same method
+`library upgrade` uses) and `uv cache clean --force` (note: `--force`,
+unlike `library upgrade`'s plain `uv cache clean` — matches
+`repository_runner.sh` exactly, which is stricter here than
+`library_runner.sh`).
 
 **Deliverables**:
 - Working upgrade command
 
 **Tests** (`tests/integration/test_repository_upgrade.py`):
-- [ ] Test venv and lock removed
-- [ ] Test cache cleaned
-- [ ] Test reinstall succeeds
+- [x] Test venv and lock removed
+- [x] Test cache cleaned
+- [x] Test reinstall succeeds
+
+The venv/lock-removed and cache-cleaned checks mock out `_install_repository`
+and the `uv cache clean` subprocess call so they run in milliseconds rather
+than repeating a multi-minute reinstall; a separate real, slow
+`test_upgrade_reinstalls_successfully` runs a full install-then-upgrade
+cycle end-to-end (including a real `uv cache clean --force` — verified it
+actually clears the machine's uv cache, ~1.1GiB in local testing, and that
+the subsequent reinstall re-populates it correctly).
 
 ---
 
