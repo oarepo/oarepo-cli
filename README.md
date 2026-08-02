@@ -32,6 +32,34 @@ Or with `uv`:
 uv pip install oarepo-cli
 ```
 
+### Using the Wrapper Script (Optional)
+
+For library projects, you can use the provided wrapper script instead of installing `oarepo-cli` globally. This approach:
+- Isolates `oarepo-cli` in a local `.tools/venv` directory
+- Auto-installs on first run
+- Allows per-project CLI versions
+
+**Setup:**
+```bash
+# Copy the wrapper script to your library root
+cp /path/to/oarepo-cli/scripts/library_run.sh ./run.sh
+chmod +x ./run.sh
+
+# First run automatically sets up .tools/venv and installs oarepo-cli
+./run.sh venv
+
+# All subsequent commands work the same
+./run.sh test
+./run.sh lint
+```
+
+**Update the wrapper's CLI version:**
+```bash
+./run.sh self-update
+```
+
+This removes `.tools/venv` and reinstalls the latest `oarepo-cli` on the next run.
+
 ## Library Tools
 
 The `library` subcommand provides development tools for OARepo library packages.
