@@ -63,8 +63,9 @@ oarepo-cli library test
 | `./run.sh invenio <args>` | `oarepo-cli library invenio -- <args>` | Note the `--` separator |
 | `./run.sh invenio --skip-services <args>` | `oarepo-cli library invenio --skip-services -- <args>` | Flags before `--` |
 | `./run.sh translations` | `oarepo-cli library translations` | Identical behavior |
-| `./run.sh lint` | `oarepo-cli library lint` | Identical behavior |
-| `./run.sh format` | `oarepo-cli library format` | Identical behavior |
+| `./run.sh lint` | `oarepo-cli library lint` | **Planned divergence** — will auto-fix by default instead of only reporting; see §5.5 |
+| `./run.sh format` | `oarepo-cli library format` | Identical when `--fix` (the default); `--no-fix` is new, no bash equivalent — see §5.5 |
+| *(no bash equivalent)* | `oarepo-cli library check` | **New command**, not in the bash scripts — see §5.5 |
 | `./run.sh license-headers` | `oarepo-cli library license-headers` | Identical behavior |
 | `./run.sh jslint` | `oarepo-cli library jslint` | Identical behavior |
 | `./run.sh jstest setup` | `oarepo-cli library jstest setup` | Identical behavior |
@@ -247,6 +248,35 @@ oarepo-cli library invenio -- db upgrade
 **Impact:** Some edge cases may have different exit codes than before.
 
 **Mitigation:** Check exit codes explicitly in scripts; don't rely on implicit success/failure detection.
+
+### 5.5 `lint`/`format` fix by default; new `check` command
+
+**Status: planned, not yet implemented** — see [implementation-steps.md
+Step 3.10.2](./implementation-steps.md). Documented here ahead of the code
+change, per this project's normal practice.
+
+**What's changing:** Unlike the bash `run_linters()` (report-only) and
+`format_code()` (always rewrites), the Python CLI is deliberately
+diverging:
+
+- `library lint` will default to auto-fixing what ruff can fix
+  (`ruff check --fix` instead of a bare `ruff check`), controlled by a new
+  `--fix`/`--no-fix` option (default `--fix`).
+- `library format` gains the same `--fix`/`--no-fix` option; `--fix` (the
+  default) is unchanged from today's always-rewrites behavior, `--no-fix`
+  becomes a non-writing preview.
+- A new `library check` command is added: the read-only combination of what
+  `lint`/`format` check today, safe to run in CI without risk of it
+  modifying the checked-out source.
+
+**Reason:** Requested explicitly as an intentional divergence from the
+bash scripts' behavior, not derived from `library_runner.sh` — the bash
+scripts had no equivalent split between "fix" and "check only" modes.
+
+**Migration:** Once implemented, scripts/CI that relied on `library lint`
+never modifying files should switch to `library lint --no-fix` or
+`library check`. Scripts that want the old always-fix `format` behavior
+don't need to change anything, since `--fix` is the default.
 
 ---
 

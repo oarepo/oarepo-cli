@@ -24,13 +24,47 @@ The new implementation preserves all existing user-facing behavior while replaci
 | `shell` | `--skip-services` | Start bash shell in venv | Must preserve |
 | `invenio` | `--skip-services` | Run Invenio commands | Must preserve |
 | `translations` | - | Extract/compile translations via oarepo-tools | Must preserve |
-| `lint` | - | Run ruff, `ty`, license checks | Must preserve |
-| `format` | - | Format code with ruff | Must preserve |
+| `lint` | `--fix`/`--no-fix` (**planned**, default `--fix`) | Run ruff, `ty`, license checks — **planned:** auto-fix ruff-fixable issues by default (see §1.1.1) | **Diverges from bash** (see §1.1.1) |
+| `format` | `--fix`/`--no-fix` (**planned**, default `--fix`) | Format code with ruff — **planned:** `--no-fix` becomes a non-writing preview mode (see §1.1.1) | **Diverges from bash** (see §1.1.1) |
+| `check` | - | **Planned, not yet implemented** — read-only equivalent of `lint`+`format` that never modifies target project files; see §1.1.1 | **New, not in original bash scripts** |
 | `license-headers` | - | Add MIT license headers | Must preserve |
 | `jslint` | - | Run ESLint and Prettier | Must preserve |
 | `jstest` | `setup`, `--skip-services` | Run JavaScript tests (Jest) | Must preserve |
 | `self-update` | - | Download latest runner script | **Not implemented** (deprecated, use `pip install --upgrade oarepo-cli`) |
 | `--no-editable` | (global flag) | Build wheel instead of editable install | Must preserve |
+
+#### 1.1.1 Planned divergence: `lint`/`format` fix by default, new `check` command
+
+**Not yet implemented** — tracked in [implementation-steps.md Step
+3.10.2](./implementation-steps.md). Recorded here ahead of the code change
+per this project's normal practice of documenting a decision before
+implementing it.
+
+The original bash `run_linters()`/`format_code()` never had a "preview
+only" mode: `lint` only ever reported problems, `format` always rewrote
+files. This is a **deliberate departure** from that behavior, not a bug —
+requested explicitly, not derived from the bash scripts:
+
+- `library lint` gains a `--fix`/`--no-fix` option, **defaulting to
+  `--fix`**: it runs `ruff check --fix` (auto-fixing what ruff can) instead
+  of a bare `ruff check`. The license header check and future-annotations
+  check remain read-only either way (fixing those is `license-headers`'
+  job, not `lint`'s). Whether `ty check --fix` (`ty check --help` lists a
+  `--fix` flag: "Apply fixes to resolve errors") gets used when `--fix` is
+  set is still to be decided at implementation time — needs investigating
+  what it actually does before relying on it.
+- `library format` gains the same `--fix`/`--no-fix` option, **defaulting
+  to `--fix`** (i.e. unchanged from today's always-rewrites behavior).
+  `--no-fix` turns it into a preview: `ruff format --check` instead of
+  `ruff format`, without applying `ruff check --fix`.
+- A new `library check` command is added: the non-destructive combination
+  of what `lint`/`format` do today — `ruff format --check`, `ruff check`
+  (no `--fix`), license header check, future annotations check, `ty check`
+  (no `--fix`). Functionally, this is today's `library lint` behavior,
+  kept available as its own named command once `lint` itself starts
+  fixing by default. Intended as the safe-for-CI entry point (never
+  modifies target project files, only generates `.ruff.toml`/`ty.toml`,
+  same as `lint`/`format` already do).
 
 ### 1.2 Repository Installer Commands
 

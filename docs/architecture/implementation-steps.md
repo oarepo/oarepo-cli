@@ -579,6 +579,45 @@ below — rather than guessed from defaults):
 
 ---
 
+### Step 3.10.2: `library lint`/`format` Fix by Default; New `library check` Command
+**Goal**: Make `library lint` and `library format` apply fixes by default, and add a new `library check` command that runs the same checks without ever modifying target project files.
+
+**This is a deliberate divergence from the original bash scripts**, not a
+behavior-preservation step — requested explicitly, not derived from
+`library_runner.sh`'s `run_linters()`/`format_code()`. The bash scripts had
+no "fix vs. check-only" split: `lint` only ever reported problems,
+`format` always rewrote files unconditionally. Flag this clearly wherever
+this step touches docs that otherwise document behavior-preserving
+mappings (`00-main-architecture.md` §1.1, `03-migration-guide.md` §5.5 —
+both already updated with "planned" notes pointing here; finish updating
+them to describe the shipped behavior once this step lands).
+
+- [ ] Add `--fix`/`--no-fix` option to `library lint` (default: `--fix`)
+- [ ] Add `--fix`/`--no-fix` option to `library format` (default: `--fix`, matching today's always-rewrites behavior)
+- [ ] `library lint --fix` (default): run `ruff check --fix` instead of a bare `ruff check`. License header check and future-annotations check stay read-only either way — inserting headers/imports is `license-headers`' job (Step 3.11), not `lint`'s
+- [ ] `library lint --no-fix`: reproduce today's non-destructive behavior exactly (`ruff check`, `ruff format --check`, license header check, future annotations check, `ty check`)
+- [ ] `library format --no-fix`: run `ruff format --check` instead of rewriting, and skip `ruff check --fix`
+- [ ] Investigate `ty check --fix` (`ty check --help` lists `--fix`: "Apply fixes to resolve errors") — decide whether `library lint --fix` should use it, and document the decision either way; don't wire it in blind
+- [ ] Implement new `library check` command: `ruff format --check`, `ruff check` (no `--fix`), license header check, future annotations check, `ty check` (no `--fix`) — i.e. today's `library lint` behavior, preserved under its own name once `lint` itself starts fixing by default. Still generates `.ruff.toml`/`ty.toml` (that's config generation, not "modifying target project files")
+- [ ] Update `docs/architecture/00-main-architecture.md` §1.1/§1.1.1 to describe the shipped behavior instead of "planned"
+- [ ] Update `docs/architecture/03-migration-guide.md` §5.5 to describe the shipped behavior instead of "planned"
+
+**Deliverables**:
+- [ ] `library lint` fixes ruff-autofixable issues by default; `--no-fix` preserves today's report-only behavior exactly
+- [ ] `library format` gains a `--no-fix` preview mode; `--fix` (default) is unchanged
+- [ ] New `library check` command, functionally equivalent to `library lint --no-fix`, documented as the CI-safe entry point
+- [ ] Architecture docs clearly mark this as an intentional divergence, not a bash-compatibility gap
+
+**Tests** (`tests/integration/test_library_lint_format.py`, new `tests/integration/test_library_check.py`):
+- [ ] Test `library lint` (default `--fix`) auto-fixes an autofixable ruff violation instead of just reporting it
+- [ ] Test `library lint --no-fix` reports without modifying any file
+- [ ] Test `library format --no-fix` does not rewrite files, only reports
+- [ ] Test `library format` (default `--fix`) behavior is unchanged from before this step
+- [ ] Test `library check` never modifies any file
+- [ ] Test `library check`'s pass/fail behavior and exit codes match `library lint --no-fix` exactly
+
+---
+
 ### Step 3.11: Library `translations`, `license-headers`, `jslint`, `jstest` Commands
 **Goal**: Implement remaining library commands.
 
