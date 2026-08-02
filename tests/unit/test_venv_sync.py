@@ -40,6 +40,8 @@ dependencies = []
 dev = []
 tests = []
 oarepo14 = []
+rdm = []
+search = []
 """)
 
     # Create .gitignore
@@ -69,6 +71,8 @@ def test_sync_editable_builds_correct_command(
             "sync",
             "--python",
             str(python_path),
+            "--prerelease",
+            "allow",
             "--extra",
             "dev",
             "--extra",
@@ -95,6 +99,8 @@ def test_sync_editable_builds_correct_command(
                 "sync",
                 "--python",
                 str(python_path),
+                "--prerelease",
+                "allow",
                 "--extra",
                 "dev",
                 "--extra",
@@ -127,6 +133,8 @@ def test_sync_editable_with_additional_extras(
             "sync",
             "--python",
             str(python_path),
+            "--prerelease",
+            "allow",
             "--extra",
             "dev",
             "--extra",
@@ -157,6 +165,8 @@ def test_sync_editable_with_additional_extras(
                 "sync",
                 "--python",
                 str(python_path),
+                "--prerelease",
+                "allow",
                 "--extra",
                 "dev",
                 "--extra",
@@ -193,6 +203,8 @@ def test_sync_editable_without_oarepo_version(
             "sync",
             "--python",
             str(python_path),
+            "--prerelease",
+            "allow",
             "--extra",
             "dev",
             "--extra",
@@ -217,6 +229,8 @@ def test_sync_editable_without_oarepo_version(
                 "sync",
                 "--python",
                 str(python_path),
+                "--prerelease",
+                "allow",
                 "--extra",
                 "dev",
                 "--extra",
@@ -263,7 +277,7 @@ def test_non_editable_uses_wheel_not_sync(
             str(python_path),
             "--prerelease",
             "allow",
-            f"{wheel_path}[tests,oarepo14]",
+            f"{wheel_path}[dev,tests,oarepo14]",
         ]
     )
 
@@ -298,7 +312,7 @@ def test_non_editable_uses_wheel_not_sync(
                 str(python_path),
                 "--prerelease",
                 "allow",
-                f"{wheel_path}[tests,oarepo14]",
+                f"{wheel_path}[dev,tests,oarepo14]",
             ]
         )
         == 1
@@ -330,6 +344,8 @@ def test_sync_command_runs_from_project_root(
             "sync",
             "--python",
             str(python_path),
+            "--prerelease",
+            "allow",
             "--extra",
             "dev",
             "--extra",
@@ -373,6 +389,8 @@ def test_sync_uses_absolute_python_path(
             "sync",
             "--python",
             str(python_path),
+            "--prerelease",
+            "allow",
             "--extra",
             "dev",
             "--extra",
@@ -411,6 +429,8 @@ def test_gitignore_updated_before_sync(
             "sync",
             "--python",
             str(python_path),
+            "--prerelease",
+            "allow",
             "--extra",
             "dev",
             "--extra",
@@ -459,6 +479,8 @@ def test_extras_list_format_each_extra_separate_flag(
             "sync",
             "--python",
             str(python_path),
+            "--prerelease",
+            "allow",
             "--extra",
             "dev",
             "--extra",

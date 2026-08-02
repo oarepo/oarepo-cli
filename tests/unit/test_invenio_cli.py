@@ -53,6 +53,7 @@ def test_run_invenio_cli_passes_options_correctly(
     """Test that run_invenio_cli passes quiet, check, and env options correctly."""
     mock_run = Mock()
     monkeypatch.setattr("oarepo_cli.services.invenio_cli.process.run", mock_run)
+    monkeypatch.delenv("UV_PRERELEASE", raising=False)
 
     custom_env = {"FOO": "bar"}
     invenio_cli.run_invenio_cli(
@@ -68,7 +69,40 @@ def test_run_invenio_cli_passes_options_correctly(
     kwargs = call_args[1]
     assert kwargs["interactive"] is False  # quiet=True -> interactive=False
     assert kwargs["check"] is False
-    assert kwargs["env"] == custom_env
+    # Custom env is merged on top of the UV_PRERELEASE default, not replacing it
+    assert kwargs["env"] == {"UV_PRERELEASE": "allow", "FOO": "bar"}
+
+
+def test_run_invenio_cli_defaults_uv_prerelease_to_allow(
+    mock_context: Mock, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """run_invenio_cli must allow pre-release versions by default.
+
+    Mirrors repository_runner.sh's `export UV_PRERELEASE=${UV_PRERELEASE:-"allow"}`,
+    so uv resolves the same way whether invoked directly or via invenio-cli.
+    """
+    mock_run = Mock()
+    monkeypatch.setattr("oarepo_cli.services.invenio_cli.process.run", mock_run)
+    monkeypatch.delenv("UV_PRERELEASE", raising=False)
+
+    invenio_cli.run_invenio_cli(mock_context, ["install"])
+
+    kwargs = mock_run.call_args[1]
+    assert kwargs["env"] == {"UV_PRERELEASE": "allow"}
+
+
+def test_run_invenio_cli_respects_existing_uv_prerelease_env(
+    mock_context: Mock, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """An already-exported UV_PRERELEASE should be honored, not overridden."""
+    mock_run = Mock()
+    monkeypatch.setattr("oarepo_cli.services.invenio_cli.process.run", mock_run)
+    monkeypatch.setenv("UV_PRERELEASE", "if-necessary-or-explicit")
+
+    invenio_cli.run_invenio_cli(mock_context, ["install"])
+
+    kwargs = mock_run.call_args[1]
+    assert kwargs["env"] == {"UV_PRERELEASE": "if-necessary-or-explicit"}
 
 
 def test_run_invenio_shell_constructs_correct_command(
@@ -102,19 +136,66 @@ def test_run_invenio_shell_constructs_correct_command(
 def test_run_invenio_shell_passes_options_correctly(
     mock_context: Mock, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    """Test that run_invenio_shell passes quiet and check options correctly."""
+    """Test that run_invenio_shell passes the check option correctly."""
     mock_run = Mock()
     monkeypatch.setattr("oarepo_cli.services.invenio_cli.process.run", mock_run)
 
     invenio_cli.run_invenio_shell(
         mock_context,
         "print('test')",
-        quiet=True,
         check=False,
     )
 
     call_args = mock_run.call_args
     assert call_args is not None
     kwargs = call_args[1]
-    assert kwargs["interactive"] is False  # quiet=True -> interactive=False
     assert kwargs["check"] is False
+
+
+def test_run_invenio_shell_always_captures_output(
+    mock_context: Mock, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """run_invenio_shell must never run interactively: callers parse stdout
+    (e.g. the last line) to extract a value, so output has to be captured
+    rather than streamed straight to the terminal."""
+    mock_run = Mock()
+    monkeypatch.setattr("oarepo_cli.services.invenio_cli.process.run", mock_run)
+
+    invenio_cli.run_invenio_shell(mock_context, "print('test')")
+
+    kwargs = mock_run.call_args[1]
+    assert kwargs["interactive"] is False
+
+
+def test_run_invenio_shell_defaults_uv_prerelease_to_allow(
+    mock_context: Mock, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """run_invenio_shell must allow pre-release versions by default.
+
+    Without this, uv's implicit sync (triggered by `uv run`) resolves in a
+    different pre-release mode than the explicit `uv sync` step run earlier
+    during install, and uv forces a full lockfile re-resolution when it
+    notices the mismatch.
+    """
+    mock_run = Mock()
+    monkeypatch.setattr("oarepo_cli.services.invenio_cli.process.run", mock_run)
+    monkeypatch.delenv("UV_PRERELEASE", raising=False)
+
+    invenio_cli.run_invenio_shell(mock_context, "print('test')")
+
+    kwargs = mock_run.call_args[1]
+    assert kwargs["env"] == {"UV_PRERELEASE": "allow", "PYTHON_BASIC_REPL": "0"}
+
+
+def test_run_invenio_shell_respects_existing_uv_prerelease_env(
+    mock_context: Mock, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """An already-exported UV_PRERELEASE should be honored, not overridden."""
+    mock_run = Mock()
+    monkeypatch.setattr("oarepo_cli.services.invenio_cli.process.run", mock_run)
+    monkeypatch.setenv("UV_PRERELEASE", "if-necessary-or-explicit")
+
+    invenio_cli.run_invenio_shell(mock_context, "print('test')")
+
+    kwargs = mock_run.call_args[1]
+    assert kwargs["env"]["UV_PRERELEASE"] == "if-necessary-or-explicit"

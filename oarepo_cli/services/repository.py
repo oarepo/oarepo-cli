@@ -103,7 +103,7 @@ def configure_local_ports(context: ProjectContext, *, quiet: bool = False) -> No
         print("✓ Port configuration updated\n", file=sys.stderr)
 
 
-def get_instance_path(context: ProjectContext, *, quiet: bool = False) -> Path:
+def get_instance_path(context: ProjectContext) -> Path:
     """Get the Invenio instance path by running Python code in invenio shell.
 
     Mirrors ``repository_runner.sh``'s instance_path detection:
@@ -111,7 +111,6 @@ def get_instance_path(context: ProjectContext, *, quiet: bool = False) -> Path:
 
     Args:
         context: Project context with paths and configuration
-        quiet: If True, suppress status messages
 
     Returns:
         Path to the Invenio instance directory
@@ -124,7 +123,6 @@ def get_instance_path(context: ProjectContext, *, quiet: bool = False) -> Path:
     result = invenio_cli.run_invenio_shell(
         context,
         "print(app.instance_path, end='')",
-        quiet=quiet,
         check=True,
     )
 

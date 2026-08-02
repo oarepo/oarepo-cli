@@ -93,7 +93,7 @@ def install(
         # Step 3: Get instance path from Invenio shell
         console.info("→ Detecting instance path\n")
 
-        instance_path = repository.get_instance_path(context, quiet=quiet)
+        instance_path = repository.get_instance_path(context)
 
         # Step 4: Ensure instance structure (directory + invenio.cfg symlink)
         repository.ensure_instance_structure(context, instance_path, quiet=quiet)

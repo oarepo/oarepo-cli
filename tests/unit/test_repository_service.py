@@ -111,7 +111,7 @@ def test_get_instance_path_returns_path(
         mock_run_shell,
     )
 
-    result = repository.get_instance_path(mock_context, quiet=True)
+    result = repository.get_instance_path(mock_context)
 
     assert result == Path("/var/instance/path")
     # Verify correct Python code was executed

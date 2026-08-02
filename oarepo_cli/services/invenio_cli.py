@@ -5,6 +5,7 @@
 
 from __future__ import annotations
 
+import os
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
@@ -13,6 +14,19 @@ if TYPE_CHECKING:
     from oarepo_cli.core.context import ProjectContext
 
 from oarepo_cli.services import process
+
+
+def _default_prerelease_env() -> dict[str, str]:
+    """Base env for uv invocations in a repository project.
+
+    Mirrors ``repository_runner.sh``'s ``export UV_PRERELEASE=${UV_PRERELEASE:-"allow"}``:
+    every uv command run for a repository allows pre-release versions (e.g. RDM
+    release candidates) by default, unless the user already set the variable
+    themselves. Applied consistently to every uv command in this module so they
+    all agree on the same pre-release mode -- otherwise uv detects a mismatch
+    between invocations and forces a full lockfile re-resolution.
+    """
+    return {"UV_PRERELEASE": os.environ.get("UV_PRERELEASE", "allow")}
 
 
 def run_invenio_cli(
@@ -60,12 +74,16 @@ def run_invenio_cli(
         *args,
     ]
 
+    run_env = _default_prerelease_env()
+    if env:
+        run_env.update(env)
+
     return process.run(
         cmd,
         cwd=context.root_directory,
         check=check,
         interactive=not quiet,
-        env=env,
+        env=run_env,
     )
 
 
@@ -73,7 +91,6 @@ def run_invenio_shell(
     context: ProjectContext,
     python_code: str,
     *,
-    quiet: bool = False,
     check: bool = True,
 ) -> process.ProcessResult:
     """Run Python code in the Invenio shell via uv run.
@@ -81,10 +98,14 @@ def run_invenio_shell(
     Mirrors ``repository_runner.sh``'s ``in_invenio_shell`` function: executes
     Python code in the Invenio application context using `invenio shell`.
 
+    Callers rely on parsing a value out of ``stdout`` (e.g. the last line),
+    so output is always captured rather than streamed interactively -- like
+    the bash version's ``$(... | tail -n1)``, which never shows the shell's
+    startup logging to the user either.
+
     Args:
         context: Project context with paths and configuration
         python_code: Python code to execute in the Invenio shell
-        quiet: If True, suppress real-time subprocess output
         check: If True, raise ProcessExecutionError on non-zero exit
 
     Returns:
@@ -94,7 +115,8 @@ def run_invenio_shell(
         ProcessExecutionError: If check=True and command fails
     """
     # Disable the basic Python REPL to prevent interactive prompts
-    env = {"PYTHON_BASIC_REPL": "0"}
+    env = _default_prerelease_env()
+    env["PYTHON_BASIC_REPL"] = "0"
 
     cmd = [
         "uv",
@@ -110,6 +132,6 @@ def run_invenio_shell(
         cmd,
         cwd=context.root_directory,
         check=check,
-        interactive=not quiet,
+        interactive=False,
         env=env,
     )
