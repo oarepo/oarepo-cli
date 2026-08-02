@@ -152,8 +152,8 @@ class VirtualEnvironmentManager:
 
         return venv_path
 
-    def ensure_venv_fast(self, requirements: VenvRequirements, quiet: bool = False) -> Path:
-        """Ensure the venv exists, without reinstalling if it already does.
+    def ensure_venv_exists(self, requirements: VenvRequirements, quiet: bool = False) -> Path:
+        """Ensure the venv directory exists, without syncing dependencies.
 
         Unlike ensure_venv(), this never re-verifies or reinstalls
         dependencies for an existing venv — it only checks that the

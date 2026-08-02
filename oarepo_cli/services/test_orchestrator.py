@@ -117,7 +117,7 @@ class TestOrchestrator:
                 venv_mgr = VirtualEnvironmentManager(
                     config=self._context.config, project_root=self._context.root_directory
                 )
-                venv_mgr.ensure_venv_fast(requirements, quiet=self._quiet)
+                venv_mgr.ensure_venv_exists(requirements, quiet=self._quiet)
 
                 if not self._quiet and console:
                     console.info("  ✓ Virtual environment created", fg=None)

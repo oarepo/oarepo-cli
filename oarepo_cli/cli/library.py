@@ -600,7 +600,7 @@ def library_shell(
     )
 
     try:
-        venv_path = venv_mgr.ensure_venv_fast(requirements, quiet=True)
+        venv_path = venv_mgr.ensure_venv_exists(requirements, quiet=True)
     except Exception as e:
         console.error(
             f"❌ Error ensuring virtual environment: {e}",
@@ -738,7 +738,7 @@ def library_invenio(
     )
 
     try:
-        venv_path = venv_mgr.ensure_venv_fast(requirements, quiet=True)
+        venv_path = venv_mgr.ensure_venv_exists(requirements, quiet=True)
     except Exception as e:
         console.error(
             f"❌ Error ensuring virtual environment: {e}",
