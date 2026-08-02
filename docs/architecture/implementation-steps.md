@@ -621,19 +621,19 @@ them to describe the shipped behavior once this step lands).
 ### Step 3.11: Library `translations`, `license-headers`, `jslint`, `jstest` Commands
 **Goal**: Implement remaining library commands.
 
-- [ ] Implement `library_translations()` → calls `make-translations`
-- [ ] Implement `library_license_headers()` → adds headers to Python files
-- [ ] Implement `library_jslint()` → runs ESLint and Prettier
-- [ ] Implement `library_jstest()` → sets up and runs Jest
-- [ ] All commands support `--skip-services` where applicable
+- [x] Implement `library_translations()` → calls `make-translations`
+- [x] Implement `library_license_headers()` → adds headers to Python files
+- [x] Implement `library_jslint()` → runs ESLint and Prettier
+- [x] Implement `library_jstest()` → sets up and runs Jest
+- [x] All commands support `--skip-services` where applicable
 
 **Deliverables**:
-- Complete set of library commands
+- [x] Complete set of library commands
 
 **Tests** (`tests/integration/test_library_misc_commands.py`):
-- [ ] Test each command executes without error
-- [ ] Test help text for each command
-- [ ] Characterization tests for key commands
+- [x] Test each command executes without error
+- [x] Test help text for each command
+- [x] Characterization tests for key commands
 
 ---
 

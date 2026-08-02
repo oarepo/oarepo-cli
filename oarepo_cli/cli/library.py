@@ -13,9 +13,12 @@ import typer
 from oarepo_cli.core.context import discover_context
 from oarepo_cli.core.platform import get_platform_detector
 from oarepo_cli.services import process
+from oarepo_cli.services.js_tools import run_jslint, run_jstest
+from oarepo_cli.services.license_headers import add_license_headers
 from oarepo_cli.services.lint import LintRunner
 from oarepo_cli.services.services_lifecycle import ServicesLifecycleManager
 from oarepo_cli.services.test_orchestrator import TestOrchestrator
+from oarepo_cli.services.translations import run_translations
 from oarepo_cli.services.venv import VenvRequirements, VirtualEnvironmentManager
 from oarepo_cli.ui import ConsoleOutput
 
@@ -917,5 +920,190 @@ def library_check(
         console.success("✨ ✓ Check passed!", fg=typer.colors.BRIGHT_GREEN, bold=True)
     else:
         console.error("❌ Check failed!", fg=typer.colors.BRIGHT_RED, bold=True)
+
+    raise typer.Exit(code=result.return_code)
+
+
+@library_app.command(
+    "translations",
+    context_settings={
+        "allow_extra_args": True,
+        "allow_interspersed_args": True,
+        "ignore_unknown_options": True,
+    },
+)
+def library_translations(
+    ctx: typer.Context,
+    quiet: Annotated[bool, typer.Option("--quiet", "-q", help="Suppress command output")] = False,
+) -> None:
+    """Extract and compile translations using oarepo-tools make-translations.
+
+    Calls make-translations from oarepo-tools with any additional arguments.
+    This command is typically used in library packages that include
+    translatable strings.
+
+    Any additional arguments are passed directly to make-translations.
+
+    Examples:
+        oarepo-cli library translations
+        oarepo-cli library translations --help
+    """
+    extra_args = ctx.args if ctx.args else []
+
+    context = discover_context()
+    console = ConsoleOutput(quiet=quiet)
+
+    console.info("🌍 Running translations...", fg=typer.colors.BRIGHT_BLUE, bold=True)
+
+    try:
+        result = run_translations(context, extra_args=extra_args, quiet=quiet)
+    except Exception as e:
+        console.error(f"❌ Error running translations: {e}", fg=typer.colors.BRIGHT_RED, bold=True)
+        raise typer.Exit(code=1) from e
+
+    if result.success:
+        console.success("✨ ✓ Translations complete!", fg=typer.colors.BRIGHT_GREEN, bold=True)
+    else:
+        console.error("❌ Translations failed!", fg=typer.colors.BRIGHT_RED, bold=True)
+
+    raise typer.Exit(code=result.return_code)
+
+
+@library_app.command("license-headers")
+def library_license_headers(
+    organization: Annotated[
+        str | None,
+        typer.Option("--organization", "-o", help="Organization name for copyright"),
+    ] = None,
+    quiet: Annotated[bool, typer.Option("--quiet", "-q", help="Suppress command output")] = False,
+) -> None:
+    """Add MIT license headers to Python files.
+
+    Scans Python files in the project and adds MIT license headers to any
+    files that don't already have "Copyright (c)" (case-insensitive) in
+    them. Uses the homepage URL from pyproject.toml [project.urls].
+
+    By default, uses "CESNET z.s.p.o." as the organization name, but this
+    can be overridden with --organization.
+
+    Examples:
+        oarepo-cli library license-headers
+        oarepo-cli library license-headers --organization "My Organization"
+    """
+    context = discover_context()
+    console = ConsoleOutput(quiet=quiet)
+
+    console.info("📝 Adding license headers...", fg=typer.colors.BRIGHT_BLUE, bold=True)
+
+    try:
+        result = add_license_headers(context, organization=organization, quiet=quiet)
+    except Exception as e:
+        console.error(
+            f"❌ Error adding license headers: {e}", fg=typer.colors.BRIGHT_RED, bold=True
+        )
+        raise typer.Exit(code=1) from e
+
+    if result.success:
+        console.success("✨ ✓ License headers complete!", fg=typer.colors.BRIGHT_GREEN, bold=True)
+    else:
+        console.error("❌ License headers failed!", fg=typer.colors.BRIGHT_RED, bold=True)
+
+    raise typer.Exit(code=result.return_code)
+
+
+@library_app.command("jslint")
+def library_jslint(
+    quiet: Annotated[bool, typer.Option("--quiet", "-q", help="Suppress command output")] = False,
+) -> None:
+    """Run ESLint and Prettier on JavaScript files.
+
+    Installs necessary dependencies if needed (@inveniosoftware/eslint-config-invenio),
+    generates .eslintrc.yaml configuration, runs eslint with --fix to
+    auto-fix issues, and runs prettier to format code.
+
+    In CI environments (CI=true), prettier runs in check mode (--check)
+    instead of write mode (--write).
+
+    Skips entirely if no package.json is found.
+
+    Examples:
+        oarepo-cli library jslint
+    """
+    context = discover_context()
+    console = ConsoleOutput(quiet=quiet)
+
+    console.info("🔍 Running JavaScript linters...", fg=typer.colors.BRIGHT_BLUE, bold=True)
+
+    try:
+        result = run_jslint(context, quiet=quiet)
+    except Exception as e:
+        console.error(f"❌ Error running jslint: {e}", fg=typer.colors.BRIGHT_RED, bold=True)
+        raise typer.Exit(code=1) from e
+
+    if result.success:
+        console.success(
+            "✨ ✓ JavaScript linting complete!", fg=typer.colors.BRIGHT_GREEN, bold=True
+        )
+    else:
+        console.error("❌ JavaScript linting failed!", fg=typer.colors.BRIGHT_RED, bold=True)
+
+    raise typer.Exit(code=result.return_code)
+
+
+@library_app.command(
+    "jstest",
+    context_settings={
+        "allow_extra_args": True,
+        "allow_interspersed_args": True,
+        "ignore_unknown_options": True,
+    },
+)
+def library_jstest(
+    ctx: typer.Context,
+    setup: Annotated[
+        bool, typer.Option("--setup", help="Set up Jest configuration instead of running tests")
+    ] = False,
+    skip_services: Annotated[
+        bool, typer.Option("--skip-services", help="Skip starting Docker services")
+    ] = False,
+    quiet: Annotated[bool, typer.Option("--quiet", "-q", help="Suppress command output")] = False,
+) -> None:
+    """Run JavaScript tests (Jest) via invenio webpack.
+
+    Runs Jest tests through the invenio webpack test command. Use --setup
+    to set up the Jest configuration (currently delegates to bash script).
+
+    By default, starts Docker services if needed. Use --skip-services to
+    skip service startup.
+
+    Any additional arguments are passed directly to the test command.
+
+    Examples:
+        oarepo-cli library jstest
+        oarepo-cli library jstest --skip-services
+        oarepo-cli library jstest --setup
+    """
+    extra_args = ctx.args if ctx.args else []
+
+    context = discover_context()
+    console = ConsoleOutput(quiet=quiet)
+
+    if setup:
+        console.info("🛠️  Setting up JavaScript tests...", fg=typer.colors.BRIGHT_BLUE, bold=True)
+    else:
+        console.info("🧪 Running JavaScript tests...", fg=typer.colors.BRIGHT_BLUE, bold=True)
+
+    try:
+        result = run_jstest(
+            context, setup=setup, skip_services=skip_services, extra_args=extra_args, quiet=quiet
+        )
+    except Exception as e:
+        console.error(f"❌ Error running jstest: {e}", fg=typer.colors.BRIGHT_RED, bold=True)
+        raise typer.Exit(code=1) from e
+
+    if result.success:
+        console.success("✨ ✓ JavaScript tests complete!", fg=typer.colors.BRIGHT_GREEN, bold=True)
+    else:
+        console.error("❌ JavaScript tests failed!", fg=typer.colors.BRIGHT_RED, bold=True)
 
     raise typer.Exit(code=result.return_code)
