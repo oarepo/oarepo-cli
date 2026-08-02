@@ -186,21 +186,27 @@ class LintRunner:
             interactive=not self._quiet,
         )
 
-    def run_format(self) -> process.ProcessResult:
+    def run_format(self, extra_args: list[str] | None = None) -> process.ProcessResult:
         """Format code with ruff: ``ruff format`` then ``ruff check --fix``.
+
+        Args:
+            extra_args: Additional arguments passed through to both ruff
+                invocations (e.g. a path to restrict formatting to, or
+                ruff flags like ``--diff``)
 
         Returns:
             ProcessResult of the first failing step, or the final success result
         """
         root = self._context.root_directory
         ruff = _tool_path("ruff")
+        extra_args = extra_args or []
 
         ruff_toml = root / ".ruff.toml"
         if not ruff_toml.exists():
             _write_config(ruff_toml, resources.read_text("ruff.toml.tmpl"))
 
         result = process.run(
-            [ruff, "format", "--exclude", "pyproject.toml"],
+            [ruff, "format", "--exclude", "pyproject.toml", *extra_args],
             cwd=root,
             check=False,
             interactive=not self._quiet,
@@ -209,7 +215,7 @@ class LintRunner:
             return result
 
         return process.run(
-            [ruff, "check", "--fix", "--exclude", "pyproject.toml"],
+            [ruff, "check", "--fix", "--exclude", "pyproject.toml", *extra_args],
             cwd=root,
             check=False,
             interactive=not self._quiet,

@@ -214,6 +214,47 @@ def test_format_does_not_overwrite_existing_ruff_toml(
     assert (lint_project / ".ruff.toml").read_text() == custom_config
 
 
+def test_format_passes_through_extra_args_to_ruff(
+    runner: CliRunner, lint_project: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Test that unknown arguments to 'library format' reach both ruff invocations.
+
+    A path argument restricts both `ruff format` and `ruff check --fix` to
+    that file, so passing one of two dirty files' paths through should
+    format only that file and leave the other untouched - directly
+    exercising that pass-through, not just that formatting happens.
+    """
+    monkeypatch.chdir(lint_project)
+
+    dirty = (
+        "# Copyright (c) 2026 Example Org.\n"
+        "#\n"
+        "# This file is a part of cleanlib.\n\n"
+        '"""{docstring}"""\n\n'
+        "from __future__ import annotations\n\n\n"
+        "def {func}(  ) ->str:\n"
+        '    """Return a message."""\n'
+        "    return   '{word}'\n"
+    )
+    formatted_module = lint_project / "src" / "cleanlib" / "__init__.py"
+    formatted_module.write_text(
+        dirty.format(docstring="Sample clean module.", func="greet", word="hello")
+    )
+    untouched_module = lint_project / "src" / "cleanlib" / "other.py"
+    untouched_dirty = dirty.format(docstring="Other module.", func="farewell", word="bye")
+    untouched_module.write_text(untouched_dirty)
+
+    result = runner.invoke(
+        app,
+        ["library", "format", "--quiet", "src/cleanlib/__init__.py"],
+        catch_exceptions=False,
+    )
+
+    assert result.exit_code == 0
+    assert 'return "hello"' in formatted_module.read_text()
+    assert untouched_module.read_text() == untouched_dirty
+
+
 def test_license_header_check_detects_missing(tmp_path: Path) -> None:
     """Test check_license_headers flags files without a license header."""
     (tmp_path / "src").mkdir()

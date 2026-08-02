@@ -813,14 +813,32 @@ def library_lint(
     raise typer.Exit(code=result.return_code)
 
 
-@library_app.command("format")
+@library_app.command(
+    "format",
+    context_settings={
+        "allow_extra_args": True,
+        "allow_interspersed_args": True,
+        "ignore_unknown_options": True,
+    },
+)
 def library_format(
+    ctx: typer.Context,
     quiet: Annotated[bool, typer.Option("--quiet", "-q", help="Suppress command output")] = False,
 ) -> None:
     """Format the codebase using ruff.
 
     Runs `ruff format` followed by `ruff check --fix`.
+
+    Any additional arguments are passed directly to both ruff invocations.
+
+    Examples:
+        oarepo-cli library format
+        oarepo-cli library format src/mymodule.py
+        oarepo-cli library format --diff
     """
+    # Get extra args from context (passed through to ruff)
+    extra_args = ctx.args if ctx.args else []
+
     context = discover_context()
     console = ConsoleOutput(quiet=quiet)
 
@@ -829,7 +847,7 @@ def library_format(
     runner = LintRunner(context=context, quiet=quiet)
 
     try:
-        result = runner.run_format()
+        result = runner.run_format(extra_args=extra_args)
     except Exception as e:
         console.error(f"❌ Error formatting code: {e}", fg=typer.colors.BRIGHT_RED, bold=True)
         raise typer.Exit(code=1) from e
