@@ -101,8 +101,7 @@ def test_returns_failure_status_on_test_failure(
     )
     if result.returncode != 0:
         failure_reason = f"Failed to install pytest: {result.stderr}"
-        # ty misresolves pytest.fail's @_with_exception-decorated signature (reason: str)
-        pytest.fail(failure_reason)  # ty: ignore[invalid-argument-type]
+        pytest.fail(failure_reason)
 
     orchestrator = TestOrchestrator(test_context)
 
