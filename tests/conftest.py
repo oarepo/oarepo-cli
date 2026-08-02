@@ -33,6 +33,7 @@ def clean_testlib(testlib_project: Path) -> Iterator[Path]:
     Removes:
     - .venv directory (inside testlib)
     - .env-services file
+    - uv.lock file
     - .coverage files
     - __pycache__ directories
     - Any other test artifacts
@@ -41,6 +42,7 @@ def clean_testlib(testlib_project: Path) -> Iterator[Path]:
     """
     venv_path = testlib_project / ".venv"
     env_services = testlib_project / ".env-services"
+    uv_lock = testlib_project / "uv.lock"
     coverage_files = list(testlib_project.glob(".coverage*"))
     htmlcov = testlib_project / "htmlcov"
     dist = testlib_project / "dist"
@@ -69,6 +71,8 @@ def clean_testlib(testlib_project: Path) -> Iterator[Path]:
         shutil.rmtree(venv_path)
     if env_services.exists():
         env_services.unlink()
+    if uv_lock.exists():
+        uv_lock.unlink()
     for f in coverage_files:
         f.unlink()
     if htmlcov.exists():
@@ -92,6 +96,8 @@ def clean_testlib(testlib_project: Path) -> Iterator[Path]:
         shutil.rmtree(venv_path)
     if env_services.exists():
         env_services.unlink()
+    if uv_lock.exists():
+        uv_lock.unlink()
     for f in testlib_project.glob(".coverage*"):
         f.unlink()
     if htmlcov.exists():
