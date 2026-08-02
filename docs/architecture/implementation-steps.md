@@ -520,6 +520,28 @@ For unit-level tests, call `run()`/`stream()`/`get_output()` directly against re
 
 ---
 
+### Step 3.9.1: Migrate Library `lint` Type Checking from mypy/pyright to `ty`
+**Goal**: Replace `mypy` and `pyright` in `library lint` with `ty` alone, so the CLI bundles and invokes a single type checker instead of two.
+
+This step is **not part of the original architecture design** — `00-main-architecture.md` §1.1 and §1.5 still describe `lint` as running `mypy`/`pyright` (with a "planned change" note pointing here) and were not otherwise updated for this decision. Update those notes to describe `ty` as the shipped implementation once this step lands.
+
+- [ ] Remove `mypy`, `pyright`, `types-pyyaml`, `types-requests` from oarepo-cli's dependencies (`pyproject.toml`)
+- [ ] Add `ty` as a runtime dependency of oarepo-cli (already present as a `dev`-only dependency for oarepo-cli's own type checking; needs to become a runtime one so `library lint` can invoke it)
+- [ ] Replace the `mypy`/`pyright` invocations in `LintRunner.run_lint()` (`oarepo_cli/services/lint.py`) with a single `ty check` invocation against `code_directories[0]`
+- [ ] Remove `.mypy.ini` generation; add whatever `ty` config file/flags are needed instead
+- [ ] Decide `ty`-equivalent handling for the old `--ignore-missing-imports`/`--exclude os-v2` mypy flags (or confirm they're no longer applicable)
+- [ ] Update `docs/architecture/00-main-architecture.md` §1.1 and §1.5 to remove the "planned change" notes added for this step and describe `ty` as the actual implementation
+
+**Deliverables**:
+- [ ] `library lint` runs `ruff check`, `ruff format --check`, license header check, future annotations check, `ty check` — no `mypy`/`pyright` involved
+- [ ] Architecture docs no longer reference `mypy`/`pyright` as the lint type checker
+
+**Tests** (`tests/integration/test_library_lint_format.py`):
+- [ ] Update `test_lint_passes_on_clean_code`/`test_lint_fails_on_dirty_code` fixtures for `ty`'s diagnostics if they differ from mypy/pyright's
+- [ ] Test that `library lint` no longer shells out to `mypy`/`pyright` (e.g. no `.mypy.ini` generated)
+
+---
+
 ### Step 3.10: Library `lint` and `format` Commands
 **Goal**: Implement linting and formatting commands.
 
