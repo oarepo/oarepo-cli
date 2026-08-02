@@ -15,11 +15,8 @@ dependencies = [
     # Linters/type checkers run by `library lint`/`library format` against
     # the target project. Bundled as regular dependencies (rather than
     # invoked via `uvx`) so they run without a per-call resolve/download.
-    "mypy>=1.13.0",
-    "pyright>=1.1.380",
     "ruff>=0.9.0",
-    "types-pyyaml>=6.0",
-    "types-requests>=2.31",
+    "ty>=0.0.65",
 ]
 requires-python = ">=3.14,<3.15"
 
@@ -32,7 +29,6 @@ oarepo-cli = "oarepo_cli.cli.main:cli_main"
 [project.optional-dependencies]
 dev = [
     "ruff>=0.9.0",
-    "ty>=0.0.1a10",
     "pre-commit>=4.0.0",
 ]
 tests = [

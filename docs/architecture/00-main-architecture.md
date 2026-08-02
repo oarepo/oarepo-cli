@@ -24,7 +24,7 @@ The new implementation preserves all existing user-facing behavior while replaci
 | `shell` | `--skip-services` | Start bash shell in venv | Must preserve |
 | `invenio` | `--skip-services` | Run Invenio commands | Must preserve |
 | `translations` | - | Extract/compile translations via oarepo-tools | Must preserve |
-| `lint` | - | Run ruff, mypy, pyright, license checks (**planned:** drop mypy/pyright for `ty` — see §1.5 note and [implementation-steps.md Step 3.9.1](./implementation-steps.md)) | Must preserve |
+| `lint` | - | Run ruff, `ty`, license checks | Must preserve |
 | `format` | - | Format code with ruff | Must preserve |
 | `license-headers` | - | Add MIT license headers | Must preserve |
 | `jslint` | - | Run ESLint and Prettier | Must preserve |
@@ -93,20 +93,18 @@ The new implementation preserves all existing user-facing behavior while replaci
 | `docker compose` | Service orchestration | Optional (for services) |
 | `docker-services-cli` | Service environment setup | Optional |
 | `pytest` | Python testing | Optional (for test cmd) |
-| `ruff` | Linting/formatting | Optional |
-| `mypy` / `pyright` | Type checking | Optional |
+| `ruff` | Linting/formatting | Yes (bundled dependency, not shelled out to via `uvx`) |
+| `ty` | Type checking | Yes (bundled dependency, not shelled out to via `uvx`) |
 | `npm` / `pnpm` | JavaScript dependencies | Optional |
 | `jest` | JavaScript testing | Optional |
 | `curl` | Self-update download | Yes |
 | `openssl` | Certificate generation | Yes |
 | `git` | Repo initialization | Optional |
 
-> **Planned change (not yet implemented):** `library lint`'s type checking is
-> planned to migrate from `mypy` + `pyright` to `ty` alone (dropping both in
-> favor of the single tool already used for oarepo-cli's own type checking).
-> This is not reflected elsewhere in this document yet — see
-> [implementation-steps.md Step 3.9.1](./implementation-steps.md) for the
-> tracked follow-up work.
+`library lint`'s type checking uses `ty` alone (the same tool already used
+for oarepo-cli's own type checking) rather than `mypy` + `pyright` — see
+[implementation-steps.md Step 3.9.1](./implementation-steps.md) for the
+mapping from the old mypy/pyright configuration to `ty`'s.
 
 ### 1.6 Identified Issues & Risks
 

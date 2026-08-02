@@ -523,40 +523,37 @@ For unit-level tests, call `run()`/`stream()`/`get_output()` directly against re
 ### Step 3.9.1: Migrate Library `lint` Type Checking from mypy/pyright to `ty`
 **Goal**: Replace `mypy` and `pyright` in `library lint` with `ty` alone, so the CLI bundles and invokes a single type checker instead of two.
 
-This step is **not part of the original architecture design** — `00-main-architecture.md` §1.1 and §1.5 still describe `lint` as running `mypy`/`pyright` (with a "planned change" note pointing here) and were not otherwise updated for this decision. Update those notes to describe `ty` as the shipped implementation once this step lands.
+This step was **not part of the original architecture design** — `00-main-architecture.md` §1.1 and §1.5 originally described `lint` as running `mypy`/`pyright`, with a "planned change" note pointing here. Both sections have been updated to describe `ty` as the shipped implementation now that this step is complete.
 
-- [ ] Remove `mypy`, `pyright`, `types-pyyaml`, `types-requests` from oarepo-cli's dependencies (`pyproject.toml`)
-- [ ] Add `ty` as a runtime dependency of oarepo-cli (already present as a `dev`-only dependency for oarepo-cli's own type checking; needs to become a runtime one so `library lint` can invoke it)
-- [ ] Replace the `mypy`/`pyright` invocations in `LintRunner.run_lint()` (`oarepo_cli/services/lint.py`) with a single `ty check` invocation against `code_directories[0]`
-- [ ] Remove `.mypy.ini` generation; generate a `ty.toml` in the target project instead (same pattern as the existing `_write_config(root / ".ruff.toml", RUFF_TOML)` / `_write_config(root / ".mypy.ini", MYPY_INI)` calls — add a `TY_TOML` constant alongside `RUFF_TOML`/`MYPY_INI`)
-- [ ] Decide `ty`-equivalent handling for the old `--ignore-missing-imports`/`--exclude os-v2` mypy flags and pyright's `--pythonpath <venv_python>` (or confirm they're no longer applicable)
-- [ ] Update `docs/architecture/00-main-architecture.md` §1.1 and §1.5 to remove the "planned change" notes added for this step and describe `ty` as the actual implementation
+- [x] Remove `mypy`, `pyright`, `types-pyyaml`, `types-requests` from oarepo-cli's dependencies (`pyproject.toml`)
+- [x] Add `ty` as a runtime dependency of oarepo-cli (previously a `dev`-only dependency for oarepo-cli's own type checking; moved to core `dependencies` so `library lint` can invoke it too, and dropped from `dev` since core deps are always installed regardless of extras)
+- [x] Replace the `mypy`/`pyright` invocations in `LintRunner.run_lint()` (`oarepo_cli/services/lint.py`) with a single `ty check` invocation against `code_directories[0]`
+- [x] Remove `.mypy.ini` generation; generate a `ty.toml` in the target project instead. Note: by the time this step landed, `RUFF_TOML`/`MYPY_INI` were no longer Python string constants in `lint.py` — an earlier refactor moved them to real data files under `oarepo_cli/configuration/` (`ruff.toml.tmpl`, loaded lazily via `importlib.resources`). Followed that existing pattern instead of the string-constant one this bullet originally described: added `oarepo_cli/configuration/ty.toml.tmpl`, loaded via `resources.read_text("ty.toml.tmpl")`. The `.tmpl` suffix matters — a bare `ruff.toml`/`ty.toml` inside `oarepo_cli/configuration/` gets auto-discovered by ruff (confirmed) and could plausibly confuse `ty` (not confirmed either way, but not worth the risk) when linting/type-checking oarepo-cli's own source in that directory
+- [x] Decide `ty`-equivalent handling for the old `--ignore-missing-imports`/`--exclude os-v2` mypy flags and pyright's `--pythonpath <venv_python>` (or confirm they're no longer applicable) — see mapping below
+- [x] Update `docs/architecture/00-main-architecture.md` §1.1 and §1.5 to remove the "planned change" notes added for this step and describe `ty` as the actual implementation
 
-> **Note to whoever implements this step:** `ty.toml`'s ruleset must match
-> the behavior of the current `.mypy.ini` + pyright invocation as closely as
-> `ty` allows — this migration is meant to change *which tool* runs, not to
-> loosen or tighten what the target project's lint step actually catches.
-> Before writing `TY_TOML`, re-derive each setting from what's live today
-> rather than guessing at reasonable-looking defaults:
-> - `.mypy.ini`'s `warn_return_any`, `warn_unused_configs`, `warn_unreachable`,
->   `follow_untyped_imports` (see `MYPY_INI` in `oarepo_cli/services/lint.py`)
-> - the mypy CLI flags `--ignore-missing-imports` and `--exclude os-v2`
-> - pyright's `--pythonpath <venv_python>` (import resolution against the
->   target project's own venv, not oarepo-cli's)
->
-> For each one, find `ty`'s closest equivalent rule/option and carry it into
-> `ty.toml` deliberately (or record in this step, and in the PR description,
-> that `ty` has no equivalent and the check is being dropped) — don't just
-> ship `ty`'s defaults and call it done.
+**Resolved mypy/pyright → `ty` mapping** (researched against `ty` 0.0.65 and
+[docs.astral.sh/ty](https://docs.astral.sh/ty/), verified empirically — see
+below — rather than guessed from defaults):
+
+| Old setting | Where | `ty` equivalent | Notes |
+|---|---|---|---|
+| `--ignore-missing-imports` | mypy CLI flag | `ty.toml`: `[rules]` → `unresolved-import = "ignore"` | Confirmed by test: without it, an unresolvable import errors; with it, `ty check` passes. |
+| `--exclude os-v2` | mypy CLI flag | `ty.toml`: `[src]` → `exclude = ["**/os-v2/**"]` | A bare `"os-v2"` pattern does **not** exclude nested contents when the parent directory is passed explicitly on the command line (verified empirically — `ty check src/cleanlib` with `exclude = ["os-v2"]` still reported an error inside `src/cleanlib/os-v2/`); needed the `**/os-v2/**` glob form to actually exclude it. |
+| pyright `--pythonpath <venv_python>` | pyright CLI flag | `ty check --python <venv_python>` CLI flag | Kept as a CLI flag rather than baked into `ty.toml`, same as the old pyright invocation — it's per-invocation (the target project's venv path), not a static ruleset preference. |
+| `warn_return_any` | `.mypy.ini` | **Dropped, no equivalent** | `ty`'s rule set (checked against the full list at docs.astral.sh/ty/reference/rules/) has no rule for "function returns a value ty inferred as `Any`" — `ty`'s `invalid-return-type` rule checks assignability, not implicit-`Any` leakage, which is a different, mypy-specific inference-strictness concept. |
+| `warn_unreachable` | `.mypy.ini` | **Dropped, no equivalent** | No unreachable-code rule exists in `ty`'s rule set at all (confirmed against the full rule list). |
+| `warn_unused_configs` | `.mypy.ini` | **Dropped, not applicable** | This warns about stale/unmatched sections in `.mypy.ini` itself — a mypy-config-file-specific meta-check with no meaning under `ty`'s config format. |
+| `follow_untyped_imports` | `.mypy.ini` | **Dropped, no equivalent toggle** | Controls whether mypy analyzes untyped third-party packages' source instead of treating them as `Any`; `ty`'s import resolution model doesn't expose an equivalent on/off switch. |
 
 **Deliverables**:
-- [ ] `library lint` runs `ruff check`, `ruff format --check`, license header check, future annotations check, `ty check` — no `mypy`/`pyright` involved
-- [ ] Generated `ty.toml` whose rules are traceable back to the specific `.mypy.ini`/mypy-flag/pyright-flag settings they replace (documented in the PR description, not just the code)
-- [ ] Architecture docs no longer reference `mypy`/`pyright` as the lint type checker
+- [x] `library lint` runs `ruff check`, `ruff format --check`, license header check, future annotations check, `ty check` — no `mypy`/`pyright` involved
+- [x] Generated `ty.toml` whose rules are traceable back to the specific `.mypy.ini`/mypy-flag/pyright-flag settings they replace (see mapping table above; also documented in the PR description)
+- [x] Architecture docs no longer reference `mypy`/`pyright` as the lint type checker
 
 **Tests** (`tests/integration/test_library_lint_format.py`):
-- [ ] Update `test_lint_passes_on_clean_code`/`test_lint_fails_on_dirty_code` fixtures for `ty`'s diagnostics if they differ from mypy/pyright's
-- [ ] Test that `library lint` no longer shells out to `mypy`/`pyright` (e.g. no `.mypy.ini` generated)
+- [x] Update `test_lint_passes_on_clean_code`/`test_lint_fails_on_dirty_code` fixtures for `ty`'s diagnostics if they differ from mypy/pyright's — not needed, the existing clean/dirty fixtures pass/fail identically under `ty`; added a new `test_lint_fails_on_type_error` test (return-type mismatch) to exercise the `ty check` step specifically, since the existing dirty-code test only exercises the earlier `ruff check` step
+- [x] Test that `library lint` no longer shells out to `mypy`/`pyright` (e.g. no `.mypy.ini` generated) — folded into `test_lint_passes_on_clean_code`, which now asserts `ty.toml` exists and `.mypy.ini` does not
 
 ---
 
