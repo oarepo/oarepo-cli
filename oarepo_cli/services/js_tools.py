@@ -23,6 +23,9 @@ def run_jslint(context: ProjectContext, *, quiet: bool = False) -> process.Proce
     dependencies if needed, generates .eslintrc.yaml config, runs eslint
     with --fix, and runs prettier.
 
+    Note: Unlike other commands, jslint excludes the tests/ directory from
+    code_directories, matching the bash script's behavior.
+
     Args:
         context: Project context with paths and configuration
         quiet: If True, suppress progress output
@@ -31,7 +34,8 @@ def run_jslint(context: ProjectContext, *, quiet: bool = False) -> process.Proce
         ProcessResult from the linting commands
     """
     root = context.root_directory
-    code_directories = context.code_directories
+    # Exclude tests directory for jslint, matching bash script behavior
+    code_directories = [d for d in context.code_directories if d.name != "tests"]
 
     # Check if package.json exists
     package_json_path = root / "package.json"
@@ -88,13 +92,11 @@ def run_jslint(context: ProjectContext, *, quiet: bool = False) -> process.Proce
     if not quiet:
         print("Running ESLint...")
 
-    # Build list of JS/JSX file patterns from code directories
-    js_patterns = []
-    for code_dir in code_directories:
-        js_patterns.extend([f"{code_dir.name}/**/*.js", f"{code_dir.name}/**/*.jsx"])
+    # Pass directory names as relative paths (matching bash script behavior)
+    dir_names = [str(d.relative_to(root)) for d in code_directories]
 
     result = process.run(
-        [str(eslint_bin), "--ext", ".js,.jsx", "--fix", *[str(d) for d in code_directories]],
+        [str(eslint_bin), "--ext", ".js,.jsx", "--fix", *dir_names],
         cwd=root,
         check=False,
         interactive=not quiet,
@@ -112,10 +114,9 @@ def run_jslint(context: ProjectContext, *, quiet: bool = False) -> process.Proce
 
     prettier_bin = root / "node_modules" / ".bin" / "prettier"
 
-    # Build prettier patterns
-    prettier_patterns = []
-    for code_dir in code_directories:
-        prettier_patterns.append(f"{code_dir.name}/**/*.{{js,jsx}}")
+    # Build prettier patterns: append /**/*.{js,jsx} to each directory
+    # Matching bash: "${code_directories[@]/%//**/*.{js,jsx}}"
+    prettier_patterns = [f"{d.relative_to(root)}/**/*.{{js,jsx}}" for d in code_directories]
 
     return process.run(
         [str(prettier_bin), prettier_flag, *prettier_patterns],
