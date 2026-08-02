@@ -468,6 +468,35 @@ class VirtualEnvironmentManager:
 
         return venv_path
 
+    def ensure_venv_exists(
+        self,
+        requirements: VenvRequirements,
+        quiet: bool = False,
+    ) -> Path:
+        """
+        Ensure venv directory exists, without syncing dependencies.
+
+        Unlike ensure_venv(), this never re-verifies or reinstalls
+        dependencies — it only checks that the directory is present.
+        Intended for commands that just need somewhere to run from
+        (shell, invenio, test) rather than a full dependency sync.
+
+        Args:
+            requirements: Requirements to use if venv needs to be created
+            quiet: If True, suppress command output
+
+        Returns:
+            Path to virtual environment
+
+        Raises:
+            VersionMismatchError: If Python version incompatible
+            ProcessExecutionError: If uv commands fail
+        """
+        venv_path = self._config.venv.path
+        if venv_path.exists():
+            return venv_path
+        return self.ensure_venv(requirements, force=False)
+
     def _create_venv(self, python: str, path: Path) -> None:
         """Create fresh virtual environment."""
         process.run(
