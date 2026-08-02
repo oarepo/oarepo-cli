@@ -17,6 +17,7 @@ from packaging.version import Version
 
 from oarepo_cli.configuration.constants import KNOWN_PYTHON_VERSIONS, OAREPO_PYTHON_COMPATIBILITY
 from oarepo_cli.core.errors import VersionMismatchError
+from oarepo_cli.services.process import get_system_path
 from oarepo_cli.services.pyproject_reader import PyProjectReader
 
 
@@ -233,7 +234,7 @@ class VersionResolver:
             version: Python version string (e.g., "3.12")
 
         Returns:
-            True if the Python binary is found in PATH
+            True if the Python binary is found in PATH (excluding any active venv)
         """
         major, minor = version.split(".")
 
@@ -244,4 +245,11 @@ class VersionResolver:
             f"python{major}.{minor}",  # python3.12
         ]
 
-        return any(shutil.which(candidate) is not None for candidate in candidates)
+        # Exclude any active venv from PATH (see process.get_system_path):
+        # otherwise a version only present inside the currently-active venv
+        # would be reported "available" even when nothing about to (re)create
+        # that venv could actually use it.
+        system_path = get_system_path()
+        return any(
+            shutil.which(candidate, path=system_path) is not None for candidate in candidates
+        )

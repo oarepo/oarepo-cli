@@ -11,6 +11,7 @@ from pathlib import Path
 
 from oarepo_cli.core.config import CliConfig
 from oarepo_cli.core.errors import ConfigurationError, ValidationError
+from oarepo_cli.services.process import get_system_path
 from oarepo_cli.services.pyproject_reader import PyProjectReader
 from oarepo_cli.services.version_resolver import VersionResolver
 
@@ -256,16 +257,24 @@ class ContextBuilder:
         elif config.python.binary:
             python_binary = Path(config.python.binary)
             if not python_binary.is_absolute():
-                # Try to find in PATH
-                resolved = shutil.which(python_binary.name)
+                # Try to find in PATH, excluding any active venv (see get_system_path)
+                resolved = shutil.which(python_binary.name, path=get_system_path())
                 if resolved:
                     python_binary = Path(resolved)
         else:
-            # Auto-detect using version resolver
+            # Auto-detect using version resolver, excluding any active venv
+            # from PATH -- otherwise resolving e.g. "python3.14" while a
+            # project's own venv is activated finds that venv's own
+            # interpreter, which is wrong for anything that needs to
+            # (re)create that very venv (e.g. `repository upgrade`, which
+            # removes the venv before reinstalling).
             resolver = VersionResolver(pyproject_reader=pyproject_reader)
             info = resolver.resolve_from_pyproject(self._pyproject_path)
             python_version = resolver.find_available_python(info.python_versions)
-            python_binary = Path(shutil.which(f"python{python_version}") or "python")
+            system_path = get_system_path()
+            python_binary = Path(
+                shutil.which(f"python{python_version}", path=system_path) or "python"
+            )
 
         # Validate Python binary exists
         if not python_binary.exists():
