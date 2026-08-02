@@ -667,29 +667,32 @@ from dependency constraints instead of requiring explicit configuration. Step
 ### Step 3.13: Refactor `oarepo-versions` to Extract from Dependencies
 **Goal**: Replace `[tool.oarepo-cli].version` configuration with automatic extraction from main/optional dependencies.
 
-- [ ] Update `PyProjectData.oarepo_versions()` to scan `dependencies` and `optional-dependencies` for `oarepo` package
-- [ ] Parse version constraints (e.g., `"oarepo>=14.0.0,<15.0.0"` → major version `14`)
-- [ ] Return list of major versions sorted highest-first
-- [ ] Support both main dependencies and dev/tests extras
-- [ ] Remove reliance on `[tool.oarepo-cli].version` key
+- [x] Update `PyProjectData.oarepo_versions()` to scan `dependencies` and `optional-dependencies` for `oarepo` package
+- [x] Parse version constraints (e.g., `"oarepo>=14.0.0,<15.0.0"` → major version `14`)
+- [x] Return list of major versions sorted highest-first
+- [x] Support both main dependencies and dev/tests extras
+- [x] Remove reliance on `[tool.oarepo-cli].version` key
 
 **Deliverables**:
-- [ ] Updated `PyProjectData.oarepo_versions` property
-- [ ] Updated architectural docs (00-main-architecture.md §1.1.2, 01-detailed-design.md §6.3, 03-migration-guide.md §5.6)
+- [x] Updated `PyProjectData.oarepo_versions` property
+- [x] Helper function `_extract_oarepo_version_from_specifier()` using `packaging.requirements`
+- [x] Updated command docstring in `library.py`
 
 **Tests** (`tests/unit/test_pyproject_reader.py`, `tests/integration/test_library_versions.py`):
-- [ ] Test extraction from main dependencies: `oarepo>=14.0.0,<15.0.0` → `[14]`
-- [ ] Test extraction from optional dependencies (dev, tests extras)
-- [ ] Test multiple constraints: `oarepo>=13.0.0,<14.0.0` and `oarepo>=14.0.0,<15.0.0` → `[14, 13]` (highest first)
-- [ ] Test exact version pins: `oarepo==14.0.5` → `[14]`
-- [ ] Test no oarepo dependency → `[]`
-- [ ] Test invalid constraint format (gracefully ignore/log warning)
-- [ ] Integration test: JSON output still valid after refactor
+- [x] Test extraction from main dependencies: `oarepo>=14.0.0,<15.0.0` → `[14]`
+- [x] Test extraction from optional dependencies (dev, tests extras)
+- [x] Test multiple constraints: `oarepo>=13.0.0,<14.0.0` and `oarepo>=14.0.0,<15.0.0` → `[14, 13]` (highest first)
+- [x] Test exact version pins: `oarepo==14.0.5` → `[14]`
+- [x] Test deduplication across extras
+- [x] Test with extras markers: `oarepo[search]>=14.0.0`
+- [x] Test invalid constraint format (gracefully ignore/log warning)
+- [x] Integration test: JSON output still valid after refactor
+- [x] Integration test: multi-version scenario
 
 **Migration impact**:
-- Existing `[tool.oarepo-cli].version` configuration becomes **deprecated but not removed** (CLI ignores it with a warning if present)
+- Existing `[tool.oarepo-cli].version` configuration is **no longer used** (standard dependencies are the source of truth)
 - Projects using standard dependency declarations automatically work without config changes
-- See updated migration guide for transition plan
+- See migration guide (§5.6) for details
 
 **Rationale**:
 - Eliminates duplicate configuration: the oarepo version is already declared in dependencies
