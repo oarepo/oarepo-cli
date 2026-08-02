@@ -7,6 +7,10 @@ from __future__ import annotations
 
 import re
 
+# CESNET GitLab PyPI registry hosting OARepo packages and CESNET-patched
+# third-party builds (e.g. invenio-cli with docker-environment patches)
+CESNET_PYPI_INDEX_URL = "https://gitlab.cesnet.cz/api/v4/projects/1408/packages/pypi/simple"
+
 # Python versions supported by the CLI (highest first for efficiency)
 KNOWN_PYTHON_VERSIONS = ["3.14"]
 
@@ -27,8 +31,8 @@ STREAM_ENV_DEFAULTS = {"PYTHONUNBUFFERED": "1"}
 # Note: Environment variables already set take precedence (not overwritten)
 OAREPO_ENV_DEFAULTS = {
     # UV/PIP extra index for OARepo packages (CESNET GitLab PyPI)
-    "UV_EXTRA_INDEX_URL": "https://gitlab.cesnet.cz/api/v4/projects/1408/packages/pypi/simple",
-    "PIP_EXTRA_INDEX_URL": "https://gitlab.cesnet.cz/api/v4/projects/1408/packages/pypi/simple",
+    "UV_EXTRA_INDEX_URL": CESNET_PYPI_INDEX_URL,
+    "PIP_EXTRA_INDEX_URL": CESNET_PYPI_INDEX_URL,
     # Invenio configuration
     "INVENIO_APP_THEME": '["semantic-ui"]',
     "INVENIO_WEBPACKEXT_NPM_PKG_CLS": "pynpm.package:PNPMPackage",

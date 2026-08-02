@@ -14,6 +14,7 @@ import typer
 from oarepo_cli import __version__
 from oarepo_cli.cli.library import library_app
 from oarepo_cli.cli.repository import repository_app
+from oarepo_cli.core.dependency_check import check_invenio_cli_version
 
 # Create the root CLI application
 app = typer.Typer(
@@ -98,6 +99,7 @@ def main(
 def cli_main() -> None:
     """Entry point for the CLI."""
     try:
+        check_invenio_cli_version()
         app()
     except KeyboardInterrupt:
         typer.echo("\nInterrupted by user", err=True)

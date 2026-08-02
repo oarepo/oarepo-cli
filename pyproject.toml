@@ -9,7 +9,9 @@ description = "A standalone Python CLI for OARepo library and repository managem
 readme = "README.md"
 license = "MIT"
 dependencies = [
-    "invenio-cli>=1.9.0,<2.0.0",
+    # Requires the CESNET-patched build (see [tool.uv.sources] below); the
+    # installed version is verified at startup in oarepo_cli.core.dependency_check
+    "invenio-cli>=1.12.0,<2.0.0",
     "packaging>=24.0",
     "typer>=0.12.0",
     # Linters/type checkers run by `library lint`/`library format` against
@@ -42,6 +44,15 @@ tests = [
 oarepo14 = [
     # just for installation, no code dependency
 ]
+
+# CESNET GitLab PyPI registry, used to resolve the CESNET-patched
+# invenio-cli build (with docker-environment and other OARepo patches).
+[[tool.uv.index]]
+name = "cesnet"
+url = "https://gitlab.cesnet.cz/api/v4/projects/1408/packages/pypi/simple"
+
+[tool.uv.sources]
+invenio-cli = { index = "cesnet" }
 
 [tool.hatch.version]
 path = "oarepo_cli/__init__.py"
