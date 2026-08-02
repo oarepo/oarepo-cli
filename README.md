@@ -1,14 +1,9 @@
-# OARepo extensions to invenio-cli
+# OARepo build tools
 
-This package provides extensions to the Invenio CLI for working with OARepo-based repositories.
+overview
 
-## Usage
+## List of commands
 
-uvx --with oarepo-cli invenio-cli
+## Library tools
 
-## What extensions are included?
-
-### `invenio-cli install`
-
-An extra step is added to the `invenio-cli install` command to make sure that the
-theme.less file contains all the components from less libraries.
+## Repository tools

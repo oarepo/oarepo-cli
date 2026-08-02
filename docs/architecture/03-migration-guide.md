@@ -348,8 +348,20 @@ oarepo-cli library oarepo-versions
 {"oarepo_versions": [14, 13], "python_versions": ["3.14"], ...}
 ```
 
-**Note:** The `[tool.oarepo-cli].version` key from Step 3.12 is ignored with a
+**Note:** The `[tool.oarepo-cli].oarepo.version` key from Step 3.12 is ignored with a
 warning if present. The CLI always reads from dependency constraints now.
+
+**Multi-version projects:**
+
+If your project has multiple OARepo versions in different extras (e.g., `oarepo>=14`
+in `dev` and `oarepo>=13` in `tests`), the CLI will:
+
+1. **Detection**: `oarepo-versions` command reports all versions: `["14", "13"]`
+2. **Selection**: Commands like `venv`/`install` use the **highest version** (14) by default
+3. **Override**: Set `OAREPO_VERSION=13` to use a different version:
+   ```bash
+   OAREPO_VERSION=13 oarepo-cli library venv
+   ```
 
 ---
 
