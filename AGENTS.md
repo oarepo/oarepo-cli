@@ -38,6 +38,11 @@ on a step or finishing it.
 If two docs seem to disagree, `implementation-steps.md` and `01-detailed-design.md`
 are the most concrete/current; `README.md` is an executive summary and may lag.
 
+**Keep README.md up to date**: When implementing or modifying CLI commands,
+always update `README.md` to reflect the current functionality. The README serves
+as user-facing documentation and must accurately describe all available commands,
+options, and workflows.
+
 ## Non-negotiable constraints (from the ADRs)
 
 These are architectural decisions already made — don't re-litigate them, just follow them:

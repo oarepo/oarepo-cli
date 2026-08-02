@@ -1,9 +1,620 @@
-# OARepo build tools
+# OARepo CLI
 
-overview
+A standalone Python command-line tool for OARepo library and repository development. Replaces the legacy bash scripts (`library_runner.sh`, `repository_runner.sh`, `repository_installer.sh`) with a robust, maintainable CLI built with Python and Typer.
 
-## List of commands
+## Overview
 
-## Library tools
+`oarepo-cli` provides two main command groups:
 
-## Repository tools
+- **`library`**: Tools for developing OARepo library packages (models, modules, extensions)
+- **`repository`**: Tools for managing full OARepo repository instances
+
+The CLI handles virtual environment management, dependency installation, Docker service orchestration, testing, linting, formatting, and more—all while preserving the familiar workflows from the original bash scripts.
+
+### Key Features
+
+- **Zero shell injection risk**: All subprocess calls use explicit argument lists, never `shell=True`
+- **Standard Python packaging**: Works with `pyproject.toml` (PEP 621) and uses `uv` for fast dependency resolution
+- **Virtual environment management**: Automatic venv creation, validation, and dependency synchronization
+- **Docker service integration**: Manages PostgreSQL, OpenSearch, Redis, RabbitMQ, and MinIO via `docker-services-cli`
+- **Multi-version support**: Automatically detects OARepo versions from dependency constraints
+- **Cross-platform**: Works on macOS, Linux, and Windows with platform-specific optimizations
+
+### Installation
+
+```bash
+pip install oarepo-cli
+```
+
+Or with `uv`:
+
+```bash
+uv pip install oarepo-cli
+```
+
+## Library Tools
+
+The `library` subcommand provides development tools for OARepo library packages.
+
+### Command Overview
+
+| Command | Description | Key Options |
+|---------|-------------|-------------|
+| `venv` | Set up virtual environment | `--force`, `--no-editable` |
+| `install` | Alias for `venv` | Same as `venv` |
+| `upgrade` | Clean cache and recreate venv | None |
+| `test` | Run pytest tests | `--skip-services`, `--with-coverage` |
+| `start` | Start Docker services | None |
+| `stop` | Stop Docker services | None |
+| `lint` | Run linters and type checkers | `--fix` / `--no-fix` (default: `--fix`) |
+| `format` | Format code with ruff | `--fix` / `--no-fix` (default: `--fix`) |
+| `check` | Read-only lint + format | None |
+| `shell` | Open bash shell in venv | `--skip-services` |
+| `invenio` | Run invenio commands | `--skip-services` |
+| `translations` | Extract/compile translations | None |
+| `license-headers` | Add MIT license headers | None |
+| `jslint` | Run ESLint and Prettier | None |
+| `jstest` | Run JavaScript tests (Jest) | `setup`, `--skip-services` |
+| `oarepo-versions` | List OARepo and Python versions | None (outputs JSON) |
+| `clean` | Remove venv and services | None |
+| `services` | Manage Docker services | `setup`, `start`, `stop`, `destroy` |
+
+### `library venv`
+
+Creates or verifies a Python virtual environment and installs all dependencies.
+
+```bash
+oarepo-cli library venv
+```
+
+**Options:**
+- `--force` / `-f`: Recreate venv from scratch (removes existing venv)
+- `--no-editable`: Build and install a wheel instead of editable mode (`-e`)
+- `--quiet` / `-q`: Suppress output messages
+
+**What it does:**
+1. Detects Python version from `requires-python` in `pyproject.toml`
+2. Creates `.venv` directory (configurable via `OAREPO_VENV_PATH` or `[tool.oarepo-cli].venv.path`)
+3. Installs dependencies using `uv sync` (fast, deterministic)
+4. Installs the current project in editable mode (unless `--no-editable`)
+5. Validates Python-OARepo version compatibility
+
+**Examples:**
+```bash
+# Standard setup (editable mode)
+oarepo-cli library venv
+
+# Force rebuild
+oarepo-cli library venv --force
+
+# Build wheel instead
+oarepo-cli library venv --no-editable
+```
+
+### `library install`
+
+Alias for `library venv`. Exists for compatibility with the old `./run.sh install` command.
+
+```bash
+oarepo-cli library install
+```
+
+### `library upgrade`
+
+Cleans the pip cache and recreates the virtual environment from scratch. Useful when dependencies change or you encounter caching issues.
+
+```bash
+oarepo-cli library upgrade
+```
+
+**What it does:**
+1. Runs `uv cache clean` to clear cached packages
+2. Removes the existing `.venv` directory
+3. Recreates venv and reinstalls all dependencies (equivalent to `venv --force`)
+
+### `library test`
+
+Runs pytest tests with optional coverage and Docker services.
+
+```bash
+oarepo-cli library test
+```
+
+**Options:**
+- `--skip-services`: Skip starting/stopping Docker services (faster for unit tests)
+- `--with-coverage`: Generate coverage reports (HTML in `htmlcov/` and terminal output)
+- `--quiet` / `-q`: Suppress service start/stop messages
+
+**Additional pytest arguments** can be passed after the options:
+```bash
+oarepo-cli library test -v tests/unit/
+oarepo-cli library test --with-coverage -x -k test_specific
+oarepo-cli library test --skip-services tests/unit/test_fast.py
+```
+
+**What it does:**
+1. Ensures venv exists
+2. Starts Docker services (unless `--skip-services`)
+3. Runs `pytest` with coverage if requested
+4. Stops Docker services (unless `--skip-services`)
+
+### `library start` / `library stop`
+
+Start or stop Docker services for development.
+
+```bash
+oarepo-cli library start
+oarepo-cli library stop
+```
+
+**Services managed:**
+- PostgreSQL (database)
+- OpenSearch 2 (search engine)
+- Redis (cache)
+- RabbitMQ (message queue)
+- MinIO (S3-compatible object storage)
+
+Configuration is via `[tool.oarepo-cli].services` in `pyproject.toml` or environment variables (`OAREPO_SERVICES_*`).
+
+**Example configuration:**
+```toml
+[tool.oarepo-cli.services]
+db = "postgresql"
+search = "opensearch2"
+cache = "redis"
+mq = "rabbitmq"
+s3 = "minio"
+```
+
+### `library lint`
+
+Runs linters and type checkers on the codebase. **By default, auto-fixes** what ruff and ty can fix.
+
+```bash
+oarepo-cli library lint
+```
+
+**Options:**
+- `--fix` / `--no-fix`: Auto-fix (default) vs. report-only mode
+- `--quiet` / `-q`: Suppress output
+
+**What it does (in order, stops at first failure):**
+1. `ruff check --fix` (auto-fixes what it can)
+2. `ruff format` (formats code)
+3. License header check (read-only, use `license-headers` to fix)
+4. `from __future__ import annotations` check (read-only)
+5. `ty check --fix` (type checker with auto-fixes)
+
+**Generates config files** in project root:
+- `.ruff.toml` (ruff configuration)
+- `ty.toml` (ty type checker configuration)
+
+**Examples:**
+```bash
+# Auto-fix mode (default)
+oarepo-cli library lint
+
+# Report-only mode (no modifications)
+oarepo-cli library lint --no-fix
+
+# Quiet mode
+oarepo-cli library lint --quiet
+```
+
+### `library format`
+
+Formats code using ruff. **By default, rewrites files**.
+
+```bash
+oarepo-cli library format
+```
+
+**Options:**
+- `--fix` / `--no-fix`: Rewrite files (default) vs. preview mode
+- `--quiet` / `-q`: Suppress output
+
+**What it does:**
+- With `--fix` (default): Runs `ruff format` (rewrites files)
+- With `--no-fix`: Runs `ruff format --check` (preview only, no changes)
+
+### `library check`
+
+Read-only combination of `lint` + `format` that **never modifies files**. Safe for CI/CD.
+
+```bash
+oarepo-cli library check
+```
+
+**What it does (equivalent to `lint --no-fix` + `format --no-fix`):**
+1. `ruff format --check` (preview formatting)
+2. `ruff check` (no `--fix`)
+3. License header check
+4. `from __future__ import annotations` check
+5. `ty check` (no `--fix`)
+
+**Use this command in CI/CD pipelines** to verify code quality without modifying files.
+
+### `library shell`
+
+Opens an interactive bash shell in the project's virtual environment.
+
+```bash
+oarepo-cli library shell
+```
+
+**Options:**
+- `--skip-services`: Don't start Docker services before opening shell
+
+**What it does:**
+1. Ensures venv exists
+2. Starts Docker services (unless `--skip-services`)
+3. Opens bash shell with venv activated
+4. On exit, stops Docker services (unless `--skip-services`)
+
+**Example:**
+```bash
+# Shell with services
+oarepo-cli library shell
+
+# Shell without services (faster)
+oarepo-cli library shell --skip-services
+```
+
+Inside the shell, you can run any command with the venv activated:
+```bash
+$ python --version
+$ pip list
+$ pytest tests/
+$ invenio --help
+```
+
+### `library invenio`
+
+Runs invenio CLI commands in the project's virtual environment.
+
+```bash
+oarepo-cli library invenio [OPTIONS] [ARGS]...
+```
+
+**Options:**
+- `--skip-services`: Don't start Docker services before running command
+
+**Examples:**
+```bash
+# List invenio commands
+oarepo-cli library invenio --help
+
+# Run database migrations
+oarepo-cli library invenio db create
+oarepo-cli library invenio db upgrade
+
+# Create admin user
+oarepo-cli library invenio users create admin@example.com --password 123456 --active
+```
+
+### `library translations`
+
+Extracts and compiles translations using `oarepo-tools make-translations`.
+
+```bash
+oarepo-cli library translations
+```
+
+**What it does:**
+1. Ensures venv exists
+2. Runs `oarepo-tools make-translations` to extract translatable strings
+3. Compiles `.po` files to `.mo` format
+
+### `library license-headers`
+
+Adds MIT license headers to Python files that are missing them.
+
+```bash
+oarepo-cli library license-headers
+```
+
+**What it does:**
+- Scans Python files in source directories
+- Adds SPDX license header to files missing it:
+  ```python
+  # SPDX-FileCopyrightText: 2026 CESNET z.s.p.o.
+  # SPDX-License-Identifier: MIT
+  ```
+
+**Configuration:**
+- Organization name: `[tool.oarepo-cli].license.organization` (default: `"CESNET z.s.p.o"`)
+
+### `library jslint`
+
+Runs ESLint and Prettier on JavaScript files.
+
+```bash
+oarepo-cli library jslint
+```
+
+**What it does:**
+1. Ensures venv exists (for invenio webpack context)
+2. Runs `invenio webpack create`
+3. Runs `npm run lint` and `npm run prettier`
+
+### `library jstest`
+
+Runs JavaScript tests using Jest via invenio webpack.
+
+```bash
+oarepo-cli library jstest [OPTIONS]
+```
+
+**Options:**
+- `setup`: Run webpack setup before tests
+- `--skip-services`: Don't start Docker services
+
+**Examples:**
+```bash
+# Setup and run tests
+oarepo-cli library jstest setup
+
+# Just run tests (assume webpack already set up)
+oarepo-cli library jstest
+
+# Run without services
+oarepo-cli library jstest --skip-services
+```
+
+### `library oarepo-versions`
+
+Lists supported OARepo and Python versions as JSON.
+
+```bash
+oarepo-cli library oarepo-versions
+```
+
+**Output format:**
+```json
+{
+  "oarepo_versions": ["14"],
+  "python_versions": ["3.14"],
+  "node_versions": ["24"]
+}
+```
+
+**How OARepo versions are detected:**
+
+The command automatically extracts OARepo major versions from dependency constraints in `pyproject.toml`:
+
+```toml
+[project.dependencies]
+oarepo = ">=14.0.0,<15.0.0"  # Detected as version 14
+
+[project.optional-dependencies]
+dev = ["oarepo>=14.0.0,<15.0.0"]  # Also version 14
+tests = ["oarepo>=13.0.0,<14.0.0"]  # Version 13
+```
+
+If multiple versions are detected, they are returned sorted **highest-first**: `["14", "13"]`.
+
+**For commands that need a single version** (like `venv`, `test`), the CLI automatically uses the **highest version**. Override with the `OAREPO_VERSION` environment variable:
+
+```bash
+OAREPO_VERSION=13 oarepo-cli library venv
+```
+
+**Use in scripts:**
+```bash
+# Get Python versions as array
+python_versions=$(oarepo-cli library oarepo-versions | jq -r '.python_versions[]')
+
+# Get highest OARepo version
+oarepo_version=$(oarepo-cli library oarepo-versions | jq -r '.oarepo_versions[0]')
+```
+
+### `library clean`
+
+Cleans up the development environment.
+
+```bash
+oarepo-cli library clean
+```
+
+**What it does:**
+1. Stops Docker services (if running)
+2. Removes `.venv` directory
+3. Removes `.env-services` file
+
+**Warning:** This is a destructive operation. Your virtual environment will need to be recreated with `library venv`.
+
+### `library services`
+
+Manages Docker services with subcommands.
+
+```bash
+oarepo-cli library services [COMMAND]
+```
+
+**Commands:**
+- `setup`: Initialize services (create networks, volumes)
+- `start`: Start all services
+- `stop`: Stop all services
+- `destroy`: Stop services and remove volumes
+
+**Examples:**
+```bash
+# First-time setup
+oarepo-cli library services setup
+
+# Start services
+oarepo-cli library services start
+
+# Stop services
+oarepo-cli library services stop
+
+# Complete cleanup
+oarepo-cli library services destroy
+```
+
+## Repository Tools
+
+_To be implemented in Phase 4 and Phase 5 of the project._
+
+The `repository` subcommand will provide tools for managing full OARepo repository instances, including:
+- Installation and configuration
+- Model management (create, update via Copier templates)
+- Local package development (`local add`, `local remove`)
+- Server operations (`run`, `cli`, `reset`)
+- Index management (`rebuild`)
+
+## Configuration
+
+Configuration is loaded from multiple sources with precedence:
+
+**defaults < pyproject.toml < environment variables < CLI flags**
+
+### Environment Variables
+
+| Variable | Description | Default |
+|----------|-------------|---------|
+| `OAREPO_VENV_PATH` | Virtual environment path | `.venv` |
+| `OAREPO_VERSION` | OARepo major version (override auto-detection) | Auto-detected |
+| `OAREPO_BUILD_EDITABLE` | Install in editable mode | `true` |
+| `OAREPO_SERVICES_DB` | Database service | `postgresql` |
+| `OAREPO_SERVICES_SEARCH` | Search service | `opensearch2` |
+| `OAREPO_SERVICES_CACHE` | Cache service | `redis` |
+| `OAREPO_SERVICES_MQ` | Message queue service | `rabbitmq` |
+| `OAREPO_SERVICES_S3` | Object storage service | `minio` |
+
+### pyproject.toml Configuration
+
+```toml
+[tool.oarepo-cli]
+
+[tool.oarepo-cli.venv]
+path = ".venv"  # Custom venv path
+
+[tool.oarepo-cli.build]
+editable = true  # Editable mode by default
+
+[tool.oarepo-cli.services]
+db = "postgresql"
+search = "opensearch2"
+cache = "redis"
+mq = "rabbitmq"
+s3 = "minio"
+
+[tool.oarepo-cli.license]
+organization = "Your Organization"  # For license headers
+```
+
+## Development
+
+This project follows strict development practices:
+
+- **Python 3.14** only (`requires-python = ">=3.14,<3.15"`)
+- **Never use `shell=True`** in subprocess calls (security)
+- **Use `uv`** for dependency management
+- **Test coverage** tracked with pytest-cov
+- **Type checking** with `ty`
+- **Linting** with `ruff`
+- **Pre-commit hooks** for quality checks
+
+### Development Commands
+
+```bash
+# Setup development environment
+make install-dev
+
+# Run tests
+make test
+
+# Run linters and type checkers
+make check
+
+# Format code
+make format
+
+# See all available targets
+make help
+```
+
+### Running Tests
+
+```bash
+# All tests (unit + integration)
+make test
+
+# Unit tests only (fast)
+pytest tests/unit/
+
+# Integration tests (slow)
+pytest tests/integration/
+
+# Specific test file
+pytest tests/unit/test_context.py -v
+
+# With coverage
+pytest --cov=oarepo_cli --cov-report=html
+```
+
+## Architecture
+
+The codebase is organized by responsibility:
+
+```
+oarepo_cli/
+├── cli/              # Typer command definitions
+│   ├── main.py       # Root app and global options
+│   ├── library.py    # Library subcommands
+│   └── repository.py # Repository subcommands (Phase 4+)
+├── core/             # Core domain models
+│   ├── config.py     # Configuration management
+│   ├── context.py    # Project context discovery
+│   ├── errors.py     # Exception hierarchy
+│   └── platform.py   # Platform detection
+├── services/         # Business logic services
+│   ├── process.py    # Safe subprocess execution
+│   ├── venv.py       # Virtual environment management
+│   ├── pyproject_reader.py  # TOML parsing
+│   ├── version_resolver.py # Version resolution
+│   └── ...           # Other services
+└── utils/            # Utilities
+    └── locks.py      # File locking for concurrency
+```
+
+**Design principles:**
+- **Single executable**: One `oarepo-cli` command, not multiple scripts
+- **No shell injection**: Explicit argument lists, never string interpolation
+- **Explicit subprocess management**: No parent environment mutation
+- **Standard TOML parsing**: `tomllib` (stdlib), never regex/sed/grep
+- **Behavior-preserving**: Same exit codes, stdout/stderr, flag names as bash scripts
+
+For detailed architecture documentation, see [`docs/architecture/`](./docs/architecture/).
+
+## Migration from Bash Scripts
+
+If you're migrating from the old bash scripts:
+
+| Old Command | New Command |
+|-------------|-------------|
+| `./run.sh venv` | `oarepo-cli library venv` |
+| `./run.sh install` | `oarepo-cli library install` |
+| `./run.sh test` | `oarepo-cli library test` |
+| `./run.sh start` | `oarepo-cli library start` |
+| `./run.sh stop` | `oarepo-cli library stop` |
+| `./run.sh lint` | `oarepo-cli library lint` |
+| `./run.sh format` | `oarepo-cli library format` |
+| `./run.sh shell` | `oarepo-cli library shell` |
+| `./run.sh oarepo-versions` | `oarepo-cli library oarepo-versions` |
+| `./repository_installer.sh NAME` | `oarepo-cli repo-install NAME` (Phase 5) |
+
+**Breaking changes:**
+- `library lint` and `library format` **auto-fix by default** (use `--no-fix` for report-only)
+- New `library check` command for read-only validation
+- `oarepo-versions` extracts from dependencies, not `[tool.oarepo-cli].version` config
+- No `self-update` command (use `pip install --upgrade oarepo-cli`)
+
+See [`docs/architecture/03-migration-guide.md`](./docs/architecture/03-migration-guide.md) for complete migration details.
+
+## License
+
+MIT License - see [LICENSE](LICENSE) for details.
+
+Copyright © 2026 CESNET z.s.p.o.
