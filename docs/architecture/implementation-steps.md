@@ -762,11 +762,20 @@ from dependency constraints instead of requiring explicit configuration. Step
 - Working install command
 
 **Tests** (`tests/integration/test_repository_install.py`):
-- [ ] Test venv synced
-- [ ] Test translations copied
-- [ ] Test instance path created
-- [ ] Test `.invenio.private` configured
-- [ ] Integration test: full install in temp repo
+- [x] Test venv synced
+- [x] Test translations copied
+- [x] Test instance path created
+- [x] Test `.invenio.private` configured
+- [x] Integration test: full install in temp repo
+
+Runs against a real scaffolded repository rather than a mocked one: see
+`tests/conftest.py`'s `testrepo_project` (creates it once via the real
+`repository_installer.sh` — https://nrp-cz.github.io/docs/installation/create_instance
+— and reuses the cached scaffold on subsequent runs) and `clean_testrepo`/
+`reset_testrepo_state`. A full install (`uv sync` of invenio-app-rdm and
+friends, `invenio-cli install`) takes 1-2 minutes even with a warm cache,
+so `installed_repo` (module-scoped, in the test file) runs it once and
+every test asserts on a distinct side effect of that single run.
 
 ---
 
