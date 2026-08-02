@@ -117,11 +117,10 @@ class LintRunner:
 
         Args:
             fix: If True (the default), auto-fix what ruff and ty can fix
-                (``ruff check --fix``, ``ty check --fix``) instead of only
-                reporting. The ``ruff format --check`` step, license header
-                check, and future annotations check are always read-only
-                regardless of this flag - fixing formatting is `format`'s
-                job, and inserting headers/imports is `license-headers`' job.
+                (``ruff check --fix``, ``ruff format``, ``ty check --fix``)
+                instead of only reporting. The license header check and future
+                annotations check are always read-only regardless of this
+                flag - inserting headers/imports is `license-headers`' job.
 
         Returns:
             ProcessResult of the first failing step, or a success result if all pass
@@ -142,8 +141,10 @@ class LintRunner:
         if not result.success:
             return result
 
+        # When fix=True, actually reformat the code; when fix=False, only check
+        format_mode = [] if fix else ["--check"]
         result = process.run(
-            [ruff, "format", "--check", "--exclude", "pyproject.toml"],
+            [ruff, "format", *format_mode, "--exclude", "pyproject.toml"],
             cwd=root,
             check=False,
             interactive=not self._quiet,

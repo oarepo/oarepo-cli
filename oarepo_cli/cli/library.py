@@ -791,17 +791,17 @@ def library_lint(
 ) -> None:
     """Run linters and type checkers on the codebase.
 
-    Runs, in order, stopping at the first failure: ruff check, ruff format
-    --check, a license header check, a `from __future__ import annotations`
-    check, and ty check. Generates .ruff.toml and ty.toml config files in the
+    Runs, in order, stopping at the first failure: ruff check, ruff format,
+    a license header check, a `from __future__ import annotations` check,
+    and ty check. Generates .ruff.toml and ty.toml config files in the
     project root.
 
     By default (--fix), auto-fixes what ruff and ty can fix (`ruff check
-    --fix`, `ty check --fix`) instead of only reporting. The ruff format
-    --check, license header, and future annotations steps never modify
-    files regardless of --fix - use `library format`/`library
-    license-headers` for those. Use --no-fix (or `library check`, its
-    dedicated read-only equivalent) to never modify any file.
+    --fix`, `ruff format`, `ty check --fix`) instead of only reporting.
+    The license header and future annotations checks never modify files
+    regardless of --fix - use `library license-headers` to add those.
+    Use --no-fix (or `library check`, its dedicated read-only equivalent)
+    to never modify any file.
 
     Exits with the exit code of the first failing check.
     """

@@ -86,6 +86,38 @@ def test_lint_fixes_autofixable_violation_by_default(
     assert "import os" not in fixed
 
 
+def test_lint_fixes_formatting_issues_by_default(
+    runner: CliRunner, lint_project: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Test that 'library lint' (default --fix) also fixes formatting issues."""
+    monkeypatch.chdir(lint_project)
+
+    # Introduce formatting issues (spacing, quote style) - no lint violations,
+    # just formatting that ruff format would fix.
+    module = lint_project / "src" / "cleanlib" / "__init__.py"
+    dirty = (
+        "# Copyright (c) 2026 Example Org.\n"
+        "#\n"
+        "# This file is a part of cleanlib.\n\n"
+        '"""Sample clean module."""\n\n'
+        "from __future__ import annotations\n\n\n"
+        "def greet(  ) ->str:\n"
+        '    """Return a greeting message."""\n'
+        "    return   'hello'\n"
+    )
+    module.write_text(dirty)
+
+    result = runner.invoke(app, ["library", "lint", "--quiet"], catch_exceptions=False)
+
+    assert result.exit_code == 0
+    fixed = module.read_text()
+    assert fixed != dirty
+    # Verify formatting was applied
+    assert 'return "hello"' in fixed
+    assert "def greet() -> str:" in fixed
+    assert "return   'hello'" not in fixed
+
+
 def test_lint_no_fix_fails_on_dirty_code_without_modifying(
     runner: CliRunner, lint_project: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
