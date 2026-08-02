@@ -168,24 +168,50 @@ def test_format_fixes_issues(
     """Test that 'library format' rewrites badly-formatted code via ruff."""
     monkeypatch.chdir(lint_project)
 
+    # Only formatting is off here (spacing, quote style) - no un-autofixable
+    # lint violations under the generated .ruff.toml's `select = ["ALL"]`,
+    # so this isolates the formatting behavior under test.
     module = lint_project / "src" / "cleanlib" / "__init__.py"
     dirty = (
-        "# Copyright (c) 2026 Example Org.\n\n"
-        '"""Sample module."""\n\n'
+        "# Copyright (c) 2026 Example Org.\n"
+        "#\n"
+        "# This file is a part of cleanlib.\n\n"
+        '"""Sample clean module."""\n\n'
         "from __future__ import annotations\n\n\n"
         "def greet(  ) ->str:\n"
-        "    x='hello'\n"
-        "    return x\n"
+        '    """Return a greeting message."""\n'
+        "    return   'hello'\n"
     )
     module.write_text(dirty)
+
+    assert not (lint_project / ".ruff.toml").exists()
 
     result = runner.invoke(app, ["library", "format", "--quiet"], catch_exceptions=False)
 
     assert result.exit_code == 0
     formatted = module.read_text()
     assert formatted != dirty
-    assert 'x = "hello"' in formatted
+    assert 'return "hello"' in formatted
     assert "def greet() -> str:" in formatted
+    # First-time `format` (with no prior `lint` run) must still generate
+    # .ruff.toml, otherwise ruff falls back to its built-in defaults instead
+    # of this project's style (docstring formatting, line length, etc.).
+    assert (lint_project / ".ruff.toml").exists()
+
+
+def test_format_does_not_overwrite_existing_ruff_toml(
+    runner: CliRunner, lint_project: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Test that 'library format' leaves a pre-existing .ruff.toml untouched."""
+    monkeypatch.chdir(lint_project)
+
+    custom_config = 'line-length = 79\n[format]\nquote-style = "single"\n'
+    (lint_project / ".ruff.toml").write_text(custom_config)
+
+    result = runner.invoke(app, ["library", "format", "--quiet"], catch_exceptions=False)
+
+    assert result.exit_code == 0
+    assert (lint_project / ".ruff.toml").read_text() == custom_config
 
 
 def test_license_header_check_detects_missing(tmp_path: Path) -> None:

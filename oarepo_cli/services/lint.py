@@ -251,6 +251,10 @@ class LintRunner:
         root = self._context.root_directory
         ruff = _tool_path("ruff")
 
+        ruff_toml = root / ".ruff.toml"
+        if not ruff_toml.exists():
+            _write_config(ruff_toml, RUFF_TOML)
+
         result = process.run(
             [ruff, "format", "--exclude", "pyproject.toml"],
             cwd=root,
