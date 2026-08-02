@@ -321,16 +321,27 @@ class VirtualEnvironmentManager:
         Raises:
             ProcessExecutionError: If uv sync fails
         """
+        from oarepo_cli.services.pyproject_reader import PyProjectReader
+
         # Get platform-specific paths
         bin_dir = self._platform.get_venv_bin_dir()
         python_exe = self._platform.get_venv_python()
         python_path = venv_path / bin_dir / python_exe
 
-        # Build extras list: dev, tests, oarepo{version}, plus any additional
-        extras = ["dev", "tests"]
+        # Read available extras from pyproject.toml
+        reader = PyProjectReader()
+        pyproject_path = self._project_root / "pyproject.toml"
+        pyproject = reader.read(pyproject_path)
+        available_extras = set(pyproject.optional_dependencies.keys())
+
+        # Build extras list: only include extras that exist in the project
+        desired_extras = ["dev", "tests"]
         if requirements.oarepo_version is not None:
-            extras.append(f"oarepo{requirements.oarepo_version}")
-        extras.extend(requirements.extras)
+            desired_extras.append(f"oarepo{requirements.oarepo_version}")
+        desired_extras.extend(requirements.extras)
+
+        # Filter to only request extras that actually exist
+        extras = [extra for extra in desired_extras if extra in available_extras]
 
         # Build uv sync command with all extras
         cmd = [
@@ -338,16 +349,22 @@ class VirtualEnvironmentManager:
             "sync",
             "--python",
             str(python_path),
+            "--prerelease",
+            "allow",
         ]
 
         # Add each extra as a separate --extra flag
         for extra in extras:
             cmd.extend(["--extra", extra])
 
+        # Set UV_PROJECT_ENVIRONMENT to tell uv where to install packages
+        env = {"UV_PROJECT_ENVIRONMENT": str(venv_path)}
+
         # Run uv sync from project root
         process.run(
             cmd,
             cwd=self._project_root,
+            env=env,
             check=True,
             interactive=not quiet,
         )
