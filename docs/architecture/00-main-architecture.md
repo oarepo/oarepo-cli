@@ -117,6 +117,26 @@ tests = ["oarepo>=13.0.0,<14.0.0"]  # multi-version support
 - **Less opinionated**: The CLI doesn't dictate a specific configuration
   structure beyond standard dependencies
 
+**Multi-version selection behavior:**
+
+When multiple OARepo versions are detected (e.g., different versions in `dev`
+and `tests` extras), the CLI selects the **highest version** for commands that
+need a single version (`venv`, `install`, `test`, etc.).
+
+For the example above with versions 14 and 13:
+- `oarepo-cli library oarepo-versions` → Returns `["14", "13"]` (both versions)
+- `oarepo-cli library venv` → Uses version `14` (highest)
+
+**Override with environment variable:**
+
+To use a different version, set the `OAREPO_VERSION` environment variable:
+```bash
+OAREPO_VERSION=13 oarepo-cli library venv
+```
+
+This is useful for testing against older OARepo versions or when you need
+explicit control over which version to use.
+
 The JSON output format returns all detected major versions, sorted
 highest-first:
 ```json
