@@ -5,7 +5,6 @@
 
 from __future__ import annotations
 
-import subprocess
 from typing import TYPE_CHECKING
 
 import pytest
@@ -17,68 +16,11 @@ from oarepo_cli.services.lint import check_future_annotations, check_license_hea
 if TYPE_CHECKING:
     from pathlib import Path
 
-CLEAN_MODULE = """\
-# Copyright (c) 2026 Example Org.
-#
-# This file is a part of cleanlib.
-
-\"\"\"Sample clean module.\"\"\"
-
-from __future__ import annotations
-
-
-def greet() -> str:
-    \"\"\"Return a greeting message.\"\"\"
-    return "hello"
-"""
-
-PYPROJECT_TOML = """\
-[project]
-name = "{name}"
-version = "0.1.0"
-requires-python = ">=3.14,<3.15"
-
-[tool.oarepo-cli]
-oarepo = {{ version = 14 }}
-
-[build-system]
-requires = ["hatchling"]
-build-backend = "hatchling.build"
-"""
-
 
 @pytest.fixture
 def runner() -> CliRunner:
     """Provide a Typer CLI runner."""
     return CliRunner()
-
-
-@pytest.fixture
-def lint_project(tmp_path: Path) -> Path:
-    """A minimal, lint-clean library project with a real venv.
-
-    Set up as a real git repo with `.venv/` gitignored: ruff (like the
-    original bash script's `run_linters`) is invoked with `--exclude
-    pyproject.toml` on the CLI, which overrides ruff's built-in default
-    excludes, so `.venv/`'s own files would otherwise get linted too --
-    exactly as in a real project, this relies on `--respect-gitignore`
-    (ruff's default) picking .venv back up from the repo's .gitignore.
-    """
-    root = tmp_path / "cleanlib"
-    (root / "src" / "cleanlib").mkdir(parents=True)
-    (root / "pyproject.toml").write_text(PYPROJECT_TOML.format(name="cleanlib"))
-    (root / "src" / "cleanlib" / "__init__.py").write_text(CLEAN_MODULE)
-    (root / ".gitignore").write_text(".venv/\n")
-
-    subprocess.run(["git", "init"], cwd=root, check=True, capture_output=True)
-    subprocess.run(
-        ["uv", "venv", "--python", "3.14", "--seed", ".venv"],
-        cwd=root,
-        check=True,
-        capture_output=True,
-    )
-
-    return root
 
 
 def test_lint_help_displays(runner: CliRunner) -> None:
@@ -113,19 +55,52 @@ def test_lint_passes_on_clean_code(
     assert not (lint_project / ".mypy.ini").exists()
 
 
-def test_lint_fails_on_dirty_code(
+def test_lint_fixes_autofixable_violation_by_default(
     runner: CliRunner, lint_project: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    """Test that 'library lint' exits non-zero when ruff finds an issue."""
+    """Test that 'library lint' (default --fix) auto-fixes what ruff can fix."""
+    monkeypatch.chdir(lint_project)
+
+    # Introduce an unused import in a *non*-__init__.py module - ruff treats
+    # unused-import removal in __init__.py as an unsafe fix (re-export
+    # convention), so --fix wouldn't apply it there.
+    module = lint_project / "src" / "cleanlib" / "extra.py"
+    dirty = (
+        "# Copyright (c) 2026 Example Org.\n"
+        "#\n"
+        "# This file is a part of cleanlib.\n\n"
+        '"""Extra module."""\n\n'
+        "from __future__ import annotations\n\n"
+        "import os\n\n\n"
+        "def farewell() -> str:\n"
+        '    """Return a farewell message."""\n'
+        '    return "bye"\n'
+    )
+    module.write_text(dirty)
+
+    result = runner.invoke(app, ["library", "lint", "--quiet"], catch_exceptions=False)
+
+    assert result.exit_code == 0
+    fixed = module.read_text()
+    assert fixed != dirty
+    assert "import os" not in fixed
+
+
+def test_lint_no_fix_fails_on_dirty_code_without_modifying(
+    runner: CliRunner, lint_project: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Test that 'library lint --no-fix' reports an issue without touching the file."""
     monkeypatch.chdir(lint_project)
 
     # Introduce an unused import - a ruff violation.
     module = lint_project / "src" / "cleanlib" / "__init__.py"
-    module.write_text(module.read_text() + "\nimport os\n")
+    dirty = module.read_text() + "\nimport os\n"
+    module.write_text(dirty)
 
-    result = runner.invoke(app, ["library", "lint", "--quiet"], catch_exceptions=False)
+    result = runner.invoke(app, ["library", "lint", "--no-fix", "--quiet"], catch_exceptions=False)
 
     assert result.exit_code != 0
+    assert module.read_text() == dirty
 
 
 def test_lint_fails_when_license_header_missing(
@@ -229,6 +204,33 @@ def test_format_fixes_issues(
     # .ruff.toml, otherwise ruff falls back to its built-in defaults instead
     # of this project's style (docstring formatting, line length, etc.).
     assert (lint_project / ".ruff.toml").exists()
+
+
+def test_format_no_fix_previews_without_modifying(
+    runner: CliRunner, lint_project: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Test that 'library format --no-fix' reports formatting issues without rewriting."""
+    monkeypatch.chdir(lint_project)
+
+    module = lint_project / "src" / "cleanlib" / "__init__.py"
+    dirty = (
+        "# Copyright (c) 2026 Example Org.\n"
+        "#\n"
+        "# This file is a part of cleanlib.\n\n"
+        '"""Sample clean module."""\n\n'
+        "from __future__ import annotations\n\n\n"
+        "def greet(  ) ->str:\n"
+        '    """Return a greeting message."""\n'
+        "    return   'hello'\n"
+    )
+    module.write_text(dirty)
+
+    result = runner.invoke(
+        app, ["library", "format", "--no-fix", "--quiet"], catch_exceptions=False
+    )
+
+    assert result.exit_code != 0
+    assert module.read_text() == dirty
 
 
 def test_format_does_not_overwrite_existing_ruff_toml(

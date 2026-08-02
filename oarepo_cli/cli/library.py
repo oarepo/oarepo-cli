@@ -781,6 +781,12 @@ def library_invenio(
 
 @library_app.command("lint")
 def library_lint(
+    fix: Annotated[
+        bool,
+        typer.Option(
+            "--fix/--no-fix", help="Auto-fix what ruff/ty can fix (default) vs. report only"
+        ),
+    ] = True,
     quiet: Annotated[bool, typer.Option("--quiet", "-q", help="Suppress command output")] = False,
 ) -> None:
     """Run linters and type checkers on the codebase.
@@ -789,6 +795,13 @@ def library_lint(
     --check, a license header check, a `from __future__ import annotations`
     check, and ty check. Generates .ruff.toml and ty.toml config files in the
     project root.
+
+    By default (--fix), auto-fixes what ruff and ty can fix (`ruff check
+    --fix`, `ty check --fix`) instead of only reporting. The ruff format
+    --check, license header, and future annotations steps never modify
+    files regardless of --fix - use `library format`/`library
+    license-headers` for those. Use --no-fix (or `library check`, its
+    dedicated read-only equivalent) to never modify any file.
 
     Exits with the exit code of the first failing check.
     """
@@ -800,7 +813,7 @@ def library_lint(
     runner = LintRunner(context=context, quiet=quiet)
 
     try:
-        result = runner.run_lint()
+        result = runner.run_lint(fix=fix)
     except Exception as e:
         console.error(f"❌ Error running linters: {e}", fg=typer.colors.BRIGHT_RED, bold=True)
         raise typer.Exit(code=1) from e
@@ -823,18 +836,29 @@ def library_lint(
 )
 def library_format(
     ctx: typer.Context,
+    fix: Annotated[
+        bool,
+        typer.Option(
+            "--fix/--no-fix",
+            help="Rewrite files (default) vs. preview-only (`ruff format --check`)",
+        ),
+    ] = True,
     quiet: Annotated[bool, typer.Option("--quiet", "-q", help="Suppress command output")] = False,
 ) -> None:
     """Format the codebase using ruff.
 
-    Runs `ruff format` followed by `ruff check --fix`.
+    By default (--fix), runs `ruff format` followed by `ruff check --fix`,
+    rewriting files. Use --no-fix for a preview-only run (`ruff format
+    --check`, nothing written) - or `library check`, its dedicated
+    read-only equivalent.
 
-    Any additional arguments are passed directly to both ruff invocations.
+    Any additional arguments are passed directly to the ruff invocation(s).
 
     Examples:
         oarepo-cli library format
         oarepo-cli library format src/mymodule.py
         oarepo-cli library format --diff
+        oarepo-cli library format --no-fix
     """
     # Get extra args from context (passed through to ruff)
     extra_args = ctx.args if ctx.args else []
@@ -847,7 +871,7 @@ def library_format(
     runner = LintRunner(context=context, quiet=quiet)
 
     try:
-        result = runner.run_format(extra_args=extra_args)
+        result = runner.run_format(fix=fix, extra_args=extra_args)
     except Exception as e:
         console.error(f"❌ Error formatting code: {e}", fg=typer.colors.BRIGHT_RED, bold=True)
         raise typer.Exit(code=1) from e
@@ -856,5 +880,42 @@ def library_format(
         console.success("✨ ✓ Formatting complete!", fg=typer.colors.BRIGHT_GREEN, bold=True)
     else:
         console.error("❌ Formatting failed!", fg=typer.colors.BRIGHT_RED, bold=True)
+
+    raise typer.Exit(code=result.return_code)
+
+
+@library_app.command("check")
+def library_check(
+    quiet: Annotated[bool, typer.Option("--quiet", "-q", help="Suppress command output")] = False,
+) -> None:
+    """Check the codebase without modifying any file.
+
+    The read-only equivalent of `library lint`/`library format`: runs ruff
+    check, ruff format --check, a license header check, a `from __future__
+    import annotations` check, and ty check - none of them applying fixes.
+    Equivalent to `library lint --no-fix`, provided as its own command as
+    the safe-for-CI entry point. Still generates .ruff.toml and ty.toml
+    config files in the project root (that's config generation, not
+    modifying target project source).
+
+    Exits with the exit code of the first failing check.
+    """
+    context = discover_context()
+    console = ConsoleOutput(quiet=quiet)
+
+    console.info("🔎 Checking...", fg=typer.colors.BRIGHT_BLUE, bold=True)
+
+    runner = LintRunner(context=context, quiet=quiet)
+
+    try:
+        result = runner.run_lint(fix=False)
+    except Exception as e:
+        console.error(f"❌ Error running checks: {e}", fg=typer.colors.BRIGHT_RED, bold=True)
+        raise typer.Exit(code=1) from e
+
+    if result.success:
+        console.success("✨ ✓ Check passed!", fg=typer.colors.BRIGHT_GREEN, bold=True)
+    else:
+        console.error("❌ Check failed!", fg=typer.colors.BRIGHT_RED, bold=True)
 
     raise typer.Exit(code=result.return_code)
