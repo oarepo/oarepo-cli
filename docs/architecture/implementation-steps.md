@@ -645,17 +645,21 @@ them to describe the shipped behavior once this step lands).
 **Goal**: Implement JSON version reporting.
 
 - [x] Implement `library_oarepo_versions()` function
-- [x] Parse pyproject.toml for oarepo versions
+- [x] Parse pyproject.toml for oarepo version from `[tool.oarepo-cli].version`
 - [x] Resolve Python versions from constraints
 - [x] Output JSON: `{"oarepo_versions": [...], "python_versions": [...], "node_versions": [...]}`
 
 **Deliverables**:
 - [x] Version reporting command
+- [x] Uses `[tool.oarepo-cli].version` instead of scanning optional-dependencies keys (architectural change documented in 00-main-architecture.md §1.1.2)
 
 **Tests** (`tests/integration/test_library_versions.py`):
 - [x] Test JSON output valid
 - [x] Test versions extracted correctly
-- [x] Characterization test: output matches bash exactly
+- [x] Test configuration from `[tool.oarepo-cli].version`
+
+**Note**: This is an intentional divergence from the bash script's multi-version
+approach. See `docs/architecture/00-main-architecture.md` §1.1.2 for rationale.
 
 ---
 

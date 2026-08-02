@@ -28,7 +28,7 @@ def sample_project_with_versions(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> Path:
-    """Create a sample project with oarepo versions specified."""
+    """Create a sample project with oarepo version specified."""
     project_root = tmp_path / "test-project"
     project_root.mkdir()
 
@@ -41,16 +41,8 @@ requires-python = ">=3.12,<3.15"
 [project.urls]
 Homepage = "https://github.com/example/test-package"
 
-[project.optional-dependencies]
-oarepo13 = [
-    "oarepo>=13.0.0,<14.0.0",
-]
-oarepo14 = [
-    "oarepo>=14.0.0,<15.0.0",
-]
-
-[tool.oarepo]
-default_extras = ["oarepo"]
+[tool.oarepo-cli]
+version = 14
 """
 
     (project_root / "pyproject.toml").write_text(pyproject_toml.strip())
@@ -95,9 +87,9 @@ def test_oarepo_versions_correct_values(
 
     output = json.loads(result.stdout)
 
-    # Check OARepo versions (from optional-dependencies.oarepo)
-    # Should be strings, not integers
-    assert output["oarepo_versions"] == ["13", "14"]
+    # Check OARepo versions (from [tool.oarepo-cli].version)
+    # Should be a single version as a string
+    assert output["oarepo_versions"] == ["14"]
 
     # Check Python versions (from requires-python: >=3.12,<3.15)
     # Should include 3.12, 3.13, 3.14 (assuming they're in KNOWN_PYTHON_VERSIONS)
@@ -148,13 +140,8 @@ requires-python = ">=3.14"
 [project.urls]
 Homepage = "https://github.com/example/test-package"
 
-[project.optional-dependencies]
-oarepo14 = [
-    "oarepo>=14.0.0,<15.0.0",
-]
-
-[tool.oarepo]
-default_extras = ["oarepo"]
+[tool.oarepo-cli]
+version = 14
 """
 
     (project_root / "pyproject.toml").write_text(pyproject_toml.strip())

@@ -65,8 +65,8 @@ def test_extracts_single_oarepo_version(tmp_path: Path) -> None:
 [project]
 name = "test-package"
 
-[project.optional-dependencies]
-oarepo14 = ["oarepo>=14.0.0,<15.0.0"]
+[tool.oarepo-cli]
+version = 14
 """
     )
 
@@ -76,20 +76,21 @@ oarepo14 = ["oarepo>=14.0.0,<15.0.0"]
 
 
 def test_extracts_multiple_oarepo_versions_sorted_and_deduplicated(tmp_path: Path) -> None:
+    """Test that only a single version is supported from [tool.oarepo-cli].version."""
     (tmp_path / "pyproject.toml").write_text(
         """
 [project]
 name = "test-package"
 
-[project.optional-dependencies]
-oarepo14 = ["oarepo>=14.0.0,<15.0.0"]
-oarepo13 = ["oarepo>=13.0.0,<14.0.0"]
+[tool.oarepo-cli]
+version = 14
 """
     )
 
     data = pyproject_reader.PyProjectReader().read(tmp_path / "pyproject.toml")
 
-    assert data.oarepo_versions == [13, 14]
+    # Only one version supported now
+    assert data.oarepo_versions == [14]
 
 
 def test_extracts_default_extras(tmp_path: Path) -> None:

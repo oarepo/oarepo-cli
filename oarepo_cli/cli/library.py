@@ -1115,16 +1115,23 @@ def library_oarepo_versions(
 ) -> None:
     """List supported OARepo and Python versions (JSON output).
 
-    Parses pyproject.toml for oarepo versions and requires-python constraint,
-    and outputs a JSON object with:
-    - oarepo_versions: List of supported OARepo major versions (as strings)
+    Parses pyproject.toml for the OARepo version in [tool.oarepo-cli].version
+    and requires-python constraint, and outputs a JSON object with:
+    - oarepo_versions: Single OARepo version (as string) or empty list if not configured
     - python_versions: List of compatible Python versions (as strings)
     - node_versions: List of Node.js versions (hard-coded to ["24"])
 
+    Example pyproject.toml:
+        [tool.oarepo-cli]
+        version = 14
+
+        [project]
+        requires-python = ">=3.14"
+
     Example output:
         {
-            "oarepo_versions": ["13", "14"],
-            "python_versions": ["3.14", "3.13", "3.12"],
+            "oarepo_versions": ["14"],
+            "python_versions": ["3.14"],
             "node_versions": ["24"]
         }
 
