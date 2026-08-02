@@ -40,6 +40,11 @@ MANIFEST
 pip-log.txt
 pip-delete-this-directory.txt
 
+# Real repository fixture for integration tests, generated on demand via
+# repository_installer.sh (see tests/conftest.py:testrepo_project) -- large,
+# machine-local, and contains its own nested git repo.
+tests/testrepo/
+
 # Unit test / coverage reports
 htmlcov/
 .tox/
