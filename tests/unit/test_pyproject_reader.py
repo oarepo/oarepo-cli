@@ -181,7 +181,7 @@ dependencies = [
 def test_warns_about_deprecated_tool_config(
     tmp_path: Path, caplog: pytest.LogCaptureFixture
 ) -> None:
-    """Test that [tool.oarepo-cli].version triggers a deprecation warning."""
+    """Test that [tool.oarepo-cli].oarepo.version triggers a deprecation warning."""
     import logging
 
     (tmp_path / "pyproject.toml").write_text(
@@ -190,7 +190,7 @@ def test_warns_about_deprecated_tool_config(
 name = "test-package"
 dependencies = ["oarepo>=14.0.0,<15.0.0"]
 
-[tool.oarepo-cli]
+[tool.oarepo-cli.oarepo]
 version = 14
 """
     )
@@ -203,7 +203,7 @@ version = 14
 
         # Should have logged a warning about deprecated config
         assert any(
-            "[tool.oarepo-cli].version" in record.message and "deprecated" in record.message
+            "[tool.oarepo-cli].oarepo.version" in record.message and "deprecated" in record.message
             for record in caplog.records
         )
 

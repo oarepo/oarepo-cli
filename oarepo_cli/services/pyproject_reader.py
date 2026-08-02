@@ -72,10 +72,15 @@ class PyProjectData:
             [tool.oarepo-cli].version, eliminating duplicate configuration.
             Version constraints are parsed using packaging.requirements.
         """
-        # Check for deprecated [tool.oarepo-cli].version config and warn
-        if deprecated_version := self.raw.get("tool", {}).get("oarepo-cli", {}).get("version"):
+        # Check for deprecated [tool.oarepo-cli].oarepo.version config and warn
+        if (
+            deprecated_version := self.raw.get("tool", {})
+            .get("oarepo-cli", {})
+            .get("oarepo", {})
+            .get("version")
+        ):
             logger.warning(
-                "[tool.oarepo-cli].version = %s is deprecated and ignored. "
+                "[tool.oarepo-cli].oarepo.version = %s is deprecated and ignored. "
                 "OARepo versions are now extracted from [project].dependencies "
                 "and [project].optional-dependencies. Remove this config key.",
                 deprecated_version,
