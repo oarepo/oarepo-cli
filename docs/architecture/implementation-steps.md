@@ -622,18 +622,22 @@ them to describe the shipped behavior once this step lands).
 **Goal**: Implement remaining library commands.
 
 - [x] Implement `library_translations()` → calls `make-translations`
-- [x] Implement `library_license_headers()` → adds headers to Python files
+- [x] Implement `library_license_headers()` → adds SPDX headers to Python files (pure Python implementation, no external tool)
 - [x] Implement `library_jslint()` → runs ESLint and Prettier
 - [x] Implement `library_jstest()` → sets up and runs Jest
 - [x] All commands support `--skip-services` where applicable
+- [x] **SPDX migration**: `license-headers` now uses SPDX format, extracts year/org from old-style headers, and replaces them
 
 **Deliverables**:
 - [x] Complete set of library commands
+- [x] SPDX-format license headers (machine-readable, compact)
 
 **Tests** (`tests/integration/test_library_misc_commands.py`):
 - [x] Test each command executes without error
 - [x] Test help text for each command
 - [x] Characterization tests for key commands
+- [x] Test SPDX header addition for files without headers
+- [x] Test old-style copyright header replacement with SPDX format
 
 ---
 
