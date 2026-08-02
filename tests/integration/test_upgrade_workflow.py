@@ -61,8 +61,8 @@ def test_upgrade_recreates_venv_real(
     marker_file = venv_path / "old_marker.txt"
     marker_file.write_text("old")
 
-    # Run upgrade with force to ensure recreation
-    result = runner.invoke(app, ["library", "upgrade", "--force"], catch_exceptions=False)
+    # library upgrade always force-recreates the venv (no --force flag needed)
+    result = runner.invoke(app, ["library", "upgrade"], catch_exceptions=False)
 
     # The old marker file should be gone (venv was recreated or cleaned)
     # Note: If upgrade fails partway, the marker might still exist

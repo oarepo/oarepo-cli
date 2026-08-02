@@ -80,6 +80,9 @@ them directly — `test`/`lint`/`format`/`type-check` depend on the right one au
 
 **Always run `make check` after making changes**, per the non-negotiable constraints below.
 
+**Important**: Integration tests are very slow. If you are making changes that don't affect the CLI itself, consider skipping them. If not skipping, run just the single test that you need to run. They will be run
+in full on testing servers, so it is safe to skip the previous ones.
+
 ## Tools
 
 Use:
