@@ -752,7 +752,7 @@ from dependency constraints instead of requiring explicit configuration. Step
 - [x] Ensure venv exists
 - [x] Sync dependencies with `uv sync`
 - [x] Copy translations overlay
-- [x] Get instance path via invenio shell
+- [x] Resolve instance path (`INVENIO_INSTANCE_PATH` or `<venv>/var/instance` — see Step 4.1.2)
 - [x] Create symlinks for invenio.cfg
 - [x] Run `invenio-cli install`
 - [x] Configure local service ports in `.invenio.private`
@@ -796,6 +796,22 @@ plain upstream build ends up installed instead. See
 - [x] Rejects when the package isn't installed
 - [x] Rejects an unparseable version string
 - [x] Error message references the CESNET registry URL
+
+---
+
+### Step 4.1.2: Fast instance path resolution
+**Goal**: Replace the `invenio shell`-based instance path lookup (slow: full
+Flask app boot on every `install`) with a direct computation of Invenio's own
+default resolution rule. See
+[ADR-007](./00-main-architecture.md#adr-007-fast-instance-path-resolution-no-invenio-shell).
+
+- [x] Rewrite `services/repository.py:get_instance_path()` to return `INVENIO_INSTANCE_PATH` if set, else `context.venv_path / "var" / "instance"`
+- [x] Remove `services/invenio_cli.py:run_invenio_shell()` (its only caller)
+- [x] Update `cli/repository.py:install()`'s docstring step list accordingly
+
+**Tests** (`tests/unit/test_repository_service.py`):
+- [x] Defaults to `<venv>/var/instance` when `INVENIO_INSTANCE_PATH` is unset
+- [x] Honors `INVENIO_INSTANCE_PATH` when set
 
 ---
 

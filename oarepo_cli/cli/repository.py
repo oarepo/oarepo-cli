@@ -45,7 +45,7 @@ def install(
     Mirrors ``repository_runner.sh``'s ``install_repository`` function:
     1. Creates/syncs virtual environment with uv
     2. Copies translation overlays to site-packages
-    3. Detects instance path via invenio shell
+    3. Resolves instance path (INVENIO_INSTANCE_PATH or <venv>/var/instance)
     4. Creates instance directory and symlinks invenio.cfg
     5. Runs invenio-cli install
     6. Configures local service ports in .invenio.private

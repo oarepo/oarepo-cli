@@ -96,28 +96,28 @@ def test_configure_local_ports_raises_on_missing_files(tmp_path: Path) -> None:
         repository.configure_local_ports(context, quiet=True)
 
 
-def test_get_instance_path_returns_path(
+def test_get_instance_path_defaults_to_venv_var_instance(
     mock_context: Mock, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    """Test that get_instance_path returns the correct path."""
-    from oarepo_cli.services import process
-
-    mock_result = Mock(spec=process.ProcessResult)
-    mock_result.stdout = "Some startup output\n/var/instance/path\n"
-
-    mock_run_shell = Mock(return_value=mock_result)
-    monkeypatch.setattr(
-        "oarepo_cli.services.invenio_cli.run_invenio_shell",
-        mock_run_shell,
-    )
+    """Without INVENIO_INSTANCE_PATH, it's <venv>/var/instance (Invenio's own default)."""
+    monkeypatch.delenv("INVENIO_INSTANCE_PATH", raising=False)
+    mock_context.venv_path = Path("/fake/project/.venv")
 
     result = repository.get_instance_path(mock_context)
 
-    assert result == Path("/var/instance/path")
-    # Verify correct Python code was executed
-    call_args = mock_run_shell.call_args
-    assert call_args is not None
-    assert "print(app.instance_path, end='')" in call_args[0]
+    assert result == Path("/fake/project/.venv/var/instance")
+
+
+def test_get_instance_path_honors_invenio_instance_path_env(
+    mock_context: Mock, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """INVENIO_INSTANCE_PATH, when set, overrides the venv-derived default."""
+    monkeypatch.setenv("INVENIO_INSTANCE_PATH", "/custom/instance/path")
+    mock_context.venv_path = Path("/fake/project/.venv")
+
+    result = repository.get_instance_path(mock_context)
+
+    assert result == Path("/custom/instance/path")
 
 
 def test_ensure_instance_structure_creates_directory(tmp_path: Path) -> None:

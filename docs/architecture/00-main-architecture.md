@@ -847,6 +847,52 @@ silently install the upstream build instead.
 
 ---
 
+### ADR-007: Fast instance path resolution (no `invenio shell`)
+
+**Status**: Accepted
+**Date**: 2026-08-02
+
+**Context**: `repository install` needs the Invenio instance path (where
+`invenio.cfg` gets symlinked and where `var/`, `assets/`, etc. live) to set
+up the instance directory. `repository_runner.sh` gets this by piping
+`print(app.instance_path, end='')` through `in_invenio_shell` — booting the
+full Flask application just to read one attribute. `services/repository.py`'s
+`get_instance_path()` originally replicated that exactly via
+`invenio_cli.run_invenio_shell()` (`uv run invenio shell -c ...`), which was
+slow (full app boot, `uv run`'s own implicit sync) and was also the root
+cause of two follow-on bugs: streamed diagnostic output crashing the parser
+when `stdout` wasn't captured, and `uv sync`/`uv run` disagreeing on
+pre-release mode and forcing lockfile re-resolution (see the `invenio_cli.py`
+git history around 2026-08-02 for both).
+
+**Decision**: Compute the instance path directly instead of asking Invenio
+for it. Invenio's own default instance path is `sys.prefix/var/instance`,
+which for a project's venv resolves to `<venv>/var/instance`; the
+`INVENIO_INSTANCE_PATH` environment variable, when set, overrides it. Both
+rules are Invenio's own (not oarepo-cli-specific), so replicating them in
+`get_instance_path()` (`services/repository.py`) is exact, not a heuristic:
+
+```python
+instance_path = os.environ.get("INVENIO_INSTANCE_PATH")
+if instance_path:
+    return Path(instance_path)
+return context.venv_path / "var" / "instance"
+```
+
+This made `run_invenio_shell()` (`services/invenio_cli.py`) dead code —
+`get_instance_path()` was its only caller — so it was removed.
+
+**Consequences**:
+- Pros: No subprocess/app boot on every `install`; removes an entire class
+  of bugs tied to parsing subprocess output for this value.
+- Cons: If a project ever customizes `app.instance_path` through a
+  mechanism other than `INVENIO_INSTANCE_PATH` (e.g. a custom
+  `create_app()` that hardcodes a different path), this would silently
+  compute the wrong path instead of asking the app directly. Not currently
+  the case for OARepo/RDM projects.
+
+---
+
 ## 9. Risk Assessment
 
 | Risk | Likelihood | Impact | Mitigation |

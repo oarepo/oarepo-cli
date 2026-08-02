@@ -5,6 +5,7 @@
 
 from __future__ import annotations
 
+import os
 import re
 from pathlib import Path
 from typing import TYPE_CHECKING
@@ -104,31 +105,27 @@ def configure_local_ports(context: ProjectContext, *, quiet: bool = False) -> No
 
 
 def get_instance_path(context: ProjectContext) -> Path:
-    """Get the Invenio instance path by running Python code in invenio shell.
+    """Get the Invenio instance path without booting the Flask app.
 
-    Mirrors ``repository_runner.sh``'s instance_path detection:
-    ``instance_path=$(echo "print(app.instance_path, end='')" | in_invenio_shell | tail -n1)``
+    Historically this ran ``invenio shell -c "print(app.instance_path)"`` to
+    ask Invenio directly, but spinning up the full application just to read
+    one path is slow. Invenio's own default instance path is
+    ``sys.prefix/var/instance``, which for a project's venv is
+    ``<venv>/var/instance``; ``INVENIO_INSTANCE_PATH``, when set, overrides
+    it. Replicating that resolution here avoids the subprocess entirely. See
+    ADR-007 in 00-main-architecture.md.
 
     Args:
         context: Project context with paths and configuration
 
     Returns:
         Path to the Invenio instance directory
-
-    Raises:
-        ProcessExecutionError: If invenio shell command fails
     """
-    from oarepo_cli.services import invenio_cli
+    instance_path = os.environ.get("INVENIO_INSTANCE_PATH")
+    if instance_path:
+        return Path(instance_path)
 
-    result = invenio_cli.run_invenio_shell(
-        context,
-        "print(app.instance_path, end='')",
-        check=True,
-    )
-
-    # Take the last line of output (the actual path)
-    instance_path_str = result.stdout.strip().splitlines()[-1]
-    return Path(instance_path_str)
+    return context.venv_path / "var" / "instance"
 
 
 def ensure_instance_structure(
