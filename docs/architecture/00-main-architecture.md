@@ -219,6 +219,7 @@ extras now get all versions reported, restoring the bash script's capability.
 | `curl` | Self-update download | Yes |
 | `openssl` | Certificate generation | Yes |
 | `git` | Repo initialization | Optional |
+| `invenio-cli` | Repository install/run passthrough | Yes (CESNET-patched build required — see [ADR-006](#adr-006-cesnet-patched-invenio-cli-dependency)) |
 
 `library lint`'s type checking uses `ty` alone (the same tool already used
 for oarepo-cli's own type checking) rather than `mypy` + `pyright` — see
@@ -799,6 +800,50 @@ class CommandResult(Generic[T]):
 **Implementation**:
 - `process.run(["uv", "pip", "install", pkg])` not `run(f"uv pip install {pkg}")`
 - Validate and sanitize any user-provided strings before inclusion
+
+---
+
+### ADR-006: CESNET-patched invenio-cli dependency
+
+**Status**: Accepted
+**Date**: 2026-08-02
+
+**Context**: oarepo-cli's repository install/run/services flows shell out to
+`invenio-cli`. CESNET carries patches on top of upstream `invenio-cli`
+(docker-environment/compose file discovery, `.env` linking, extension
+entry-point hooks, custom cert/key paths, `UV_PROJECT_ENVIRONMENT` support,
+OARepo-aware RDM version detection — see
+[oarepo/invenio-cli@oarepo-feature-docker-environment](https://github.com/oarepo/invenio-cli))
+that are required for oarepo-cli to work correctly but are not part of the
+upstream PyPI release. Because the patched build's base version (e.g.
+`1.12.0`) still overlaps with the public PyPI release, a plain version
+range in `pyproject.toml` cannot by itself guarantee the right build is
+installed — a `pip install`/resolver pass that skips the CESNET index would
+silently install the upstream build instead.
+
+**Decision**: Two complementary mechanisms:
+1. **Resolution**: `pyproject.toml` declares a `[[tool.uv.index]]` named
+   `cesnet` pointing at the CESNET GitLab PyPI registry
+   (`CESNET_PYPI_INDEX_URL` in `configuration/constants.py`) and scopes
+   `invenio-cli` to it via `[tool.uv.sources]`, so `uv sync`/`uv lock`
+   always resolve `invenio-cli` from CESNET rather than PyPI.
+2. **Verification**: The patched build publishes a PEP 440 local version
+   segment starting with `oarepo` (e.g. `1.12.0+oarepo.1.cgeloxoaidcutj32`).
+   `core/dependency_check.py:check_invenio_cli_version()` inspects the
+   installed `invenio-cli` version via `importlib.metadata` at CLI startup
+   (`cli/main.py:cli_main()`, before dispatching to Typer) and raises
+   `VersionMismatchError` with a message pointing at the CESNET registry if
+   that local segment is missing — covering environments where the venv was
+   built without the CESNET index (manual `pip install`, stale lock file,
+   etc.).
+
+**Consequences**:
+- Pros: Fails fast with an actionable message instead of obscure downstream
+  failures in docker/services commands; works even if the dependency was
+  installed by a tool other than `uv`.
+- Cons: Adds a network dependency on the CESNET registry for `uv
+  lock`/`uv sync`; the check must be updated if the local-version naming
+  scheme changes.
 
 ---
 

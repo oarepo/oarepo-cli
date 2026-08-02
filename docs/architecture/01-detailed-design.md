@@ -707,6 +707,27 @@ class PyProjectReader:
         return self.read(Path.cwd() / "pyproject.toml")
 ```
 
+### Dependency Verification Interface
+
+```python
+# core/dependency_check.py
+
+# The CESNET-patched build publishes a PEP 440 local version segment that
+# starts with "oarepo", e.g. "1.12.0+oarepo.1.cgeloxoaidcutj32".
+INVENIO_CLI_LOCAL_VERSION_PREFIX = "oarepo"
+
+
+def check_invenio_cli_version() -> None:
+    """Ensure the installed invenio-cli is the CESNET-patched build.
+
+    Reads the installed version via importlib.metadata, parses it with
+    packaging.version.Version, and requires a local version segment
+    starting with "oarepo". Raises VersionMismatchError (missing package,
+    unparseable version, or a plain upstream build) pointing the user at
+    CESNET_PYPI_INDEX_URL. See ADR-006 in 00-main-architecture.md.
+    """
+```
+
 ## 7. CLI Command Structure
 
 ### Main Entry Point
@@ -743,8 +764,27 @@ def callback(
         ctx.obj = {"config_path": config}
 
 
+def cli_main() -> None:
+    """Entry point installed as the `oarepo-cli` console script.
+
+    Runs `check_invenio_cli_version()` before dispatching to Typer, so a
+    misconfigured environment (invenio-cli resolved from PyPI instead of
+    the CESNET registry) fails fast with a clear message rather than
+    breaking later inside an unrelated `repository` command.
+    """
+    try:
+        check_invenio_cli_version()
+        app()
+    except KeyboardInterrupt:
+        typer.echo("\nInterrupted by user", err=True)
+        sys.exit(130)  # Standard exit code for SIGINT
+    except Exception as e:
+        typer.echo(f"Error: {e}", err=True)
+        sys.exit(1)
+
+
 if __name__ == "__main__":
-    app()
+    cli_main()
 ```
 
 ### Library Commands

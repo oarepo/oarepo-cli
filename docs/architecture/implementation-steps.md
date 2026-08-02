@@ -770,6 +770,35 @@ from dependency constraints instead of requiring explicit configuration. Step
 
 ---
 
+### Step 4.1.1: CESNET-patched invenio-cli dependency
+**Goal**: Require the CESNET-patched `invenio-cli` build (docker-environment,
+extension hooks, cert paths, etc. — see
+[oarepo/invenio-cli@oarepo-feature-docker-environment](https://github.com/oarepo/invenio-cli))
+that `repository install`/`run`/`services` rely on, and fail fast if the
+plain upstream build ends up installed instead. See
+[ADR-006](./00-main-architecture.md#adr-006-cesnet-patched-invenio-cli-dependency).
+
+- [x] Add `CESNET_PYPI_INDEX_URL` constant (`configuration/constants.py`), reused by `OAREPO_ENV_DEFAULTS`
+- [x] Scope `invenio-cli` to the CESNET registry via `[[tool.uv.index]]` / `[tool.uv.sources]` in `pyproject.toml`
+- [x] Bump `invenio-cli` constraint to `>=1.12.0,<2.0.0` (base version of the patched build)
+- [x] Implement `core/dependency_check.py:check_invenio_cli_version()` — verifies the installed version carries a `+oarepo...` local version segment
+- [x] Call `check_invenio_cli_version()` at the top of `cli/main.py:cli_main()`, before dispatching to Typer
+- [x] Raise `VersionMismatchError` with a message pointing at the CESNET registry on mismatch/missing package
+
+**Deliverables**:
+- `invenio-cli` always resolves from the CESNET registry via `uv lock`/`uv sync`
+- Startup check catches environments where that didn't happen (manual install, stale lock, etc.)
+
+**Tests** (`tests/core/test_dependency_check.py`):
+- [x] Accepts a version with the `+oarepo` local segment
+- [x] Rejects a plain upstream version
+- [x] Rejects a local version with an unrelated prefix
+- [x] Rejects when the package isn't installed
+- [x] Rejects an unparseable version string
+- [x] Error message references the CESNET registry URL
+
+---
+
 ### Step 4.2: Repository `upgrade` Command
 **Goal**: Implement repository upgrade.
 
