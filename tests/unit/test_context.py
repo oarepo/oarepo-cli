@@ -338,3 +338,46 @@ oarepo = { version = 14 }
         assert context.pyproject_path == tmp_path / "pyproject.toml"
     finally:
         monkeypatch.undo()
+
+
+def test_multi_version_selects_highest_by_default(tmp_path: Path) -> None:
+    """Test that when multiple oarepo versions are detected, the highest is selected."""
+    (tmp_path / "pyproject.toml").write_text(
+        """
+[project]
+name = "test-project"
+requires-python = ">=3.14"
+
+[project.optional-dependencies]
+dev = ["oarepo>=14.0.0,<15.0.0"]
+tests = ["oarepo>=13.0.0,<14.0.0"]
+"""
+    )
+
+    context = ContextBuilder().from_directory(tmp_path).validate()
+
+    # Should select the highest version (14)
+    assert context.oarepo_version == 14
+
+
+def test_oarepo_version_env_override(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """Test that OAREPO_VERSION environment variable overrides auto-detection."""
+    (tmp_path / "pyproject.toml").write_text(
+        """
+[project]
+name = "test-project"
+requires-python = ">=3.14"
+
+[project.optional-dependencies]
+dev = ["oarepo>=14.0.0,<15.0.0"]
+tests = ["oarepo>=13.0.0,<14.0.0"]
+"""
+    )
+
+    # Set environment variable to use version 13 instead of 14
+    monkeypatch.setenv("OAREPO_VERSION", "13")
+
+    context = ContextBuilder().from_directory(tmp_path).validate()
+
+    # Should use version 13 from environment, not 14 from auto-detection
+    assert context.oarepo_version == 13
