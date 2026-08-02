@@ -480,31 +480,26 @@ class VirtualEnvironmentManager:
         requirements: VenvRequirements,
         venv_path: Path,
     ) -> None:
-        """Install OARepo and project dependencies."""
-        # Install setuptools first (required by uv pip)
-        process.run(
-            [str(venv_path / "bin" / "python"), "-m", "pip", "install", "setuptools"],
-            check=True,
-        )
+        """Install OARepo and project dependencies using uv sync.
 
-        # Build oarepo version constraint
-        oarepo_constraint = self._build_oarepo_constraint(requirements)
+        For libraries, uses `uv sync` to install from pyproject.toml and generate
+        a uv.lock file. The lockfile ensures reproducible builds but should be
+        gitignored for libraries (only repositories commit lockfiles).
 
-        # Install oarepo with extras
-        process.run(
-            [
-                "uv",
-                "pip",
-                "install",
-                f"oarepo[{oarepo_constraint}]",
-            ],
-            check=True,
-        )
-
-        # Install project itself
+        For non-editable installs, builds a wheel first and installs that.
+        """
+        # For editable installs, use uv sync
         if requirements.editable:
+            # uv sync reads pyproject.toml, resolves dependencies, generates uv.lock,
+            # and installs everything (including the project itself in editable mode)
+            extras_arg = ",".join(requirements.extras) if requirements.extras else "dev,tests"
             process.run(
-                ["uv", "pip", "install", "-e", ".[dev,tests,...]"],
+                [
+                    "uv",
+                    "sync",
+                    "--extra",
+                    extras_arg,
+                ],
                 check=True,
             )
         else:
@@ -739,7 +734,12 @@ def library_venv(
     force: Annotated[bool, typer.Option("--force", "-f")] = False,
     no_editable: Annotated[bool, typer.Option("--no-editable")] = False,
 ) -> None:
-    """Set up virtual environment with OARepo dependencies."""
+    """Set up virtual environment with OARepo dependencies.
+
+    Uses `uv sync` to install dependencies from pyproject.toml and generate
+    a uv.lock file for reproducible builds. The lockfile should be gitignored
+    for libraries (only repositories commit their lockfiles).
+    """
     ctx = ProjectContext.from_cwd()
     config = CliConfig.from_env()
     config.build.editable = not no_editable

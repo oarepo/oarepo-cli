@@ -702,6 +702,47 @@ from dependency constraints instead of requiring explicit configuration. Step
 
 ---
 
+### Step 3.14: Migrate Library venv/install to `uv sync`
+**Goal**: Replace `uv pip install` with `uv sync` for library dependency installation, unifying the approach with repository installation.
+
+- [x] Update `VirtualEnvironmentManager._install_dependencies()` to use `uv sync` instead of `uv pip install`
+- [x] Build extras list correctly for `--extra` flags (e.g., `--extra dev --extra tests --extra oarepo14`)
+- [x] Ensure `uv.lock` is in `.gitignore` for libraries (already at line 208)
+- [ ] Update unit tests in `tests/unit/test_venv_manager.py` to expect `uv sync` commands
+- [ ] Update integration tests in `tests/integration/test_library_venv_manager.py` to verify sync behavior
+- [x] Add migration guide entry (§5.7) documenting the switch from pip to sync
+
+**Deliverables**:
+- [x] Modified `VirtualEnvironmentManager._install_dependencies()` method
+- [ ] Updated unit tests expecting `uv sync` instead of `uv pip install`
+- [ ] Updated integration tests verifying lockfile generation and sync behavior
+- [x] Migration guide entry explaining the change and its impact
+
+**Tests** (`tests/unit/test_venv_manager.py`, `tests/integration/test_library_venv_manager.py`):
+- [ ] Unit test: verify `uv sync` called with correct extras
+- [ ] Unit test: verify `--extra` flags built correctly from extras list
+- [ ] Unit test: verify editable install still uses `-e .`
+- [ ] Integration test: verify `uv.lock` generated in library directory
+- [ ] Integration test: verify dependencies installed correctly via sync
+- [ ] Integration test: verify extras (dev, tests, oarepo14) activated correctly
+
+**Migration impact**:
+- `uv sync` replaces `uv pip install`, generating a `uv.lock` file in library directories
+- Lockfiles provide reproducible builds during development but are gitignored for libraries
+- Behavior change: `uv sync` may install/update dependencies differently than pip (more deterministic)
+- Users must have `uv` 0.1.0+ (already a requirement)
+- See migration guide (§5.7) for details
+
+**Rationale**:
+- Unifies library and repository installation paths using the same `VirtualEnvironmentManager` API
+- Uses uv's native sync mechanism instead of the pip compatibility layer
+- Prepares for Step 4.1 (repository install) to reuse the same installation logic
+- Lockfile provides reproducible builds during development, reducing "works on my machine" issues
+- Aligns with modern Python tooling practices (Poetry, PDM also use lock files)
+- Simplifies the codebase by having one installation code path instead of two
+
+---
+
 ## Phase 4: Repository Commands
 
 ### Step 4.1: Repository `install` Command

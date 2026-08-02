@@ -144,6 +144,10 @@ class VirtualEnvironmentManager:
         if not venv_path.exists():
             self._create_venv(requirements.python_binary, venv_path, quiet=quiet)
 
+        # Ensure uv.lock is gitignored before running uv sync (which generates the lock)
+        if requirements.editable:
+            self._ensure_uv_lock_gitignored(quiet=quiet)
+
         self._install_dependencies(requirements, venv_path, quiet=quiet)
 
         return venv_path
@@ -194,6 +198,54 @@ class VirtualEnvironmentManager:
         if self._venv_path.exists():
             shutil.rmtree(self._venv_path)
 
+    def _ensure_uv_lock_gitignored(self, quiet: bool = False) -> None:
+        """Ensure uv.lock is in .gitignore.
+
+        Checks if uv.lock is already gitignored. If not, adds it to .gitignore
+        and prints a warning explaining why. This prevents accidentally committing
+        lockfiles for libraries (repositories should commit their lockfiles).
+
+        Args:
+            quiet: If True, suppress warning message (for --quiet flag)
+        """
+        gitignore_path = self._project_root / ".gitignore"
+
+        # Check if .gitignore exists and contains uv.lock
+        if gitignore_path.exists():
+            content = gitignore_path.read_text()
+            # Check for uv.lock as a whole word (not part of another pattern)
+            if "uv.lock" in content:
+                # Already gitignored, nothing to do
+                return
+
+        # uv.lock is not gitignored - add it and warn the user
+        if not quiet:
+            import sys
+
+            print(
+                "\n⚠️  Warning: uv.lock was not in .gitignore",
+                file=sys.stderr,
+            )
+            print(
+                "   Adding 'uv.lock' to .gitignore (lockfiles should not be committed for libraries)",
+                file=sys.stderr,
+            )
+            print(
+                "   Note: Repositories (not libraries) should commit uv.lock for reproducible deploys.\n",
+                file=sys.stderr,
+            )
+
+        # Add uv.lock to .gitignore
+        with gitignore_path.open("a") as f:
+            # Add a blank line if file exists and doesn't end with newline
+            if gitignore_path.exists() and gitignore_path.stat().st_size > 0:
+                content = gitignore_path.read_text()
+                if not content.endswith("\n"):
+                    f.write("\n")
+            # Add section header and uv.lock entry
+            f.write("\n# UV package management (added by oarepo-cli)\n")
+            f.write("uv.lock\n")
+
     def _is_valid_venv(self, venv_path: Path) -> bool:
         """Check whether a directory is a real, usable virtual environment.
 
@@ -233,130 +285,97 @@ class VirtualEnvironmentManager:
         venv_path: Path,
         quiet: bool = False,
     ) -> None:
-        """Install OARepo and project dependencies.
+        """Install project dependencies using uv sync.
 
-        Installs dependencies in this order:
-        1. setuptools (required by uv pip)
-        2. oarepo with version constraint and extras
-        3. project itself (editable or as wheel)
+        Uses uv's native sync mechanism to install dependencies from pyproject.toml,
+        generating a uv.lock file for reproducible builds. For editable installs,
+        uses `uv sync` which installs all dependencies including the project itself.
+        For non-editable installs, builds and installs a wheel separately.
+
+        The uv.lock file is generated automatically but should be gitignored for
+        libraries (only repositories commit their lockfiles for reproducible deploys).
 
         Args:
-            requirements: Requirements specifying what to install
+            requirements: Requirements specifying what extras to install
             venv_path: Path to the virtual environment
             quiet: If True, suppress command output
 
         Raises:
-            ProcessExecutionError: If any pip install command fails
+            ProcessExecutionError: If uv sync or install commands fail
+        """
+        if requirements.editable:
+            self._sync_editable(requirements, venv_path, quiet=quiet)
+        else:
+            self._build_and_install_wheel(requirements, venv_path, quiet=quiet)
+
+    def _sync_editable(
+        self, requirements: VenvRequirements, venv_path: Path, quiet: bool = False
+    ) -> None:
+        """Sync project dependencies in editable mode using uv sync.
+
+        Uses `uv sync --extra <extras>` to:
+        1. Read pyproject.toml and resolve all dependencies
+        2. Generate/update uv.lock with pinned versions
+        3. Install all dependencies into the venv
+        4. Install the project itself in editable mode
+
+        Args:
+            requirements: Requirements with extras to install
+            venv_path: Path to the virtual environment
+            quiet: If True, suppress command output
+
+        Raises:
+            ProcessExecutionError: If uv sync fails
         """
         # Get platform-specific paths
         bin_dir = self._platform.get_venv_bin_dir()
         python_exe = self._platform.get_venv_python()
         python_path = venv_path / bin_dir / python_exe
 
-        # Install setuptools first (required by uv pip)
-        process.run(
-            [str(python_path), "-m", "pip", "install", "setuptools"],
-            check=True,
-            interactive=not quiet,
-        )
-
-        # Build oarepo version constraint and install
-        if requirements.oarepo_version is not None:
-            oarepo_constraint = self._build_oarepo_constraint(requirements)
-            process.run(
-                [
-                    "uv",
-                    "pip",
-                    "install",
-                    "--python",
-                    str(python_path),
-                    "--prerelease",
-                    "allow",
-                    f"oarepo[{oarepo_constraint}]",
-                ],
-                check=True,
-                interactive=not quiet,
-            )
-
-        # Install project itself
-        if requirements.editable:
-            self._install_editable(requirements, python_path, quiet=quiet)
-        else:
-            self._build_and_install_wheel(requirements, python_path, quiet=quiet)
-
-    def _build_oarepo_constraint(self, requirements: VenvRequirements) -> str:
-        """Build OARepo package constraint string.
-
-        Creates a constraint like "rdm,tests,oarepo14" based on requirements.
-
-        Args:
-            requirements: Requirements with oarepo_version and extras
-
-        Returns:
-            Comma-separated constraint string
-        """
-        # Base extras always include rdm and tests
-        constraint_parts = ["rdm", "tests"]
-
-        # Add oarepo version extra
-        if requirements.oarepo_version is not None:
-            constraint_parts.append(f"oarepo{requirements.oarepo_version}")
-
-        # Add any additional extras from requirements
-        constraint_parts.extend(requirements.extras)
-
-        return ",".join(constraint_parts)
-
-    def _install_editable(
-        self, requirements: VenvRequirements, python_path: Path, quiet: bool = False
-    ) -> None:
-        """Install project in editable mode.
-
-        Args:
-            requirements: Requirements with extras to install
-            python_path: Absolute path to the venv's Python interpreter
-            quiet: If True, suppress command output
-
-        Raises:
-            ProcessExecutionError: If pip install fails
-        """
-        # Build extras list
+        # Build extras list: dev, tests, oarepo{version}, plus any additional
         extras = ["dev", "tests"]
         if requirements.oarepo_version is not None:
             extras.append(f"oarepo{requirements.oarepo_version}")
         extras.extend(requirements.extras)
 
-        extras_str = ",".join(extras)
+        # Build uv sync command with all extras
+        cmd = [
+            "uv",
+            "sync",
+            "--python",
+            str(python_path),
+        ]
 
+        # Add each extra as a separate --extra flag
+        for extra in extras:
+            cmd.extend(["--extra", extra])
+
+        # Run uv sync from project root
         process.run(
-            [
-                "uv",
-                "pip",
-                "install",
-                "--python",
-                str(python_path),
-                "--prerelease",
-                "allow",
-                "-e",
-                f"{self._project_root}[{extras_str}]",
-            ],
+            cmd,
+            cwd=self._project_root,
             check=True,
             interactive=not quiet,
         )
 
     def _build_and_install_wheel(
-        self, requirements: VenvRequirements, python_path: Path, quiet: bool = False
+        self, requirements: VenvRequirements, venv_path: Path, quiet: bool = False
     ) -> None:
         """Build wheel and install (non-editable mode).
 
         Args:
             requirements: Requirements with extras to install
-            python_path: Absolute path to the venv's Python interpreter
+            venv_path: Path to the virtual environment
             quiet: If True, suppress command output
 
         Raises:
             ProcessExecutionError: If build or install fails
         """
+        # Get platform-specific paths
+        bin_dir = self._platform.get_venv_bin_dir()
+        python_exe = self._platform.get_venv_python()
+        python_path = venv_path / bin_dir / python_exe
+
         # Clean dist directory if it exists
         dist_dir = self._project_root / "dist"
         if dist_dir.exists():
@@ -385,7 +404,7 @@ class VirtualEnvironmentManager:
 
         extras_str = ",".join(extras)
 
-        # Install the wheel with extras
+        # Install the wheel with extras using uv pip
         process.run(
             [
                 "uv",

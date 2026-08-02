@@ -363,6 +363,58 @@ in `dev` and `oarepo>=13` in `tests`), the CLI will:
    OAREPO_VERSION=13 oarepo-cli library venv
    ```
 
+### 5.7 Library venv now uses `uv sync` instead of `uv pip install`
+
+**What changed:** The `library venv` and `library install` commands now use `uv sync` instead of `uv pip install` for dependency installation.
+
+**Old behavior:**
+```bash
+# Used uv pip install for each dependency
+uv pip install oarepo[...]
+uv pip install -e .[dev,tests]
+```
+
+**New behavior:**
+```bash
+# Uses uv sync to install from pyproject.toml
+uv sync --extra dev,tests
+```
+
+**Key differences:**
+
+1. **Lockfile generation**: `uv sync` automatically generates a `uv.lock` file that pins all transitive dependencies to specific versions
+2. **Reproducible builds**: The lockfile ensures that every developer and CI run gets the exact same dependency versions
+3. **Single command**: Instead of multiple `uv pip install` commands, a single `uv sync` resolves and installs everything
+4. **Editable by default**: The project itself is installed in editable mode automatically when using `uv sync`
+
+**Impact on libraries:**
+
+- **The `uv.lock` file should NOT be committed for libraries** — add it to `.gitignore`:
+  ```gitignore
+  # Python virtual environment and lockfile
+  /.venv/
+  /uv.lock
+  ```
+- Libraries should specify broad dependency ranges in `pyproject.toml` (e.g., `oarepo>=14.0.0,<15.0.0`) to remain compatible with multiple versions
+- The lockfile is still generated locally for reproducible development environments, but downstream projects choose their own versions
+
+**Impact on repositories:**
+
+- Repositories (applications) **should commit their `uv.lock` files** to ensure reproducible deployments
+- The lockfile ensures that production environments install exactly the same versions that were tested in development and CI
+
+**Benefits:**
+
+1. **Faster installs**: `uv sync` is optimized for lockfile-based installs and is faster than multiple `pip install` calls
+2. **Better reproducibility**: Lockfiles eliminate "works on my machine" issues caused by floating dependency versions
+3. **Simpler API**: The same `VirtualEnvironmentManager` API works for both libraries and repositories
+
+**Migration:**
+
+No action required for most users — the change is transparent. If you have CI scripts that explicitly call `uv pip install`, consider switching to `uv sync` for better reproducibility.
+
+**Note:** The `--no-editable` flag still works and builds a wheel instead of using editable mode, bypassing `uv sync` for that specific workflow.
+
 ---
 
 ## 6. Migration Checklist
