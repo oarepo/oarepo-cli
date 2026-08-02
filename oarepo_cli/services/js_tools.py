@@ -136,8 +136,9 @@ def run_jstest(
 ) -> process.ProcessResult:
     """Run JavaScript tests (Jest) via invenio webpack.
 
-    Mirrors ``library_runner.sh``'s ``run_jstest``: either sets up Jest
-    configuration (setup=True) or runs tests via ``invenio webpack run test``.
+    Mirrors ``library_runner.sh``'s ``run_jstest``: runs tests via
+    ``invenio webpack run test`` with services started unless
+    --skip-services is set.
 
     Args:
         context: Project context with paths and configuration
@@ -149,6 +150,9 @@ def run_jstest(
     Returns:
         ProcessResult from the test command
     """
+    from oarepo_cli.core.platform import get_platform_detector
+    from oarepo_cli.services.services_lifecycle import ServicesLifecycleManager
+
     extra_args = extra_args or []
 
     if setup:
@@ -163,21 +167,48 @@ def run_jstest(
             duration_ms=0,
         )
 
-    # Run tests via invenio shell command
-    venv_python = context.venv_path / "bin" / "python"
+    # Get the invenio binary from venv
+    platform = get_platform_detector()
+    bin_dir = platform.get_venv_bin_dir()
+    invenio_path = context.venv_path / bin_dir / "invenio"
 
-    # Build invenio command
-    cmd = [str(venv_python), "-m", "invenio", "webpack", "run", "test", *extra_args]
+    if not invenio_path.exists():
+        return process.ProcessResult(
+            return_code=1,
+            stdout="",
+            stderr="invenio command not found in virtual environment",
+            command=[],
+            cwd=context.root_directory,
+            duration_ms=0,
+        )
 
-    # Handle --skip-services flag
-    if not skip_services:
-        # Would need to start services here, but that's handled by the test orchestrator
-        # For now, just run the command
-        pass
+    # Load or start services to get environment variables
+    services_mgr = ServicesLifecycleManager(
+        config=context.config, project_root=context.root_directory
+    )
+
+    if skip_services:
+        service_env = services_mgr.load_service_env()
+    else:
+        # Start services if needed and get environment
+        service_env = services_mgr.start_services_if_needed()
+
+    # Build environment
+    import os
+
+    cmd_env = dict(os.environ)
+    cmd_env.update(service_env)
+    cmd_env["VIRTUAL_ENV"] = str(context.venv_path)
+    venv_bin_path = str(context.venv_path / bin_dir)
+    cmd_env["PATH"] = f"{venv_bin_path}{os.pathsep}{cmd_env.get('PATH', '')}"
+
+    # Run: invenio webpack run test [extra_args]
+    cmd = [str(invenio_path), "webpack", "run", "test", *extra_args]
 
     return process.run(
         cmd,
         cwd=context.root_directory,
+        env=cmd_env,
         check=False,
         interactive=not quiet,
     )
