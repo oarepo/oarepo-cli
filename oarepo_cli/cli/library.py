@@ -228,7 +228,7 @@ def library_clean(
 
     This command:
     1. Stops running services (if any)
-    2. Removes the virtual environment directory
+    2. Removes the virtual environment directory and uv.lock file
     3. Removes the .env-services file
 
     Use this when you want to completely remove your development environment,
@@ -237,8 +237,6 @@ def library_clean(
     This command is idempotent - it will not fail if the environment is
     already clean.
     """
-    import shutil
-
     # Discover project context
     context = discover_context()
 
@@ -283,23 +281,48 @@ def library_clean(
     else:
         console.info("  ℹ No .env-services file found", fg=typer.colors.CYAN)
 
-    # Remove venv directory
-    if context.venv_path.exists():
+    # Remove venv directory and uv.lock using VirtualEnvironmentManager
+    venv_existed = context.venv_path.exists()
+    lock_file = context.root_directory / "uv.lock"
+    lock_existed = lock_file.exists()
+
+    if venv_existed or lock_existed:
         console.info(
             f"🗑️  Removing virtual environment at {context.venv_path}...", fg=typer.colors.CYAN
         )
         try:
-            shutil.rmtree(context.venv_path)
-            console.info("  ✓ Virtual environment removed", fg=typer.colors.GREEN)
-            items_removed.append("venv")
+            venv_mgr = VirtualEnvironmentManager(
+                config=context.config, project_root=context.root_directory
+            )
+            venv_mgr.cleanup()
+            if venv_existed:
+                console.info("  ✓ Virtual environment removed", fg=typer.colors.GREEN)
+                items_removed.append("venv")
+            if lock_existed:
+                console.info("  ✓ uv.lock file removed", fg=typer.colors.GREEN)
+                items_removed.append("uv.lock")
         except Exception as e:
             console.warning(
-                f"  ⚠ Warning: Failed to remove venv: {e}",
+                f"  ⚠ Warning: Failed to remove venv/uv.lock: {e}",
                 fg=typer.colors.YELLOW,
             )
     else:
         console.info(
             f"  ℹ No virtual environment found at {context.venv_path}", fg=typer.colors.CYAN
+        )
+
+    # Display summary
+    if items_removed:
+        console.success(
+            f"✨ ✓ Cleanup completed! Removed: {', '.join(items_removed)}",
+            fg=typer.colors.BRIGHT_GREEN,
+            bold=True,
+        )
+    else:
+        console.success(
+            "✨ ✓ Environment is already clean!",
+            fg=typer.colors.BRIGHT_GREEN,
+            bold=True,
         )
 
     # Display summary

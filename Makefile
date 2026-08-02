@@ -67,7 +67,7 @@ install-all: $(INSTALL_ALL)
 
 # Development targets
 test: install-tests
-	$(VENV_BIN)/pytest
+	$(VENV_BIN)/pytest $(PYTEST_ARGS)
 
 lint: install-dev
 	$(VENV_BIN)/ruff check .

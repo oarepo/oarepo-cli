@@ -178,25 +178,19 @@ class VirtualEnvironmentManager:
             return self._venv_path
         return self.ensure_venv(requirements, force=False, quiet=quiet)
 
-    def upgrade_environment(self, requirements: VenvRequirements) -> None:
-        """Clean cache and recreate venv from scratch.
-
-        Removes the existing virtual environment and recreates it with fresh
-        dependencies. Useful when dependencies become corrupted or outdated.
-
-        Args:
-            requirements: Requirements for the new environment
-        """
-        self.ensure_venv(requirements, force=True)
-
     def cleanup(self) -> None:
         """Remove virtual environment and related files.
 
-        Deletes the entire virtual environment directory. Does not fail if
-        the directory doesn't exist.
+        Deletes the entire virtual environment directory and the uv.lock file.
+        Does not fail if the directory or lock file doesn't exist.
         """
         if self._venv_path.exists():
             shutil.rmtree(self._venv_path)
+
+        # Also remove uv.lock since it's generated during venv setup
+        lock_file = self._project_root / "uv.lock"
+        if lock_file.exists():
+            lock_file.unlink()
 
     def _ensure_uv_lock_gitignored(self, quiet: bool = False) -> None:
         """Ensure uv.lock is in .gitignore.
@@ -327,16 +321,27 @@ class VirtualEnvironmentManager:
         Raises:
             ProcessExecutionError: If uv sync fails
         """
+        from oarepo_cli.services.pyproject_reader import PyProjectReader
+
         # Get platform-specific paths
         bin_dir = self._platform.get_venv_bin_dir()
         python_exe = self._platform.get_venv_python()
         python_path = venv_path / bin_dir / python_exe
 
-        # Build extras list: dev, tests, oarepo{version}, plus any additional
-        extras = ["dev", "tests"]
+        # Read available extras from pyproject.toml
+        reader = PyProjectReader()
+        pyproject_path = self._project_root / "pyproject.toml"
+        pyproject = reader.read(pyproject_path)
+        available_extras = set(pyproject.optional_dependencies.keys())
+
+        # Build extras list: only include extras that exist in the project
+        desired_extras = ["dev", "tests"]
         if requirements.oarepo_version is not None:
-            extras.append(f"oarepo{requirements.oarepo_version}")
-        extras.extend(requirements.extras)
+            desired_extras.append(f"oarepo{requirements.oarepo_version}")
+        desired_extras.extend(requirements.extras)
+
+        # Filter to only request extras that actually exist
+        extras = [extra for extra in desired_extras if extra in available_extras]
 
         # Build uv sync command with all extras
         cmd = [
@@ -344,16 +349,22 @@ class VirtualEnvironmentManager:
             "sync",
             "--python",
             str(python_path),
+            "--prerelease",
+            "allow",
         ]
 
         # Add each extra as a separate --extra flag
         for extra in extras:
             cmd.extend(["--extra", extra])
 
+        # Set UV_PROJECT_ENVIRONMENT to tell uv where to install packages
+        env = {"UV_PROJECT_ENVIRONMENT": str(venv_path)}
+
         # Run uv sync from project root
         process.run(
             cmd,
             cwd=self._project_root,
+            env=env,
             check=True,
             interactive=not quiet,
         )
@@ -396,8 +407,8 @@ class VirtualEnvironmentManager:
 
         wheel_path = wheels[0]
 
-        # Build extras list
-        extras = ["tests"]
+        # Build extras list - include dev and tests for consistency with editable mode
+        extras = ["dev", "tests"]
         if requirements.oarepo_version is not None:
             extras.append(f"oarepo{requirements.oarepo_version}")
         extras.extend(requirements.extras)
