@@ -488,14 +488,67 @@ Manages Docker services with subcommands.
 
 ## Repository Tools
 
-_To be implemented in Phase 4 and Phase 5 of the project._
+The `repository` subcommand provides tools for managing full OARepo repository instances.
 
-The `repository` subcommand will provide tools for managing full OARepo repository instances, including:
-- Installation and configuration
-- Model management (create, update via Copier templates)
-- Local package development (`local add`, `local remove`)
-- Server operations (`run`, `cli`, `reset`)
-- Index management (`rebuild`)
+**Note:** Repository commands are run from within your repository directory and require `oarepo-cli` to be installed globally or accessible via `PATH`.
+
+### Command Overview
+
+| Command | Description | Status |
+|---------|-------------|--------|
+| [`install`](#repository-install) | Install repository in virtual environment | ✅ Implemented |
+| `upgrade` | Clean cache and reinstall | 🔜 Phase 4.2 |
+| `services` | Manage Docker services | 🔜 Phase 4.3 |
+| `model` | Create/update record models | 🔜 Phase 4.4 |
+| `local` | Manage local package dependencies | 🔜 Phase 4.5 |
+| `run` | Start repository server | 🔜 Phase 4.6 |
+| `cli` | Delegate to invenio-cli | 🔜 Phase 4.7 |
+| `translations` | Compile backend translations | 🔜 Phase 4.8 |
+| `index` | Rebuild search index | 🔜 Phase 4.9 |
+| `reset` | Full reset with confirmation | 🔜 Phase 4.10 |
+| `info` | Show Python version and models | 🔜 Phase 4.11 |
+
+### `repository install`
+
+Installs a repository in its virtual environment, configures Invenio, and prepares for development.
+
+```bash
+oarepo-cli repository install
+```
+
+**Options:**
+- `--quiet` / `-q`: Suppress output from subprocesses (uv, invenio-cli, etc.)
+
+**What it does:**
+1. Creates/syncs virtual environment with `uv sync` (reads `pyproject.toml`)
+2. Copies translation overlays from `oarepo/collected_translations` to site-packages
+3. Detects instance path via `invenio shell` (`app.instance_path`)
+4. Creates instance directory and symlinks `invenio.cfg`
+5. Runs `invenio-cli install` (sets up assets, database tables, etc.)
+6. Configures local service ports in `.invenio.private` (reads from `variables` file)
+7. Compiles backend translations with `invenio-cli translations compile`
+
+**Examples:**
+```bash
+# Standard installation
+oarepo-cli repository install
+
+# Quiet mode (suppress subprocess output)
+oarepo-cli repository install --quiet
+```
+
+**Exit codes:**
+- `0`: Installation successful
+- `1`: Installation failed (subprocess error, missing files, etc.)
+
+**Differences from old bash script:**
+- Uses `uv sync` instead of `uv pip install` (lockfile-based, deterministic)
+- Better error messages (Python exceptions vs. bash set -e)
+- No parent-shell environment mutation (writes `.invenio.private` instead)
+
+### Other Repository Commands
+
+_Commands below are to be implemented in Phase 4 (steps 4.2-4.11)._
 
 ## Configuration
 

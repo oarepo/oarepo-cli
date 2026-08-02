@@ -219,6 +219,7 @@ extras now get all versions reported, restoring the bash script's capability.
 | `curl` | Self-update download | Yes |
 | `openssl` | Certificate generation | Yes |
 | `git` | Repo initialization | Optional |
+| `invenio-cli` | Repository install/run passthrough | Yes (CESNET-patched build required — see [ADR-006](#adr-006-cesnet-patched-invenio-cli-dependency)) |
 
 `library lint`'s type checking uses `ty` alone (the same tool already used
 for oarepo-cli's own type checking) rather than `mypy` + `pyright` — see
@@ -799,6 +800,96 @@ class CommandResult(Generic[T]):
 **Implementation**:
 - `process.run(["uv", "pip", "install", pkg])` not `run(f"uv pip install {pkg}")`
 - Validate and sanitize any user-provided strings before inclusion
+
+---
+
+### ADR-006: CESNET-patched invenio-cli dependency
+
+**Status**: Accepted
+**Date**: 2026-08-02
+
+**Context**: oarepo-cli's repository install/run/services flows shell out to
+`invenio-cli`. CESNET carries patches on top of upstream `invenio-cli`
+(docker-environment/compose file discovery, `.env` linking, extension
+entry-point hooks, custom cert/key paths, `UV_PROJECT_ENVIRONMENT` support,
+OARepo-aware RDM version detection — see
+[oarepo/invenio-cli@oarepo-feature-docker-environment](https://github.com/oarepo/invenio-cli))
+that are required for oarepo-cli to work correctly but are not part of the
+upstream PyPI release. Because the patched build's base version (e.g.
+`1.12.0`) still overlaps with the public PyPI release, a plain version
+range in `pyproject.toml` cannot by itself guarantee the right build is
+installed — a `pip install`/resolver pass that skips the CESNET index would
+silently install the upstream build instead.
+
+**Decision**: Two complementary mechanisms:
+1. **Resolution**: `pyproject.toml` declares a `[[tool.uv.index]]` named
+   `cesnet` pointing at the CESNET GitLab PyPI registry
+   (`CESNET_PYPI_INDEX_URL` in `configuration/constants.py`) and scopes
+   `invenio-cli` to it via `[tool.uv.sources]`, so `uv sync`/`uv lock`
+   always resolve `invenio-cli` from CESNET rather than PyPI.
+2. **Verification**: The patched build publishes a PEP 440 local version
+   segment starting with `oarepo` (e.g. `1.12.0+oarepo.1.cgeloxoaidcutj32`).
+   `core/dependency_check.py:check_invenio_cli_version()` inspects the
+   installed `invenio-cli` version via `importlib.metadata` at CLI startup
+   (`cli/main.py:cli_main()`, before dispatching to Typer) and raises
+   `VersionMismatchError` with a message pointing at the CESNET registry if
+   that local segment is missing — covering environments where the venv was
+   built without the CESNET index (manual `pip install`, stale lock file,
+   etc.).
+
+**Consequences**:
+- Pros: Fails fast with an actionable message instead of obscure downstream
+  failures in docker/services commands; works even if the dependency was
+  installed by a tool other than `uv`.
+- Cons: Adds a network dependency on the CESNET registry for `uv
+  lock`/`uv sync`; the check must be updated if the local-version naming
+  scheme changes.
+
+---
+
+### ADR-007: Fast instance path resolution (no `invenio shell`)
+
+**Status**: Accepted
+**Date**: 2026-08-02
+
+**Context**: `repository install` needs the Invenio instance path (where
+`invenio.cfg` gets symlinked and where `var/`, `assets/`, etc. live) to set
+up the instance directory. `repository_runner.sh` gets this by piping
+`print(app.instance_path, end='')` through `in_invenio_shell` — booting the
+full Flask application just to read one attribute. `services/repository.py`'s
+`get_instance_path()` originally replicated that exactly via
+`invenio_cli.run_invenio_shell()` (`uv run invenio shell -c ...`), which was
+slow (full app boot, `uv run`'s own implicit sync) and was also the root
+cause of two follow-on bugs: streamed diagnostic output crashing the parser
+when `stdout` wasn't captured, and `uv sync`/`uv run` disagreeing on
+pre-release mode and forcing lockfile re-resolution (see the `invenio_cli.py`
+git history around 2026-08-02 for both).
+
+**Decision**: Compute the instance path directly instead of asking Invenio
+for it. Invenio's own default instance path is `sys.prefix/var/instance`,
+which for a project's venv resolves to `<venv>/var/instance`; the
+`INVENIO_INSTANCE_PATH` environment variable, when set, overrides it. Both
+rules are Invenio's own (not oarepo-cli-specific), so replicating them in
+`get_instance_path()` (`services/repository.py`) is exact, not a heuristic:
+
+```python
+instance_path = os.environ.get("INVENIO_INSTANCE_PATH")
+if instance_path:
+    return Path(instance_path)
+return context.venv_path / "var" / "instance"
+```
+
+This made `run_invenio_shell()` (`services/invenio_cli.py`) dead code —
+`get_instance_path()` was its only caller — so it was removed.
+
+**Consequences**:
+- Pros: No subprocess/app boot on every `install`; removes an entire class
+  of bugs tied to parsing subprocess output for this value.
+- Cons: If a project ever customizes `app.instance_path` through a
+  mechanism other than `INVENIO_INSTANCE_PATH` (e.g. a custom
+  `create_app()` that hardcodes a different path), this would silently
+  compute the wrong path instead of asking the app directly. Not currently
+  the case for OARepo/RDM projects.
 
 ---
 

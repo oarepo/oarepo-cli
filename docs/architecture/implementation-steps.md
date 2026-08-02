@@ -748,15 +748,15 @@ from dependency constraints instead of requiring explicit configuration. Step
 ### Step 4.1: Repository `install` Command
 **Goal**: Implement repository installation.
 
-- [ ] Implement `repository_install()` function
-- [ ] Ensure venv exists
-- [ ] Sync dependencies with `uv sync`
-- [ ] Copy translations overlay
-- [ ] Get instance path via invenio shell
-- [ ] Create symlinks for invenio.cfg
-- [ ] Run `invenio-cli install`
-- [ ] Configure local service ports in `.invenio.private`
-- [ ] Compile backend translations
+- [x] Implement `repository_install()` function
+- [x] Ensure venv exists
+- [x] Sync dependencies with `uv sync`
+- [x] Copy translations overlay
+- [x] Resolve instance path (`INVENIO_INSTANCE_PATH` or `<venv>/var/instance` — see Step 4.1.2)
+- [x] Create symlinks for invenio.cfg
+- [x] Run `invenio-cli install`
+- [x] Configure local service ports in `.invenio.private`
+- [x] Compile backend translations
 
 **Deliverables**:
 - Working install command
@@ -767,6 +767,51 @@ from dependency constraints instead of requiring explicit configuration. Step
 - [ ] Test instance path created
 - [ ] Test `.invenio.private` configured
 - [ ] Integration test: full install in temp repo
+
+---
+
+### Step 4.1.1: CESNET-patched invenio-cli dependency
+**Goal**: Require the CESNET-patched `invenio-cli` build (docker-environment,
+extension hooks, cert paths, etc. — see
+[oarepo/invenio-cli@oarepo-feature-docker-environment](https://github.com/oarepo/invenio-cli))
+that `repository install`/`run`/`services` rely on, and fail fast if the
+plain upstream build ends up installed instead. See
+[ADR-006](./00-main-architecture.md#adr-006-cesnet-patched-invenio-cli-dependency).
+
+- [x] Add `CESNET_PYPI_INDEX_URL` constant (`configuration/constants.py`), reused by `OAREPO_ENV_DEFAULTS`
+- [x] Scope `invenio-cli` to the CESNET registry via `[[tool.uv.index]]` / `[tool.uv.sources]` in `pyproject.toml`
+- [x] Bump `invenio-cli` constraint to `>=1.12.0,<2.0.0` (base version of the patched build)
+- [x] Implement `core/dependency_check.py:check_invenio_cli_version()` — verifies the installed version carries a `+oarepo...` local version segment
+- [x] Call `check_invenio_cli_version()` at the top of `cli/main.py:cli_main()`, before dispatching to Typer
+- [x] Raise `VersionMismatchError` with a message pointing at the CESNET registry on mismatch/missing package
+
+**Deliverables**:
+- `invenio-cli` always resolves from the CESNET registry via `uv lock`/`uv sync`
+- Startup check catches environments where that didn't happen (manual install, stale lock, etc.)
+
+**Tests** (`tests/core/test_dependency_check.py`):
+- [x] Accepts a version with the `+oarepo` local segment
+- [x] Rejects a plain upstream version
+- [x] Rejects a local version with an unrelated prefix
+- [x] Rejects when the package isn't installed
+- [x] Rejects an unparseable version string
+- [x] Error message references the CESNET registry URL
+
+---
+
+### Step 4.1.2: Fast instance path resolution
+**Goal**: Replace the `invenio shell`-based instance path lookup (slow: full
+Flask app boot on every `install`) with a direct computation of Invenio's own
+default resolution rule. See
+[ADR-007](./00-main-architecture.md#adr-007-fast-instance-path-resolution-no-invenio-shell).
+
+- [x] Rewrite `services/repository.py:get_instance_path()` to return `INVENIO_INSTANCE_PATH` if set, else `context.venv_path / "var" / "instance"`
+- [x] Remove `services/invenio_cli.py:run_invenio_shell()` (its only caller)
+- [x] Update `cli/repository.py:install()`'s docstring step list accordingly
+
+**Tests** (`tests/unit/test_repository_service.py`):
+- [x] Defaults to `<venv>/var/instance` when `INVENIO_INSTANCE_PATH` is unset
+- [x] Honors `INVENIO_INSTANCE_PATH` when set
 
 ---
 
