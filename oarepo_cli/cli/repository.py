@@ -6,7 +6,6 @@
 from __future__ import annotations
 
 import os
-import sys
 from typing import Annotated
 
 import typer
@@ -15,6 +14,7 @@ from oarepo_cli.core.context import discover_context
 from oarepo_cli.core.errors import OARepoError, ProcessExecutionError
 from oarepo_cli.services import invenio_cli, repository, translations
 from oarepo_cli.services.venv import VenvRequirements, VirtualEnvironmentManager
+from oarepo_cli.ui import ConsoleOutput
 
 # Create the repository subcommand group
 repository_app = typer.Typer(
@@ -63,12 +63,13 @@ def install(
         # Load context and config
         context = discover_context()
 
-        if not quiet:
-            print("\n→ Installing repository...\n", file=sys.stderr)
+        # Create console output handler
+        console = ConsoleOutput(quiet=quiet)
+
+        console.info("\n→ Installing repository...\n")
 
         # Step 1: Ensure virtual environment exists and sync dependencies
-        if not quiet:
-            print(f"→ Syncing dependencies in {context.config.venv.path}\n", file=sys.stderr)
+        console.info(f"→ Syncing dependencies in {context.config.venv.path}\n")
 
         venv_manager = VirtualEnvironmentManager(context.config, context.root_directory)
         requirements = VenvRequirements(
@@ -80,8 +81,7 @@ def install(
         venv_manager.ensure_venv(requirements, quiet=quiet)
 
         # Step 2: Copy translation overlays
-        if not quiet:
-            print("→ Copying translation overlays\n", file=sys.stderr)
+        console.info("→ Copying translation overlays\n")
 
         collected_dir = os.environ.get("COLLECTED_TRANSLATIONS_DIR")
         translations.copy_translations(
@@ -91,8 +91,7 @@ def install(
         )
 
         # Step 3: Get instance path from Invenio shell
-        if not quiet:
-            print("→ Detecting instance path\n", file=sys.stderr)
+        console.info("→ Detecting instance path\n")
 
         instance_path = repository.get_instance_path(context, quiet=quiet)
 
@@ -100,8 +99,7 @@ def install(
         repository.ensure_instance_structure(context, instance_path, quiet=quiet)
 
         # Step 5: Run invenio-cli install
-        if not quiet:
-            print("→ Running invenio-cli install\n", file=sys.stderr)
+        console.info("→ Running invenio-cli install\n")
 
         invenio_cli.run_invenio_cli(
             context,
@@ -111,8 +109,7 @@ def install(
         )
 
         # Step 6: Configure local service ports
-        if not quiet:
-            print("→ Configuring service ports\n", file=sys.stderr)
+        console.info("→ Configuring service ports\n")
 
         repository.configure_local_ports(context, quiet=quiet)
 
@@ -123,21 +120,13 @@ def install(
         en_lc_messages = translations_dir / "en" / "LC_MESSAGES"
 
         if not messages_pot.exists() or not en_lc_messages.exists():
-            if not quiet:
-                print(
-                    "→ Bootstrapping translations with make-translations\n",
-                    file=sys.stderr,
-                )
+            console.info("→ Bootstrapping translations with make-translations\n")
             # Try to run make-translations to bootstrap; don't fail if it errors
             result = translations.run_translations(context, quiet=quiet)
-            if not result.success and not quiet:
-                print(
-                    "⚠️  Warning: make-translations failed, translations not compiled!",
-                    file=sys.stderr,
-                )
+            if not result.success:
+                console.warning("⚠️  Warning: make-translations failed, translations not compiled!")
 
-        if not quiet:
-            print("→ Compiling backend translations\n", file=sys.stderr)
+        console.info("→ Compiling backend translations\n")
 
         # Run invenio-cli translations compile
         result = invenio_cli.run_invenio_cli(
@@ -147,16 +136,17 @@ def install(
             check=False,  # Don't fail if translations compile fails
         )
 
-        if not result.success and not quiet:
-            print(
-                "⚠️  Warning: invenio-cli failed to compile backend translations!",
-                file=sys.stderr,
-            )
+        if not result.success:
+            console.warning("⚠️  Warning: invenio-cli failed to compile backend translations!")
 
         # Success!
-        if not quiet:
-            print("\n✓ Repository installed successfully!\n", file=sys.stderr)
+        console.success(
+            "\n✓ Repository installed successfully!\n",
+            fg=typer.colors.BRIGHT_GREEN,
+            bold=True,
+        )
 
     except (OARepoError, ProcessExecutionError) as e:
-        print(f"\n✗ Installation failed: {e}\n", file=sys.stderr)
+        console_err = ConsoleOutput(quiet=False)  # Always show errors
+        console_err.error(f"\n✗ Installation failed: {e}\n", fg=typer.colors.RED)
         raise typer.Exit(1) from e
