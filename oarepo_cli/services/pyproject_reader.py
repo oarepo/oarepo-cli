@@ -12,7 +12,7 @@ from typing import TYPE_CHECKING, Any
 if TYPE_CHECKING:
     from pathlib import Path
 
-from oarepo_cli.constants import OAREPO_VERSION_RE
+from oarepo_cli.configuration.constants import OAREPO_VERSION_RE
 
 
 @dataclass

@@ -24,7 +24,7 @@ The new implementation preserves all existing user-facing behavior while replaci
 | `shell` | `--skip-services` | Start bash shell in venv | Must preserve |
 | `invenio` | `--skip-services` | Run Invenio commands | Must preserve |
 | `translations` | - | Extract/compile translations via oarepo-tools | Must preserve |
-| `lint` | - | Run ruff, mypy, pyright, license checks | Must preserve |
+| `lint` | - | Run ruff, mypy, pyright, license checks (**planned:** drop mypy/pyright for `ty` — see §1.5 note and [implementation-steps.md Step 3.9.1](./implementation-steps.md)) | Must preserve |
 | `format` | - | Format code with ruff | Must preserve |
 | `license-headers` | - | Add MIT license headers | Must preserve |
 | `jslint` | - | Run ESLint and Prettier | Must preserve |
@@ -100,6 +100,13 @@ The new implementation preserves all existing user-facing behavior while replaci
 | `curl` | Self-update download | Yes |
 | `openssl` | Certificate generation | Yes |
 | `git` | Repo initialization | Optional |
+
+> **Planned change (not yet implemented):** `library lint`'s type checking is
+> planned to migrate from `mypy` + `pyright` to `ty` alone (dropping both in
+> favor of the single tool already used for oarepo-cli's own type checking).
+> This is not reflected elsewhere in this document yet — see
+> [implementation-steps.md Step 3.9.1](./implementation-steps.md) for the
+> tracked follow-up work.
 
 ### 1.6 Identified Issues & Risks
 

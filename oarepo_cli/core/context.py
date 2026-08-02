@@ -35,13 +35,54 @@ class ProjectContext:
 
     @property
     def code_directories(self) -> list[Path]:
-        """List of code directories to process.
+        """Source and test directories to lint/type-check/format.
+
+        Mirrors ``library_runner.sh``'s ``code_directories`` detection:
+        prefer a top-level ``src/`` directory, else the package's own
+        top-level directory (derived from the project name, or from
+        ``[tool.hatch.build.targets.wheel].packages`` if that doesn't exist
+        either), plus ``tests/`` if present.
 
         Returns:
-            List containing 'code' directory if it exists, otherwise empty list
+            List of existing directories to process
+
+        Raises:
+            ConfigurationError: If neither ``src/`` nor a package directory can be found
         """
-        code_dir = self.root_directory / "code"
-        return [code_dir] if code_dir.exists() else []
+        pyproject_data = PyProjectReader().read(self.pyproject_path)
+
+        directories: list[Path] = []
+
+        src_dir = self.root_directory / "src"
+        if src_dir.is_dir():
+            directories.append(src_dir)
+        else:
+            top_level = pyproject_data.name.replace("-", "_")
+            package_dir = self.root_directory / top_level
+            if package_dir.is_dir():
+                directories.append(package_dir)
+            else:
+                wheel_packages = (
+                    pyproject_data.raw.get("tool", {})
+                    .get("hatch", {})
+                    .get("build", {})
+                    .get("targets", {})
+                    .get("wheel", {})
+                    .get("packages", [])
+                )
+                if wheel_packages:
+                    directories.append(self.root_directory / wheel_packages[0])
+                else:
+                    raise ConfigurationError(
+                        f"No src/ or {top_level}/ directory found, please ensure "
+                        "your package structure is correct."
+                    )
+
+        tests_dir = self.root_directory / "tests"
+        if tests_dir.is_dir():
+            directories.append(tests_dir)
+
+        return directories
 
     @property
     def instance_path(self) -> Path | None:

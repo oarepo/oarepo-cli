@@ -56,9 +56,8 @@ def test_error_when_no_pyproject_in_cwd_or_parents(tmp_path: Path) -> None:
     assert "pyproject.toml not found" in str(exc_info.value)
 
 
-def test_computed_properties_code_directories(tmp_path: Path) -> None:
-    """Test computed property code_directories."""
-    # Create pyproject.toml and code directory
+def test_computed_properties_code_directories_src_layout(tmp_path: Path) -> None:
+    """Test code_directories prefers a top-level src/ directory, plus tests/."""
     (tmp_path / "pyproject.toml").write_text(
         """
 [project]
@@ -69,15 +68,57 @@ requires-python = ">=3.12,<3.15"
 oarepo = { version = 14 }
 """
     )
-    (tmp_path / "code").mkdir()
+    (tmp_path / "src").mkdir()
+    (tmp_path / "tests").mkdir()
 
     context = ContextBuilder().from_directory(tmp_path).validate()
 
-    assert context.code_directories == [tmp_path / "code"]
+    assert context.code_directories == [tmp_path / "src", tmp_path / "tests"]
 
 
-def test_computed_properties_code_directories_empty(tmp_path: Path) -> None:
-    """Test code_directories returns empty list when code dir doesn't exist."""
+def test_computed_properties_code_directories_package_layout(tmp_path: Path) -> None:
+    """Test code_directories falls back to the package's own top-level directory."""
+    (tmp_path / "pyproject.toml").write_text(
+        """
+[project]
+name = "test-project"
+requires-python = ">=3.12,<3.15"
+
+[tool.oarepo-cli]
+oarepo = { version = 14 }
+"""
+    )
+    (tmp_path / "test_project").mkdir()
+
+    context = ContextBuilder().from_directory(tmp_path).validate()
+
+    assert context.code_directories == [tmp_path / "test_project"]
+
+
+def test_computed_properties_code_directories_hatch_wheel_packages(tmp_path: Path) -> None:
+    """Test code_directories falls back to [tool.hatch.build.targets.wheel].packages."""
+    (tmp_path / "pyproject.toml").write_text(
+        """
+[project]
+name = "test-project"
+requires-python = ">=3.12,<3.15"
+
+[tool.oarepo-cli]
+oarepo = { version = 14 }
+
+[tool.hatch.build.targets.wheel]
+packages = ["custom_pkg"]
+"""
+    )
+    (tmp_path / "custom_pkg").mkdir()
+
+    context = ContextBuilder().from_directory(tmp_path).validate()
+
+    assert context.code_directories == [tmp_path / "custom_pkg"]
+
+
+def test_computed_properties_code_directories_raises_when_not_found(tmp_path: Path) -> None:
+    """Test code_directories raises ConfigurationError with no src/ or package dir."""
     (tmp_path / "pyproject.toml").write_text(
         """
 [project]
@@ -91,7 +132,8 @@ oarepo = { version = 14 }
 
     context = ContextBuilder().from_directory(tmp_path).validate()
 
-    assert context.code_directories == []
+    with pytest.raises(ConfigurationError, match="No src/ or test_project/ directory found"):
+        _ = context.code_directories
 
 
 def test_computed_properties_instance_path_exists(tmp_path: Path) -> None:
