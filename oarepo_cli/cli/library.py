@@ -13,6 +13,7 @@ import typer
 from oarepo_cli.core.context import discover_context
 from oarepo_cli.core.platform import get_platform_detector
 from oarepo_cli.services import process
+from oarepo_cli.services.lint import LintRunner
 from oarepo_cli.services.services_lifecycle import ServicesLifecycleManager
 from oarepo_cli.services.test_orchestrator import TestOrchestrator
 from oarepo_cli.services.venv import VenvRequirements, VirtualEnvironmentManager
@@ -776,3 +777,66 @@ def library_invenio(
             bold=True,
         )
         raise typer.Exit(code=1) from e
+
+
+@library_app.command("lint")
+def library_lint(
+    quiet: Annotated[bool, typer.Option("--quiet", "-q", help="Suppress command output")] = False,
+) -> None:
+    """Run linters and type checkers on the codebase.
+
+    Runs, in order, stopping at the first failure: ruff check, ruff format
+    --check, a license header check, a `from __future__ import annotations`
+    check, mypy, and pyright. Generates .ruff.toml and .mypy.ini config files
+    in the project root.
+
+    Exits with the exit code of the first failing check.
+    """
+    context = discover_context()
+    console = ConsoleOutput(quiet=quiet)
+
+    console.info("🔍 Running linters...", fg=typer.colors.BRIGHT_BLUE, bold=True)
+
+    runner = LintRunner(context=context, quiet=quiet)
+
+    try:
+        result = runner.run_lint()
+    except Exception as e:
+        console.error(f"❌ Error running linters: {e}", fg=typer.colors.BRIGHT_RED, bold=True)
+        raise typer.Exit(code=1) from e
+
+    if result.success:
+        console.success("✨ ✓ Linting passed!", fg=typer.colors.BRIGHT_GREEN, bold=True)
+    else:
+        console.error("❌ Linting failed!", fg=typer.colors.BRIGHT_RED, bold=True)
+
+    raise typer.Exit(code=result.return_code)
+
+
+@library_app.command("format")
+def library_format(
+    quiet: Annotated[bool, typer.Option("--quiet", "-q", help="Suppress command output")] = False,
+) -> None:
+    """Format the codebase using ruff.
+
+    Runs `ruff format` followed by `ruff check --fix`.
+    """
+    context = discover_context()
+    console = ConsoleOutput(quiet=quiet)
+
+    console.info("🎨 Formatting code...", fg=typer.colors.BRIGHT_BLUE, bold=True)
+
+    runner = LintRunner(context=context, quiet=quiet)
+
+    try:
+        result = runner.run_format()
+    except Exception as e:
+        console.error(f"❌ Error formatting code: {e}", fg=typer.colors.BRIGHT_RED, bold=True)
+        raise typer.Exit(code=1) from e
+
+    if result.success:
+        console.success("✨ ✓ Formatting complete!", fg=typer.colors.BRIGHT_GREEN, bold=True)
+    else:
+        console.error("❌ Formatting failed!", fg=typer.colors.BRIGHT_RED, bold=True)
+
+    raise typer.Exit(code=result.return_code)

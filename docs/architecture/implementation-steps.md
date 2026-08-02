@@ -523,22 +523,22 @@ For unit-level tests, call `run()`/`stream()`/`get_output()` directly against re
 ### Step 3.10: Library `lint` and `format` Commands
 **Goal**: Implement linting and formatting commands.
 
-- [ ] Implement `library_lint()` function
-- [ ] Generate `.ruff.toml` config
-- [ ] Run `ruff check`, `mypy`, `pyright`
-- [ ] Check license headers and future annotations
-- [ ] Implement `library_format()` function
-- [ ] Run `ruff format` and `ruff check --fix`
+- [x] Implement `library_lint()` function
+- [x] Generate `.ruff.toml` config
+- [x] Run `ruff check`, `mypy`, `pyright`
+- [x] Check license headers and future annotations
+- [x] Implement `library_format()` function
+- [x] Run `ruff format` and `ruff check --fix`
 
 **Deliverables**:
-- Lint and format commands
+- [x] Lint and format commands
 
 **Tests** (`tests/integration/test_library_lint_format.py`):
-- [ ] Test lint passes on clean code
-- [ ] Test lint fails on dirty code
-- [ ] Test format fixes issues
-- [ ] Test license header check
-- [ ] Test future annotations check
+- [x] Test lint passes on clean code
+- [x] Test lint fails on dirty code
+- [x] Test format fixes issues
+- [x] Test license header check
+- [x] Test future annotations check
 
 ---
 
