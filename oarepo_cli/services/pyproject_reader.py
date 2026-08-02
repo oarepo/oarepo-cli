@@ -48,15 +48,18 @@ class PyProjectData:
 
     @property
     def oarepo_versions(self) -> list[int]:
-        """OARepo major versions, extracted from the "oarepo" extra.
+        r"""OARepo major versions, extracted from optional-dependencies.
 
-        Looks for dependency specifiers like `oarepo13>=13.0.0,<14.0.0` in
-        `optional-dependencies.oarepo` and returns the sorted, deduplicated
-        major versions found (e.g. `[13, 14]`).
+        Looks for keys like `oarepo13`, `oarepo14` in `optional-dependencies`
+        and returns the sorted, deduplicated major versions found (e.g. `[13, 14]`).
+
+        This matches the bash script's behavior:
+        `egrep "^oarepo[0-9]{2}\s*=" pyproject.toml`
         """
         versions = set()
-        for dep in self.optional_dependencies.get("oarepo", []):
-            if match := OAREPO_VERSION_RE.match(dep):
+        # Look for oarepoXX keys in optional-dependencies
+        for key in self.optional_dependencies:
+            if match := OAREPO_VERSION_RE.match(key):
                 versions.add(int(match.group(1)))
         return sorted(versions)
 

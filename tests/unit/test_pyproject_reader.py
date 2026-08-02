@@ -66,7 +66,7 @@ def test_extracts_single_oarepo_version(tmp_path: Path) -> None:
 name = "test-package"
 
 [project.optional-dependencies]
-oarepo = ["oarepo14>=14.0.0,<15.0.0"]
+oarepo14 = ["oarepo>=14.0.0,<15.0.0"]
 """
     )
 
@@ -82,11 +82,8 @@ def test_extracts_multiple_oarepo_versions_sorted_and_deduplicated(tmp_path: Pat
 name = "test-package"
 
 [project.optional-dependencies]
-oarepo = [
-    "oarepo14>=14.0.0,<15.0.0",
-    "oarepo13>=13.0.0,<14.0.0",
-    "oarepo14>=14.0.0,<15.0.0",
-]
+oarepo14 = ["oarepo>=14.0.0,<15.0.0"]
+oarepo13 = ["oarepo>=13.0.0,<14.0.0"]
 """
     )
 

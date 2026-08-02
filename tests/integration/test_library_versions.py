@@ -42,9 +42,11 @@ requires-python = ">=3.12,<3.15"
 Homepage = "https://github.com/example/test-package"
 
 [project.optional-dependencies]
-oarepo = [
-    "oarepo13>=13.0.0,<14.0.0",
-    "oarepo14>=14.0.0,<15.0.0",
+oarepo13 = [
+    "oarepo>=13.0.0,<14.0.0",
+]
+oarepo14 = [
+    "oarepo>=14.0.0,<15.0.0",
 ]
 
 [tool.oarepo]
@@ -147,8 +149,8 @@ requires-python = ">=3.14"
 Homepage = "https://github.com/example/test-package"
 
 [project.optional-dependencies]
-oarepo = [
-    "oarepo14>=14.0.0,<15.0.0",
+oarepo14 = [
+    "oarepo>=14.0.0,<15.0.0",
 ]
 
 [tool.oarepo]
