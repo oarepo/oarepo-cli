@@ -6,16 +6,35 @@
 from __future__ import annotations
 
 import sys
+from pathlib import Path
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from pathlib import Path
-
     from oarepo_cli.core.context import ProjectContext
 
 from oarepo_cli.core.errors import ConfigurationError
 from oarepo_cli.services import process
 from oarepo_cli.services.pyproject_reader import PyProjectReader
+
+
+# Linters/type checkers are installed as regular oarepo-cli dependencies (see
+# pyproject.toml) and resolved next to the running interpreter rather than
+# fetched on demand via `uvx`, so each `library lint`/`library format` call
+# skips uv's per-invocation resolve/download.
+def _tool_path(name: str) -> str:
+    """Resolve a linter/type-checker binary installed alongside oarepo-cli.
+
+    Args:
+        name: Console script name (e.g. "ruff", "mypy", "pyright")
+
+    Returns:
+        Absolute path to the binary if found next to the current
+        interpreter, otherwise the bare name (resolved via PATH by the
+        subprocess call).
+    """
+    candidate = Path(sys.executable).parent / name
+    return str(candidate) if candidate.exists() else name
+
 
 RUFF_TOML = """\
 target-version = "py314"
@@ -217,8 +236,9 @@ class LintRunner:
 
         _write_config(root / ".ruff.toml", RUFF_TOML)
 
+        ruff = _tool_path("ruff")
         result = process.run(
-            ["uvx", "-p", "python3.14", "ruff", "check", "--exclude", "pyproject.toml"],
+            [ruff, "check", "--exclude", "pyproject.toml"],
             cwd=root,
             check=False,
             interactive=not self._quiet,
@@ -227,7 +247,7 @@ class LintRunner:
             return result
 
         result = process.run(
-            ["uvx", "-p", "python3.14", "ruff", "format", "--check", "--exclude", "pyproject.toml"],
+            [ruff, "format", "--check", "--exclude", "pyproject.toml"],
             cwd=root,
             check=False,
             interactive=not self._quiet,
@@ -259,14 +279,7 @@ class LintRunner:
         venv_python = self._context.venv_path / "bin" / "python"
         result = process.run(
             [
-                "uvx",
-                "--with",
-                "types-PyYAML",
-                "--with",
-                "types-requests",
-                "-p",
-                str(venv_python),
-                "mypy",
+                _tool_path("mypy"),
                 str(code_directories[0]),
                 "--ignore-missing-imports",
                 "--exclude",
@@ -280,7 +293,7 @@ class LintRunner:
             return result
 
         return process.run(
-            ["uvx", "pyright", "--pythonpath", str(venv_python), str(code_directories[0])],
+            [_tool_path("pyright"), "--pythonpath", str(venv_python), str(code_directories[0])],
             cwd=root,
             check=False,
             interactive=not self._quiet,
@@ -293,9 +306,10 @@ class LintRunner:
             ProcessResult of the first failing step, or the final success result
         """
         root = self._context.root_directory
+        ruff = _tool_path("ruff")
 
         result = process.run(
-            ["uvx", "ruff", "format", "--exclude", "pyproject.toml"],
+            [ruff, "format", "--exclude", "pyproject.toml"],
             cwd=root,
             check=False,
             interactive=not self._quiet,
@@ -304,7 +318,7 @@ class LintRunner:
             return result
 
         return process.run(
-            ["uvx", "ruff", "check", "--fix", "--exclude", "pyproject.toml"],
+            [ruff, "check", "--fix", "--exclude", "pyproject.toml"],
             cwd=root,
             check=False,
             interactive=not self._quiet,

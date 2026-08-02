@@ -12,6 +12,14 @@ dependencies = [
     "invenio-cli>=1.9.0,<2.0.0",
     "packaging>=24.0",
     "typer>=0.12.0",
+    # Linters/type checkers run by `library lint`/`library format` against
+    # the target project. Bundled as regular dependencies (rather than
+    # invoked via `uvx`) so they run without a per-call resolve/download.
+    "mypy>=1.13.0",
+    "pyright>=1.1.380",
+    "ruff>=0.9.0",
+    "types-pyyaml>=6.0",
+    "types-requests>=2.31",
 ]
 requires-python = ">=3.14,<3.15"
 
