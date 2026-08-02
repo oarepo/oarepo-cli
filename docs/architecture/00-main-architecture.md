@@ -14,7 +14,7 @@ The new implementation preserves all existing user-facing behavior while replaci
 
 | Command | Options | Description | Status |
 |---------|---------|-------------|--------|
-| `venv` | `--force`, `--no-editable` | Set up virtual environment | Must preserve |
+| `venv` | `--force`, `--no-editable` | Set up virtual environment (uses `uv sync` for lockfile-based installs) | Must preserve |
 | `upgrade` | - | Clean cache and recreate venv | Must preserve |
 | `start` | - | Start services for testing | Must preserve |
 | `stop` | - | Stop services after testing | Must preserve |
@@ -471,7 +471,7 @@ class VersionResolver(Protocol):
 
 ### 4.4 Virtual Environment Manager (`services/venv.py`)
 
-**Responsibility**: Create, activate, and manage Python virtual environments via uv.
+**Responsibility**: Create, activate, and manage Python virtual environments via uv. For library development, uses `uv sync` to install dependencies from a lockfile (`uv.lock`), which provides reproducible builds. The lockfile is generated automatically but should be gitignored for libraries (repositories commit their lockfiles).
 
 ```python
 from dataclasses import dataclass
