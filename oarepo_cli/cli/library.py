@@ -1107,3 +1107,74 @@ def library_jstest(
         console.error("❌ JavaScript tests failed!", fg=typer.colors.BRIGHT_RED, bold=True)
 
     raise typer.Exit(code=result.return_code)
+
+
+@library_app.command("oarepo-versions")
+def library_oarepo_versions(
+    quiet: Annotated[bool, typer.Option("--quiet", "-q", help="Suppress command output")] = False,
+) -> None:
+    """List supported OARepo and Python versions (JSON output).
+
+    Parses pyproject.toml for oarepo versions and requires-python constraint,
+    and outputs a JSON object with:
+    - oarepo_versions: List of supported OARepo major versions (as strings)
+    - python_versions: List of compatible Python versions (as strings)
+    - node_versions: List of Node.js versions (hard-coded to ["24"])
+
+    Example output:
+        {
+            "oarepo_versions": ["13", "14"],
+            "python_versions": ["3.14", "3.13", "3.12"],
+            "node_versions": ["24"]
+        }
+
+    Examples:
+        oarepo-cli library oarepo-versions
+        oarepo-cli library oarepo-versions | jq .python_versions
+    """
+    import json
+    from pathlib import Path
+
+    # We need to use the version resolver to get the version info
+    from oarepo_cli.core.errors import ConfigurationError
+    from oarepo_cli.services.pyproject_reader import PyProjectReader
+    from oarepo_cli.services.version_resolver import VersionResolver
+
+    # Find pyproject.toml in current directory or parent directories
+    pyproject_path = None
+    current = Path.cwd()
+    for directory in [current, *current.parents]:
+        candidate = directory / "pyproject.toml"
+        if candidate.exists():
+            pyproject_path = candidate
+            break
+
+    if not pyproject_path:
+        console = ConsoleOutput(quiet=quiet)
+        console.error(
+            "❌ pyproject.toml not found in current directory or any parent",
+            fg=typer.colors.BRIGHT_RED,
+            bold=True,
+        )
+        raise typer.Exit(code=1)
+
+    pyproject_reader = PyProjectReader()
+    resolver = VersionResolver(pyproject_reader=pyproject_reader)
+
+    try:
+        info = resolver.resolve_from_pyproject(pyproject_path)
+    except ConfigurationError as e:
+        console = ConsoleOutput(quiet=quiet)
+        console.error(f"❌ Error resolving versions: {e}", fg=typer.colors.BRIGHT_RED, bold=True)
+        raise typer.Exit(code=1) from e
+
+    # Construct JSON output
+    # Note: Convert oarepo_versions from int to string to match bash output format
+    output = {
+        "oarepo_versions": [str(v) for v in info.oarepo_versions],
+        "python_versions": info.python_versions,
+        "node_versions": ["24"],  # Hard-coded to match bash script behavior
+    }
+
+    # Print JSON to stdout (so it can be piped or parsed)
+    print(json.dumps(output, separators=(",", ": ")))
