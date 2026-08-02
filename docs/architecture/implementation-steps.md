@@ -863,16 +863,42 @@ the subsequent reinstall re-populates it correctly).
 ### Step 4.3: Repository `services` Subcommands
 **Goal**: Implement services subcommands (setup/start/stop/destroy).
 
-- [ ] Implement `repository_services()` with subcommands
-- [ ] Delegate to `run_invenio_cli services ...`
-- [ ] Pass through all arguments
+- [x] Implement `repository_services()` with subcommands
+- [x] Delegate to `run_invenio_cli services ...`
+- [x] Pass through all arguments
+
+Implemented as a `services_app` sub-Typer group mounted on `repository_app`
+(same pattern as `library`'s own `services_app`), with each of
+`setup`/`start`/`stop`/`destroy` a separate command delegating through
+`_run_services_subcommand()` to `invenio_cli.run_invenio_cli(context,
+["services", subcommand, *extra_args], check=False)`. `check=False` plus
+`raise typer.Exit(code=result.return_code)` propagates invenio-cli's exact
+exit code, rather than collapsing failures to `1` the way `install`/
+`upgrade` do — matching `repository_runner.sh`'s `services()`, which is a
+pure passthrough under `set -e` (whatever invenio-cli exits with is what
+the script exits with). `context_settings` (`allow_extra_args`,
+`ignore_unknown_options`, `help_option_names: []`) mirror the existing
+`library invenio` passthrough command, so extra flags (e.g. invenio-cli's
+own `-N`/`--no-demo-data`) and `--help` reach invenio-cli itself instead of
+being intercepted by Typer/Click.
 
 **Deliverables**:
 - Services subcommands
 
 **Tests** (`tests/integration/test_repository_services.py`):
-- [ ] Test each subcommand delegates correctly
-- [ ] Test arguments passed through
+- [x] Test each subcommand delegates correctly
+- [x] Test arguments passed through
+
+All 4 subcommands are parametrized over the same test bodies: delegates to
+`invenio-cli services <subcommand>`, forwards extra args verbatim,
+propagates a non-0/1 exit code exactly, and forwards `--help`. Mocked
+(`discover_context`/`run_invenio_cli`) rather than run for real — a pure
+passthrough wrapper has no real side effects of its own to exercise beyond
+command construction (unlike `install`/`upgrade`, which do get a real
+end-to-end test). Manually verified against the real `tests/testrepo`
+fixture too: `repository services setup --help` prints invenio-cli's own
+real help text (`-f`/`--force`, `-N`/`--no-demo-data`, `--stop-services`,
+`-s`/`--services`).
 
 ---
 

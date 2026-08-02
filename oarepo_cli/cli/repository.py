@@ -23,10 +23,127 @@ repository_app = typer.Typer(
     no_args_is_help=True,
 )
 
+# Create the services subcommand group
+services_app = typer.Typer(
+    name="services",
+    help="Docker services management (delegates to invenio-cli)",
+    no_args_is_help=True,
+)
+
+# Register services as a subcommand of repository
+repository_app.add_typer(services_app)
+
+# Each services subcommand is a pure passthrough to invenio-cli: extra
+# arguments/options are forwarded verbatim, and --help must reach
+# invenio-cli itself (producing invenio-cli's own help) rather than being
+# intercepted by Typer/Click.
+_SERVICES_CONTEXT_SETTINGS = {
+    "allow_extra_args": True,
+    "allow_interspersed_args": True,
+    "ignore_unknown_options": True,
+    "help_option_names": [],
+}
+
 
 @repository_app.callback()
 def repository_callback() -> None:
     """Repository command group."""
+
+
+@services_app.callback()
+def services_callback() -> None:
+    """Repository services command group."""
+
+
+def _run_services_subcommand(ctx: typer.Context, subcommand: str, *, quiet: bool) -> None:
+    """Delegate to ``invenio-cli services <subcommand> [args...]``.
+
+    Mirrors ``repository_runner.sh``'s ``services()`` function: pure
+    passthrough, with the subcommand's own exit code propagated exactly
+    (not collapsed to 0/1), and any extra arguments/options forwarded
+    verbatim to invenio-cli.
+
+    Args:
+        ctx: Typer context, used to capture passthrough arguments
+        subcommand: One of "setup", "start", "stop", "destroy"
+        quiet: If True, suppress real-time subprocess output
+    """
+    extra_args = ctx.args if ctx.args else []
+
+    try:
+        context = discover_context()
+    except (OARepoError, ProcessExecutionError) as e:
+        console_err = ConsoleOutput(quiet=False)
+        console_err.error(f"\n✗ services {subcommand} failed: {e}\n", fg=typer.colors.RED)
+        raise typer.Exit(1) from e
+
+    result = invenio_cli.run_invenio_cli(
+        context,
+        ["services", subcommand, *extra_args],
+        quiet=quiet,
+        check=False,
+    )
+    raise typer.Exit(code=result.return_code)
+
+
+@services_app.command("setup", context_settings=_SERVICES_CONTEXT_SETTINGS)
+def services_setup(
+    ctx: typer.Context,
+    quiet: Annotated[
+        bool, typer.Option("--quiet", "-q", help="Suppress output from invenio-cli")
+    ] = False,
+) -> None:
+    """Setup Docker services.
+
+    Delegates to ``invenio-cli services setup``. Any extra arguments
+    (e.g. ``-N`` for no demo data) are passed through verbatim.
+    """
+    _run_services_subcommand(ctx, "setup", quiet=quiet)
+
+
+@services_app.command("start", context_settings=_SERVICES_CONTEXT_SETTINGS)
+def services_start(
+    ctx: typer.Context,
+    quiet: Annotated[
+        bool, typer.Option("--quiet", "-q", help="Suppress output from invenio-cli")
+    ] = False,
+) -> None:
+    """Start Docker services.
+
+    Delegates to ``invenio-cli services start``. Any extra arguments are
+    passed through verbatim.
+    """
+    _run_services_subcommand(ctx, "start", quiet=quiet)
+
+
+@services_app.command("stop", context_settings=_SERVICES_CONTEXT_SETTINGS)
+def services_stop(
+    ctx: typer.Context,
+    quiet: Annotated[
+        bool, typer.Option("--quiet", "-q", help="Suppress output from invenio-cli")
+    ] = False,
+) -> None:
+    """Stop Docker services.
+
+    Delegates to ``invenio-cli services stop``. Any extra arguments are
+    passed through verbatim.
+    """
+    _run_services_subcommand(ctx, "stop", quiet=quiet)
+
+
+@services_app.command("destroy", context_settings=_SERVICES_CONTEXT_SETTINGS)
+def services_destroy(
+    ctx: typer.Context,
+    quiet: Annotated[
+        bool, typer.Option("--quiet", "-q", help="Suppress output from invenio-cli")
+    ] = False,
+) -> None:
+    """Destroy Docker services.
+
+    Delegates to ``invenio-cli services destroy``. Any extra arguments are
+    passed through verbatim.
+    """
+    _run_services_subcommand(ctx, "destroy", quiet=quiet)
 
 
 def _install_repository(context: ProjectContext, *, quiet: bool) -> None:

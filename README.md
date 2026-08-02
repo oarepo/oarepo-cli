@@ -498,7 +498,7 @@ The `repository` subcommand provides tools for managing full OARepo repository i
 |---------|-------------|--------|
 | [`install`](#repository-install) | Install repository in virtual environment | ✅ Implemented |
 | [`upgrade`](#repository-upgrade) | Clean cache and reinstall | ✅ Implemented |
-| `services` | Manage Docker services | 🔜 Phase 4.3 |
+| [`services`](#repository-services) | Manage Docker services | ✅ Implemented |
 | `model` | Create/update record models | 🔜 Phase 4.4 |
 | `local` | Manage local package dependencies | 🔜 Phase 4.5 |
 | `run` | Start repository server | 🔜 Phase 4.6 |
@@ -578,9 +578,42 @@ oarepo-cli repository upgrade --quiet
 
 Use this after updating OARepo/RDM version pins, or when the environment needs a clean rebuild.
 
+### `repository services`
+
+Manages the repository's Docker services (database, search, message queue, cache, S3). Each subcommand is a pure passthrough to `invenio-cli services <subcommand>` — any extra arguments or flags are forwarded verbatim, and `--help` reaches invenio-cli's own help for that subcommand rather than oarepo-cli's.
+
+```bash
+oarepo-cli repository services setup
+oarepo-cli repository services start
+oarepo-cli repository services stop
+oarepo-cli repository services destroy
+```
+
+**Subcommands:**
+- `setup`: Setup Docker services (accepts invenio-cli's own flags, e.g. `-N`/`--no-demo-data`, `-f`/`--force`, `--stop-services`)
+- `start`: Start Docker services
+- `stop`: Stop Docker services
+- `destroy`: Destroy Docker services
+
+**Options** (each subcommand):
+- `--quiet` / `-q`: Suppress output from invenio-cli
+
+**Examples:**
+```bash
+# Setup services without demo data
+oarepo-cli repository services setup -N
+
+# See invenio-cli's own help for a subcommand
+oarepo-cli repository services setup --help
+```
+
+**Exit codes:**
+- Whatever `invenio-cli services <subcommand>` returns (propagated exactly, not collapsed to 0/1)
+- `1`: Project context could not be discovered (e.g. no `pyproject.toml`)
+
 ### Other Repository Commands
 
-_Commands below are to be implemented in Phase 4 (steps 4.3-4.11)._
+_Commands below are to be implemented in Phase 4 (steps 4.4-4.11)._
 
 ## Configuration
 
