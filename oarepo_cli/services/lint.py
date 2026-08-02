@@ -12,9 +12,7 @@ from typing import TYPE_CHECKING
 if TYPE_CHECKING:
     from oarepo_cli.core.context import ProjectContext
 
-from oarepo_cli.core.errors import ConfigurationError
 from oarepo_cli.services import process
-from oarepo_cli.services.pyproject_reader import PyProjectReader
 
 
 # Linters/type checkers are installed as regular oarepo-cli dependencies (see
@@ -91,61 +89,6 @@ warn_unused_configs = True
 warn_unreachable = True
 follow_untyped_imports = True
 """
-
-
-def resolve_code_directories(context: ProjectContext) -> list[Path]:
-    """Resolve the project's source and test directories to lint/type-check.
-
-    Mirrors ``library_runner.sh``'s ``code_directories`` detection: prefer a
-    top-level ``src/`` directory, else the package's own top-level directory
-    (derived from the project name, or from
-    ``[tool.hatch.build.targets.wheel].packages`` if that doesn't exist
-    either), plus ``tests/`` if present.
-
-    Args:
-        context: Project context to resolve directories for
-
-    Returns:
-        List of existing directories to lint/type-check
-
-    Raises:
-        ConfigurationError: If neither ``src/`` nor a package directory can be found
-    """
-    root = context.root_directory
-    pyproject_data = PyProjectReader().read(context.pyproject_path)
-
-    directories: list[Path] = []
-
-    src_dir = root / "src"
-    if src_dir.is_dir():
-        directories.append(src_dir)
-    else:
-        top_level = pyproject_data.name.replace("-", "_")
-        package_dir = root / top_level
-        if package_dir.is_dir():
-            directories.append(package_dir)
-        else:
-            wheel_packages = (
-                pyproject_data.raw.get("tool", {})
-                .get("hatch", {})
-                .get("build", {})
-                .get("targets", {})
-                .get("wheel", {})
-                .get("packages", [])
-            )
-            if wheel_packages:
-                directories.append(root / wheel_packages[0])
-            else:
-                raise ConfigurationError(
-                    f"No src/ or {top_level}/ directory found, please ensure "
-                    "your package structure is correct."
-                )
-
-    tests_dir = root / "tests"
-    if tests_dir.is_dir():
-        directories.append(tests_dir)
-
-    return directories
 
 
 def _iter_python_files(directories: list[Path]) -> list[Path]:
@@ -232,7 +175,7 @@ class LintRunner:
             ProcessResult of the first failing step, or a success result if all pass
         """
         root = self._context.root_directory
-        code_directories = resolve_code_directories(self._context)
+        code_directories = self._context.code_directories
 
         _write_config(root / ".ruff.toml", RUFF_TOML)
 
