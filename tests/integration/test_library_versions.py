@@ -28,7 +28,7 @@ def sample_project_with_versions(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> Path:
-    """Create a sample project with oarepo version specified."""
+    """Create a sample project with oarepo version in dependencies."""
     project_root = tmp_path / "test-project"
     project_root.mkdir()
 
@@ -37,12 +37,10 @@ def sample_project_with_versions(
 name = "test-package"
 version = "1.0.0"
 requires-python = ">=3.12,<3.15"
+dependencies = ["oarepo>=14.0.0,<15.0.0"]
 
 [project.urls]
 Homepage = "https://github.com/example/test-package"
-
-[tool.oarepo-cli]
-version = 14
 """
 
     (project_root / "pyproject.toml").write_text(pyproject_toml.strip())
@@ -87,7 +85,7 @@ def test_oarepo_versions_correct_values(
 
     output = json.loads(result.stdout)
 
-    # Check OARepo versions (from [tool.oarepo-cli].version)
+    # Check OARepo versions (from dependencies: oarepo>=14.0.0,<15.0.0)
     # Should be a single version as a string
     assert output["oarepo_versions"] == ["14"]
 
@@ -127,7 +125,7 @@ def test_oarepo_versions_single_version(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """Test oarepo-versions with a single OARepo version."""
+    """Test oarepo-versions with a single OARepo version in dependencies."""
     project_root = tmp_path / "test-project-single"
     project_root.mkdir()
 
@@ -136,12 +134,10 @@ def test_oarepo_versions_single_version(
 name = "test-package"
 version = "1.0.0"
 requires-python = ">=3.14"
+dependencies = ["oarepo>=14.0.0,<15.0.0"]
 
 [project.urls]
 Homepage = "https://github.com/example/test-package"
-
-[tool.oarepo-cli]
-version = 14
 """
 
     (project_root / "pyproject.toml").write_text(pyproject_toml.strip())
@@ -188,5 +184,44 @@ Homepage = "https://github.com/example/test-package"
     output = json.loads(result.stdout)
     # No oarepo versions found
     assert output["oarepo_versions"] == []
+    # Python versions should still be present
+    assert len(output["python_versions"]) > 0
+
+
+def test_oarepo_versions_multiple_versions(
+    runner: CliRunner,
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Test oarepo-versions with multiple OARepo versions in different extras."""
+    project_root = tmp_path / "test-project-multi"
+    project_root.mkdir()
+
+    pyproject_toml = """
+[project]
+name = "test-package"
+version = "1.0.0"
+requires-python = ">=3.14"
+
+[project.urls]
+Homepage = "https://github.com/example/test-package"
+
+[project.optional-dependencies]
+dev = ["oarepo>=14.0.0,<15.0.0"]
+tests = ["oarepo>=13.0.0,<14.0.0"]
+"""
+
+    (project_root / "pyproject.toml").write_text(pyproject_toml.strip())
+
+    # Change to the project directory
+    monkeypatch.chdir(project_root)
+
+    result = runner.invoke(app, ["library", "oarepo-versions"])
+
+    assert result.exit_code == 0
+
+    output = json.loads(result.stdout)
+    # Multiple versions, sorted highest first
+    assert output["oarepo_versions"] == ["14", "13"]
     # Python versions should still be present
     assert len(output["python_versions"]) > 0

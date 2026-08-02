@@ -59,14 +59,13 @@ Homepage = "https://example.com"
     assert data.dependencies == ["click>=8.0"]
 
 
-def test_extracts_single_oarepo_version(tmp_path: Path) -> None:
+def test_extracts_single_oarepo_version_from_dependencies(tmp_path: Path) -> None:
+    """Test extraction from main dependencies."""
     (tmp_path / "pyproject.toml").write_text(
         """
 [project]
 name = "test-package"
-
-[tool.oarepo-cli]
-version = 14
+dependencies = ["oarepo>=14.0.0,<15.0.0"]
 """
     )
 
@@ -75,22 +74,138 @@ version = 14
     assert data.oarepo_versions == [14]
 
 
-def test_extracts_multiple_oarepo_versions_sorted_and_deduplicated(tmp_path: Path) -> None:
-    """Test that only a single version is supported from [tool.oarepo-cli].version."""
+def test_extracts_multiple_oarepo_versions_sorted_highest_first(tmp_path: Path) -> None:
+    """Test that multiple versions are extracted from different extras and sorted highest-first."""
     (tmp_path / "pyproject.toml").write_text(
         """
 [project]
 name = "test-package"
 
-[tool.oarepo-cli]
-version = 14
+[project.optional-dependencies]
+dev = ["oarepo>=14.0.0,<15.0.0"]
+tests = ["oarepo>=13.0.0,<14.0.0"]
 """
     )
 
     data = pyproject_reader.PyProjectReader().read(tmp_path / "pyproject.toml")
 
-    # Only one version supported now
+    # Multiple versions, sorted highest first
+    assert data.oarepo_versions == [14, 13]
+
+
+def test_extracts_oarepo_version_from_optional_dependencies(tmp_path: Path) -> None:
+    """Test extraction from optional dependencies (dev/tests extras)."""
+    (tmp_path / "pyproject.toml").write_text(
+        """
+[project]
+name = "test-package"
+
+[project.optional-dependencies]
+dev = ["oarepo>=14.0.0,<15.0.0", "pytest>=7.0"]
+"""
+    )
+
+    data = pyproject_reader.PyProjectReader().read(tmp_path / "pyproject.toml")
+
     assert data.oarepo_versions == [14]
+
+
+def test_extracts_exact_version_pin(tmp_path: Path) -> None:
+    """Test extraction from exact version pins (oarepo==14.0.5)."""
+    (tmp_path / "pyproject.toml").write_text(
+        """
+[project]
+name = "test-package"
+dependencies = ["oarepo==14.0.5"]
+"""
+    )
+
+    data = pyproject_reader.PyProjectReader().read(tmp_path / "pyproject.toml")
+
+    assert data.oarepo_versions == [14]
+
+
+def test_deduplicates_same_version_across_extras(tmp_path: Path) -> None:
+    """Test that the same version in multiple extras appears only once."""
+    (tmp_path / "pyproject.toml").write_text(
+        """
+[project]
+name = "test-package"
+dependencies = ["oarepo>=14.0.0,<15.0.0"]
+
+[project.optional-dependencies]
+dev = ["oarepo>=14.0.0,<15.0.0"]
+"""
+    )
+
+    data = pyproject_reader.PyProjectReader().read(tmp_path / "pyproject.toml")
+
+    # Same version should only appear once
+    assert data.oarepo_versions == [14]
+
+
+def test_oarepo_version_with_extras_marker(tmp_path: Path) -> None:
+    """Test extraction from oarepo dependencies with extras (e.g., oarepo[search])."""
+    (tmp_path / "pyproject.toml").write_text(
+        """
+[project]
+name = "test-package"
+dependencies = ["oarepo[search]>=14.0.0,<15.0.0"]
+"""
+    )
+
+    data = pyproject_reader.PyProjectReader().read(tmp_path / "pyproject.toml")
+
+    assert data.oarepo_versions == [14]
+
+
+def test_ignores_invalid_dependency_specifier(tmp_path: Path) -> None:
+    """Test that invalid specifiers are gracefully ignored."""
+    (tmp_path / "pyproject.toml").write_text(
+        """
+[project]
+name = "test-package"
+dependencies = [
+    "oarepo>=14.0.0,<15.0.0",
+    "invalid [[[[ syntax"
+]
+"""
+    )
+
+    data = pyproject_reader.PyProjectReader().read(tmp_path / "pyproject.toml")
+
+    # Should still extract valid oarepo version, ignoring invalid spec
+    assert data.oarepo_versions == [14]
+
+
+def test_warns_about_deprecated_tool_config(
+    tmp_path: Path, caplog: pytest.LogCaptureFixture
+) -> None:
+    """Test that [tool.oarepo-cli].oarepo.version triggers a deprecation warning."""
+    import logging
+
+    (tmp_path / "pyproject.toml").write_text(
+        """
+[project]
+name = "test-package"
+dependencies = ["oarepo>=14.0.0,<15.0.0"]
+
+[tool.oarepo-cli.oarepo]
+version = 14
+"""
+    )
+
+    with caplog.at_level(logging.WARNING):
+        data = pyproject_reader.PyProjectReader().read(tmp_path / "pyproject.toml")
+
+        # Should extract from dependencies, not from tool config
+        assert data.oarepo_versions == [14]
+
+        # Should have logged a warning about deprecated config
+        assert any(
+            "[tool.oarepo-cli].oarepo.version" in record.message and "deprecated" in record.message
+            for record in caplog.records
+        )
 
 
 def test_extracts_default_extras(tmp_path: Path) -> None:

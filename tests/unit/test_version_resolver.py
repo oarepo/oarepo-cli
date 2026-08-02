@@ -218,7 +218,8 @@ name = "test-package"
 requires-python = ">=3.12,<3.15"
 
 [project.optional-dependencies]
-oarepo = ["oarepo14>=14.0.0,<15.0.0", "oarepo13>=13.0.0,<14.0.0"]
+oarepo14 = ["oarepo>=14.0.0,<15.0.0"]
+oarepo13 = ["oarepo>=13.0.0,<14.0.0"]
 """
     )
 
@@ -227,7 +228,7 @@ oarepo = ["oarepo14>=14.0.0,<15.0.0", "oarepo13>=13.0.0,<14.0.0"]
 
     info = resolver.resolve_from_pyproject(tmp_path / "pyproject.toml")
 
-    assert info.oarepo_versions == [13, 14]
+    assert info.oarepo_versions == [14, 13]  # Highest first
     assert "3.12" in info.python_versions
     assert "3.13" in info.python_versions
     assert "3.14" in info.python_versions
