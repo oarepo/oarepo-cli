@@ -144,6 +144,10 @@ class VirtualEnvironmentManager:
         if not venv_path.exists():
             self._create_venv(requirements.python_binary, venv_path, quiet=quiet)
 
+        # Ensure uv.lock is gitignored before running uv sync (which generates the lock)
+        if requirements.editable:
+            self._ensure_uv_lock_gitignored(quiet=quiet)
+
         self._install_dependencies(requirements, venv_path, quiet=quiet)
 
         return venv_path
@@ -193,6 +197,54 @@ class VirtualEnvironmentManager:
         """
         if self._venv_path.exists():
             shutil.rmtree(self._venv_path)
+
+    def _ensure_uv_lock_gitignored(self, quiet: bool = False) -> None:
+        """Ensure uv.lock is in .gitignore.
+
+        Checks if uv.lock is already gitignored. If not, adds it to .gitignore
+        and prints a warning explaining why. This prevents accidentally committing
+        lockfiles for libraries (repositories should commit their lockfiles).
+
+        Args:
+            quiet: If True, suppress warning message (for --quiet flag)
+        """
+        gitignore_path = self._project_root / ".gitignore"
+
+        # Check if .gitignore exists and contains uv.lock
+        if gitignore_path.exists():
+            content = gitignore_path.read_text()
+            # Check for uv.lock as a whole word (not part of another pattern)
+            if "uv.lock" in content:
+                # Already gitignored, nothing to do
+                return
+
+        # uv.lock is not gitignored - add it and warn the user
+        if not quiet:
+            import sys
+
+            print(
+                "\n⚠️  Warning: uv.lock was not in .gitignore",
+                file=sys.stderr,
+            )
+            print(
+                "   Adding 'uv.lock' to .gitignore (lockfiles should not be committed for libraries)",
+                file=sys.stderr,
+            )
+            print(
+                "   Note: Repositories (not libraries) should commit uv.lock for reproducible deploys.\n",
+                file=sys.stderr,
+            )
+
+        # Add uv.lock to .gitignore
+        with gitignore_path.open("a") as f:
+            # Add a blank line if file exists and doesn't end with newline
+            if gitignore_path.exists() and gitignore_path.stat().st_size > 0:
+                content = gitignore_path.read_text()
+                if not content.endswith("\n"):
+                    f.write("\n")
+            # Add section header and uv.lock entry
+            f.write("\n# UV package management (added by oarepo-cli)\n")
+            f.write("uv.lock\n")
 
     def _is_valid_venv(self, venv_path: Path) -> bool:
         """Check whether a directory is a real, usable virtual environment.
