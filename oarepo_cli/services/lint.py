@@ -112,8 +112,15 @@ class LintRunner:
         self._context = context
         self._quiet = quiet
 
-    def run_lint(self) -> process.ProcessResult:
+    def run_lint(self, *, fix: bool = True) -> process.ProcessResult:
         """Run the full lint suite: ruff, license headers, future annotations, ty.
+
+        Args:
+            fix: If True (the default), auto-fix what ruff and ty can fix
+                (``ruff check --fix``, ``ruff format``, ``ty check --fix``)
+                instead of only reporting. The license header check and future
+                annotations check are always read-only regardless of this
+                flag - inserting headers/imports is `license-headers`' job.
 
         Returns:
             ProcessResult of the first failing step, or a success result if all pass
@@ -124,8 +131,9 @@ class LintRunner:
         _write_config(root / ".ruff.toml", resources.read_text("ruff.toml.tmpl"))
 
         ruff = _tool_path("ruff")
+        fix_flag = ["--fix"] if fix else []
         result = process.run(
-            [ruff, "check", "--exclude", "pyproject.toml"],
+            [ruff, "check", *fix_flag, "--exclude", "pyproject.toml"],
             cwd=root,
             check=False,
             interactive=not self._quiet,
@@ -133,8 +141,10 @@ class LintRunner:
         if not result.success:
             return result
 
+        # When fix=True, actually reformat the code; when fix=False, only check
+        format_mode = [] if fix else ["--check"]
         result = process.run(
-            [ruff, "format", "--check", "--exclude", "pyproject.toml"],
+            [ruff, "format", *format_mode, "--exclude", "pyproject.toml"],
             cwd=root,
             check=False,
             interactive=not self._quiet,
@@ -165,22 +175,36 @@ class LintRunner:
 
         venv_python = self._context.venv_path / "bin" / "python"
         return process.run(
-            [_tool_path("ty"), "check", "--python", str(venv_python), str(code_directories[0])],
+            [
+                _tool_path("ty"),
+                "check",
+                *fix_flag,
+                "--python",
+                str(venv_python),
+                str(code_directories[0]),
+            ],
             cwd=root,
             check=False,
             interactive=not self._quiet,
         )
 
-    def run_format(self, extra_args: list[str] | None = None) -> process.ProcessResult:
-        """Format code with ruff: ``ruff format`` then ``ruff check --fix``.
+    def run_format(
+        self, *, fix: bool = True, extra_args: list[str] | None = None
+    ) -> process.ProcessResult:
+        """Format code with ruff.
 
         Args:
-            extra_args: Additional arguments passed through to both ruff
-                invocations (e.g. a path to restrict formatting to, or
+            fix: If True (the default), rewrite files: ``ruff format`` then
+                ``ruff check --fix``. If False, only report what would
+                change: ``ruff format --check`` alone (``ruff check --fix``
+                is skipped entirely, since there'd be nothing left to
+                preview once formatting itself doesn't run).
+            extra_args: Additional arguments passed through to the ruff
+                invocation(s) (e.g. a path to restrict formatting to, or
                 ruff flags like ``--diff``)
 
         Returns:
-            ProcessResult of the first failing step, or the final success result
+            ProcessResult of the first failing step, or the final result
         """
         root = self._context.root_directory
         ruff = _tool_path("ruff")
@@ -189,6 +213,14 @@ class LintRunner:
         ruff_toml = root / ".ruff.toml"
         if not ruff_toml.exists():
             _write_config(ruff_toml, resources.read_text("ruff.toml.tmpl"))
+
+        if not fix:
+            return process.run(
+                [ruff, "format", "--check", "--exclude", "pyproject.toml", *extra_args],
+                cwd=root,
+                check=False,
+                interactive=not self._quiet,
+            )
 
         result = process.run(
             [ruff, "format", "--exclude", "pyproject.toml", *extra_args],
