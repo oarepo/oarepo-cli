@@ -22,27 +22,18 @@ The CLI handles virtual environment management, dependency installation, Docker 
 
 ### Installation
 
-```bash
-pip install oarepo-cli
-```
+#### For Library Development (Recommended)
 
-Or with `uv`:
-
-```bash
-uv pip install oarepo-cli
-```
-
-### Using the Wrapper Script (Optional)
-
-For library projects, you can use the provided wrapper script instead of installing `oarepo-cli` globally. This approach:
-- Isolates `oarepo-cli` in a local `.tools/venv` directory
+The recommended way to use `oarepo-cli` for library development is via the wrapper script. This approach:
+- Isolates `oarepo-cli` in a local `.tools/venv` directory per project
 - Auto-installs on first run
-- Allows per-project CLI versions
+- Allows different CLI versions per project
+- Matches the familiar `./run.sh` pattern from the old bash scripts
 
 **Setup:**
 ```bash
 # Copy the wrapper script to your library root
-cp /path/to/oarepo-cli/scripts/library_run.sh ./run.sh
+curl -o run.sh https://raw.githubusercontent.com/oarepo/oarepo-cli/main/scripts/library_run.sh
 chmod +x ./run.sh
 
 # First run automatically sets up .tools/venv and installs oarepo-cli
@@ -60,9 +51,25 @@ chmod +x ./run.sh
 
 This removes `.tools/venv` and reinstalls the latest `oarepo-cli` on the next run.
 
+#### Global Installation
+
+For repository management or if you prefer a global installation:
+
+```bash
+pip install oarepo-cli
+```
+
+Or with `uv`:
+
+```bash
+uv pip install oarepo-cli
+```
+
 ## Library Tools
 
 The `library` subcommand provides development tools for OARepo library packages.
+
+**Note:** All examples below use `./run.sh <command>` (the recommended wrapper script). If you installed `oarepo-cli` globally, use `oarepo-cli library <command>` instead.
 
 ### Command Overview
 
@@ -92,7 +99,7 @@ The `library` subcommand provides development tools for OARepo library packages.
 Creates or verifies a Python virtual environment and installs all dependencies.
 
 ```bash
-oarepo-cli library venv
+./run.sh venv
 ```
 
 **Options:**
@@ -110,13 +117,13 @@ oarepo-cli library venv
 **Examples:**
 ```bash
 # Standard setup (editable mode)
-oarepo-cli library venv
+./run.sh venv
 
 # Force rebuild
-oarepo-cli library venv --force
+./run.sh venv --force
 
 # Build wheel instead
-oarepo-cli library venv --no-editable
+./run.sh venv --no-editable
 ```
 
 ### `library install`
@@ -124,7 +131,7 @@ oarepo-cli library venv --no-editable
 Alias for `library venv`. Exists for compatibility with the old `./run.sh install` command.
 
 ```bash
-oarepo-cli library install
+./run.sh install
 ```
 
 ### `library upgrade`
@@ -132,7 +139,7 @@ oarepo-cli library install
 Cleans the pip cache and recreates the virtual environment from scratch. Useful when dependencies change or you encounter caching issues.
 
 ```bash
-oarepo-cli library upgrade
+./run.sh upgrade
 ```
 
 **What it does:**
@@ -145,7 +152,7 @@ oarepo-cli library upgrade
 Runs pytest tests with optional coverage and Docker services.
 
 ```bash
-oarepo-cli library test
+./run.sh test
 ```
 
 **Options:**
@@ -155,9 +162,9 @@ oarepo-cli library test
 
 **Additional pytest arguments** can be passed after the options:
 ```bash
-oarepo-cli library test -v tests/unit/
-oarepo-cli library test --with-coverage -x -k test_specific
-oarepo-cli library test --skip-services tests/unit/test_fast.py
+./run.sh test -v tests/unit/
+./run.sh test --with-coverage -x -k test_specific
+./run.sh test --skip-services tests/unit/test_fast.py
 ```
 
 **What it does:**
@@ -171,8 +178,8 @@ oarepo-cli library test --skip-services tests/unit/test_fast.py
 Start or stop Docker services for development.
 
 ```bash
-oarepo-cli library start
-oarepo-cli library stop
+./run.sh start
+./run.sh stop
 ```
 
 **Services managed:**
@@ -199,7 +206,7 @@ s3 = "minio"
 Runs linters and type checkers on the codebase. **By default, auto-fixes** what ruff and ty can fix.
 
 ```bash
-oarepo-cli library lint
+./run.sh lint
 ```
 
 **Options:**
@@ -220,13 +227,13 @@ oarepo-cli library lint
 **Examples:**
 ```bash
 # Auto-fix mode (default)
-oarepo-cli library lint
+./run.sh lint
 
 # Report-only mode (no modifications)
-oarepo-cli library lint --no-fix
+./run.sh lint --no-fix
 
 # Quiet mode
-oarepo-cli library lint --quiet
+./run.sh lint --quiet
 ```
 
 ### `library format`
@@ -234,7 +241,7 @@ oarepo-cli library lint --quiet
 Formats code using ruff. **By default, rewrites files**.
 
 ```bash
-oarepo-cli library format
+./run.sh format
 ```
 
 **Options:**
@@ -250,7 +257,7 @@ oarepo-cli library format
 Read-only combination of `lint` + `format` that **never modifies files**. Safe for CI/CD.
 
 ```bash
-oarepo-cli library check
+./run.sh check
 ```
 
 **What it does (equivalent to `lint --no-fix` + `format --no-fix`):**
@@ -267,7 +274,7 @@ oarepo-cli library check
 Opens an interactive bash shell in the project's virtual environment.
 
 ```bash
-oarepo-cli library shell
+./run.sh shell
 ```
 
 **Options:**
@@ -282,10 +289,10 @@ oarepo-cli library shell
 **Example:**
 ```bash
 # Shell with services
-oarepo-cli library shell
+./run.sh shell
 
 # Shell without services (faster)
-oarepo-cli library shell --skip-services
+./run.sh shell --skip-services
 ```
 
 Inside the shell, you can run any command with the venv activated:
@@ -301,7 +308,7 @@ $ invenio --help
 Runs invenio CLI commands in the project's virtual environment.
 
 ```bash
-oarepo-cli library invenio [OPTIONS] [ARGS]...
+./run.sh invenio [OPTIONS] [ARGS]...
 ```
 
 **Options:**
@@ -310,14 +317,14 @@ oarepo-cli library invenio [OPTIONS] [ARGS]...
 **Examples:**
 ```bash
 # List invenio commands
-oarepo-cli library invenio --help
+./run.sh invenio --help
 
 # Run database migrations
-oarepo-cli library invenio db create
-oarepo-cli library invenio db upgrade
+./run.sh invenio db create
+./run.sh invenio db upgrade
 
 # Create admin user
-oarepo-cli library invenio users create admin@example.com --password 123456 --active
+./run.sh invenio users create admin@example.com --password 123456 --active
 ```
 
 ### `library translations`
@@ -325,7 +332,7 @@ oarepo-cli library invenio users create admin@example.com --password 123456 --ac
 Extracts and compiles translations using `oarepo-tools make-translations`.
 
 ```bash
-oarepo-cli library translations
+./run.sh translations
 ```
 
 **What it does:**
@@ -338,7 +345,7 @@ oarepo-cli library translations
 Adds MIT license headers to Python files that are missing them.
 
 ```bash
-oarepo-cli library license-headers
+./run.sh license-headers
 ```
 
 **What it does:**
@@ -357,7 +364,7 @@ oarepo-cli library license-headers
 Runs ESLint and Prettier on JavaScript files.
 
 ```bash
-oarepo-cli library jslint
+./run.sh jslint
 ```
 
 **What it does:**
@@ -370,7 +377,7 @@ oarepo-cli library jslint
 Runs JavaScript tests using Jest via invenio webpack.
 
 ```bash
-oarepo-cli library jstest [OPTIONS]
+./run.sh jstest [OPTIONS]
 ```
 
 **Options:**
@@ -380,13 +387,13 @@ oarepo-cli library jstest [OPTIONS]
 **Examples:**
 ```bash
 # Setup and run tests
-oarepo-cli library jstest setup
+./run.sh jstest setup
 
 # Just run tests (assume webpack already set up)
-oarepo-cli library jstest
+./run.sh jstest
 
 # Run without services
-oarepo-cli library jstest --skip-services
+./run.sh jstest --skip-services
 ```
 
 ### `library oarepo-versions`
@@ -394,7 +401,7 @@ oarepo-cli library jstest --skip-services
 Lists supported OARepo and Python versions as JSON.
 
 ```bash
-oarepo-cli library oarepo-versions
+./run.sh oarepo-versions
 ```
 
 **Output format:**
@@ -424,16 +431,16 @@ If multiple versions are detected, they are returned sorted **highest-first**: `
 **For commands that need a single version** (like `venv`, `test`), the CLI automatically uses the **highest version**. Override with the `OAREPO_VERSION` environment variable:
 
 ```bash
-OAREPO_VERSION=13 oarepo-cli library venv
+OAREPO_VERSION=13 ./run.sh venv
 ```
 
 **Use in scripts:**
 ```bash
 # Get Python versions as array
-python_versions=$(oarepo-cli library oarepo-versions | jq -r '.python_versions[]')
+python_versions=$(./run.sh oarepo-versions | jq -r '.python_versions[]')
 
 # Get highest OARepo version
-oarepo_version=$(oarepo-cli library oarepo-versions | jq -r '.oarepo_versions[0]')
+oarepo_version=$(./run.sh oarepo-versions | jq -r '.oarepo_versions[0]')
 ```
 
 ### `library clean`
@@ -441,7 +448,7 @@ oarepo_version=$(oarepo-cli library oarepo-versions | jq -r '.oarepo_versions[0]
 Cleans up the development environment.
 
 ```bash
-oarepo-cli library clean
+./run.sh clean
 ```
 
 **What it does:**
@@ -456,7 +463,7 @@ oarepo-cli library clean
 Manages Docker services with subcommands.
 
 ```bash
-oarepo-cli library services [COMMAND]
+./run.sh services [COMMAND]
 ```
 
 **Commands:**
@@ -468,16 +475,16 @@ oarepo-cli library services [COMMAND]
 **Examples:**
 ```bash
 # First-time setup
-oarepo-cli library services setup
+./run.sh services setup
 
 # Start services
-oarepo-cli library services start
+./run.sh services start
 
 # Stop services
-oarepo-cli library services stop
+./run.sh services stop
 
 # Complete cleanup
-oarepo-cli library services destroy
+./run.sh services destroy
 ```
 
 ## Repository Tools
