@@ -21,6 +21,19 @@ dependencies = [
     "ty>=0.0.65",
     # Tools for library commands
     "oarepo-tools",  # make-translations command
+    # Model manager (services/models.py): run copier in-process from this
+    # venv rather than shelling out to `uvx copier`. copier-template-extensions
+    # (note: singular -- copier-templates-extensions is the deprecated old
+    # name) provides the `copier_templates_extensions` jinja extension the
+    # nrp-app-copier/nrp-model-copier templates load; pycountry/tomli/tomli-w
+    # are needed by those templates' own extensions and post-generation
+    # tasks (e.g. registering a new model in pyproject.toml/invenio.cfg),
+    # which run with copier's own interpreter -- i.e. this venv's.
+    "copier>=9.0.0",
+    "copier-template-extensions>=0.3.0",
+    "pycountry>=24.0.0",
+    "tomli>=2.0.0",
+    "tomli-w>=1.0.0",
 ]
 requires-python = ">=3.14,<3.15"
 
