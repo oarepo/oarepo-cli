@@ -905,20 +905,63 @@ real help text (`-f`/`--force`, `-N`/`--no-demo-data`, `--stop-services`,
 ### Step 4.4: Model Manager
 **Goal**: Implement record model management via copier.
 
-- [ ] Implement `services/models.py` with `ModelManager` class
-- [ ] Method: `create_model(name, config_file=None)` → None
-- [ ] Method: `update_model(name, answers_file=None)` → None
-- [ ] Use `uvx copier copy` and `copier update`
-- [ ] Support GitHub templates and local paths
-- [ ] Reinstall repository after model changes
+- [x] Implement `services/models.py` with `ModelManager` class
+- [x] Method: `create_model(name, config_file=None)` → None
+- [x] Method: `update_model(name, answers_file=None)` → None
+- [x] Use `copier.run_copy`/`copier.run_update` (see deviation note below)
+- [x] Support GitHub templates and local paths
+- [x] Reinstall repository after model changes
+
+**Deviation from the original plan**: rather than shelling out to
+`uvx --with copier-template-extensions --with pycountry --with tomli
+--with tomli-w copier copy/update ...` for a fresh ephemeral environment on
+every call (`repository_runner.sh`'s approach, and this step's original
+"Use `uvx copier copy` and `copier update`" bullet), `copier`,
+`copier-template-extensions` (note: singular -- `copier-templates-extensions`
+is the deprecated old name, even though `repository_runner.sh`'s model
+commands use the old plural spelling), `pycountry`, `tomli`, and `tomli-w`
+are now regular oarepo-cli dependencies, and `ModelManager` calls
+`copier.run_copy`/`copier.run_update` directly as a library, in-process.
+`repository.install_repository()` was extracted from `cli/repository.py`
+(previously `_install_repository`, private to that module) into
+`services/repository.py` as a public function so both `install`/`upgrade`
+and `ModelManager.create_model()`'s post-creation reinstall share it,
+mirroring how `repository_runner.sh`'s `install_repository()` is called
+from `install`, `upgrade_repository`, and `create_model` alike.
+
+One further deliberate behavioral difference, discovered while writing
+real tests against real copier (see below): a given `config_file`/
+`answers_file` is loaded and passed to copier as `data` (like copier's own
+`--data-file`), not merely as `answers_file` (like bash's
+`--answers-file`). `answers_file` alone only pre-fills copier's
+interactive prompts with prior answers -- it still requires a live
+terminal to confirm each one, which defeats the entire point of passing a
+config file for scripted/non-interactive use. See `services/models.py`'s
+`ModelManager` docstring.
 
 **Deliverables**:
 - Model management service
 
 **Tests** (`tests/integration/test_model_manager.py`):
-- [ ] Test model creation against real `copier` (slow)
-- [ ] Test model update with answers file
-- [ ] Test template URL handling
+- [x] Test model creation against real `copier` (slow)
+- [x] Test model update with answers file
+- [x] Test template URL handling
+
+Since copier now runs in-process rather than as a subprocess, AGENTS.md's
+guidance to use `pytest-subprocess`'s `fake_process` for "services that
+shell out to slow external tools (uv, docker-services-cli, copier)" no
+longer applies to it specifically -- there's no subprocess to intercept.
+Instead, tests run copier for real against small local template fixtures
+(fast: no network, no ephemeral `uvx` bootstrap), which is both simpler
+and more faithful than mocking copier's Python API. Notable things learned
+along the way, now documented in the test file: copier never writes an
+answers file unless the template itself contains a file that renders the
+special `_copier_answers` context variable (this is *not* automatic --
+`nrp-app-copier`/`nrp-model-copier` do this via
+`{{_copier_conf.answers_file}}.copier`); `copier update` only works on
+git-tracked, clean destinations, and requires `overwrite=True` for those
+(safe, since the user can review via `git diff`); an `answers_file` path
+must resolve inside `dst_path`, never a parent/sibling.
 
 ---
 

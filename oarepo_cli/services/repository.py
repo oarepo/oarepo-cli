@@ -10,6 +10,10 @@ import re
 from pathlib import Path
 from typing import TYPE_CHECKING
 
+from oarepo_cli.services import invenio_cli, translations
+from oarepo_cli.services.venv import VenvRequirements, VirtualEnvironmentManager
+from oarepo_cli.ui import ConsoleOutput
+
 if TYPE_CHECKING:
     from oarepo_cli.core.context import ProjectContext
 
@@ -189,3 +193,106 @@ def ensure_instance_structure(
         import sys
 
         print("✓ Instance structure ready\n", file=sys.stderr)
+
+
+def install_repository(context: ProjectContext, *, quiet: bool = False) -> None:
+    """Install/reinstall a repository into its virtual environment.
+
+    Mirrors ``repository_runner.sh``'s ``install_repository`` function:
+    1. Creates/syncs virtual environment with uv
+    2. Copies translation overlays to site-packages
+    3. Resolves instance path (INVENIO_INSTANCE_PATH or <venv>/var/instance)
+    4. Creates instance directory and symlinks invenio.cfg
+    5. Runs invenio-cli install
+    6. Configures local service ports in .invenio.private
+    7. Compiles backend translations
+
+    Shared by ``repository install``, ``repository upgrade`` (which cleans
+    the venv and uv cache first, then reinstalls), and
+    ``ModelManager.create_model()`` (which reinstalls after adding a model,
+    if a venv already exists) -- mirroring how repository_runner.sh's
+    ``install_repository`` is called from ``install``, ``upgrade_repository``,
+    and ``create_model`` alike. Callers are responsible for their own
+    top-level success message and ``(OARepoError, ProcessExecutionError)``
+    handling.
+
+    Args:
+        context: Project context with paths and configuration
+        quiet: If True, suppress status/progress messages
+
+    Raises:
+        ProcessExecutionError: If a required step (uv sync, invenio-cli
+            install) fails
+    """
+    console = ConsoleOutput(quiet=quiet)
+
+    # Step 1: Ensure virtual environment exists and sync dependencies
+    console.info(f"→ Syncing dependencies in {context.config.venv.path}\n")
+
+    venv_manager = VirtualEnvironmentManager(context.config, context.root_directory)
+    requirements = VenvRequirements(
+        python_binary=str(context.python_binary),
+        oarepo_version=context.oarepo_version,
+        extras=[],  # No explicit extras for repositories; uv sync reads pyproject.toml
+        editable=True,  # Repositories are always editable installs
+    )
+    venv_manager.ensure_venv(requirements, quiet=quiet)
+
+    # Step 2: Copy translation overlays
+    console.info("→ Copying translation overlays\n")
+
+    collected_dir = os.environ.get("COLLECTED_TRANSLATIONS_DIR")
+    translations.copy_translations(
+        context,
+        collected_translations_dir=collected_dir,
+        quiet=quiet,
+    )
+
+    # Step 3: Get instance path from Invenio shell
+    console.info("→ Detecting instance path\n")
+
+    instance_path = get_instance_path(context)
+
+    # Step 4: Ensure instance structure (directory + invenio.cfg symlink)
+    ensure_instance_structure(context, instance_path, quiet=quiet)
+
+    # Step 5: Run invenio-cli install
+    console.info("→ Running invenio-cli install\n")
+
+    invenio_cli.run_invenio_cli(
+        context,
+        ["install"],
+        quiet=quiet,
+        check=True,
+    )
+
+    # Step 6: Configure local service ports
+    console.info("→ Configuring service ports\n")
+
+    configure_local_ports(context, quiet=quiet)
+
+    # Step 7: Compile backend translations
+    # First, ensure translations directory structure exists (bootstrap if needed)
+    translations_dir = context.root_directory / "translations"
+    messages_pot = translations_dir / "messages.pot"
+    en_lc_messages = translations_dir / "en" / "LC_MESSAGES"
+
+    if not messages_pot.exists() or not en_lc_messages.exists():
+        console.info("→ Bootstrapping translations with make-translations\n")
+        # Try to run make-translations to bootstrap; don't fail if it errors
+        result = translations.run_translations(context, quiet=quiet)
+        if not result.success:
+            console.warning("⚠️  Warning: make-translations failed, translations not compiled!")
+
+    console.info("→ Compiling backend translations\n")
+
+    # Run invenio-cli translations compile
+    result = invenio_cli.run_invenio_cli(
+        context,
+        ["translations", "compile"],
+        quiet=quiet,
+        check=False,  # Don't fail if translations compile fails
+    )
+
+    if not result.success:
+        console.warning("⚠️  Warning: invenio-cli failed to compile backend translations!")
