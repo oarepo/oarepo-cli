@@ -824,6 +824,46 @@ default resolution rule. See
 
 ---
 
+### Step 4.1.3: Run the already-installed invenio-cli directly, not via uvx
+
+**Goal**: `services/invenio_cli.py`'s `run_invenio_cli()` (used by every
+`repository install`/`upgrade`/`services *`/`run`/`ModelManager` reinstall
+call) had, since its introduction alongside Step 4.1, been shelling out to
+`uvx --python="$PYTHON" --with git+.../oarepo-cli@rdm-14 --from
+git+.../invenio-cli@oarepo-feature-docker-environment invenio-cli ...` on
+every single call -- a literal, uncommented-on port of
+`repository_runner.sh`'s `run_invenio_cli`, itself marked there as
+`# temporary implementation until release`. That release (Step 4.1.1's
+CESNET-patched `invenio-cli` on the CESNET PyPI registry, verified at
+startup by `check_invenio_cli_version()`) has since happened, but the uvx
+call was never updated to match -- so oarepo-cli was verifying one
+invenio-cli build at startup while actually running a completely different
+one (a different git branch, plus an unrelated old `oarepo-cli@rdm-14`
+`--with` dependency) on every command, and paying a uvx resolve/network
+cost each time.
+
+Found and fixed via user discussion after Step 4.8: since invenio-cli purely
+orchestrates the target project via subprocesses/docker (confirmed with the
+user) rather than needing to run under the target project's own
+interpreter, there's no reason not to call the already-installed,
+already-verified binary directly.
+
+- [x] Add `services/invenio_cli.py:_invenio_cli_path()` -- resolves the
+  `invenio-cli` binary installed next to the running interpreter (mirrors
+  `services/lint.py:_tool_path()`'s identical rationale for ruff/ty),
+  falling back to the bare name (PATH-resolved) if not found
+- [x] Simplify `_build_command()` to `[_invenio_cli_path(), *args]`, dropping
+  the `uvx`/`--python=`/`--with`/`--from` construction entirely
+- [x] Update `tests/unit/test_invenio_cli.py` accordingly, plus new tests
+  for `_invenio_cli_path()`'s two branches
+
+**Tests** (`tests/unit/test_invenio_cli.py`):
+- [x] `run_invenio_cli` runs the resolved binary path directly, with args appended
+- [x] `_invenio_cli_path()` prefers a binary next to the interpreter
+- [x] `_invenio_cli_path()` falls back to the bare name otherwise
+
+---
+
 ### Step 4.2: Repository `upgrade` Command
 **Goal**: Implement repository upgrade.
 
@@ -1130,8 +1170,10 @@ neither or both).
 - Needed two small additions to support direct process control (signal
   forwarding to a live child, not just a blocking wait): `process.popen()`
   (a `subprocess.Popen`-returning peer to `process.run(interactive=True)`)
-  and `invenio_cli.popen_invenio_cli()` (a peer to `run_invenio_cli()` using
-  the same `uvx ... invenio-cli` command construction).
+  and `invenio_cli.popen_invenio_cli()` (a peer to `run_invenio_cli()`,
+  same command construction). See the `services/invenio_cli.py` note further
+  below (originally Step 4.1/4.3, revisited here) for what that command
+  construction actually is now.
 
 **Deliverables**:
 - Server runner with signal handling

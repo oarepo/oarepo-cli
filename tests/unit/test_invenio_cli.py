@@ -26,25 +26,42 @@ def mock_context() -> Mock:
 def test_run_invenio_cli_constructs_correct_command(
     mock_context: Mock, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    """Test that run_invenio_cli constructs the uvx command correctly."""
+    """run_invenio_cli runs the invenio-cli binary installed alongside oarepo-cli's own
+    venv directly (not via uvx from a hardcoded git ref) with the given args appended."""
     mock_run = Mock()
     monkeypatch.setattr("oarepo_cli.services.invenio_cli.process.run", mock_run)
+    monkeypatch.setattr(
+        "oarepo_cli.services.invenio_cli._invenio_cli_path", lambda: "/venv/bin/invenio-cli"
+    )
 
     invenio_cli.run_invenio_cli(mock_context, ["services", "setup"])
 
-    # Verify command structure
     call_args = mock_run.call_args
     assert call_args is not None
     command = call_args[0][0]
-    assert command[0] == "uvx"
-    assert f"--python={mock_context.python_binary}" in command
-    assert "--with" in command
-    assert "git+https://github.com/oarepo/oarepo-cli@rdm-14" in command
-    assert "--from" in command
-    assert "git+https://github.com/oarepo/invenio-cli@oarepo-feature-docker-environment" in command
-    assert "invenio-cli" in command
-    assert "services" in command
-    assert "setup" in command
+    assert command == ["/venv/bin/invenio-cli", "services", "setup"]
+
+
+def test_invenio_cli_path_prefers_binary_next_to_interpreter(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """_invenio_cli_path() resolves the binary installed alongside oarepo-cli's own venv,
+    mirroring services.lint._tool_path's rationale for ruff/ty."""
+    fake_binary = tmp_path / "invenio-cli"
+    fake_binary.touch()
+    monkeypatch.setattr("oarepo_cli.services.invenio_cli.sys.executable", str(tmp_path / "python"))
+
+    assert invenio_cli._invenio_cli_path() == str(fake_binary)
+
+
+def test_invenio_cli_path_falls_back_to_bare_name(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Without a sibling binary (e.g. a dev checkout run outside its own venv), falls back
+    to the bare name, resolved via PATH by the subprocess call."""
+    monkeypatch.setattr("oarepo_cli.services.invenio_cli.sys.executable", str(tmp_path / "python"))
+
+    assert invenio_cli._invenio_cli_path() == "invenio-cli"
 
 
 def test_run_invenio_cli_passes_options_correctly(

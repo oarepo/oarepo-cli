@@ -6,6 +6,8 @@
 from __future__ import annotations
 
 import os
+import sys
+from pathlib import Path
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
@@ -30,25 +32,33 @@ def _default_prerelease_env() -> dict[str, str]:
     return {"UV_PRERELEASE": os.environ.get("UV_PRERELEASE", "allow")}
 
 
-def _build_command(context: ProjectContext, args: Sequence[str]) -> list[str]:
-    """Construct the uvx command line to run invenio-cli.
+def _invenio_cli_path() -> str:
+    """Resolve the invenio-cli binary installed alongside oarepo-cli's own venv.
 
-    Mirrors ``repository_runner.sh``'s ``run_invenio_cli`` function:
-    uvx --python="$PYTHON" \\
-        --with git+https://github.com/oarepo/oarepo-cli@rdm-14 \\
-        --from git+https://github.com/oarepo/invenio-cli@oarepo-feature-docker-environment \\
-        invenio-cli "$@"
+    oarepo-cli depends directly on invenio-cli (see pyproject.toml's
+    ``[tool.uv.sources] invenio-cli = { index = "cesnet" }``, verified as
+    the CESNET-patched build at startup by
+    ``core.dependency_check.check_invenio_cli_version()``). invenio-cli
+    purely orchestrates the target project via subprocesses/docker -- it
+    doesn't need to run under the target project's own interpreter -- so
+    it's resolved next to the running interpreter rather than fetched on
+    demand via ``uvx`` from a hardcoded git ref (``repository_runner.sh``'s
+    ``run_invenio_cli``, marked there as "temporary implementation until
+    release" -- that release has since happened). Mirrors
+    ``services.lint._tool_path``'s identical rationale for ruff/ty.
+
+    Returns:
+        Absolute path to the binary if found next to the current
+        interpreter, otherwise the bare name (resolved via PATH by the
+        subprocess call).
     """
-    return [
-        "uvx",
-        f"--python={context.python_binary}",
-        "--with",
-        "git+https://github.com/oarepo/oarepo-cli@rdm-14",
-        "--from",
-        "git+https://github.com/oarepo/invenio-cli@oarepo-feature-docker-environment",
-        "invenio-cli",
-        *args,
-    ]
+    candidate = Path(sys.executable).parent / "invenio-cli"
+    return str(candidate) if candidate.exists() else "invenio-cli"
+
+
+def _build_command(args: Sequence[str]) -> list[str]:
+    """Construct the invenio-cli command line."""
+    return [_invenio_cli_path(), *args]
 
 
 def run_invenio_cli(
@@ -59,7 +69,7 @@ def run_invenio_cli(
     check: bool = True,
     env: dict[str, str] | None = None,
 ) -> process.ProcessResult:
-    """Run invenio-cli command with the configured Python interpreter, and wait for it.
+    """Run invenio-cli command, and wait for it to complete.
 
     Args:
         context: Project context with paths and configuration
@@ -79,7 +89,7 @@ def run_invenio_cli(
         run_env.update(env)
 
     return process.run(
-        _build_command(context, args),
+        _build_command(args),
         cwd=context.root_directory,
         check=check,
         interactive=not quiet,
@@ -113,7 +123,7 @@ def popen_invenio_cli(
         run_env.update(env)
 
     return process.popen(
-        _build_command(context, args),
+        _build_command(args),
         cwd=context.root_directory,
         env=run_env,
     )
