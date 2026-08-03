@@ -1096,22 +1096,51 @@ neither or both).
 ### Step 4.8: Server Runner
 **Goal**: Implement repository server execution with signal handling.
 
-- [ ] Implement `services/server.py` with `ServerRunner` class
-- [ ] Method: `run(no_services=False, no_celery=False)` → None
-- [ ] Start Docker services if not skipped
-- [ ] Start Celery worker in background if not skipped
-- [ ] Run `invenio run` or `invenio-cli run`
-- [ ] Handle SIGINT/SIGTERM for graceful shutdown
-- [ ] Cleanup services on exit
+- [x] Implement `services/server.py` with `ServerRunner` class
+- [x] Method: `run(no_services=False, no_celery=False)` → None
+- [x] Start Docker services if not skipped
+- [x] Start Celery worker in background if not skipped
+- [x] Run `invenio run` or `invenio-cli run`
+- [x] Handle SIGINT/SIGTERM for graceful shutdown
+- [x] Cleanup services on exit
+
+**Deviations from the original plan**:
+- "Start Celery worker in background": `repository_runner.sh`'s
+  `run_server()` never spawns a Celery worker itself -- when Celery isn't
+  skipped, it delegates entirely to `invenio-cli run`, which manages Celery
+  internally as its own documented behavior. `ServerRunner` mirrors this
+  exactly (`invenio_cli.popen_invenio_cli(context, ["run", *extra_args])`)
+  rather than spawning a separate worker process, matching bash rather than
+  01-detailed-design.md's state diagram (which sketches Celery as a
+  distinct, separately-managed background process -- that diagram predates
+  confirming invenio-cli's actual behavior and uses APIs, e.g.
+  `SignalHandler`, `ProjectContext.from_cwd()`, that don't exist in the
+  real codebase).
+- "Cleanup services on exit": resolved via explicit product decision --
+  Docker services are deliberately **not** auto-stopped when the server
+  exits/is interrupted. `run_server()` never stops them either (Ctrl+C just
+  kills the foreground process; services stay up for the next command,
+  like the `library` domain's pattern), and `03-migration-guide.md`
+  explicitly promises "Identical behavior" for `run`. "Cleanup" here means
+  the server *child process* is always properly terminated/reaped (signal
+  handlers forward SIGINT/SIGTERM to it, escalating to SIGKILL after a
+  grace period) and the previous signal handlers are restored -- not that
+  Docker containers are torn down. Users stop services explicitly via
+  `repository services stop`.
+- Needed two small additions to support direct process control (signal
+  forwarding to a live child, not just a blocking wait): `process.popen()`
+  (a `subprocess.Popen`-returning peer to `process.run(interactive=True)`)
+  and `invenio_cli.popen_invenio_cli()` (a peer to `run_invenio_cli()` using
+  the same `uvx ... invenio-cli` command construction).
 
 **Deliverables**:
 - Server runner with signal handling
 
 **Tests** (`tests/integration/test_server_runner.py`):
-- [ ] Test server starts with services
-- [ ] Test server starts without celery
-- [ ] Test signal handling stops everything
-- [ ] Test cleanup on interrupt
+- [x] Test server starts with services
+- [x] Test server starts without celery
+- [x] Test signal handling stops everything
+- [x] Test cleanup on interrupt
 
 ---
 
