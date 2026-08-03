@@ -1031,19 +1031,37 @@ running the full suite (not just the changed files) after implementing it.
 ### Step 4.6: Local Package Manager
 **Goal**: Manage local packages in `tool.uv.sources`.
 
-- [ ] Implement `services/local_packages.py` with `LocalPackageManager` class
-- [ ] Method: `add_package(path)` → None
-- [ ] Method: `remove_package(name)` → None
-- [ ] Parse and modify pyproject.toml
-- [ ] Trigger repository upgrade after changes
+- [x] Implement `services/local_packages.py` with `LocalPackageManager` class
+- [x] Method: `add_package(path)` → None
+- [x] Method: `remove_package(name)` → None
+- [x] Parse and modify pyproject.toml
+- [x] Trigger repository upgrade after changes
+
+**Deviation from the original plan**: rather than shelling out to `uv add
+<path> --editable` (`repository_runner.sh`'s approach), `add_package`/
+`remove_package` edit `pyproject.toml` directly with `tomlkit` (a new
+dependency), which round-trips comments/key order/formatting elsewhere in
+the file -- unlike `tomllib` (read-only, used by `PyProjectReader`) or
+`tomli-w` (write-only, full-dict dump, used by copier's own templates).
+Both methods unconditionally call a newly-extracted
+`services.repository.upgrade_repository()` afterwards (moved out of
+`cli/repository.py`'s `upgrade` command, which now just calls it too) --
+mirroring `local_sources_cmd`'s unconditional call to `upgrade_repository`
+after `uv add`, in contrast to `ModelManager.create_model()`'s conditional
+reinstall (only if a venv already exists). `remove_package()` has no bash
+equivalent: `repository_runner.sh`'s `local remove` was never implemented
+(it just told the user to edit `pyproject.toml` by hand and run
+`./run.sh upgrade`), but `00-main-architecture.md`'s compatibility matrix
+lists `local remove <name>` as a command the rewrite must actually
+support, so this fills that gap.
 
 **Deliverables**:
 - Local package management
 
 **Tests** (`tests/integration/test_local_packages.py`):
-- [ ] Test package added to sources
-- [ ] Test package removed from sources
-- [ ] Test pyproject.toml updated correctly
+- [x] Test package added to sources
+- [x] Test package removed from sources
+- [x] Test pyproject.toml updated correctly
 
 ---
 

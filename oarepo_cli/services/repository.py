@@ -10,7 +10,7 @@ import re
 from pathlib import Path
 from typing import TYPE_CHECKING
 
-from oarepo_cli.services import invenio_cli, translations
+from oarepo_cli.services import invenio_cli, process, translations
 from oarepo_cli.services.venv import VenvRequirements, VirtualEnvironmentManager
 from oarepo_cli.ui import ConsoleOutput
 
@@ -207,8 +207,8 @@ def install_repository(context: ProjectContext, *, quiet: bool = False) -> None:
     6. Configures local service ports in .invenio.private
     7. Compiles backend translations
 
-    Shared by ``repository install``, ``repository upgrade`` (which cleans
-    the venv and uv cache first, then reinstalls), and
+    Shared by ``repository install``, ``upgrade_repository`` (below, which
+    cleans the venv and uv cache first, then reinstalls), and
     ``ModelManager.create_model()`` (which reinstalls after adding a model,
     if a venv already exists) -- mirroring how repository_runner.sh's
     ``install_repository`` is called from ``install``, ``upgrade_repository``,
@@ -296,3 +296,44 @@ def install_repository(context: ProjectContext, *, quiet: bool = False) -> None:
 
     if not result.success:
         console.warning("⚠️  Warning: invenio-cli failed to compile backend translations!")
+
+
+def upgrade_repository(context: ProjectContext, *, quiet: bool = False) -> None:
+    """Upgrade repository: clean venv/cache and reinstall from scratch.
+
+    Mirrors ``repository_runner.sh``'s ``upgrade_repository`` function:
+    1. Removes the virtual environment (if present)
+    2. Removes uv.lock (if present)
+    3. Cleans the uv cache (``uv cache clean --force``)
+    4. Reinstalls the repository (see ``install_repository`` above)
+
+    Shared by ``repository upgrade`` and ``LocalPackageManager`` (which
+    triggers a full upgrade after adding/removing a local package,
+    unconditionally -- mirroring repository_runner.sh's
+    ``local_sources_cmd``'s unconditional call to ``upgrade_repository``
+    after ``uv add``, unlike ``ModelManager.create_model()``'s conditional
+    reinstall). Callers are responsible for their own top-level success
+    message and ``(OARepoError, ProcessExecutionError)`` handling.
+
+    Args:
+        context: Project context with paths and configuration
+        quiet: If True, suppress status/progress messages
+
+    Raises:
+        ProcessExecutionError: If ``uv cache clean`` or ``install_repository``
+            fails
+    """
+    console = ConsoleOutput(quiet=quiet)
+
+    venv_manager = VirtualEnvironmentManager(context.config, context.root_directory)
+    if context.venv_path.exists():
+        console.info("→ Removing virtual environment...\n")
+    if (context.root_directory / "uv.lock").exists():
+        console.info("→ Removing uv.lock...\n")
+    venv_manager.cleanup()
+
+    console.info("→ Cleaning uv cache...\n")
+    process.run(["uv", "cache", "clean", "--force"], check=True, interactive=not quiet)
+
+    console.info("→ Reinstalling repository...\n")
+    install_repository(context, quiet=quiet)
