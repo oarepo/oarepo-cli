@@ -8,10 +8,9 @@ from __future__ import annotations
 import os
 import sys
 from pathlib import Path
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, NoReturn
 
 if TYPE_CHECKING:
-    import subprocess
     from collections.abc import Sequence
 
     from oarepo_cli.core.context import ProjectContext
@@ -97,33 +96,47 @@ def run_invenio_cli(
     )
 
 
-def popen_invenio_cli(
+def exec_invenio_cli(
     context: ProjectContext,
     args: Sequence[str],
     *,
     env: dict[str, str] | None = None,
-) -> subprocess.Popen[bytes]:
-    """Start invenio-cli as a foreground child process, without waiting for it.
+) -> NoReturn:
+    """Replace the current process with invenio-cli. Never returns.
 
-    Same command construction as ``run_invenio_cli``, but for long-running
-    invenio-cli commands (e.g. ``invenio-cli run``, used by
-    ``services.server.ServerRunner``) that need direct process control --
-    signal forwarding, explicit termination -- rather than a blocking wait.
+    Same command construction as ``run_invenio_cli``, but for the final,
+    long-running invenio-cli command in a command's lifecycle (``invenio-cli
+    run``, used by ``services.server.ServerRunner``), where nothing needs to
+    happen in this process afterward -- mirrors ``cli/library.py``'s
+    ``library_shell``/``library_invenio``. Lets a terminal Ctrl+C (or any
+    signal sent to this process) hit invenio-cli directly, exactly as if the
+    user had run it themselves: invenio-cli's own ``run`` command already
+    installs its own SIGINT handling for the child processes it spawns
+    internally (web server, Celery worker, jobs scheduler -- see
+    ``invenio_cli.commands.local.LocalCommands._handle_sigint`` in the
+    installed package), which only works correctly if invenio-cli believes
+    itself to be the foreground process, not a supervised child of ours.
 
     Args:
-        context: Project context with paths and configuration
+        context: Project context with paths and configuration -- also
+            ``chdir``s into ``context.root_directory`` first, since
+            ``execve`` has no ``cwd`` parameter of its own and invenio-cli
+            discovers its own project via the process's current directory
+            (matching ``run_invenio_cli``/the pre-exec ``services start``
+            call, which both pass ``cwd=`` explicitly)
         args: Arguments to pass to invenio-cli
-        env: Additional environment variables to pass to the subprocess
+        env: Additional environment variables (merged with this process's
+            own environment -- unlike ``run_invenio_cli``, there's no
+            subprocess env-merging safety net once this replaces it)
 
-    Returns:
-        The live Popen handle -- the caller owns its lifecycle
+    Raises:
+        OSError: If the invenio-cli binary can't be exec'd (not found, not
+            executable, ...)
     """
-    run_env = _default_prerelease_env()
+    run_env = {**os.environ, **_default_prerelease_env()}
     if env:
         run_env.update(env)
 
-    return process.popen(
-        _build_command(args),
-        cwd=context.root_directory,
-        env=run_env,
-    )
+    os.chdir(context.root_directory)
+    binary = _invenio_cli_path()
+    os.execvpe(binary, [binary, *args], run_env)

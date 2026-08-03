@@ -296,37 +296,6 @@ def run(
         ) from exc
 
 
-def popen(
-    command: Sequence[str],
-    *,
-    cwd: Path | None = None,
-    env: dict[str, str] | None = None,
-    strip_venv: bool = True,
-) -> subprocess.Popen[bytes]:
-    """Start a command as a foreground child process, inheriting stdio, without waiting.
-
-    Unlike ``run(interactive=True)``, which blocks until the command
-    completes and returns no handle to it, this is for long-running
-    processes (e.g. ``invenio run``) that need direct process control --
-    signal forwarding, explicit termination -- while still writing directly
-    to the parent's stdout/stderr for real-time output. Unlike ``stream()``,
-    output isn't piped/captured line by line (no buffering indirection).
-
-    Args:
-        command: List of command arguments (never a shell string)
-        cwd: Working directory for the command
-        env: Environment variables (merged with parent environment)
-        strip_venv: Strip VIRTUAL_ENV and related variables (default: True)
-                    to prevent oarepo-cli's own venv from leaking
-
-    Returns:
-        The live Popen handle -- the caller owns its lifecycle (wait()/
-        terminate()/kill())
-    """
-    run_env = _merge_env(env, strip_venv=strip_venv)
-    return subprocess.Popen(command, cwd=cwd, env=run_env)
-
-
 def stream(
     command: Sequence[str],
     *,

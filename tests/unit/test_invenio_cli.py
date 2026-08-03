@@ -120,3 +120,31 @@ def test_run_invenio_cli_respects_existing_uv_prerelease_env(
 
     kwargs = mock_run.call_args[1]
     assert kwargs["env"] == {"UV_PRERELEASE": "if-necessary-or-explicit"}
+
+
+def test_exec_invenio_cli_chdirs_and_execs_resolved_binary(
+    mock_context: Mock, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """exec_invenio_cli chdirs into the project root first (execve has no cwd of its own),
+    then execvpe's into the resolved invenio-cli binary with args appended."""
+    monkeypatch.setattr(
+        "oarepo_cli.services.invenio_cli._invenio_cli_path", lambda: "/venv/bin/invenio-cli"
+    )
+    monkeypatch.delenv("UV_PRERELEASE", raising=False)
+    chdir_calls = []
+    execvpe_calls = []
+    monkeypatch.setattr("oarepo_cli.services.invenio_cli.os.chdir", chdir_calls.append)
+    monkeypatch.setattr(
+        "oarepo_cli.services.invenio_cli.os.execvpe",
+        lambda *args: execvpe_calls.append(args),
+    )
+
+    invenio_cli.exec_invenio_cli(mock_context, ["run", "--debugger"], env={"FOO": "bar"})
+
+    assert chdir_calls == [mock_context.root_directory]
+    assert len(execvpe_calls) == 1
+    binary, argv, env = execvpe_calls[0]
+    assert binary == "/venv/bin/invenio-cli"
+    assert argv == ["/venv/bin/invenio-cli", "run", "--debugger"]
+    assert env["FOO"] == "bar"
+    assert env["UV_PRERELEASE"] == "allow"

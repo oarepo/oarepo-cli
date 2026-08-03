@@ -1,26 +1,22 @@
 # SPDX-FileCopyrightText: 2026 CESNET z.s.p.o.
 # SPDX-License-Identifier: MIT
 
-"""Repository development server execution, with graceful signal handling."""
+"""Repository development server execution."""
 
 from __future__ import annotations
 
-import signal
-import subprocess
-from typing import TYPE_CHECKING
+import os
+from typing import TYPE_CHECKING, NoReturn
 
 from oarepo_cli.core.platform import get_platform_detector
-from oarepo_cli.services import invenio_cli, process
+from oarepo_cli.services import invenio_cli
 from oarepo_cli.ui import ConsoleOutput
 
 if TYPE_CHECKING:
     from collections.abc import Sequence
     from pathlib import Path
-    from types import FrameType
 
     from oarepo_cli.core.context import ProjectContext
-
-_CHILD_TERMINATE_TIMEOUT_SECONDS = 10
 
 
 class ServerRunner:
@@ -29,28 +25,35 @@ class ServerRunner:
     Mirrors ``repository_runner.sh``'s ``run_server()``:
     1. Starts Docker services (``invenio-cli services start``), unless
        ``no_services``
-    2. Either delegates to ``invenio-cli run`` (which manages Celery itself),
-       or -- if ``no_celery`` -- runs the venv's own ``invenio run`` directly,
-       bypassing invenio-cli and Celery entirely
+    2. Replaces this process (``os.execve``/``os.execvpe``) with either
+       ``invenio-cli run`` (which manages Celery itself) or -- if
+       ``no_celery`` -- the venv's own ``invenio run`` directly, bypassing
+       invenio-cli and Celery entirely
     3. Either way, ``INVENIO_SITE_CERT_PATH``/``INVENIO_SITE_KEY_PATH`` point
        at ``docker/development.{crt,key}``
 
-    Unlike the bash version (which simply runs the server as the shell's own
-    foreground process and lets a terminal Ctrl+C kill it directly), this
-    spawns the server as a tracked child process and installs SIGINT/SIGTERM
-    handlers that forward the signal to it, wait for a graceful exit, and
-    escalate to SIGKILL if it doesn't exit in time -- needed because a signal
-    sent specifically to this process (e.g. ``kill <pid>``, not a terminal
-    Ctrl+C) wouldn't otherwise reach the child on its own.
+    Uses process replacement rather than spawning a tracked child process,
+    mirroring ``cli/library.py``'s ``library_shell``/``library_invenio``
+    (and bash's own ``run_server()``, where ``invenio-cli run``/``invenio
+    run`` is simply the last foreground command the script runs): the
+    installed invenio-cli's own ``run`` command already spawns and
+    gracefully signal-handles its own child processes (web server, Celery
+    worker, jobs scheduler -- see
+    ``invenio_cli.commands.local.LocalCommands._handle_sigint``), on the
+    assumption that *it* is the terminal's own foreground process. An
+    earlier version of this module instead spawned invenio-cli as a
+    supervised child and forwarded SIGINT/SIGTERM to it -- strictly worse:
+    invenio-cli's own children only ever listen for SIGINT, so a forwarded
+    SIGTERM would never have cleanly cascaded to them anyway, and the extra
+    layer only risked double-handling. Process replacement sidesteps the
+    whole problem by making invenio-cli/invenio literally the process a
+    terminal Ctrl+C (or a signal sent to this process's own PID) hits
+    directly.
 
-    Per an explicit product decision, Docker services are deliberately *not*
-    auto-stopped when the server exits or is interrupted, despite
-    01-detailed-design.md's state diagram suggesting otherwise: bash's
-    ``run_server()`` never stops them either (Ctrl+C just kills the
-    foreground process, services stay up for the next command, exactly like
-    the ``library`` domain's pattern), and 03-migration-guide.md explicitly
-    promises "Identical behavior" for ``run``. Users stop services explicitly
-    via ``repository services stop``.
+    As with any exec-based command, ``run()`` never returns on success.
+    Docker services are deliberately not stopped first or on any later exit
+    -- see ``03-migration-guide.md``'s "Identical behavior" promise for
+    ``run``, and bash's own ``run_server()``, which never stops them either.
     """
 
     def __init__(self, context: ProjectContext, *, quiet: bool = False) -> None:
@@ -64,7 +67,6 @@ class ServerRunner:
         """
         self._context = context
         self._quiet = quiet
-        self._child: subprocess.Popen[bytes] | None = None
 
     def run(
         self,
@@ -72,11 +74,10 @@ class ServerRunner:
         no_services: bool = False,
         no_celery: bool = False,
         extra_args: Sequence[str] = (),
-    ) -> int:
-        """Start Docker services (unless skipped) and run the server in the foreground.
+    ) -> NoReturn:
+        """Start Docker services (unless skipped), then replace this process with the server.
 
-        Blocks until the server process exits (normally or via a forwarded
-        SIGINT/SIGTERM), then returns its exit code.
+        Never returns on success -- the process image is replaced.
 
         Args:
             no_services: If True, don't start Docker services first
@@ -85,11 +86,9 @@ class ServerRunner:
             extra_args: Extra arguments forwarded to the underlying
                 ``invenio-cli run``/``invenio run`` command
 
-        Returns:
-            The server process's exit code
-
         Raises:
             ProcessExecutionError: If starting Docker services fails
+            OSError: If exec'ing the server binary fails
         """
         console = ConsoleOutput(quiet=self._quiet)
 
@@ -106,37 +105,28 @@ class ServerRunner:
 
         console.info("→ Starting server...\n")
 
-        previous_sigint = signal.signal(signal.SIGINT, self._forward_signal)
-        previous_sigterm = signal.signal(signal.SIGTERM, self._forward_signal)
-        try:
-            if no_celery:
-                self._child = self._popen_bare_invenio(cert_path, key_path, site_env, extra_args)
-            else:
-                self._child = invenio_cli.popen_invenio_cli(
-                    self._context, ["run", *extra_args], env=site_env
-                )
-            return self._child.wait()
-        finally:
-            signal.signal(signal.SIGINT, previous_sigint)
-            signal.signal(signal.SIGTERM, previous_sigterm)
-            self._child = None
+        if no_celery:
+            self._exec_bare_invenio(cert_path, key_path, site_env, extra_args)
+        else:
+            invenio_cli.exec_invenio_cli(self._context, ["run", *extra_args], env=site_env)
 
-    def _popen_bare_invenio(
+    def _exec_bare_invenio(
         self,
         cert_path: Path,
         key_path: Path,
         site_env: dict[str, str],
         extra_args: Sequence[str],
-    ) -> subprocess.Popen[bytes]:
-        """Run the venv's own ``invenio run`` directly, bypassing invenio-cli/Celery.
+    ) -> NoReturn:
+        """Replace this process with the venv's own ``invenio run``, bypassing invenio-cli/Celery.
 
         Mirrors ``repository_runner.sh``'s ``--no-celery`` branch: sets
-        ``FLASK_DEBUG``/``PYTHONWARNINGS`` and invokes the venv's ``invenio``
+        ``FLASK_DEBUG``/``PYTHONWARNINGS`` and execs the venv's ``invenio``
         binary directly with ``--cert``/``--key``.
         """
+        os.chdir(self._context.root_directory)
         bin_dir = get_platform_detector().get_venv_bin_dir()
         invenio_path = self._context.venv_path / bin_dir / "invenio"
-        command = [
+        argv = [
             str(invenio_path),
             "run",
             "--cert",
@@ -145,23 +135,5 @@ class ServerRunner:
             str(key_path),
             *extra_args,
         ]
-        env = {**site_env, "FLASK_DEBUG": "1", "PYTHONWARNINGS": "ignore"}
-        return process.popen(command, cwd=self._context.root_directory, env=env)
-
-    def _forward_signal(self, signum: int, _frame: FrameType | None) -> None:
-        """Forward a received SIGINT/SIGTERM to the running server child, if any.
-
-        Sends the same signal first (graceful shutdown), then escalates to
-        SIGKILL if the child hasn't exited within
-        ``_CHILD_TERMINATE_TIMEOUT_SECONDS``.
-        """
-        child = self._child
-        if child is None or child.poll() is not None:
-            return
-
-        child.send_signal(signum)
-        try:
-            child.wait(timeout=_CHILD_TERMINATE_TIMEOUT_SECONDS)
-        except subprocess.TimeoutExpired:
-            child.kill()
-            child.wait()
+        env = {**os.environ, **site_env, "FLASK_DEBUG": "1", "PYTHONWARNINGS": "ignore"}
+        os.execve(str(invenio_path), argv, env)
