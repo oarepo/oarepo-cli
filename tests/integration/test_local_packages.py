@@ -289,3 +289,74 @@ def test_remove_package_unknown_name_raises(
 
     assert context.pyproject_path.read_text() == original_content
     assert mock_upgrade == []
+
+
+def test_remove_package_upgrade_false_skips_upgrade(
+    repo_root: Path, mock_upgrade: list[dict[str, Any]]
+) -> None:
+    """remove_package(upgrade=False) still removes the entries, but doesn't upgrade."""
+    _add_local_source(repo_root / "pyproject.toml", "mypkg", "../mypkg")
+    context = make_context(repo_root)
+    manager = LocalPackageManager(context, quiet=True)
+
+    manager.remove_package("mypkg", upgrade=False)
+
+    document = tomlkit.parse(context.pyproject_path.read_text())
+    assert "mypkg" not in document["project"]["dependencies"]
+    assert mock_upgrade == []
+
+
+def test_list_local_packages_excludes_non_path_sources(
+    repo_root: Path,
+    tmp_path: Path,
+    mock_upgrade: list[dict[str, Any]],  # noqa: ARG001 -- fixture prevents a real upgrade
+) -> None:
+    """list_local_packages() only returns [tool.uv.sources] entries with a path key,
+    excluding e.g. an index-based override like invenio-cli's CESNET registry pin."""
+    document = tomlkit.parse((repo_root / "pyproject.toml").read_text())
+    tool = document.setdefault("tool", tomlkit.table())
+    uv = tool.setdefault("uv", tomlkit.table())
+    sources = uv.setdefault("sources", tomlkit.table())
+    sources["invenio-cli"] = {"index": "cesnet"}
+    (repo_root / "pyproject.toml").write_text(tomlkit.dumps(document))
+
+    context = make_context(repo_root)
+    manager = LocalPackageManager(context, quiet=True)
+    manager.add_package(make_local_package(tmp_path, "mypkg"))
+
+    names = manager.list_local_packages()
+
+    assert names == ["mypkg"]
+
+
+def test_remove_all_packages_removes_everything_in_one_upgrade(
+    repo_root: Path, mock_upgrade: list[dict[str, Any]]
+) -> None:
+    """remove_all_packages() removes every local source and triggers exactly one upgrade,
+    regardless of how many packages were removed."""
+    _add_local_source(repo_root / "pyproject.toml", "pkg-a", "../pkg-a")
+    _add_local_source(repo_root / "pyproject.toml", "pkg-b", "../pkg-b")
+    context = make_context(repo_root)
+    manager = LocalPackageManager(context, quiet=True)
+
+    removed = manager.remove_all_packages()
+
+    assert sorted(removed) == ["pkg-a", "pkg-b"]
+    document = tomlkit.parse(context.pyproject_path.read_text())
+    assert "pkg-a" not in document["project"]["dependencies"]
+    assert "pkg-b" not in document["project"]["dependencies"]
+    assert "tool" not in document or "sources" not in document.get("tool", {}).get("uv", {})
+    assert len(mock_upgrade) == 1
+
+
+def test_remove_all_packages_with_none_present_skips_upgrade(
+    repo_root: Path, mock_upgrade: list[dict[str, Any]]
+) -> None:
+    """remove_all_packages() is a no-op (no upgrade triggered) when there's nothing to remove."""
+    context = make_context(repo_root)
+    manager = LocalPackageManager(context, quiet=True)
+
+    removed = manager.remove_all_packages()
+
+    assert removed == []
+    assert mock_upgrade == []

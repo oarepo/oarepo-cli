@@ -499,14 +499,14 @@ The `repository` subcommand provides tools for managing full OARepo repository i
 | [`install`](#repository-install) | Install repository in virtual environment | ✅ Implemented |
 | [`upgrade`](#repository-upgrade) | Clean cache and reinstall | ✅ Implemented |
 | [`services`](#repository-services) | Manage Docker services | ✅ Implemented |
-| `model` | Create/update record models | 🔜 Phase 4.4 |
-| `local` | Manage local package dependencies | 🔜 Phase 4.5 |
-| `run` | Start repository server | 🔜 Phase 4.6 |
-| `cli` | Delegate to invenio-cli | 🔜 Phase 4.7 |
-| `translations` | Compile backend translations | 🔜 Phase 4.8 |
-| `index` | Rebuild search index | 🔜 Phase 4.9 |
-| `reset` | Full reset with confirmation | 🔜 Phase 4.10 |
-| `info` | Show Python version and models | 🔜 Phase 4.11 |
+| [`model`](#repository-model) | Create/update record models | ✅ Implemented |
+| [`local`](#repository-local) | Manage local package dependencies | ✅ Implemented |
+| `run` | Start repository server | 🔜 Step 4.9 |
+| `cli` | Delegate to invenio-cli | 🔜 Step 4.10 |
+| `translations` | Compile backend translations | 🔜 Step 4.10 |
+| `index` | Rebuild search index | 🔜 Step 4.10 |
+| `reset` | Full reset with confirmation | 🔜 Step 4.10 |
+| `info` | Show Python version and models | 🔜 Step 4.10 |
 
 ### `repository install`
 
@@ -640,9 +640,38 @@ oarepo-cli repository model update my_model model_config.yaml
 - `0`: Model created/updated successfully
 - `1`: Model creation/update failed (e.g. missing config file, non-existent model, project context could not be discovered)
 
+### `repository local`
+
+Manages locally-developed packages as editable `[tool.uv.sources]` entries in `pyproject.toml`, for developing a dependency (e.g. a custom `oarepo`/`invenio` extension) alongside the repository. Both subcommands edit `pyproject.toml` in place (preserving comments/formatting/ordering elsewhere in the file) and then trigger a full [`repository upgrade`](#repository-upgrade) — unconditionally, unlike `repository model create`'s conditional reinstall.
+
+```bash
+oarepo-cli repository local add <path>
+oarepo-cli repository local remove <name>
+oarepo-cli repository local remove --all
+```
+
+**Subcommands:**
+- `add <path>`: Adds the package at `<path>` (which must contain its own `pyproject.toml`) as an editable local source — `<path>` is resolved relative to the repository root and written to `[tool.uv.sources]`, and the package's name is appended to `[project].dependencies` (skipped if already present). Re-adding an already-present package updates its `[tool.uv.sources]` entry in place.
+- `remove <name>`: Removes the named local package from both `[tool.uv.sources]` and `[project].dependencies`.
+- `remove --all`: Removes every local package added via `add` in a single repository upgrade (rather than one upgrade per package). Only touches `[tool.uv.sources]` entries with a `path` key — unrelated entries (e.g. the CESNET-patched `invenio-cli`'s own `{ index = "cesnet" }` override) are left untouched. Mutually exclusive with passing a `<name>`.
+
+**Options** (each subcommand):
+- `--quiet` / `-q`: Suppress output from subprocesses (invenio-cli, etc.)
+
+**Examples:**
+```bash
+oarepo-cli repository local add ../my-local-package
+oarepo-cli repository local remove my-local-package
+oarepo-cli repository local remove --all
+```
+
+**Exit codes:**
+- `0`: Package(s) added/removed successfully
+- `1`: Operation failed (e.g. no `pyproject.toml` at `<path>`, unknown package name, neither/both of a name and `--all` given, project context could not be discovered)
+
 ### Other Repository Commands
 
-_Commands below are to be implemented in Phase 4 (steps 4.6-4.11)._
+_Commands below are to be implemented in Phase 4 (steps 4.8-4.10)._
 
 ## Configuration
 
