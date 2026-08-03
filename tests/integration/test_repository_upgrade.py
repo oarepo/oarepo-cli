@@ -4,7 +4,7 @@
 """Integration tests for `repository upgrade` against a real scaffolded repository.
 
 ``test_upgrade_removes_venv_and_lock`` and ``test_upgrade_cleans_uv_cache_with_force``
-mock out ``_install_repository`` (already covered end-to-end by
+mock out ``repository.install_repository`` (already covered end-to-end by
 ``test_repository_install.py``) and the actual ``uv cache clean`` invocation
 (global, machine-wide state -- not something to exercise for real on every
 run) so they run fast and deterministically, per AGENTS.md's guidance to use
@@ -40,7 +40,7 @@ def test_upgrade_removes_venv_and_lock(
     """`repository upgrade` removes the existing .venv and uv.lock before reinstalling."""
     monkeypatch.chdir(clean_testrepo)
     monkeypatch.setattr(
-        "oarepo_cli.cli.repository._install_repository", lambda *_args, **_kwargs: None
+        "oarepo_cli.cli.repository.repository.install_repository", lambda *_args, **_kwargs: None
     )
     monkeypatch.setattr(
         "oarepo_cli.cli.repository.process.run",
@@ -70,7 +70,7 @@ def test_upgrade_cleans_uv_cache_with_force(
     which omits --force), mirroring repository_runner.sh's upgrade_repository."""
     monkeypatch.chdir(clean_testrepo)
     monkeypatch.setattr(
-        "oarepo_cli.cli.repository._install_repository", lambda *_args, **_kwargs: None
+        "oarepo_cli.cli.repository.repository.install_repository", lambda *_args, **_kwargs: None
     )
 
     calls: list[list[str]] = []

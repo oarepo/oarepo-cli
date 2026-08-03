@@ -998,29 +998,30 @@ takes only a `name` positional and an optional `config_file`/
 ### Step 4.5.1: Fix pre-existing test failures uncovered by the Step 4.5 full-suite run
 **Goal**: Fix two `make test` failures, unrelated to Step 4.5, discovered while
 running the full suite (not just the changed files) after implementing it.
-Left unfixed for now -- deliberately out of scope for Step 4.5's PR -- but
-tracked here so they're not lost.
 
-- [ ] `tests/integration/test_repository_upgrade.py::test_upgrade_removes_venv_and_lock`
+- [x] `tests/integration/test_repository_upgrade.py::test_upgrade_removes_venv_and_lock`
   and `::test_upgrade_cleans_uv_cache_with_force`: both `monkeypatch.setattr(
   "oarepo_cli.cli.repository._install_repository", ...)`, but that name hasn't
   existed since Step 4.4 (#124), which extracted it out of `cli/repository.py`
-  into the public `oarepo_cli.services.repository.install_repository`. Fix:
-  update both monkeypatch targets (and the `repository.install_repository`
-  import alias used in the patched module) to
-  `"oarepo_cli.services.repository.install_repository"` (or patch it via
-  `oarepo_cli.cli.repository.repository.install_repository`, matching how
-  `cli/repository.py` imports the `repository` service module -- see how
-  `upgrade`/`install` call it there).
-- [ ] `tests/integration/test_library_venv_sync.py::test_uv_lock_added_to_gitignore`:
-  fails only when the full suite runs (passed in isolation during Step 4.5's
-  own test runs), asserting `"uv.lock" not in content_before` against a
-  `.gitignore` that already contains `uv.lock` -- looks like state leaking in
-  from another test sharing the same fixture/module scope. Investigate
-  `clean_testlib`'s fixture scope and whether an earlier test in the same
-  module (or a module-scoped fixture reused across tests) is mutating a
-  shared `.gitignore` before this test runs; fix by isolating/resetting the
-  fixture's state per-test rather than reusing a mutated one.
+  into the public `oarepo_cli.services.repository.install_repository`. Fixed
+  by retargeting both monkeypatches to
+  `"oarepo_cli.cli.repository.repository.install_repository"`, matching how
+  `cli/repository.py` itself calls it (via its `from oarepo_cli.services
+  import ... repository` import) and how `test_repository_services.py`
+  patches through the same kind of imported-submodule reference.
+- [x] `tests/integration/test_library_venv_sync.py::test_uv_lock_added_to_gitignore`:
+  not test-order pollution as originally suspected -- it fails even in
+  isolation, on a clean checkout. Root cause: the real, checked-in
+  `tests/testlib/.gitignore` fixture file already lists `uv.lock` (added
+  deliberately in a later step, since testlib is a member of this repo's
+  own root uv workspace and has its own real lock), but the test's premise
+  (`assert "uv.lock" not in content_before`) assumed a fixture `.gitignore`
+  that never mentions `uv.lock` yet. Fixed with a new
+  `testlib_without_gitignored_uv_lock` fixture (wraps `clean_testlib`):
+  strips any existing `uv.lock` line from the real `.gitignore` before the
+  test runs (so the dynamic-add behavior can be verified for real, not
+  mocked) and restores the original content afterward, leaving the
+  committed fixture file untouched on disk once the test finishes.
 
 **Deliverables**:
 - Both failures fixed, `make test` green end to end (not just per-file)

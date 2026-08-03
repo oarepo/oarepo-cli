@@ -17,6 +17,7 @@ from typer.testing import CliRunner
 from oarepo_cli.cli.main import app
 
 if TYPE_CHECKING:
+    from collections.abc import Iterator
     from pathlib import Path
 
 
@@ -24,6 +25,28 @@ if TYPE_CHECKING:
 def runner() -> CliRunner:
     """Provide a Typer CLI runner."""
     return CliRunner()
+
+
+@pytest.fixture
+def testlib_without_gitignored_uv_lock(clean_testlib: Path) -> Iterator[Path]:
+    """Temporarily strip any ``uv.lock`` line from testlib's real, checked-in
+    .gitignore, restoring the original content afterward.
+
+    testlib's own .gitignore already lists ``uv.lock`` (it's a member of
+    this repo's root uv workspace), so ``test_uv_lock_added_to_gitignore``
+    needs a .gitignore that doesn't have it yet to verify `library venv`
+    adds it dynamically, without permanently mutating the committed fixture.
+    """
+    gitignore = clean_testlib / ".gitignore"
+    original_content = gitignore.read_text()
+    stripped_content = "\n".join(
+        line for line in original_content.splitlines() if line.strip() != "uv.lock"
+    )
+    gitignore.write_text(stripped_content + "\n")
+    try:
+        yield clean_testlib
+    finally:
+        gitignore.write_text(original_content)
 
 
 def test_venv_creates_uv_lock_file(
@@ -52,13 +75,13 @@ def test_venv_creates_uv_lock_file(
 
 def test_uv_lock_added_to_gitignore(
     runner: CliRunner,
-    clean_testlib: Path,
+    testlib_without_gitignored_uv_lock: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """Test that uv.lock is automatically added to .gitignore."""
-    monkeypatch.chdir(clean_testlib)
+    monkeypatch.chdir(testlib_without_gitignored_uv_lock)
 
-    gitignore = clean_testlib / ".gitignore"
+    gitignore = testlib_without_gitignored_uv_lock / ".gitignore"
 
     # Verify .gitignore exists but doesn't have uv.lock yet
     assert gitignore.exists()
