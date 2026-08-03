@@ -1201,17 +1201,32 @@ neither or both).
 ### Step 4.9: Repository `run` Command
 **Goal**: Implement `oarepo-cli repository run` command.
 
-- [ ] Implement `repository_run()` function
-- [ ] Options: `--no-services`, `--no-celery`
-- [ ] Delegate to `ServerRunner`
+- [x] Implement `repository_run()` function
+- [x] Options: `--no-services`, `--no-celery`
+- [x] Delegate to `ServerRunner`
+
+**Deviation from the original plan**: also forwards unrecognized
+args/options (e.g. `-p 5001`) to the underlying `invenio-cli run`/`invenio
+run` command as `extra_args`, mirroring `repository_runner.sh`'s
+`run_server()`'s `extra_options` -- not called out in the checklist above,
+but dropping it would be a real regression from bash's actual behavior.
+Unlike the `services` subcommands' passthrough context settings, `--help`
+is *not* forwarded/swallowed here (`help_option_names` left at its
+default): `run` has its own real options, so `--help` shows oarepo-cli's
+own help, not invenio-cli's.
 
 **Deliverables**:
 - Running command
 
 **Tests** (`tests/integration/test_repository_run.py`):
-- [ ] Test run with services
-- [ ] Test run without celery
-- [ ] Test signal handling
+- [x] Test run with services
+- [x] Test run without celery
+- [x] Test signal handling -- superseded, same rationale as Step 4.8: no
+  signal-handling code left in this layer to test (invenio-cli/invenio
+  handle it themselves post-exec). Covered instead by
+  `test_run_real_exec_replaces_process`, a real, isolated-subprocess test
+  driving the full CLI -> `discover_context` -> `ServerRunner` -> exec
+  stack against a fake `invenio-cli` binary.
 
 ---
 
