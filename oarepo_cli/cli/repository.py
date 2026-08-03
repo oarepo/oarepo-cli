@@ -5,6 +5,7 @@
 
 from __future__ import annotations
 
+from pathlib import Path  # noqa: TCH003
 from typing import Annotated
 
 import typer
@@ -12,6 +13,7 @@ import typer
 from oarepo_cli.core.context import discover_context
 from oarepo_cli.core.errors import OARepoError, ProcessExecutionError
 from oarepo_cli.services import invenio_cli, process, repository
+from oarepo_cli.services.models import ModelManager
 from oarepo_cli.services.venv import VirtualEnvironmentManager
 from oarepo_cli.ui import ConsoleOutput
 
@@ -29,8 +31,16 @@ services_app = typer.Typer(
     no_args_is_help=True,
 )
 
-# Register services as a subcommand of repository
+# Create the model subcommand group
+model_app = typer.Typer(
+    name="model",
+    help="Record model management (create/update from copier templates)",
+    no_args_is_help=True,
+)
+
+# Register services and model as subcommands of repository
 repository_app.add_typer(services_app)
+repository_app.add_typer(model_app)
 
 # Each services subcommand is a pure passthrough to invenio-cli: extra
 # arguments/options are forwarded verbatim, and --help must reach
@@ -52,6 +62,11 @@ def repository_callback() -> None:
 @services_app.callback()
 def services_callback() -> None:
     """Repository services command group."""
+
+
+@model_app.callback()
+def model_callback() -> None:
+    """Repository model command group."""
 
 
 def _run_services_subcommand(ctx: typer.Context, subcommand: str, *, quiet: bool) -> None:
@@ -243,4 +258,88 @@ def upgrade(
     except (OARepoError, ProcessExecutionError) as e:
         console_err = ConsoleOutput(quiet=False)  # Always show errors
         console_err.error(f"\n✗ Upgrade failed: {e}\n", fg=typer.colors.RED)
+        raise typer.Exit(1) from e
+
+
+@model_app.command("create")
+def model_create(
+    name: Annotated[str, typer.Argument(help="Name of the model to create")],
+    config_file: Annotated[
+        Path | None,
+        typer.Argument(
+            help=(
+                "Optional YAML file whose content seeds all answers "
+                "non-interactively (must supply model_name itself)"
+            ),
+        ),
+    ] = None,
+    quiet: Annotated[
+        bool,
+        typer.Option(
+            "--quiet",
+            "-q",
+            help="Suppress output from subprocesses (copier, invenio-cli, etc.)",
+        ),
+    ] = False,
+) -> None:
+    """Create a new record model from the configured model copier template.
+
+    See ``services.models.ModelManager.create_model`` for the individual steps.
+
+    Examples:
+        $ oarepo-cli repository model create my_model
+        $ oarepo-cli repository model create my_model model_config.yaml
+
+    Exit codes:
+        0: Model created successfully
+        1: Model creation failed
+    """
+    try:
+        context = discover_context()
+        ModelManager(context, quiet=quiet).create_model(name, config_file=config_file)
+    except (OARepoError, ProcessExecutionError) as e:
+        console_err = ConsoleOutput(quiet=False)  # Always show errors
+        console_err.error(f"\n✗ Model creation failed: {e}\n", fg=typer.colors.RED)
+        raise typer.Exit(1) from e
+
+
+@model_app.command("update")
+def model_update(
+    name: Annotated[str, typer.Argument(help="Name of the model to update")],
+    answers_file: Annotated[
+        Path | None,
+        typer.Argument(
+            help=(
+                "Optional YAML answers file to update from (defaults to the "
+                "model's recorded models/<name>/.copier-answers.yml)"
+            ),
+        ),
+    ] = None,
+    quiet: Annotated[
+        bool,
+        typer.Option(
+            "--quiet",
+            "-q",
+            help="Suppress output from subprocesses (copier, invenio-cli, etc.)",
+        ),
+    ] = False,
+) -> None:
+    """Update an existing record model from its recorded (or given) template answers.
+
+    See ``services.models.ModelManager.update_model`` for the individual steps.
+
+    Examples:
+        $ oarepo-cli repository model update my_model
+        $ oarepo-cli repository model update my_model model_config.yaml
+
+    Exit codes:
+        0: Model updated successfully
+        1: Model update failed
+    """
+    try:
+        context = discover_context()
+        ModelManager(context, quiet=quiet).update_model(name, answers_file=answers_file)
+    except (OARepoError, ProcessExecutionError) as e:
+        console_err = ConsoleOutput(quiet=False)  # Always show errors
+        console_err.error(f"\n✗ Model update failed: {e}\n", fg=typer.colors.RED)
         raise typer.Exit(1) from e

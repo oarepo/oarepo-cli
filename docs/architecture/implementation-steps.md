@@ -968,17 +968,62 @@ must resolve inside `dst_path`, never a parent/sibling.
 ### Step 4.5: Repository `model` Command
 **Goal**: Implement `oarepo-cli repository model` command.
 
-- [ ] Implement `repository_model()` with `create` and `update` subcommands
-- [ ] Options: template URL, version, config file
-- [ ] Delegate to `ModelManager`
+- [x] Implement `repository_model()` with `create` and `update` subcommands
+- [x] Options: template URL, version, config file
+- [x] Delegate to `ModelManager`
+
+**Deviation from the original plan**: template URL/version are not exposed
+as CLI flags on `model create`/`model update` -- per `03-migration-guide.md`
+(`oarepo-cli repository model create <name> [config_file]`, `... update
+<name> [answers_file]`), they're only ever configured via
+`[tool.oarepo-cli] model.template_url`/`.template_version` in
+`pyproject.toml` or the `MODEL_TEMPLATE`/`MODEL_TEMPLATE_VERSION` env vars
+(already resolved into `context.config.model` by `core/config.py`, see
+Step 4.4), matching `repository_runner.sh`'s `create_model`/`update_model`,
+which never took `--template`/`--version` flags either. Each subcommand
+takes only a `name` positional and an optional `config_file`/
+`answers_file` positional, plus `--quiet` (consistent with `install`/
+`upgrade`).
 
 **Deliverables**:
 - Model command
 
 **Tests** (`tests/integration/test_repository_model.py`):
-- [ ] Test model create subcommand
-- [ ] Test model update subcommand
-- [ ] Test help text
+- [x] Test model create subcommand
+- [x] Test model update subcommand
+- [x] Test help text
+
+---
+
+### Step 4.5.1: Fix pre-existing test failures uncovered by the Step 4.5 full-suite run
+**Goal**: Fix two `make test` failures, unrelated to Step 4.5, discovered while
+running the full suite (not just the changed files) after implementing it.
+Left unfixed for now -- deliberately out of scope for Step 4.5's PR -- but
+tracked here so they're not lost.
+
+- [ ] `tests/integration/test_repository_upgrade.py::test_upgrade_removes_venv_and_lock`
+  and `::test_upgrade_cleans_uv_cache_with_force`: both `monkeypatch.setattr(
+  "oarepo_cli.cli.repository._install_repository", ...)`, but that name hasn't
+  existed since Step 4.4 (#124), which extracted it out of `cli/repository.py`
+  into the public `oarepo_cli.services.repository.install_repository`. Fix:
+  update both monkeypatch targets (and the `repository.install_repository`
+  import alias used in the patched module) to
+  `"oarepo_cli.services.repository.install_repository"` (or patch it via
+  `oarepo_cli.cli.repository.repository.install_repository`, matching how
+  `cli/repository.py` imports the `repository` service module -- see how
+  `upgrade`/`install` call it there).
+- [ ] `tests/integration/test_library_venv_sync.py::test_uv_lock_added_to_gitignore`:
+  fails only when the full suite runs (passed in isolation during Step 4.5's
+  own test runs), asserting `"uv.lock" not in content_before` against a
+  `.gitignore` that already contains `uv.lock` -- looks like state leaking in
+  from another test sharing the same fixture/module scope. Investigate
+  `clean_testlib`'s fixture scope and whether an earlier test in the same
+  module (or a module-scoped fixture reused across tests) is mutating a
+  shared `.gitignore` before this test runs; fix by isolating/resetting the
+  fixture's state per-test rather than reusing a mutated one.
+
+**Deliverables**:
+- Both failures fixed, `make test` green end to end (not just per-file)
 
 ---
 
