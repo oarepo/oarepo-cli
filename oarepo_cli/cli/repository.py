@@ -15,6 +15,7 @@ from oarepo_cli.core.errors import OARepoError, ProcessExecutionError
 from oarepo_cli.services import invenio_cli, repository
 from oarepo_cli.services.local_packages import LocalPackageManager
 from oarepo_cli.services.models import ModelManager
+from oarepo_cli.services.server import ServerRunner
 from oarepo_cli.ui import ConsoleOutput
 
 # Create the repository subcommand group
@@ -59,6 +60,18 @@ _SERVICES_CONTEXT_SETTINGS = {
     "allow_interspersed_args": True,
     "ignore_unknown_options": True,
     "help_option_names": [],
+}
+
+# `repository run` forwards unrecognized args/options to the underlying
+# invenio-cli/invenio run command (e.g. `-p 5001`), like
+# repository_runner.sh's run_server()'s extra_options -- but unlike the
+# services subcommands above, `--help` should still show oarepo-cli's own
+# help (--no-services/--no-celery/--quiet are real options here, not a pure
+# passthrough), so help_option_names is left at its default.
+_RUN_CONTEXT_SETTINGS = {
+    "allow_extra_args": True,
+    "allow_interspersed_args": True,
+    "ignore_unknown_options": True,
 }
 
 
@@ -428,4 +441,61 @@ def local_remove(
     except (OARepoError, ProcessExecutionError) as e:
         console_err = ConsoleOutput(quiet=False)  # Always show errors
         console_err.error(f"\n✗ Local package removal failed: {e}\n", fg=typer.colors.RED)
+        raise typer.Exit(1) from e
+
+
+@repository_app.command("run", context_settings=_RUN_CONTEXT_SETTINGS)
+def run_command(
+    ctx: typer.Context,
+    no_services: Annotated[
+        bool,
+        typer.Option("--no-services", help="Don't start Docker services first"),
+    ] = False,
+    no_celery: Annotated[
+        bool,
+        typer.Option(
+            "--no-celery",
+            help="Run the venv's own `invenio run` directly, without Celery/invenio-cli",
+        ),
+    ] = False,
+    quiet: Annotated[
+        bool,
+        typer.Option(
+            "--quiet",
+            "-q",
+            help="Suppress output from starting Docker services",
+        ),
+    ] = False,
+) -> None:
+    """Start the repository's development server.
+
+    See ``services.server.ServerRunner.run`` for the individual steps. Any
+    extra arguments/options (e.g. ``-p 5001``) are forwarded to the
+    underlying ``invenio-cli run``/``invenio run`` command.
+
+    This command replaces the current process (``os.execve``/``os.execvpe``)
+    with the server once Docker services are started -- it never returns on
+    success, so a terminal Ctrl+C hits invenio-cli/invenio directly, exactly
+    as if it had been run directly.
+
+    Examples:
+        $ oarepo-cli repository run
+        $ oarepo-cli repository run --no-services
+        $ oarepo-cli repository run --no-celery -- -p 5001
+
+    Exit codes:
+        Whatever invenio-cli/invenio itself exits with, once running
+        1: Starting Docker services failed, or project context could not be
+           discovered
+    """
+    try:
+        context = discover_context()
+        ServerRunner(context, quiet=quiet).run(
+            no_services=no_services,
+            no_celery=no_celery,
+            extra_args=ctx.args,
+        )
+    except (OARepoError, ProcessExecutionError) as e:
+        console_err = ConsoleOutput(quiet=False)  # Always show errors
+        console_err.error(f"\n✗ Failed to start server: {e}\n", fg=typer.colors.RED)
         raise typer.Exit(1) from e

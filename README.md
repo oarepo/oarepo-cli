@@ -501,7 +501,7 @@ The `repository` subcommand provides tools for managing full OARepo repository i
 | [`services`](#repository-services) | Manage Docker services | ✅ Implemented |
 | [`model`](#repository-model) | Create/update record models | ✅ Implemented |
 | [`local`](#repository-local) | Manage local package dependencies | ✅ Implemented |
-| `run` | Start repository server | 🔜 Step 4.9 |
+| [`run`](#repository-run) | Start repository server | ✅ Implemented |
 | `cli` | Delegate to invenio-cli | 🔜 Step 4.10 |
 | `translations` | Compile backend translations | 🔜 Step 4.10 |
 | `index` | Rebuild search index | 🔜 Step 4.10 |
@@ -669,9 +669,38 @@ oarepo-cli repository local remove --all
 - `0`: Package(s) added/removed successfully
 - `1`: Operation failed (e.g. no `pyproject.toml` at `<path>`, unknown package name, neither/both of a name and `--all` given, project context could not be discovered)
 
+### `repository run`
+
+Starts the repository's development server: starts Docker services (unless `--no-services`), then hands off to either `invenio-cli run` (which manages Celery itself) or, with `--no-celery`, the venv's own `invenio run` directly.
+
+```bash
+oarepo-cli repository run
+oarepo-cli repository run --no-services
+oarepo-cli repository run --no-celery
+```
+
+This command **replaces the current process** (`os.execve`/`os.execvpe`) with the server once Docker services are started — it never returns on success, so a terminal Ctrl+C hits invenio-cli/invenio directly, exactly as if it had been run by hand. Docker services are deliberately *not* stopped when the server exits — run `repository services stop` explicitly when done.
+
+**Options:**
+- `--no-services`: Don't start Docker services first
+- `--no-celery`: Run the venv's own `invenio run` directly, without Celery/invenio-cli
+- `--quiet` / `-q`: Suppress output from starting Docker services
+
+Any extra arguments/options (e.g. `-p 5001`) are forwarded to the underlying `invenio-cli run`/`invenio run` command.
+
+**Examples:**
+```bash
+oarepo-cli repository run
+oarepo-cli repository run --no-celery -- -p 5001
+```
+
+**Exit codes:**
+- Whatever invenio-cli/invenio itself exits with, once running
+- `1`: Starting Docker services failed, or project context could not be discovered
+
 ### Other Repository Commands
 
-_Commands below are to be implemented in Phase 4 (steps 4.8-4.10)._
+_Commands below are to be implemented in Phase 4 (step 4.10)._
 
 ## Configuration
 
