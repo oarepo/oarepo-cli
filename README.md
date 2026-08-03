@@ -611,9 +611,38 @@ oarepo-cli repository services setup --help
 - Whatever `invenio-cli services <subcommand>` returns (propagated exactly, not collapsed to 0/1)
 - `1`: Project context could not be discovered (e.g. no `pyproject.toml`)
 
+### `repository model`
+
+Creates and updates record models via [copier](https://copier.readthedocs.io/), rendering the configured model template (`[tool.oarepo-cli.model] template_url`/`template_version` in `pyproject.toml`, or the `MODEL_TEMPLATE`/`MODEL_TEMPLATE_VERSION` env vars — default [`nrp-model-copier`](https://github.com/oarepo/nrp-model-copier) @ `rdm-14`) into `models/<name>/`. Template/version are not CLI flags — only configurable via `pyproject.toml`/env vars, matching `repository_runner.sh`.
+
+```bash
+oarepo-cli repository model create <name> [config_file]
+oarepo-cli repository model update <name> [answers_file]
+```
+
+**Subcommands:**
+- `create <name> [config_file]`: Renders the model template into `models/<name>/`. If `config_file` (a YAML file) is given, it seeds *all* answers non-interactively and must supply `model_name` itself; if omitted, only `model_name` is passed and the template's own defaults apply. Reinstalls the repository afterwards if a virtual environment already exists (a new model changes `pyproject.toml` entry points/dependencies).
+- `update <name> [answers_file]`: Updates an existing model (`models/<name>` must already exist) from its recorded `.copier-answers.yml`, or from `answers_file` if given. Requires a git-tracked, clean repository (copier's own requirement); conflicts are written inline for review via `git diff`.
+
+**Options** (each subcommand):
+- `--quiet` / `-q`: Suppress output from subprocesses (copier, invenio-cli, etc.)
+
+**Examples:**
+```bash
+oarepo-cli repository model create my_model
+oarepo-cli repository model create my_model model_config.yaml
+
+oarepo-cli repository model update my_model
+oarepo-cli repository model update my_model model_config.yaml
+```
+
+**Exit codes:**
+- `0`: Model created/updated successfully
+- `1`: Model creation/update failed (e.g. missing config file, non-existent model, project context could not be discovered)
+
 ### Other Repository Commands
 
-_Commands below are to be implemented in Phase 4 (steps 4.4-4.11)._
+_Commands below are to be implemented in Phase 4 (steps 4.6-4.11)._
 
 ## Configuration
 
