@@ -34,6 +34,12 @@ dependencies = [
     "pycountry>=24.0.0",
     "tomli>=2.0.0",
     "tomli-w>=1.0.0",
+    # Local package manager (services/local_packages.py): edits a target
+    # project's own pyproject.toml ([project].dependencies,
+    # [tool.uv.sources]) in place. Unlike tomllib (read-only) or tomli-w
+    # (write-only, full-dict dump), tomlkit is round-trip-preserving --
+    # comments, key order, and formatting elsewhere in the file survive.
+    "tomlkit>=0.13.0",
 ]
 requires-python = ">=3.14,<3.15"
 

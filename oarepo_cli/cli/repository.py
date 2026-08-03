@@ -12,9 +12,8 @@ import typer
 
 from oarepo_cli.core.context import discover_context
 from oarepo_cli.core.errors import OARepoError, ProcessExecutionError
-from oarepo_cli.services import invenio_cli, process, repository
+from oarepo_cli.services import invenio_cli, repository
 from oarepo_cli.services.models import ModelManager
-from oarepo_cli.services.venv import VirtualEnvironmentManager
 from oarepo_cli.ui import ConsoleOutput
 
 # Create the repository subcommand group
@@ -236,18 +235,7 @@ def upgrade(
 
         console.info("\n→ Upgrading repository...\n")
 
-        venv_manager = VirtualEnvironmentManager(context.config, context.root_directory)
-        if context.venv_path.exists():
-            console.info("→ Removing virtual environment...\n")
-        if (context.root_directory / "uv.lock").exists():
-            console.info("→ Removing uv.lock...\n")
-        venv_manager.cleanup()
-
-        console.info("→ Cleaning uv cache...\n")
-        process.run(["uv", "cache", "clean", "--force"], check=True, interactive=not quiet)
-
-        console.info("→ Reinstalling repository...\n")
-        repository.install_repository(context, quiet=quiet)
+        repository.upgrade_repository(context, quiet=quiet)
 
         console.success(
             "\n✓ Upgrade completed successfully!\n",

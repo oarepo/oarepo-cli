@@ -40,10 +40,10 @@ def test_upgrade_removes_venv_and_lock(
     """`repository upgrade` removes the existing .venv and uv.lock before reinstalling."""
     monkeypatch.chdir(clean_testrepo)
     monkeypatch.setattr(
-        "oarepo_cli.cli.repository.repository.install_repository", lambda *_args, **_kwargs: None
+        "oarepo_cli.services.repository.install_repository", lambda *_args, **_kwargs: None
     )
     monkeypatch.setattr(
-        "oarepo_cli.cli.repository.process.run",
+        "oarepo_cli.services.repository.process.run",
         lambda cmd, **_kwargs: process.ProcessResult(
             return_code=0, stdout="", stderr="", command=cmd, cwd=clean_testrepo, duration_ms=0
         ),
@@ -70,7 +70,7 @@ def test_upgrade_cleans_uv_cache_with_force(
     which omits --force), mirroring repository_runner.sh's upgrade_repository."""
     monkeypatch.chdir(clean_testrepo)
     monkeypatch.setattr(
-        "oarepo_cli.cli.repository.repository.install_repository", lambda *_args, **_kwargs: None
+        "oarepo_cli.services.repository.install_repository", lambda *_args, **_kwargs: None
     )
 
     calls: list[list[str]] = []
@@ -81,7 +81,7 @@ def test_upgrade_cleans_uv_cache_with_force(
             return_code=0, stdout="", stderr="", command=cmd, cwd=clean_testrepo, duration_ms=0
         )
 
-    monkeypatch.setattr("oarepo_cli.cli.repository.process.run", spy_run)
+    monkeypatch.setattr("oarepo_cli.services.repository.process.run", spy_run)
 
     runner = CliRunner()
     result = runner.invoke(app, ["repository", "upgrade", "--quiet"], catch_exceptions=False)
