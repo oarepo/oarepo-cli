@@ -13,6 +13,7 @@ import typer
 from oarepo_cli.core.context import discover_context
 from oarepo_cli.core.errors import OARepoError, ProcessExecutionError
 from oarepo_cli.services import invenio_cli, repository
+from oarepo_cli.services.local_packages import LocalPackageManager
 from oarepo_cli.services.models import ModelManager
 from oarepo_cli.ui import ConsoleOutput
 
@@ -37,9 +38,17 @@ model_app = typer.Typer(
     no_args_is_help=True,
 )
 
-# Register services and model as subcommands of repository
+# Create the local subcommand group
+local_app = typer.Typer(
+    name="local",
+    help="Local, editable package management (tool.uv.sources)",
+    no_args_is_help=True,
+)
+
+# Register services, model and local as subcommands of repository
 repository_app.add_typer(services_app)
 repository_app.add_typer(model_app)
+repository_app.add_typer(local_app)
 
 # Each services subcommand is a pure passthrough to invenio-cli: extra
 # arguments/options are forwarded verbatim, and --help must reach
@@ -66,6 +75,11 @@ def services_callback() -> None:
 @model_app.callback()
 def model_callback() -> None:
     """Repository model command group."""
+
+
+@local_app.callback()
+def local_callback() -> None:
+    """Repository local package command group."""
 
 
 def _run_services_subcommand(ctx: typer.Context, subcommand: str, *, quiet: bool) -> None:
@@ -330,4 +344,88 @@ def model_update(
     except (OARepoError, ProcessExecutionError) as e:
         console_err = ConsoleOutput(quiet=False)  # Always show errors
         console_err.error(f"\n✗ Model update failed: {e}\n", fg=typer.colors.RED)
+        raise typer.Exit(1) from e
+
+
+@local_app.command("add")
+def local_add(
+    path: Annotated[Path, typer.Argument(help="Path to the local package's own project directory")],
+    quiet: Annotated[
+        bool,
+        typer.Option(
+            "--quiet",
+            "-q",
+            help="Suppress output from subprocesses (invenio-cli, etc.)",
+        ),
+    ] = False,
+) -> None:
+    r"""Add a local, editable package to \[tool.uv.sources].
+
+    See ``services.local_packages.LocalPackageManager.add_package`` for the
+    individual steps.
+
+    Examples:
+        $ oarepo-cli repository local add ../my-local-package
+
+    Exit codes:
+        0: Package added successfully
+        1: Package addition failed
+    """
+    try:
+        context = discover_context()
+        LocalPackageManager(context, quiet=quiet).add_package(path)
+    except (OARepoError, ProcessExecutionError) as e:
+        console_err = ConsoleOutput(quiet=False)  # Always show errors
+        console_err.error(f"\n✗ Local package addition failed: {e}\n", fg=typer.colors.RED)
+        raise typer.Exit(1) from e
+
+
+@local_app.command("remove")
+def local_remove(
+    name: Annotated[str | None, typer.Argument(help="Name of the local package to remove")] = None,
+    all_packages: Annotated[bool, typer.Option("--all", help="Remove all local packages")] = False,
+    quiet: Annotated[
+        bool,
+        typer.Option(
+            "--quiet",
+            "-q",
+            help="Suppress output from subprocesses (invenio-cli, etc.)",
+        ),
+    ] = False,
+) -> None:
+    r"""Remove a local package from \[tool.uv.sources], or all of them with --all.
+
+    See ``services.local_packages.LocalPackageManager.remove_package``/
+    ``remove_all_packages`` for the individual steps.
+
+    Examples:
+        $ oarepo-cli repository local remove my-package
+        $ oarepo-cli repository local remove --all
+
+    Exit codes:
+        0: Package(s) removed successfully
+        1: Removal failed (e.g. unknown package name, neither/both of a name
+           and --all given)
+    """
+    if name is None and not all_packages:
+        console_err = ConsoleOutput(quiet=False)
+        console_err.error("\n✗ Specify a package name to remove, or --all.\n", fg=typer.colors.RED)
+        raise typer.Exit(1)
+    if name is not None and all_packages:
+        console_err = ConsoleOutput(quiet=False)
+        console_err.error(
+            "\n✗ Specify either a package name or --all, not both.\n", fg=typer.colors.RED
+        )
+        raise typer.Exit(1)
+
+    try:
+        context = discover_context()
+        manager = LocalPackageManager(context, quiet=quiet)
+        if all_packages:
+            manager.remove_all_packages()
+        elif name is not None:
+            manager.remove_package(name)
+    except (OARepoError, ProcessExecutionError) as e:
+        console_err = ConsoleOutput(quiet=False)  # Always show errors
+        console_err.error(f"\n✗ Local package removal failed: {e}\n", fg=typer.colors.RED)
         raise typer.Exit(1) from e

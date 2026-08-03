@@ -42,7 +42,11 @@ class LocalPackageManager:
     ``local remove`` was never implemented (it just tells the user to edit
     ``pyproject.toml`` by hand and run ``upgrade``); this fills that gap,
     per ``00-main-architecture.md``'s compatibility matrix, which lists
-    ``local remove <name>`` as a command the rewrite must actually support.
+    ``local remove <name>|--all`` as a command the rewrite must actually
+    support. ``remove_all_packages()`` backs the ``--all`` case: it removes
+    every local package but triggers only a single ``upgrade_repository``
+    call at the end (via ``remove_package(..., upgrade=False)`` per
+    package), rather than one full upgrade per package.
     """
 
     def __init__(self, context: ProjectContext, *, quiet: bool = False) -> None:
@@ -100,12 +104,16 @@ class LocalPackageManager:
 
         console.success(f"✓ Local package '{name}' added successfully.\n")
 
-    def remove_package(self, name: str) -> None:
+    def remove_package(self, name: str, *, upgrade: bool = True) -> None:
         """Remove a local package from ``[tool.uv.sources]``.
 
         Args:
             name: Package name (as it appears in ``[tool.uv.sources]``;
                 normalized the same way ``uv``/``add_package`` do)
+            upgrade: If False, skip the repository upgrade that normally
+                follows -- used by ``remove_all_packages()`` to trigger a
+                single upgrade after removing every package, rather than
+                one per package
 
         Raises:
             ConfigurationError: If ``name`` isn't a known local package
@@ -130,10 +138,42 @@ class LocalPackageManager:
 
         self._write_document(document)
 
-        console.info("→ Upgrading repository after removing the local package\n")
-        upgrade_repository(self._context, quiet=self._quiet)
+        if upgrade:
+            console.info("→ Upgrading repository after removing the local package\n")
+            upgrade_repository(self._context, quiet=self._quiet)
 
         console.success(f"✓ Local package '{canonical_name}' removed successfully.\n")
+
+    def list_local_packages(self) -> list[str]:
+        """Return the canonical names of all locally-added editable packages.
+
+        Only ``[tool.uv.sources]`` entries with a ``path`` key are
+        considered "local packages" managed by ``add_package()`` --
+        excludes unrelated entries like the CESNET-patched ``invenio-cli``'s
+        ``{ index = "cesnet" }`` override, which ``repository local remove
+        --all`` must never touch.
+        """
+        document = self._read_document()
+        sources = document.get("tool", {}).get("uv", {}).get("sources", {})
+        return [name for name, source in sources.items() if "path" in source]
+
+    def remove_all_packages(self) -> list[str]:
+        """Remove every locally-added editable package, in a single repository upgrade.
+
+        Returns:
+            The canonical names of the packages that were removed (possibly
+            empty)
+        """
+        names = self.list_local_packages()
+        for name in names:
+            self.remove_package(name, upgrade=False)
+
+        if names:
+            console = ConsoleOutput(quiet=self._quiet)
+            console.info("→ Upgrading repository after removing all local packages\n")
+            upgrade_repository(self._context, quiet=self._quiet)
+
+        return names
 
     def _read_document(self) -> TOMLDocument:
         return tomlkit.parse(self._context.pyproject_path.read_text(encoding="utf-8"))

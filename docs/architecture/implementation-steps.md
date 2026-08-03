@@ -1068,15 +1068,28 @@ support, so this fills that gap.
 ### Step 4.7: Repository `local` Command
 **Goal**: Implement `oarepo-cli repository local` command.
 
-- [ ] Implement `repository_local()` with `add` and `remove` subcommands
-- [ ] Delegate to `LocalPackageManager`
+- [x] Implement `repository_local()` with `add` and `remove` subcommands
+- [x] Delegate to `LocalPackageManager`
+
+**Deviation from the original plan**: `00-main-architecture.md`'s
+compatibility matrix (§1) documents `local remove <name>|--all`, not just
+`<name>` -- the implementation-steps checklist above predates that detail.
+Added `LocalPackageManager.list_local_packages()` (filters
+`[tool.uv.sources]` to path-based/editable entries only, so an unrelated
+entry like the CESNET-patched `invenio-cli`'s `{ index = "cesnet" }`
+override is never touched) and `remove_all_packages()` (removes every local
+package but triggers exactly one `upgrade_repository` call at the end, via
+a new `remove_package(..., upgrade=False)` keyword rather than one full
+upgrade per package) to back `local remove --all`. `local remove` requires
+exactly one of a `<name>` positional or `--all` (errors, exit 1, on
+neither or both).
 
 **Deliverables**:
 - Local command
 
 **Tests** (`tests/integration/test_repository_local.py`):
-- [ ] Test add subcommand
-- [ ] Test remove subcommand
+- [x] Test add subcommand
+- [x] Test remove subcommand
 
 ---
 
