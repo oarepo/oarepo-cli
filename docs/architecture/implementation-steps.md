@@ -824,6 +824,46 @@ default resolution rule. See
 
 ---
 
+### Step 4.1.3: Run the already-installed invenio-cli directly, not via uvx
+
+**Goal**: `services/invenio_cli.py`'s `run_invenio_cli()` (used by every
+`repository install`/`upgrade`/`services *`/`run`/`ModelManager` reinstall
+call) had, since its introduction alongside Step 4.1, been shelling out to
+`uvx --python="$PYTHON" --with git+.../oarepo-cli@rdm-14 --from
+git+.../invenio-cli@oarepo-feature-docker-environment invenio-cli ...` on
+every single call -- a literal, uncommented-on port of
+`repository_runner.sh`'s `run_invenio_cli`, itself marked there as
+`# temporary implementation until release`. That release (Step 4.1.1's
+CESNET-patched `invenio-cli` on the CESNET PyPI registry, verified at
+startup by `check_invenio_cli_version()`) has since happened, but the uvx
+call was never updated to match -- so oarepo-cli was verifying one
+invenio-cli build at startup while actually running a completely different
+one (a different git branch, plus an unrelated old `oarepo-cli@rdm-14`
+`--with` dependency) on every command, and paying a uvx resolve/network
+cost each time.
+
+Found and fixed via user discussion after Step 4.8: since invenio-cli purely
+orchestrates the target project via subprocesses/docker (confirmed with the
+user) rather than needing to run under the target project's own
+interpreter, there's no reason not to call the already-installed,
+already-verified binary directly.
+
+- [x] Add `services/invenio_cli.py:_invenio_cli_path()` -- resolves the
+  `invenio-cli` binary installed next to the running interpreter (mirrors
+  `services/lint.py:_tool_path()`'s identical rationale for ruff/ty),
+  falling back to the bare name (PATH-resolved) if not found
+- [x] Simplify `_build_command()` to `[_invenio_cli_path(), *args]`, dropping
+  the `uvx`/`--python=`/`--with`/`--from` construction entirely
+- [x] Update `tests/unit/test_invenio_cli.py` accordingly, plus new tests
+  for `_invenio_cli_path()`'s two branches
+
+**Tests** (`tests/unit/test_invenio_cli.py`):
+- [x] `run_invenio_cli` runs the resolved binary path directly, with args appended
+- [x] `_invenio_cli_path()` prefers a binary next to the interpreter
+- [x] `_invenio_cli_path()` falls back to the bare name otherwise
+
+---
+
 ### Step 4.2: Repository `upgrade` Command
 **Goal**: Implement repository upgrade.
 
@@ -1096,22 +1136,65 @@ neither or both).
 ### Step 4.8: Server Runner
 **Goal**: Implement repository server execution with signal handling.
 
-- [ ] Implement `services/server.py` with `ServerRunner` class
-- [ ] Method: `run(no_services=False, no_celery=False)` → None
-- [ ] Start Docker services if not skipped
-- [ ] Start Celery worker in background if not skipped
-- [ ] Run `invenio run` or `invenio-cli run`
-- [ ] Handle SIGINT/SIGTERM for graceful shutdown
-- [ ] Cleanup services on exit
+- [x] Implement `services/server.py` with `ServerRunner` class
+- [x] Method: `run(no_services=False, no_celery=False)` → None
+- [x] Start Docker services if not skipped
+- [x] Start Celery worker in background if not skipped
+- [x] Run `invenio run` or `invenio-cli run`
+- [x] Handle SIGINT/SIGTERM for graceful shutdown
+- [x] Cleanup services on exit
+
+**Deviations from the original plan**:
+- "Start Celery worker in background": `repository_runner.sh`'s
+  `run_server()` never spawns a Celery worker itself -- when Celery isn't
+  skipped, it delegates entirely to `invenio-cli run`, which manages Celery
+  internally as its own documented behavior. `ServerRunner` mirrors this
+  exactly rather than spawning a separate worker process, matching bash
+  rather than 01-detailed-design.md's state diagram (which sketches Celery
+  as a distinct, separately-managed background process -- that diagram
+  predates confirming invenio-cli's actual behavior and uses APIs, e.g.
+  `SignalHandler`, `ProjectContext.from_cwd()`, that don't exist in the
+  real codebase).
+- "Cleanup services on exit": resolved via explicit product decision --
+  Docker services are deliberately **not** auto-stopped when the server
+  exits/is interrupted. `run_server()` never stops them either (Ctrl+C just
+  kills the foreground process; services stay up for the next command,
+  like the `library` domain's pattern), and `03-migration-guide.md`
+  explicitly promises "Identical behavior" for `run`. Users stop services
+  explicitly via `repository services stop`.
+- "Handle SIGINT/SIGTERM for graceful shutdown": **superseded** by a second
+  revision, after further discussion. The first version spawned invenio-cli
+  as a supervised child process (via new `process.popen()`/
+  `invenio_cli.popen_invenio_cli()` helpers) and installed SIGINT/SIGTERM
+  handlers forwarding the signal to it, escalating to SIGKILL after a grace
+  period. Inspecting the actual installed `invenio-cli` package
+  (`invenio_cli/commands/local.py:LocalCommands`) showed this was
+  unnecessary *and* strictly worse: invenio-cli's own `run` command already
+  spawns and gracefully signal-handles its own child processes (web server,
+  Celery worker, jobs scheduler, via `_handle_sigint`), but only correctly
+  if it believes itself to be the foreground process -- and its children
+  only ever listen for SIGINT, so a SIGTERM forwarded by our own wrapper
+  would never have cleanly cascaded to them anyway. Replaced with
+  `os.execve`/`os.execvpe` process replacement (mirrors
+  `cli/library.py`'s `library_shell`/`library_invenio`, and is actually how
+  bash's own `run_server()` behaves too, since `invenio-cli run`/`invenio
+  run` is simply its last foreground command): `ServerRunner.run()` now
+  never returns on success, `process.popen()` was removed entirely (no
+  other caller), and `invenio_cli.popen_invenio_cli()` became
+  `invenio_cli.exec_invenio_cli()`.
 
 **Deliverables**:
-- Server runner with signal handling
+- Server runner
 
 **Tests** (`tests/integration/test_server_runner.py`):
-- [ ] Test server starts with services
-- [ ] Test server starts without celery
-- [ ] Test signal handling stops everything
-- [ ] Test cleanup on interrupt
+- [x] Test server starts with services
+- [x] Test server starts without celery
+- [x] Test signal handling stops everything -- superseded: covers that
+  invenio-cli/invenio are the ones handling signals now (nothing left in
+  `ServerRunner` to test for this), via two real, isolated-subprocess exec
+  tests (`test_run_no_celery_real_exec_replaces_process`,
+  `test_run_with_celery_real_exec_replaces_process`)
+- [x] Test cleanup on interrupt -- superseded, same rationale
 
 ---
 
