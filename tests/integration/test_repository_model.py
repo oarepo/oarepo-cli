@@ -26,6 +26,7 @@ from oarepo_cli.cli.main import app
 from oarepo_cli.core.config import CliConfig, ModelConfig
 from oarepo_cli.core.context import ProjectContext
 from oarepo_cli.core.errors import ConfigurationError
+from oarepo_cli.ui.console import ConsoleOutput  # noqa: TC001
 
 if TYPE_CHECKING:
     from pathlib import Path
@@ -96,8 +97,8 @@ def mock_context(monkeypatch: pytest.MonkeyPatch) -> Mock:
 
 def _fake_model_manager(calls: list[dict[str, object]]) -> type:
     class FakeModelManager:
-        def __init__(self, context: object, *, quiet: bool = False) -> None:
-            calls.append({"context": context, "quiet": quiet})
+        def __init__(self, context: object, console: object) -> None:
+            calls.append({"context": context, "console": console})
             self._calls = calls
 
         def create_model(self, name: str, config_file: object = None) -> None:
@@ -122,7 +123,9 @@ def test_model_create_delegates_to_model_manager(
     result = runner.invoke(app, ["repository", "model", "create", "my_model"])
 
     assert result.exit_code == 0, result.output
-    assert calls[0] == {"context": mock_context, "quiet": False}
+    assert calls[0]["context"] == mock_context
+    assert isinstance(calls[0]["console"], ConsoleOutput)
+    assert calls[0]["console"].is_quiet is False
     assert calls[1] == {"method": "create_model", "name": "my_model", "config_file": None}
 
 
@@ -142,7 +145,9 @@ def test_model_create_passes_config_file_and_quiet(
     )
 
     assert result.exit_code == 0, result.output
-    assert calls[0] == {"context": mock_context, "quiet": True}
+    assert calls[0]["context"] == mock_context
+    assert isinstance(calls[0]["console"], ConsoleOutput)
+    assert calls[0]["console"].is_quiet is True
     assert calls[1] == {
         "method": "create_model",
         "name": "my_model",
@@ -157,7 +162,7 @@ def test_model_create_reports_error_and_exits_1(
     """A ConfigurationError raised by ModelManager is reported cleanly, exit code 1."""
 
     class RaisingModelManager:
-        def __init__(self, context: object, *, quiet: bool = False) -> None:
+        def __init__(self, context: object, console: object) -> None:
             pass
 
         def create_model(self, name: str, config_file: object = None) -> None:  # noqa: ARG002
@@ -199,7 +204,9 @@ def test_model_update_delegates_to_model_manager(
     result = runner.invoke(app, ["repository", "model", "update", "my_model"])
 
     assert result.exit_code == 0, result.output
-    assert calls[0] == {"context": mock_context, "quiet": False}
+    assert calls[0]["context"] == mock_context
+    assert isinstance(calls[0]["console"], ConsoleOutput)
+    assert calls[0]["console"].is_quiet is False
     assert calls[1] == {"method": "update_model", "name": "my_model", "answers_file": None}
 
 
@@ -219,7 +226,9 @@ def test_model_update_passes_answers_file_and_quiet(
     )
 
     assert result.exit_code == 0, result.output
-    assert calls[0] == {"context": mock_context, "quiet": True}
+    assert calls[0]["context"] == mock_context
+    assert isinstance(calls[0]["console"], ConsoleOutput)
+    assert calls[0]["console"].is_quiet is True
     assert calls[1] == {
         "method": "update_model",
         "name": "my_model",
@@ -234,7 +243,7 @@ def test_model_update_reports_error_and_exits_1(
     """A ConfigurationError raised by ModelManager is reported cleanly, exit code 1."""
 
     class RaisingModelManager:
-        def __init__(self, context: object, *, quiet: bool = False) -> None:
+        def __init__(self, context: object, console: object) -> None:
             pass
 
         def update_model(self, name: str, answers_file: object = None) -> None:  # noqa: ARG002

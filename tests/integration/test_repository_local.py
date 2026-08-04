@@ -28,6 +28,7 @@ from oarepo_cli.cli.main import app
 from oarepo_cli.core.config import CliConfig
 from oarepo_cli.core.context import ProjectContext
 from oarepo_cli.core.errors import ConfigurationError
+from oarepo_cli.ui.console import ConsoleOutput  # noqa: TC001
 
 if TYPE_CHECKING:
     from pathlib import Path
@@ -43,8 +44,8 @@ def mock_context(monkeypatch: pytest.MonkeyPatch) -> Mock:
 
 def _fake_local_package_manager(calls: list[dict[str, object]]) -> type:
     class FakeLocalPackageManager:
-        def __init__(self, context: object, *, quiet: bool = False) -> None:
-            calls.append({"context": context, "quiet": quiet})
+        def __init__(self, context: object, console: object) -> None:
+            calls.append({"context": context, "console": console})
             self._calls = calls
 
         def add_package(self, path: object) -> None:
@@ -73,7 +74,9 @@ def test_local_add_delegates_to_local_package_manager(
     result = runner.invoke(app, ["repository", "local", "add", str(tmp_path)])
 
     assert result.exit_code == 0, result.output
-    assert calls[0] == {"context": mock_context, "quiet": False}
+    assert calls[0]["context"] == mock_context
+    assert isinstance(calls[0]["console"], ConsoleOutput)
+    assert calls[0]["console"].is_quiet is False
     assert calls[1] == {"method": "add_package", "path": tmp_path}
 
 
@@ -90,7 +93,9 @@ def test_local_add_passes_quiet(
     result = runner.invoke(app, ["repository", "local", "add", str(tmp_path), "--quiet"])
 
     assert result.exit_code == 0, result.output
-    assert calls[0] == {"context": mock_context, "quiet": True}
+    assert calls[0]["context"] == mock_context
+    assert isinstance(calls[0]["console"], ConsoleOutput)
+    assert calls[0]["console"].is_quiet is True
 
 
 def test_local_add_reports_error_and_exits_1(
@@ -101,7 +106,7 @@ def test_local_add_reports_error_and_exits_1(
     """A ConfigurationError raised by LocalPackageManager is reported cleanly, exit code 1."""
 
     class RaisingLocalPackageManager:
-        def __init__(self, context: object, *, quiet: bool = False) -> None:
+        def __init__(self, context: object, console: object) -> None:
             pass
 
         def add_package(self, path: object) -> None:
@@ -144,7 +149,9 @@ def test_local_remove_delegates_to_local_package_manager(
     result = runner.invoke(app, ["repository", "local", "remove", "mypkg"])
 
     assert result.exit_code == 0, result.output
-    assert calls[0] == {"context": mock_context, "quiet": False}
+    assert calls[0]["context"] == mock_context
+    assert isinstance(calls[0]["console"], ConsoleOutput)
+    assert calls[0]["console"].is_quiet is False
     assert calls[1] == {"method": "remove_package", "name": "mypkg"}
 
 
@@ -161,7 +168,9 @@ def test_local_remove_all_delegates_to_remove_all_packages(
     result = runner.invoke(app, ["repository", "local", "remove", "--all"])
 
     assert result.exit_code == 0, result.output
-    assert calls[0] == {"context": mock_context, "quiet": False}
+    assert calls[0]["context"] == mock_context
+    assert isinstance(calls[0]["console"], ConsoleOutput)
+    assert calls[0]["console"].is_quiet is False
     assert calls[1] == {"method": "remove_all_packages"}
 
 
@@ -194,7 +203,7 @@ def test_local_remove_reports_error_and_exits_1(
     """A ConfigurationError raised by LocalPackageManager is reported cleanly, exit code 1."""
 
     class RaisingLocalPackageManager:
-        def __init__(self, context: object, *, quiet: bool = False) -> None:
+        def __init__(self, context: object, console: object) -> None:
             pass
 
         def remove_package(self, name: str) -> None:  # noqa: ARG002

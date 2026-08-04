@@ -325,7 +325,8 @@ def model_create(
     """
     try:
         context = discover_context()
-        ModelManager(context, quiet=quiet).create_model(name, config_file=config_file)
+        console = ConsoleOutput(quiet=quiet)
+        ModelManager(context, console).create_model(name, config_file=config_file)
     except OARepoError as e:
         console_err = ConsoleOutput(quiet=False)  # Always show errors
         console_err.error(f"\n✗ Model creation failed: {e}\n", fg=typer.colors.RED)
@@ -367,7 +368,8 @@ def model_update(
     """
     try:
         context = discover_context()
-        ModelManager(context, quiet=quiet).update_model(name, answers_file=answers_file)
+        console = ConsoleOutput(quiet=quiet)
+        ModelManager(context, console).update_model(name, answers_file=answers_file)
     except OARepoError as e:
         console_err = ConsoleOutput(quiet=False)  # Always show errors
         console_err.error(f"\n✗ Model update failed: {e}\n", fg=typer.colors.RED)
@@ -400,7 +402,8 @@ def local_add(
     """
     try:
         context = discover_context()
-        LocalPackageManager(context, quiet=quiet).add_package(path)
+        console = ConsoleOutput(quiet=quiet)
+        LocalPackageManager(context, console).add_package(path)
     except OARepoError as e:
         console_err = ConsoleOutput(quiet=False)  # Always show errors
         console_err.error(f"\n✗ Local package addition failed: {e}\n", fg=typer.colors.RED)
@@ -447,7 +450,8 @@ def local_remove(
 
     try:
         context = discover_context()
-        manager = LocalPackageManager(context, quiet=quiet)
+        console = ConsoleOutput(quiet=quiet)
+        manager = LocalPackageManager(context, console)
         if all_packages:
             manager.remove_all_packages()
         elif name is not None:

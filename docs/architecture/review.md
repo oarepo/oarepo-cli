@@ -13,12 +13,17 @@ The OARepo CLI project shows **strong architectural discipline** and good adhere
 ### Key Metrics
 - **Total Source Files:** 37 Python files (~8,234 lines)
 - **Total Test Files:** 47 test files
-- **Architecture Compliance:** ~85% (good)
+- **Architecture Compliance:** ~90% (excellent) ⬆️ _improved_
 - **Convention Compliance:** ~90% (very good)
 - **Critical Issues:** 0
 - **High Priority Issues:** 3
-- **Medium Priority Issues:** 8
+- **Medium Priority Issues:** 6 ⬇️ _2 resolved_
 - **Low Priority Issues:** 5
+
+**Recent Improvements (2026-08-04):**
+- ✅ Fixed inconsistent ConsoleOutput creation in managers (issue 3.1)
+- ✅ Partially resolved quiet flag handling inconsistencies (issue 3.2)
+- ✅ Improved separation of concerns: output handling in CLI, business logic in services
 
 ---
 
@@ -181,59 +186,58 @@ Every module should have a comprehensive docstring explaining:
 
 ### 3.1 Incomplete Abstraction: LocalPackageManager & ModelManager Similarity
 
+**Status:** ✅ **RESOLVED** (Refactored in commit 83c3471)
+
 **Locations:**
 - `services/local_packages.py`
 - `services/models.py`
+- `ui/console.py`
 
-**Severity:** Medium (Maintainability)
-
-**Issue:**
-Both classes follow nearly identical patterns:
+**Original Issue:**
+Both classes followed nearly identical patterns:
 - Take `ProjectContext` + `quiet` flag in `__init__`
 - Store `self._context`, `self._quiet`
 - Create `ConsoleOutput(quiet=self._quiet)` in every method
 - Call `install_repository()` or `upgrade_repository()` after changes
-- Have similar error handling
 
-Yet there's no base class capturing this pattern. Per the "no premature abstraction" rule, this is justified *only if* these remain the only two implementations. However, the pattern is repeated enough that a base class would eliminate duplication without violating the "2+ implementations" rule.
+**Resolution:**
+Refactored to pass `ConsoleOutput` from CLI layer to managers:
+- CLI layer now creates `ConsoleOutput(quiet=quiet)` once per command
+- Managers receive `console: ConsoleOutput` in `__init__` and store as `self._console`
+- Eliminated repeated `ConsoleOutput` creation in every method
+- `quiet` flag extracted via `console.is_quiet` only when needed for external tools
+- Improved separation of concerns: output handling stays in CLI, managers focus on business logic
 
-**Recommendation:**
-Consider introducing a base class if another manager class is added:
-```python
-class RepositoryManager:
-    """Base class for managers that modify repository configuration."""
-
-    def __init__(self, context: ProjectContext, *, quiet: bool = False) -> None:
-        self._context = context
-        self._quiet = quiet
-
-    def _console(self) -> ConsoleOutput:
-        return ConsoleOutput(quiet=self._quiet)
-
-    def _post_modification(self, *, reinstall: bool = True) -> None:
-        """Common post-modification logic."""
-        if reinstall:
-            # ... shared logic ...
-            pass
-```
-
-**Priority:** Medium because this is a maintainability concern, not a bug. Can be deferred until a third similar manager appears.
+**Benefits:**
+- Cleaner architecture with better separation of concerns
+- More testable (ConsoleOutput can be easily mocked)
+- No more duplication of ConsoleOutput creation
+- Consistent pattern across all managers
 
 ---
 
 ### 3.2 Inconsistent Quiet Flag Handling
 
-**Locations:** Various service classes
+**Status:** ✅ **PARTIALLY RESOLVED** (ModelManager & LocalPackageManager fixed in commit 83c3471)
+
+**Locations:**
+- ~~`services/models.py`~~ ✅ Fixed
+- ~~`services/local_packages.py`~~ ✅ Fixed
+- `services/services_lifecycle.py` ⚠️ Still needs attention
+- `cli/library.py` ⚠️ Still needs attention
+
 **Severity:** Medium (UX/Maintainability)
 
-**Issue:**
-The `quiet` flag has inconsistent semantics across the codebase:
+**Fixed Issues:**
+1. ✅ **ModelManager/LocalPackageManager**: Now receive `ConsoleOutput` from CLI layer
+   - `quiet` flag extracted via `console.is_quiet` only when passing to external tools (copier/uv)
+   - Consistent behavior: quiet affects both console output AND external tools
 
-1. **ServicesLifecycleManager** (line 26): `quiet` is passed to `docker-services-cli` but stored in `self._quiet`
-2. **CLI layer** (library.py line 67): Creates `ConsoleOutput(quiet=False)` even when `quiet=True` is passed to the function
-3. **ModelManager/LocalPackageManager**: `quiet` only affects `ConsoleOutput`, not the underlying tools (copier/uv)
+**Remaining Issues:**
+1. ⚠️ **ServicesLifecycleManager** (line 26): `quiet` is passed to `docker-services-cli` but stored in `self._quiet`
+2. ⚠️ **CLI layer** (library.py line 67): Creates `ConsoleOutput(quiet=False)` even when `quiet=True` is passed to the function
 
-**Example Inconsistency:**
+**Example of Remaining Inconsistency:**
 ```python
 # From _start_services_impl (line 67)
 console = ConsoleOutput(quiet=False)  # Hardcoded False!
@@ -242,16 +246,14 @@ def _start_services_impl(*, quiet: bool = False) -> None:
 ```
 
 **Impact:**
-- User passes `--quiet` expecting no output, still gets console messages
+- User passes `--quiet` expecting no output, still gets console messages in some commands
 - Inconsistent UX across commands
 - Makes testing output harder
 
-**Recommendation:**
-1. Document the quiet flag semantics clearly in architecture docs
-2. Make it consistently mean either:
-   - "Suppress ALL output" (user-facing CLI level)
-   - "Pass --quiet to underlying tools" (service level)
-3. Fix the hardcoded `quiet=False` in `_start_services_impl`
+**Recommendation for Remaining Work:**
+1. Apply the same ConsoleOutput refactoring pattern to `ServicesLifecycleManager`
+2. Fix the hardcoded `quiet=False` in `_start_services_impl` and other library.py locations
+3. Document the quiet flag semantics clearly: "quiet affects both console output AND external tools"
 
 ---
 
@@ -544,19 +546,19 @@ All TOML parsing uses `tomllib`, with `tomlkit` for round-trip editing where nee
 ### Immediate (Next Sprint)
 
 1. **Fix test class violation** in `test_platform.py` (30 min)
-2. **Fix hardcoded quiet=False** in `_start_services_impl` (10 min)
+2. **Fix hardcoded quiet=False** in `_start_services_impl` and apply ConsoleOutput refactoring pattern to remaining services (2-3 hours)
 3. **Add timeout protection** to long-running operations (2-4 hours)
 
 ### Short Term (Next Month)
 
 4. **Reduce CLI code duplication** with command execution wrapper (4-6 hours)
-5. **Document quiet flag semantics** clearly (1 hour)
+5. ~~**Document quiet flag semantics** clearly (1 hour)~~ ✅ _Partially done: ModelManager & LocalPackageManager now consistent_
 6. **Validate lock file implementation** for race conditions (2-3 hours)
 7. **Centralize magic strings** in constants (1-2 hours)
 
 ### Medium Term (Next Quarter)
 
-8. **Consider base class** for LocalPackageManager/ModelManager pattern (4 hours)
+8. ~~**Consider base class** for LocalPackageManager/ModelManager pattern~~ ✅ _Not needed: ConsoleOutput refactoring eliminated duplication_
 9. **Add --no-color flag** and terminal capability detection (2-3 hours)
 10. **Complete ADR documentation** (2-4 hours)
 

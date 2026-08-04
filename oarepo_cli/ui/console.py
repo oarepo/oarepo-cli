@@ -26,6 +26,11 @@ class ConsoleOutput:
         """
         self._quiet = quiet
 
+    @property
+    def is_quiet(self) -> bool:
+        """Return whether quiet mode is enabled."""
+        return self._quiet
+
     def info(self, message: str, **kwargs: Any) -> None:
         """Print an info message (suppressed in quiet mode).
 
