@@ -502,11 +502,11 @@ The `repository` subcommand provides tools for managing full OARepo repository i
 | [`model`](#repository-model) | Create/update record models | ✅ Implemented |
 | [`local`](#repository-local) | Manage local package dependencies | ✅ Implemented |
 | [`run`](#repository-run) | Start repository server | ✅ Implemented |
-| `cli` | Delegate to invenio-cli | 🔜 Step 4.10 |
-| `translations` | Compile backend translations | 🔜 Step 4.10 |
-| `index` | Rebuild search index | 🔜 Step 4.10 |
-| `reset` | Full reset with confirmation | 🔜 Step 4.10 |
-| `info` | Show Python version and models | 🔜 Step 4.10 |
+| [`cli`](#repository-cli) | Delegate to invenio-cli | ✅ Implemented |
+| [`translations`](#repository-translations) | Extract/compile translations | ✅ Implemented |
+| [`index`](#repository-index-rebuild) | Rebuild search index | ✅ Implemented |
+| [`reset`](#repository-reset) | Full reset with confirmation | ✅ Implemented |
+| [`info`](#repository-info) | Show Python version and models | ✅ Implemented |
 
 ### `repository install`
 
@@ -698,9 +698,85 @@ oarepo-cli repository run --no-celery -- -p 5001
 - Whatever invenio-cli/invenio itself exits with, once running
 - `1`: Starting Docker services failed, or project context could not be discovered
 
-### Other Repository Commands
+### `repository cli`
 
-_Commands below are to be implemented in Phase 4 (step 4.10)._
+Pure passthrough to invenio-cli: replaces this process (`os.execve`/`os.execvpe`) with `invenio-cli <args>`, so `--help` reaches invenio-cli's own help (not oarepo-cli's), and the exit code is preserved exactly.
+
+```bash
+oarepo-cli repository cli [invenio-cli_args...]
+```
+
+**Examples:**
+```bash
+oarepo-cli repository cli services status
+oarepo-cli repository cli --help
+```
+
+**Exit codes:**
+- Whatever invenio-cli itself exits with
+- `1`: Project context could not be discovered
+
+### `repository translations`
+
+Extracts, merges and compiles translations (backend + JS) via oarepo-tools, or just compiles backend translations with `compile`.
+
+```bash
+oarepo-cli repository translations
+oarepo-cli repository translations compile
+```
+
+`repository translations compile` delegates to `invenio-cli translations compile` (backend only, no extraction). Any other invocation (including no args) runs oarepo-tools' `make-translations`, with all given args forwarded to it verbatim.
+
+**Options:**
+- `--quiet` / `-q`: Suppress output from subprocesses
+
+**Exit codes:**
+- `0`: Success
+- `1`: Failure (translations compile/make-translations failed, or project context could not be discovered)
+
+### `repository index rebuild`
+
+Destroys and re-creates the search index, then rebuilds all records and custom fields.
+
+```bash
+oarepo-cli repository index rebuild
+```
+
+**Options:**
+- `--quiet` / `-q`: Suppress output from subprocesses
+
+**Exit codes:**
+- `0`: Success
+- `1`: Failure (a step failed, or project context could not be discovered)
+
+### `repository reset`
+
+Performs a full reset of the repository: destroys Docker services, removes the virtual environment/`uv.lock`/`.invenio.private`, cleans the uv cache, reinstalls the repository, sets up services again, and creates an administration role and a demo user (`user@demo.org`, password from `DEMO_USER_PASSWORD`, default `123456`).
+
+```bash
+oarepo-cli repository reset
+```
+
+Prompts for confirmation (exactly `yes`) before proceeding, since this **PURGES ALL EXISTING DATA** in your containers. Anything other than exactly `yes` cancels the reset without error.
+
+**Options:**
+- `--quiet` / `-q`: Suppress output from subprocesses
+
+**Exit codes:**
+- `0`: Reset completed, or cancelled by the user
+- `1`: Reset failed partway through, or project context could not be discovered
+
+### `repository info`
+
+Shows the resolved Python version and discovered record models (any directory under `models/` with both `.copier-answers.yml` and `model.py`).
+
+```bash
+oarepo-cli repository info
+```
+
+**Exit codes:**
+- `0`: Success
+- `1`: Project context could not be discovered
 
 ## Configuration
 

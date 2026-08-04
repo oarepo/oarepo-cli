@@ -8,8 +8,7 @@ from __future__ import annotations
 import os
 from typing import TYPE_CHECKING, NoReturn
 
-from oarepo_cli.core.platform import get_platform_detector
-from oarepo_cli.services import invenio_cli
+from oarepo_cli.services import invenio_cli, repository
 from oarepo_cli.ui import ConsoleOutput
 
 if TYPE_CHECKING:
@@ -124,8 +123,7 @@ class ServerRunner:
         binary directly with ``--cert``/``--key``.
         """
         os.chdir(self._context.root_directory)
-        bin_dir = get_platform_detector().get_venv_bin_dir()
-        invenio_path = self._context.venv_path / bin_dir / "invenio"
+        invenio_path = repository.get_invenio_binary(self._context)
         argv = [
             str(invenio_path),
             "run",

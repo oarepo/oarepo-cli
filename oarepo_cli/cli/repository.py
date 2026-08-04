@@ -12,7 +12,7 @@ import typer
 
 from oarepo_cli.core.context import discover_context
 from oarepo_cli.core.errors import OARepoError, ProcessExecutionError
-from oarepo_cli.services import invenio_cli, repository
+from oarepo_cli.services import invenio_cli, repository, translations
 from oarepo_cli.services.local_packages import LocalPackageManager
 from oarepo_cli.services.models import ModelManager
 from oarepo_cli.services.server import ServerRunner
@@ -46,10 +46,18 @@ local_app = typer.Typer(
     no_args_is_help=True,
 )
 
-# Register services, model and local as subcommands of repository
+# Create the index subcommand group
+index_app = typer.Typer(
+    name="index",
+    help="Search index management",
+    no_args_is_help=True,
+)
+
+# Register services, model, local and index as subcommands of repository
 repository_app.add_typer(services_app)
 repository_app.add_typer(model_app)
 repository_app.add_typer(local_app)
+repository_app.add_typer(index_app)
 
 # Each services subcommand is a pure passthrough to invenio-cli: extra
 # arguments/options are forwarded verbatim, and --help must reach
@@ -93,6 +101,11 @@ def model_callback() -> None:
 @local_app.callback()
 def local_callback() -> None:
     """Repository local package command group."""
+
+
+@index_app.callback()
+def index_callback() -> None:
+    """Repository search index command group."""
 
 
 def _run_services_subcommand(ctx: typer.Context, subcommand: str, *, quiet: bool) -> None:
@@ -499,3 +512,167 @@ def run_command(
         console_err = ConsoleOutput(quiet=False)  # Always show errors
         console_err.error(f"\n✗ Failed to start server: {e}\n", fg=typer.colors.RED)
         raise typer.Exit(1) from e
+
+
+@repository_app.command("cli", context_settings=_SERVICES_CONTEXT_SETTINGS)
+def cli_command(ctx: typer.Context) -> None:
+    """Run an arbitrary invenio-cli command in the repository.
+
+    Pure passthrough to invenio-cli: replaces this process (``os.execve``/
+    ``os.execvpe``) with ``invenio-cli <args>``, so ``--help`` reaches
+    invenio-cli's own help (not oarepo-cli's), and the exit code is
+    preserved exactly.
+
+    Examples:
+        $ oarepo-cli repository cli services status
+        $ oarepo-cli repository cli --help
+
+    Exit codes:
+        Whatever invenio-cli itself exits with
+        1: Project context could not be discovered
+    """
+    try:
+        context = discover_context()
+    except (OARepoError, ProcessExecutionError) as e:
+        console_err = ConsoleOutput(quiet=False)
+        console_err.error(f"\n✗ repository cli failed: {e}\n", fg=typer.colors.RED)
+        raise typer.Exit(1) from e
+
+    invenio_cli.exec_invenio_cli(context, ctx.args)
+
+
+@repository_app.command("translations", context_settings=_SERVICES_CONTEXT_SETTINGS)
+def translations_command(
+    ctx: typer.Context,
+    quiet: Annotated[
+        bool, typer.Option("--quiet", "-q", help="Suppress output from subprocesses")
+    ] = False,
+) -> None:
+    """Extract, merge and compile translations (BE + JS) via oarepo-tools.
+
+    Mirrors ``repository_runner.sh``'s ``translations()``: ``repository
+    translations compile`` delegates to ``invenio-cli translations compile``
+    (backend only, no extraction); any other invocation (including no args)
+    runs oarepo-tools' ``make-translations``, with all given args forwarded
+    to it verbatim.
+
+    Examples:
+        $ oarepo-cli repository translations
+        $ oarepo-cli repository translations compile
+
+    Exit codes:
+        0: Success
+        1: Failure (translations compile/make-translations failed, or
+           project context could not be discovered)
+    """
+    try:
+        context = discover_context()
+        if ctx.args and ctx.args[0] == "compile":
+            invenio_cli.run_invenio_cli(context, ["translations", "compile"], quiet=quiet)
+        else:
+            translations.run_translations(context, extra_args=ctx.args, quiet=quiet).check()
+    except (OARepoError, ProcessExecutionError) as e:
+        console_err = ConsoleOutput(quiet=False)
+        console_err.error(f"\n✗ Translations failed: {e}\n", fg=typer.colors.RED)
+        raise typer.Exit(1) from e
+
+
+@index_app.command("rebuild")
+def index_rebuild(
+    quiet: Annotated[
+        bool, typer.Option("--quiet", "-q", help="Suppress output from subprocesses")
+    ] = False,
+) -> None:
+    """Destroy and rebuild the search index (and custom fields).
+
+    See ``services.repository.rebuild_index`` for the individual steps.
+
+    Exit codes:
+        0: Success
+        1: Failure (a step failed, or project context could not be discovered)
+    """
+    try:
+        context = discover_context()
+        repository.rebuild_index(context, quiet=quiet)
+    except (OARepoError, ProcessExecutionError) as e:
+        console_err = ConsoleOutput(quiet=False)
+        console_err.error(f"\n✗ Index rebuild failed: {e}\n", fg=typer.colors.RED)
+        raise typer.Exit(1) from e
+
+
+@repository_app.command("reset")
+def reset_command(
+    quiet: Annotated[
+        bool, typer.Option("--quiet", "-q", help="Suppress output from subprocesses")
+    ] = False,
+) -> None:
+    """Perform a full reset of the repository: wipe all data, reinstall, and reseed demo data.
+
+    See ``services.repository.reset_repository`` for the individual steps.
+    Prompts for confirmation (exactly ``yes``) before proceeding, since this
+    **PURGES ALL EXISTING DATA** in your containers, mirroring
+    ``repository_runner.sh``'s ``reset_repository()``.
+
+    Examples:
+        $ oarepo-cli repository reset
+
+    Exit codes:
+        0: Reset completed, or cancelled by the user
+        1: Reset failed partway through, or project context could not be
+           discovered
+    """
+    console = ConsoleOutput(quiet=False)
+    console.warning("\n⚠️  Performing full reset of the repository...\n")
+    console.info("This will remove all data, virtual environment, and reinstall the repository.")
+    console.warning("Please make sure that server is not running at the moment\n")
+    answer = typer.prompt("Are you sure you want to continue? (yes/no)")
+    if answer != "yes":
+        console.warning("Reset cancelled.\n")
+        raise typer.Exit(0)
+
+    try:
+        context = discover_context()
+        repository.reset_repository(context, quiet=quiet)
+        console.success(
+            "\n✓ Repository reset completed successfully.\n",
+            fg=typer.colors.BRIGHT_GREEN,
+            bold=True,
+        )
+        console.info(
+            "Please run `oarepo-cli repository run` to start the server "
+            "and wait for the initial data to be loaded.\n"
+        )
+    except (OARepoError, ProcessExecutionError) as e:
+        console_err = ConsoleOutput(quiet=False)
+        console_err.error(f"\n✗ Reset failed: {e}\n", fg=typer.colors.RED)
+        raise typer.Exit(1) from e
+
+
+@repository_app.command("info")
+def info_command() -> None:
+    """Show the resolved Python version and discovered record models.
+
+    See ``services.repository.list_repository_models`` for model discovery.
+
+    Exit codes:
+        0: Success
+        1: Project context could not be discovered
+    """
+    try:
+        context = discover_context()
+    except (OARepoError, ProcessExecutionError) as e:
+        console_err = ConsoleOutput(quiet=False)
+        console_err.error(f"\n✗ repository info failed: {e}\n", fg=typer.colors.RED)
+        raise typer.Exit(1) from e
+
+    typer.echo(f"Python version: {context.python_binary}")
+    typer.echo(repository.get_python_version(context))
+    typer.echo("")
+    typer.echo("Models:")
+
+    models = repository.list_repository_models(context)
+    if not models:
+        typer.echo("  No models found.")
+    else:
+        for model in models:
+            typer.echo(f"  - {model.name}: {model.version}")

@@ -1233,20 +1233,88 @@ own help, not invenio-cli's.
 ### Step 4.10: Repository `cli`, `translations`, `index`, `reset`, `info` Commands
 **Goal**: Implement remaining repository commands.
 
-- [ ] Implement `repository_cli()` → passthrough to `invenio-cli`
-- [ ] Implement `repository_translations()` → extract/compile
-- [ ] Implement `repository_index_rebuild()` → destroy/init/rebuild indices
-- [ ] Implement `repository_reset()` → full reset with confirmation prompt
-- [ ] Implement `repository_info()` → show Python version and models
+- [x] Implement `repository_cli()` → passthrough to `invenio-cli`
+- [x] Implement `repository_translations()` → extract/compile
+- [x] Implement `repository_index_rebuild()` → destroy/init/rebuild indices
+- [x] Implement `repository_reset()` → full reset with confirmation prompt
+- [x] Implement `repository_info()` → show Python version and models
+
+**Deviations from the original plan**:
+- `repository cli` reuses Step 4.8's `invenio_cli.exec_invenio_cli()`
+  (`os.execve`/`os.execvpe` process replacement) rather than a blocking
+  call: it's a one-shot passthrough with nothing to do afterward, exactly
+  like `cli/library.py`'s `library_invenio`, so the exit code is preserved
+  exactly and `--help` reaches invenio-cli's own help (via the same
+  `_SERVICES_CONTEXT_SETTINGS` the `services` subcommands already use).
+- `repository translations` mirrors `repository_runner.sh`'s
+  `translations()`'s exact dispatch logic directly (first positional arg
+  ``== "compile"`` → `invenio-cli translations compile`; anything else,
+  including no args, → oarepo-tools `make-translations` with all args
+  forwarded) rather than a Typer subcommand group, since bash's dispatch
+  isn't a clean subcommand split (any arbitrary first arg is valid
+  `make-translations` input, not just a fixed set of subcommands).
+- `repository index` *is* a Typer subcommand group (`index rebuild`), since
+  bash only ever accepts exactly `rebuild` there (unlike `translations`) --
+  matches the `model`/`local`/`services` groups' existing pattern.
+- Added `services/repository.py`: `get_invenio_binary()` (also now reused
+  by `services/server.py`'s `--no-celery` exec path, replacing its former
+  inline `get_platform_detector()` call -- same binary resolution, one
+  fewer duplicate), `rebuild_index()`, `reset_repository()` (confirmation
+  prompt is the CLI layer's responsibility -- mirrors how `local remove`'s
+  validation stays in the CLI layer while the work stays in the service),
+  `get_python_version()`, and `list_repository_models()`/`ModelInfo` for
+  `info`'s model discovery.
+- Found and fixed a pre-existing bug while wiring `reset`'s demo password:
+  `core/config.py`'s `SecurityConfig.demo_user_password` read from
+  `OAREPO_SECURITY_DEMO_PASSWORD`, but both `00-main-architecture.md`'s env
+  var table and `03-migration-guide.md`'s compatibility table (and
+  `repository_runner.sh` itself, via `${DEMO_USER_PASSWORD:-123456}`)
+  document plain `DEMO_USER_PASSWORD` -- i.e. `reset` would have silently
+  ignored the documented, bash-compatible env var. Fixed both `_get_str()`
+  call sites (`from_env()`) and the "using default password" warning
+  message to use `DEMO_USER_PASSWORD`; no existing test referenced the old
+  name.
+- `repository_runner.sh` also has an undocumented `run.sh invenio <args>`
+  bare-invenio passthrough (distinct from `cli`, which maps to
+  `run_invenio_cli`) -- but unlike `library invenio`, it appears nowhere in
+  `00-main-architecture.md`'s or `03-migration-guide.md`'s repository
+  command tables, so (matching how `self-update` was deliberately dropped)
+  it's treated as out of scope for the rewrite, not implemented.
+- Found and fixed a second, unrelated pre-existing bug while manually
+  smoke-testing `repository cli`/`info` against a throwaway project: the
+  `ConfigurationError` raised when no OARepo version can be resolved still
+  said "Add to pyproject.toml `[tool.oarepo-cli]`" -- stale guidance from
+  before Step 3.13 replaced that key with dependency-scanning. Worse,
+  `core/config.py`'s `CliConfig.from_pyproject()` was still actually
+  *reading* `[tool.oarepo-cli].oarepo.version` into `config.oarepo.version`
+  (checked before dependency-scanning in `ContextBuilder.build()`), directly
+  contradicting `PyProjectData.oarepo_versions`'s own warning that the key
+  "is deprecated and ignored" -- it was deprecated but not actually
+  ignored. Fixed by dropping that pyproject-reading block entirely (`oarepo
+  = OARepoConfig()`, unconditionally); `OAREPO_VERSION` (`from_env()`) is
+  now the only remaining manual override, matching
+  `03-migration-guide.md`'s documented behavior. Updated the error message
+  to point at `[project].dependencies` instead. Updated/fixed fixtures that
+  relied on the now-inert pyproject key across `tests/unit/test_context.py`
+  (15 occurrences), `tests/unit/test_config.py` (assertion flipped to
+  `is None`), `tests/integration/test_repository_run.py`,
+  `tests/integration/conftest.py`'s `lint_project` template, and the real
+  `tests/testlib/pyproject.toml` fixture (dependencies already declared
+  `oarepo[rdm,tests]>=14.2.1b10.dev7,<15.0.0`, so the redundant/dead
+  `[tool.oarepo-cli]` block was simply removed there).
 
 **Deliverables**:
 - Complete repository command set
 
-**Tests** (`tests/integration/test_repository_misc.py`):
-- [ ] Test each command executes
-- [ ] Test reset confirmation prompt
-- [ ] Test info output format
-- [ ] Characterization tests
+**Tests** (`tests/integration/test_repository_misc.py`, plus new
+`services/repository.py` coverage in `tests/unit/test_repository_service.py`):
+- [x] Test each command executes
+- [x] Test reset confirmation prompt
+- [x] Test info output format
+- [x] Characterization tests -- via `tests/unit/test_repository_service.py`'s
+  `rebuild_index`/`reset_repository` tests, which assert the exact
+  subcommand sequence against a mocked `process.run`/`invenio_cli`, mirroring
+  bash's own command-by-command sequence
 
 ---
 

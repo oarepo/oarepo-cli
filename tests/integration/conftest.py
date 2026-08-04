@@ -33,9 +33,7 @@ PYPROJECT_TOML = """\
 name = "{name}"
 version = "0.1.0"
 requires-python = ">=3.14,<3.15"
-
-[tool.oarepo-cli]
-oarepo = {{ version = 14 }}
+dependencies = ["oarepo>=14.0.0,<15.0.0"]
 
 [build-system]
 requires = ["hatchling"]
