@@ -179,12 +179,30 @@ class LocalPackageManager:
         return names
 
     def _read_document(self) -> TOMLDocument:
+        """Read and parse the project's pyproject.toml file.
+
+        Returns:
+            Parsed TOML document as a tomlkit object
+        """
         return tomlkit.parse(self._context.pyproject_path.read_text(encoding="utf-8"))
 
     def _write_document(self, document: TOMLDocument) -> None:
+        """Write the TOML document back to pyproject.toml.
+
+        Args:
+            document: The TOML document to write
+        """
         self._context.pyproject_path.write_text(tomlkit.dumps(document), encoding="utf-8")
 
     def _uv_sources_table(self, document: TOMLDocument) -> Table:
+        """Get or create the [tool.uv.sources] table in the TOML document.
+
+        Args:
+            document: The TOML document to navigate
+
+        Returns:
+            The [tool.uv.sources] table, creating intermediate tables if needed
+        """
         tool = document.setdefault("tool", tomlkit.table())
         uv = tool.setdefault("uv", tomlkit.table())
         return uv.setdefault("sources", tomlkit.table())
@@ -208,10 +226,25 @@ def _dependency_name(dependency_spec: str) -> str | None:
 
 
 def _has_dependency(dependencies: Array, name: str) -> bool:
+    """Check if a dependency with the given name exists in the dependencies array.
+
+    Args:
+        dependencies: TOML array of dependency specifiers
+        name: Canonicalized package name to check for
+
+    Returns:
+        True if a dependency with the given name exists, False otherwise
+    """
     return any(_dependency_name(dep) == name for dep in dependencies)
 
 
 def _remove_dependency(dependencies: Array, name: str) -> None:
+    """Remove the dependency with the given name from the dependencies array.
+
+    Args:
+        dependencies: TOML array of dependency specifiers to modify in-place
+        name: Canonicalized package name to remove
+    """
     for index, dep in enumerate(list(dependencies)):
         if _dependency_name(dep) == name:
             del dependencies[index]
