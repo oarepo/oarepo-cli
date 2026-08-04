@@ -117,3 +117,11 @@ discussed/scoped as its own step rather than assumed.
 4. Decide whether to add `repository invenio` for bash parity (§3.1).
 5. Confirm whether repository-side lint/format tooling is in scope at all
    (§4) before doing any work there.
+
+**Triage outcome**: all of the above are now planned as
+[implementation-steps.md](./implementation-steps.md) Steps 4.11-4.20 --
+4.11-4.14 cover §2.1-2.4 (the four verified bugs above), narrowing exception
+handling was decided in favor of `repository.py`'s pattern (§2.2), and
+4.15-4.20 cover `repository invenio`/`shell` plus porting `lint`/`format`/
+`check`/`jslint`/`jstest`/`test` to `repository` (§3.1 and §4, both resolved
+as "yes, add them" -- §4's open question is no longer open).
