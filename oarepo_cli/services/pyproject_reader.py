@@ -106,6 +106,30 @@ class PyProjectData:
         """Default extras to always install, from [tool.oarepo].default_extras."""
         return self.raw.get("tool", {}).get("oarepo", {}).get("default_extras", [])
 
+    @property
+    def uv_build_module_names(self) -> list[str]:
+        """Module names from [tool.uv.build-backend].module-name, if any.
+
+        Repositories built with the ``uv_build`` backend declare their
+        source as several top-level module directories here (e.g.
+        ``["common", "i18n", "ui"]``), unlike a library's single ``src/``
+        or ``<package_name>/`` directory. Empty if the project uses a
+        different build backend or doesn't set this key.
+        """
+        return (
+            self.raw.get("tool", {}).get("uv", {}).get("build-backend", {}).get("module-name", [])
+        )
+
+    @property
+    def uv_build_module_root(self) -> str:
+        """Root prefix for `uv_build_module_names`, from [tool.uv.build-backend].module-root.
+
+        Defaults to "" (project root itself), matching ``uv_build``'s own default.
+        """
+        return (
+            self.raw.get("tool", {}).get("uv", {}).get("build-backend", {}).get("module-root", "")
+        )
+
 
 def _extract_oarepo_version_from_specifier(dep_spec: str) -> int | None:
     """Extract major version from an oarepo dependency specifier.

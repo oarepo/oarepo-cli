@@ -224,6 +224,38 @@ default_extras = ["dev", "tests"]
     assert data.default_extras == ["dev", "tests"]
 
 
+def test_extracts_uv_build_module_names_and_root(tmp_path: Path) -> None:
+    (tmp_path / "pyproject.toml").write_text(
+        """
+[project]
+name = "test-repository"
+
+[tool.uv.build-backend]
+module-root = ""
+module-name = ["common", "i18n", "ui"]
+"""
+    )
+
+    data = pyproject_reader.PyProjectReader().read(tmp_path / "pyproject.toml")
+
+    assert data.uv_build_module_names == ["common", "i18n", "ui"]
+    assert data.uv_build_module_root == ""
+
+
+def test_uv_build_module_names_and_root_default_when_absent(tmp_path: Path) -> None:
+    (tmp_path / "pyproject.toml").write_text(
+        """
+[project]
+name = "test-package"
+"""
+    )
+
+    data = pyproject_reader.PyProjectReader().read(tmp_path / "pyproject.toml")
+
+    assert data.uv_build_module_names == []
+    assert data.uv_build_module_root == ""
+
+
 def test_missing_file_raises_configuration_error(tmp_path: Path) -> None:
     with pytest.raises(ConfigurationError) as exc_info:
         pyproject_reader.PyProjectReader().read(tmp_path / "nonexistent.toml")

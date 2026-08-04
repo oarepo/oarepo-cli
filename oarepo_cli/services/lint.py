@@ -173,6 +173,12 @@ class LintRunner:
 
         _write_config(root / "ty.toml", resources.read_text("ty.toml.tmpl"))
 
+        # Every source directory, not just the first: a library's
+        # code_directories only ever has one (plus tests/), but a
+        # multi-module repository (see ProjectContext.code_directories) has
+        # several, and ty needs to see all of them, not just the first.
+        source_directories = [d for d in code_directories if d.name != "tests"]
+
         venv_python = self._context.venv_path / "bin" / "python"
         return process.run(
             [
@@ -181,7 +187,7 @@ class LintRunner:
                 *fix_flag,
                 "--python",
                 str(venv_python),
-                str(code_directories[0]),
+                *(str(d) for d in source_directories),
             ],
             cwd=root,
             check=False,
