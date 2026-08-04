@@ -93,6 +93,7 @@ oarepo-cli library test
 | `./run.sh run --no-services` | `oarepo-cli repository run --no-services` | Same flag |
 | `./run.sh run --no-celery` | `oarepo-cli repository run --no-celery` | Same flag |
 | `./run.sh cli <subcommand>` | `oarepo-cli repository cli <subcommand>` | Identical behavior |
+| `./run.sh invenio <args>` | `oarepo-cli repository invenio <args>` | Identical behavior (added in Step 4.16 -- previously unported, see `after_repository_cleanup.md` §3.1) |
 | `./run.sh translations` | `oarepo-cli repository translations` | Identical behavior |
 | `./run.sh translations compile` | `oarepo-cli repository translations compile` | Identical behavior |
 | `./run.sh index rebuild` | `oarepo-cli repository index rebuild` | Identical behavior |

@@ -9,7 +9,7 @@ import os
 import re
 from dataclasses import dataclass
 from pathlib import Path
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, NoReturn
 
 from oarepo_cli.core.platform import get_platform_detector
 from oarepo_cli.services import invenio_cli, process, translations
@@ -355,6 +355,35 @@ def get_invenio_binary(context: ProjectContext) -> Path:
     """Resolve the path to the venv's own ``invenio`` binary (bare, not ``invenio-cli``)."""
     bin_dir = get_platform_detector().get_venv_bin_dir()
     return context.venv_path / bin_dir / "invenio"
+
+
+def exec_invenio(context: ProjectContext, args: Sequence[str]) -> NoReturn:
+    """Replace the current process with the venv's own ``invenio`` binary. Never returns.
+
+    Mirrors ``repository_runner.sh``'s ``run_invenio()`` (``export
+    PYTHONWARNINGS=ignore; activate_venv; invenio "$@"``): a pure, one-shot
+    passthrough to the bare ``invenio`` CLI (not ``invenio-cli``, which
+    ``invenio_cli.exec_invenio_cli`` handles), like ``cli/library.py``'s
+    ``library_invenio``. Process replacement (``os.execve``) lets a
+    terminal Ctrl+C hit ``invenio`` directly, exactly as if the user had
+    run it themselves, and preserves its exit code exactly -- mirrors
+    ``ServerRunner._exec_bare_invenio``'s same approach for ``invenio run``
+    specifically.
+
+    Args:
+        context: Project context with paths and configuration -- also
+            ``chdir``s into ``context.root_directory`` first, since
+            ``execve`` has no ``cwd`` parameter of its own
+        args: Arguments to pass to ``invenio``
+
+    Raises:
+        OSError: If the invenio binary can't be exec'd (not found, not
+            executable, ...)
+    """
+    os.chdir(context.root_directory)
+    binary = get_invenio_binary(context)
+    env = {**os.environ, "PYTHONWARNINGS": "ignore"}
+    os.execve(str(binary), [str(binary), *args], env)
 
 
 def _run_invenio(context: ProjectContext, args: Sequence[str], *, quiet: bool = False) -> None:

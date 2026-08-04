@@ -1615,7 +1615,7 @@ unported bash capability in the post-Phase-4 audit
 `invenio-cli`); `library invenio` already has a direct analog, `repository`
 never got one.
 
-- [ ] Add `repository invenio` to `cli/repository.py`: a pure passthrough
+- [x] Add `repository invenio` to `cli/repository.py`: a pure passthrough
   to the venv's own `invenio` binary, process-replacing (`os.execve`/
   `os.execvpe`) like `repository cli` does via `invenio_cli.exec_invenio_cli`
   -- so `--help` reaches `invenio`'s own help and the exit code is preserved
@@ -1625,22 +1625,32 @@ never got one.
   `exec_invenio_cli`) rather than the current blocking `_run_invenio()`,
   since this is a one-shot interactive command like `cli`, not a sequence of
   internal calls
-- [ ] Use the same `_SERVICES_CONTEXT_SETTINGS` context settings as `cli`/
+- [x] Use the same `_SERVICES_CONTEXT_SETTINGS` context settings as `cli`/
   `translations` (`allow_extra_args`, `ignore_unknown_options`,
   `help_option_names: []`) so arbitrary `invenio` subcommands and `--help`
   both pass through untouched
-- [ ] Update `03-migration-guide.md`'s repository command table and
+- [x] Update `03-migration-guide.md`'s repository command table and
   `00-main-architecture.md` §1.3 to list `invenio` alongside `cli`
+
+**Deviation from the original plan**: added a standalone
+`services.repository.exec_invenio()` function (not a shared helper with
+`invenio_cli.exec_invenio_cli`) -- the two exec bare, different binaries
+(`invenio` vs. `invenio-cli`) with different env needs (`PYTHONWARNINGS=
+ignore`, mirroring bash's `run_invenio()`, vs. invenio-cli's
+`UV_PRERELEASE` handling), so sharing would have meant a parameterized
+helper for two one-line call sites -- not worth the indirection. Mirrors
+`ServerRunner._exec_bare_invenio`'s identical approach for `invenio run`
+specifically.
 
 **Deliverables**:
 - `oarepo-cli repository invenio <args>` mirrors `run.sh invenio <args>`
 
 **Tests** (mirroring `tests/integration/test_repository_misc.py`'s existing
 `cli` coverage):
-- [ ] Test forwards arbitrary args to the venv's `invenio` binary
-- [ ] Test `--help` reaches `invenio`'s own help output
-- [ ] Test exit code is preserved exactly
-- [ ] Test failure when project context can't be discovered
+- [x] Test forwards arbitrary args to the venv's `invenio` binary
+- [x] Test `--help` reaches `invenio`'s own help output
+- [x] Test exit code is preserved exactly
+- [x] Test failure when project context can't be discovered
 
 ---
 

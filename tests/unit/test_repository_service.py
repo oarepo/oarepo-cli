@@ -261,6 +261,35 @@ def test_get_invenio_binary_resolves_venv_bin_dir(tmp_path: Path) -> None:
     assert repository.get_invenio_binary(context) == tmp_path / ".venv" / bin_dir / "invenio"
 
 
+def test_exec_invenio_chdirs_and_execs_resolved_binary(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """exec_invenio() chdirs into the project root first (execve has no cwd of its own),
+    then execve's into the venv's own invenio binary with args appended, setting
+    PYTHONWARNINGS=ignore like repository_runner.sh's run_invenio()."""
+    context = Mock(spec=ProjectContext)
+    context.root_directory = tmp_path
+    context.venv_path = tmp_path / ".venv"
+
+    chdir_calls = []
+    execve_calls = []
+    monkeypatch.setattr("oarepo_cli.services.repository.os.chdir", chdir_calls.append)
+    monkeypatch.setattr(
+        "oarepo_cli.services.repository.os.execve",
+        lambda *args: execve_calls.append(args),
+    )
+
+    repository.exec_invenio(context, ["db", "upgrade"])
+
+    assert chdir_calls == [tmp_path]
+    assert len(execve_calls) == 1
+    binary, argv, env = execve_calls[0]
+    expected_binary = str(repository.get_invenio_binary(context))
+    assert binary == expected_binary
+    assert argv == [expected_binary, "db", "upgrade"]
+    assert env["PYTHONWARNINGS"] == "ignore"
+
+
 def test_rebuild_index_runs_expected_invenio_sequence(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:

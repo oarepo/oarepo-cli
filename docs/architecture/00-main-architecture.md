@@ -176,6 +176,7 @@ extras now get all versions reported, restoring the bash script's capability.
 | `local` | `add <path>`, `remove <name>\|--all>` | Local package management | Must preserve |
 | `run` | `--no-services`, `--no-celery` | Start repository server | Must preserve |
 | `cli` | `[subcommand...]` | Delegates to invenio-cli | Must preserve |
+| `invenio` | `[subcommand...]` | Delegates to the venv's own bare invenio (not invenio-cli) | Must preserve |
 | `translations` | `compile` | Backend translations only | Must preserve |
 | `index` | `rebuild` | Rebuild search index | Must preserve |
 | `reset` | - | Full reset with confirmation prompt | Must preserve |

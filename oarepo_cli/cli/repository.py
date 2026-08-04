@@ -541,6 +541,34 @@ def cli_command(ctx: typer.Context) -> None:
     invenio_cli.exec_invenio_cli(context, ctx.args)
 
 
+@repository_app.command("invenio", context_settings=_SERVICES_CONTEXT_SETTINGS)
+def invenio_command(ctx: typer.Context) -> None:
+    """Run an arbitrary bare invenio command in the repository's virtual environment.
+
+    Pure passthrough to the venv's own ``invenio`` binary (not
+    ``invenio-cli`` -- see ``repository cli`` for that): replaces this
+    process (``os.execve``) with ``invenio <args>``, so ``--help`` reaches
+    invenio's own help (not oarepo-cli's), and the exit code is preserved
+    exactly.
+
+    Examples:
+        $ oarepo-cli repository invenio db upgrade
+        $ oarepo-cli repository invenio --help
+
+    Exit codes:
+        Whatever invenio itself exits with
+        1: Project context could not be discovered
+    """
+    try:
+        context = discover_context()
+    except OARepoError as e:
+        console_err = ConsoleOutput(quiet=False)
+        console_err.error(f"\n✗ repository invenio failed: {e}\n", fg=typer.colors.RED)
+        raise typer.Exit(1) from e
+
+    repository.exec_invenio(context, ctx.args)
+
+
 @repository_app.command("translations", context_settings=_SERVICES_CONTEXT_SETTINGS)
 def translations_command(
     ctx: typer.Context,
