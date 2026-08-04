@@ -10,8 +10,10 @@ from unittest.mock import Mock
 
 import pytest
 
+from oarepo_cli.core.config import CliConfig, SecurityConfig
 from oarepo_cli.core.context import ProjectContext
-from oarepo_cli.services import repository
+from oarepo_cli.core.platform import get_platform_detector
+from oarepo_cli.services import process, repository
 
 
 @pytest.fixture
@@ -173,3 +175,187 @@ def test_ensure_instance_structure_idempotent(tmp_path: Path) -> None:
     # Should not raise
     assert instance_path.exists()
     assert (instance_path / "invenio.cfg").exists()
+
+
+def _fake_process_result(**overrides: object) -> process.ProcessResult:
+    defaults: dict[str, object] = {
+        "return_code": 0,
+        "stdout": "",
+        "stderr": "",
+        "command": [],
+        "cwd": Path(),
+        "duration_ms": 0,
+    }
+    defaults.update(overrides)
+    return process.ProcessResult(**defaults)  # type: ignore[arg-type]
+
+
+def test_get_invenio_binary_resolves_venv_bin_dir(tmp_path: Path) -> None:
+    """get_invenio_binary() resolves <venv>/<bin_dir>/invenio, platform-aware."""
+    context = Mock(spec=ProjectContext)
+    context.venv_path = tmp_path / ".venv"
+
+    bin_dir = get_platform_detector().get_venv_bin_dir()
+    assert repository.get_invenio_binary(context) == tmp_path / ".venv" / bin_dir / "invenio"
+
+
+def test_rebuild_index_runs_expected_invenio_sequence(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """rebuild_index() runs the exact invenio subcommand sequence
+    repository_runner.sh's rebuild_index() does, via the bare venv invenio binary."""
+    context = Mock(spec=ProjectContext)
+    context.venv_path = tmp_path / ".venv"
+    context.root_directory = tmp_path
+
+    calls: list[list[str]] = []
+
+    def fake_run(command: list[str], **_kwargs: object) -> process.ProcessResult:
+        calls.append(list(command))
+        return _fake_process_result()
+
+    monkeypatch.setattr("oarepo_cli.services.repository.process.run", fake_run)
+
+    repository.rebuild_index(context, quiet=True)
+
+    invenio = str(repository.get_invenio_binary(context))
+    assert calls == [
+        [invenio, "index", "destroy", "--yes-i-know"],
+        [invenio, "index", "init"],
+        [invenio, "rdm-records", "custom-fields", "init"],
+        [invenio, "communities", "custom-fields", "init"],
+        [invenio, "rdm", "rebuild-all-indices"],
+    ]
+
+
+def test_reset_repository_runs_expected_sequence(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """reset_repository() destroys services (ignoring failure), wipes venv/lock/private
+    config, cleans the uv cache, reinstalls, sets up services, and seeds a demo admin."""
+    context = Mock(spec=ProjectContext)
+    context.root_directory = tmp_path
+    context.venv_path = tmp_path / ".venv"
+    context.config = CliConfig(security=SecurityConfig(demo_user_password="testpass123"))
+
+    invenio_cli_calls: list[dict[str, object]] = []
+    process_calls: list[list[str]] = []
+    install_calls: list[object] = []
+    cleanup_calls: list[object] = []
+
+    def fake_run_invenio_cli(_context: object, args: list[str], **kwargs: object) -> None:
+        invenio_cli_calls.append({"args": list(args), **kwargs})
+
+    def fake_process_run(command: list[str], **_kwargs: object) -> process.ProcessResult:
+        process_calls.append(list(command))
+        return _fake_process_result()
+
+    monkeypatch.setattr(
+        "oarepo_cli.services.repository.invenio_cli.run_invenio_cli", fake_run_invenio_cli
+    )
+    monkeypatch.setattr("oarepo_cli.services.repository.process.run", fake_process_run)
+    monkeypatch.setattr(
+        "oarepo_cli.services.repository.install_repository",
+        lambda _context, **kwargs: install_calls.append(kwargs),
+    )
+    monkeypatch.setattr(
+        "oarepo_cli.services.repository.VirtualEnvironmentManager.cleanup",
+        lambda _self: cleanup_calls.append(True),
+    )
+
+    (tmp_path / "uv.lock").write_text("old lock")
+    (tmp_path / ".invenio.private").write_text("old settings")
+
+    repository.reset_repository(context, quiet=True)
+
+    # services destroy runs with check=False (failure ignored, like `services destroy || true`)
+    assert invenio_cli_calls[0]["args"] == ["services", "destroy"]
+    assert invenio_cli_calls[0]["check"] is False
+
+    assert cleanup_calls == [True]
+    assert not (tmp_path / "uv.lock").exists()
+    assert not (tmp_path / ".invenio.private").exists()
+    assert ["uv", "cache", "clean", "--force"] in process_calls
+
+    assert install_calls == [{"quiet": True}]
+
+    # services setup -N runs with check=True (must succeed, aborts reset otherwise)
+    assert invenio_cli_calls[1]["args"] == ["services", "setup", "-N"]
+    assert invenio_cli_calls[1]["check"] is True
+
+    invenio = str(repository.get_invenio_binary(context))
+    assert [invenio, "roles", "create", "administration"] in process_calls
+    assert [
+        invenio,
+        "access",
+        "allow",
+        "administration-access",
+        "role",
+        "administration",
+    ] in process_calls
+    assert [
+        invenio,
+        "users",
+        "create",
+        "-a",
+        "-c",
+        "user@demo.org",
+        "--password",
+        "testpass123",
+    ] in process_calls
+    assert [invenio, "roles", "add", "user@demo.org", "administration"] in process_calls
+
+
+def test_list_repository_models_finds_valid_models(tmp_path: Path) -> None:
+    """list_repository_models() only counts dirs with both .copier-answers.yml and
+    model.py, extracting the version from the first `version = "..."` match."""
+    context = Mock(spec=ProjectContext)
+    context.root_directory = tmp_path
+
+    valid = tmp_path / "models" / "valid_model"
+    valid.mkdir(parents=True)
+    (valid / ".copier-answers.yml").write_text("_src_path: x\n")
+    (valid / "model.py").write_text('METADATA = {}\nversion = "1.2.3"\n')
+
+    no_version = tmp_path / "models" / "no_version_model"
+    no_version.mkdir(parents=True)
+    (no_version / ".copier-answers.yml").write_text("_src_path: x\n")
+    (no_version / "model.py").write_text("METADATA = {}\n")
+
+    missing_answers = tmp_path / "models" / "missing_answers"
+    missing_answers.mkdir(parents=True)
+    (missing_answers / "model.py").write_text('version = "9.9.9"\n')
+
+    not_a_model_dir = tmp_path / "models" / "just_a_dir"
+    not_a_model_dir.mkdir(parents=True)
+
+    models = repository.list_repository_models(context)
+
+    # missing_answers (no .copier-answers.yml) and just_a_dir (neither file) are excluded;
+    # remaining two are sorted by directory name.
+    assert models == [
+        repository.ModelInfo(name="no_version_model", version="unknown"),
+        repository.ModelInfo(name="valid_model", version="1.2.3"),
+    ]
+
+
+def test_list_repository_models_returns_empty_without_models_dir(tmp_path: Path) -> None:
+    """No models/ directory at all -> empty list, not an error."""
+    context = Mock(spec=ProjectContext)
+    context.root_directory = tmp_path
+
+    assert repository.list_repository_models(context) == []
+
+
+def test_get_python_version_returns_stripped_output(monkeypatch: pytest.MonkeyPatch) -> None:
+    """get_python_version() runs `<python_binary> --version` and returns the stripped
+    output, mirroring repository_runner.sh's show_info()'s `"$PYTHON" --version`."""
+    context = Mock(spec=ProjectContext)
+    context.python_binary = Path("/usr/bin/python3.14")
+
+    monkeypatch.setattr(
+        "oarepo_cli.services.repository.process.run",
+        lambda *_args, **_kwargs: _fake_process_result(stdout="Python 3.14.4\n"),
+    )
+
+    assert repository.get_python_version(context) == "Python 3.14.4"

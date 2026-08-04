@@ -181,7 +181,7 @@ class CliConfig:
             ),
             license=LicenseConfig(organization=_get_str("OAREPO_LICENSE_ORG", "CESNET z.s.p.o")),
             security=SecurityConfig(
-                demo_user_password=_get_str("OAREPO_SECURITY_DEMO_PASSWORD", "123456"),
+                demo_user_password=_get_str("DEMO_USER_PASSWORD", "123456"),
             ),
         )
 
@@ -241,10 +241,12 @@ class CliConfig:
         python_binary = python_data.get("binary")
         python = PythonConfig(binary=python_binary if python_binary else None)
 
-        # OARepo config
-        oarepo_data = get_nested(tool_data, "oarepo", default={})
-        oarepo_version = oarepo_data.get("version")
-        oarepo = OARepoConfig(version=int(oarepo_version) if oarepo_version is not None else None)
+        # OARepo version is deliberately never read from pyproject.toml here:
+        # [tool.oarepo-cli].oarepo.version is deprecated (see
+        # PyProjectData.oarepo_versions's own warning) -- the version is
+        # extracted from [project].dependencies instead, with OAREPO_VERSION
+        # (from_env(), merged over this) as the only remaining override.
+        oarepo = OARepoConfig()
 
         # Services config
         services_data = get_nested(tool_data, "services", default={})
@@ -442,7 +444,7 @@ class CliConfig:
             import warnings
 
             warnings.warn(
-                "Using default demo user password. Consider changing OAREPO_SECURITY_DEMO_PASSWORD",
+                "Using default demo user password. Consider changing DEMO_USER_PASSWORD",
                 UserWarning,
                 stacklevel=2,
             )

@@ -289,8 +289,9 @@ class ContextBuilder:
             oarepo_version = pyproject_data.oarepo_versions[0]
         else:
             raise ConfigurationError(
-                "OARepo version not specified. Add to pyproject.toml [tool.oarepo-cli] "
-                "or set OAREPO_VERSION environment variable"
+                "OARepo version not specified. Add an 'oarepo' dependency to "
+                "[project].dependencies (or [project.optional-dependencies]) in "
+                "pyproject.toml, or set the OAREPO_VERSION environment variable"
             )
 
         # Validate venv path exists or can be created

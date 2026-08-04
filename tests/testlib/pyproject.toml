@@ -24,9 +24,6 @@ oarepo14 = [
     "oarepo[rdm,tests]>=14.2.1b10.dev7,<15.0.0",
 ]
 
-[tool.oarepo-cli]
-oarepo = { version = "14" }
-
 [tool.pytest.ini_options]
 # Anchors pytest's rootdir/conftest discovery here so `library test` runs
 # (this project is nested under oarepo-cli/tests/) don't climb up into

@@ -7,14 +7,18 @@ from __future__ import annotations
 
 import os
 import re
+from dataclasses import dataclass
 from pathlib import Path
 from typing import TYPE_CHECKING
 
+from oarepo_cli.core.platform import get_platform_detector
 from oarepo_cli.services import invenio_cli, process, translations
 from oarepo_cli.services.venv import VenvRequirements, VirtualEnvironmentManager
 from oarepo_cli.ui import ConsoleOutput
 
 if TYPE_CHECKING:
+    from collections.abc import Sequence
+
     from oarepo_cli.core.context import ProjectContext
 
 
@@ -337,3 +341,190 @@ def upgrade_repository(context: ProjectContext, *, quiet: bool = False) -> None:
 
     console.info("→ Reinstalling repository...\n")
     install_repository(context, quiet=quiet)
+
+
+def get_invenio_binary(context: ProjectContext) -> Path:
+    """Resolve the path to the venv's own ``invenio`` binary (bare, not ``invenio-cli``)."""
+    bin_dir = get_platform_detector().get_venv_bin_dir()
+    return context.venv_path / bin_dir / "invenio"
+
+
+def _run_invenio(context: ProjectContext, args: Sequence[str], *, quiet: bool = False) -> None:
+    """Run a bare ``invenio`` subcommand in the venv, waiting for it to complete.
+
+    Unlike ``ServerRunner``, which ``exec``s the final long-running ``invenio
+    run``, callers here (``rebuild_index``, ``reset_repository``) need to run
+    several one-shot commands in sequence, so this blocks and raises on
+    failure like any other subprocess call in this module.
+    """
+    process.run(
+        [str(get_invenio_binary(context)), *args],
+        cwd=context.root_directory,
+        check=True,
+        interactive=not quiet,
+    )
+
+
+def rebuild_index(context: ProjectContext, *, quiet: bool = False) -> None:
+    """Destroy and re-create the search index, then rebuild all records/custom fields.
+
+    Mirrors ``repository_runner.sh``'s ``rebuild_index()``: a sequence of bare
+    ``invenio`` subcommands (not ``invenio-cli``), run directly against the venv.
+
+    Args:
+        context: Project context with paths and configuration
+        quiet: If True, suppress status/progress messages
+
+    Raises:
+        ProcessExecutionError: If any of the ``invenio`` subcommands fail
+    """
+    console = ConsoleOutput(quiet=quiet)
+
+    console.info("→ Destroying search index...\n")
+    _run_invenio(context, ["index", "destroy", "--yes-i-know"], quiet=quiet)
+
+    console.info("→ Initializing search index...\n")
+    _run_invenio(context, ["index", "init"], quiet=quiet)
+
+    console.info("→ Initializing custom fields...\n")
+    _run_invenio(context, ["rdm-records", "custom-fields", "init"], quiet=quiet)
+    _run_invenio(context, ["communities", "custom-fields", "init"], quiet=quiet)
+
+    console.info("→ Rebuilding all indices...\n")
+    _run_invenio(context, ["rdm", "rebuild-all-indices"], quiet=quiet)
+
+    console.success("✓ Search index was destroyed and re-created\n")
+    console.info(
+        "Please run the server with workers (oarepo-cli repository run) to complete the indexing.\n"
+    )
+
+
+def reset_repository(context: ProjectContext, *, quiet: bool = False) -> None:
+    """Full reset: destroy services, wipe venv/lock/local config, reinstall, reseed demo data.
+
+    Mirrors ``repository_runner.sh``'s ``reset_repository()`` (the confirmation
+    prompt is the caller's responsibility, e.g. ``cli/repository.py``'s
+    ``reset`` command -- this always proceeds unconditionally). Docker
+    service destruction failure (e.g. nothing was running) is deliberately
+    ignored, matching bash's ``services destroy || true``; every other step
+    raises on failure.
+
+    Args:
+        context: Project context with paths and configuration
+        quiet: If True, suppress status/progress messages
+
+    Raises:
+        ProcessExecutionError: If reinstalling, setting up services, or
+            seeding the demo admin/user fails
+    """
+    console = ConsoleOutput(quiet=quiet)
+
+    console.info("→ Stopping and removing services (if running)...\n")
+    invenio_cli.run_invenio_cli(context, ["services", "destroy"], quiet=quiet, check=False)
+
+    venv_manager = VirtualEnvironmentManager(context.config, context.root_directory)
+    if context.venv_path.exists():
+        console.info("→ Removing virtual environment...\n")
+    venv_manager.cleanup()
+
+    uv_lock = context.root_directory / "uv.lock"
+    if uv_lock.exists():
+        console.info("→ Removing uv.lock...\n")
+        uv_lock.unlink()
+
+    invenio_private = context.root_directory / ".invenio.private"
+    if invenio_private.exists():
+        console.info("→ Removing local invenio settings...\n")
+        invenio_private.unlink()
+
+    console.info("→ Cleaning uv cache...\n")
+    process.run(["uv", "cache", "clean", "--force"], check=True, interactive=not quiet)
+
+    console.info("→ Reinstalling repository...\n")
+    install_repository(context, quiet=quiet)
+
+    console.info("→ Setting up services...\n")
+    invenio_cli.run_invenio_cli(context, ["services", "setup", "-N"], quiet=quiet, check=True)
+
+    console.info("→ Creating administration group and a sample user@demo.org...\n")
+    _run_invenio(context, ["roles", "create", "administration"], quiet=quiet)
+    _run_invenio(
+        context,
+        ["access", "allow", "administration-access", "role", "administration"],
+        quiet=quiet,
+    )
+    _run_invenio(
+        context,
+        ["access", "allow", "administration-moderation", "role", "administration"],
+        quiet=quiet,
+    )
+    _run_invenio(
+        context,
+        [
+            "users",
+            "create",
+            "-a",
+            "-c",
+            "user@demo.org",
+            "--password",
+            context.config.security.demo_user_password,
+        ],
+        quiet=quiet,
+    )
+    _run_invenio(context, ["roles", "add", "user@demo.org", "administration"], quiet=quiet)
+
+
+def get_python_version(context: ProjectContext) -> str:
+    """Return the resolved Python interpreter's version string (e.g. "Python 3.14.4").
+
+    Mirrors ``repository_runner.sh``'s ``show_info()``: ``"$PYTHON" --version``.
+    """
+    result = process.run(
+        [str(context.python_binary), "--version"],
+        check=False,
+        capture_output=True,
+    )
+    return (result.stdout or result.stderr).strip()
+
+
+@dataclass(frozen=True)
+class ModelInfo:
+    """A discovered record model: name and version extracted from its ``model.py``."""
+
+    name: str
+    version: str
+
+
+_MODEL_VERSION_PATTERN = re.compile(r"""version\s*=\s*["']([^"']+)["']""")
+
+
+def list_repository_models(context: ProjectContext) -> list[ModelInfo]:
+    """List record models under ``models/``, with their version from ``model.py``.
+
+    Mirrors ``repository_runner.sh``'s ``show_info()``'s model discovery: a
+    directory under ``models/`` counts as a model only if it has both
+    ``.copier-answers.yml`` and ``model.py``; version is the first
+    ``version = "..."`` match in ``model.py``, or ``"unknown"`` if none.
+    """
+    models_dir = context.root_directory / "models"
+    if not models_dir.is_dir():
+        return []
+
+    models = []
+    for entry in sorted(models_dir.iterdir()):
+        if not entry.is_dir():
+            continue
+        if not (entry / ".copier-answers.yml").exists() or not (entry / "model.py").exists():
+            continue
+        models.append(
+            ModelInfo(name=entry.name, version=_extract_model_version(entry / "model.py"))
+        )
+    return models
+
+
+def _extract_model_version(model_py: Path) -> str:
+    for line in model_py.read_text().splitlines():
+        match = _MODEL_VERSION_PATTERN.search(line)
+        if match:
+            return match.group(1)
+    return "unknown"

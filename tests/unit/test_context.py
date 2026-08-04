@@ -22,9 +22,7 @@ def test_context_discovery_from_valid_project(tmp_path: Path) -> None:
 [project]
 name = "test-project"
 requires-python = ">=3.12,<3.15"
-
-[tool.oarepo-cli]
-oarepo = { version = 14 }
+dependencies = ["oarepo>=14.0.0,<15.0.0"]
 """
     )
 
@@ -63,9 +61,7 @@ def test_computed_properties_code_directories_src_layout(tmp_path: Path) -> None
 [project]
 name = "test-project"
 requires-python = ">=3.12,<3.15"
-
-[tool.oarepo-cli]
-oarepo = { version = 14 }
+dependencies = ["oarepo>=14.0.0,<15.0.0"]
 """
     )
     (tmp_path / "src").mkdir()
@@ -83,9 +79,7 @@ def test_computed_properties_code_directories_package_layout(tmp_path: Path) -> 
 [project]
 name = "test-project"
 requires-python = ">=3.12,<3.15"
-
-[tool.oarepo-cli]
-oarepo = { version = 14 }
+dependencies = ["oarepo>=14.0.0,<15.0.0"]
 """
     )
     (tmp_path / "test_project").mkdir()
@@ -102,9 +96,7 @@ def test_computed_properties_code_directories_hatch_wheel_packages(tmp_path: Pat
 [project]
 name = "test-project"
 requires-python = ">=3.12,<3.15"
-
-[tool.oarepo-cli]
-oarepo = { version = 14 }
+dependencies = ["oarepo>=14.0.0,<15.0.0"]
 
 [tool.hatch.build.targets.wheel]
 packages = ["custom_pkg"]
@@ -124,9 +116,7 @@ def test_computed_properties_code_directories_raises_when_not_found(tmp_path: Pa
 [project]
 name = "test-project"
 requires-python = ">=3.12,<3.15"
-
-[tool.oarepo-cli]
-oarepo = { version = 14 }
+dependencies = ["oarepo>=14.0.0,<15.0.0"]
 """
     )
 
@@ -143,9 +133,7 @@ def test_computed_properties_instance_path_exists(tmp_path: Path) -> None:
 [project]
 name = "test-project"
 requires-python = ">=3.12,<3.15"
-
-[tool.oarepo-cli]
-oarepo = { version = 14 }
+dependencies = ["oarepo>=14.0.0,<15.0.0"]
 """
     )
     (tmp_path / "instance").mkdir()
@@ -162,9 +150,7 @@ def test_computed_properties_instance_path_none(tmp_path: Path) -> None:
 [project]
 name = "test-project"
 requires-python = ">=3.12,<3.15"
-
-[tool.oarepo-cli]
-oarepo = { version = 14 }
+dependencies = ["oarepo>=14.0.0,<15.0.0"]
 """
     )
 
@@ -180,9 +166,7 @@ def test_computed_properties_assets_path_exists(tmp_path: Path) -> None:
 [project]
 name = "test-project"
 requires-python = ">=3.12,<3.15"
-
-[tool.oarepo-cli]
-oarepo = { version = 14 }
+dependencies = ["oarepo>=14.0.0,<15.0.0"]
 """
     )
     (tmp_path / "assets").mkdir()
@@ -199,9 +183,7 @@ def test_computed_properties_assets_path_none(tmp_path: Path) -> None:
 [project]
 name = "test-project"
 requires-python = ">=3.12,<3.15"
-
-[tool.oarepo-cli]
-oarepo = { version = 14 }
+dependencies = ["oarepo>=14.0.0,<15.0.0"]
 """
     )
 
@@ -217,9 +199,9 @@ def test_builder_pattern_with_overrides(tmp_path: Path) -> None:
 [project]
 name = "test-project"
 requires-python = ">=3.12,<3.15"
+dependencies = ["oarepo>=14.0.0,<15.0.0"]
 
 [tool.oarepo-cli]
-oarepo = { version = 14 }
 venv = { path = "/custom/venv" }
 """
     )
@@ -255,9 +237,7 @@ def test_validation_fails_for_incompatible_versions() -> None:
 [project]
 name = "test-project"
 requires-python = ">=3.12,<3.15"
-
-[tool.oarepo-cli]
-oarepo = { version = 14 }
+dependencies = ["oarepo>=14.0.0,<15.0.0"]
 """
     )
 
@@ -276,9 +256,7 @@ def test_context_is_immutable() -> None:
 [project]
 name = "test-project"
 requires-python = ">=3.12,<3.15"
-
-[tool.oarepo-cli]
-oarepo = { version = 14 }
+dependencies = ["oarepo>=14.0.0,<15.0.0"]
 """
     )
 
@@ -297,9 +275,7 @@ def test_discover_context_convenience_function(
 [project]
 name = "test-project"
 requires-python = ">=3.12,<3.15"
-
-[tool.oarepo-cli]
-oarepo = { version = 14 }
+dependencies = ["oarepo>=14.0.0,<15.0.0"]
 """
     )
 
@@ -318,9 +294,7 @@ def test_context_discovery_searches_parent_directories(tmp_path: Path) -> None:
 [project]
 name = "test-project"
 requires-python = ">=3.12,<3.15"
-
-[tool.oarepo-cli]
-oarepo = { version = 14 }
+dependencies = ["oarepo>=14.0.0,<15.0.0"]
 """
     )
 
@@ -378,9 +352,7 @@ def test_python_autodetect_ignores_active_venv(
 [project]
 name = "test-project"
 requires-python = ">=3.14,<3.15"
-
-[tool.oarepo-cli]
-oarepo = { version = 14 }
+dependencies = ["oarepo>=14.0.0,<15.0.0"]
 """
     )
 

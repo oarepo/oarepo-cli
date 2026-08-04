@@ -96,7 +96,11 @@ security = { demo_user_password = "secure-password" }
     assert config.test.skip_services is True
     assert config.venv.path == Path("/custom/venv")
     assert config.python.binary == "python3.11"
-    assert config.oarepo.version == 14
+    # [tool.oarepo-cli].oarepo.version is deliberately ignored (deprecated --
+    # see PyProjectData.oarepo_versions): the version comes from
+    # [project].dependencies instead, with OAREPO_VERSION as the only
+    # remaining override.
+    assert config.oarepo.version is None
     assert config.services.skip is True
     assert config.services.db == "mysql"
     assert config.services.search == "elasticsearch"

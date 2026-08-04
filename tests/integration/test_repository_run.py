@@ -211,7 +211,7 @@ def test_run_real_exec_replaces_process(tmp_path: Path) -> None:
     project_root.mkdir()
     (project_root / "pyproject.toml").write_text(
         '[project]\nname = "myrepo"\nrequires-python = ">=3.14,<3.15"\n'
-        "\n[tool.oarepo-cli]\noarepo = { version = 14 }\n"
+        'dependencies = ["oarepo>=14.0.0,<15.0.0"]\n'
     )
 
     fake_invenio_cli = tmp_path / "fake-invenio-cli"
