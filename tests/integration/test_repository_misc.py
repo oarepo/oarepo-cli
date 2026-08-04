@@ -399,11 +399,18 @@ def test_jstest_delegates_to_js_commands_run_jstest_command(
     mock_context: Mock, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     """`repository jstest` delegates to the shared js_commands.run_jstest_command(),
-    forwarding --setup/--skip-services/--quiet and any extra args."""
-    calls: list[dict[str, object]] = []
+    starting services via invenio-cli first (unless --skip-services), then forwarding
+    --setup/--quiet, service_env=None (repository doesn't need connection env vars),
+    and any extra args."""
+    services_calls: list[tuple[object, ...]] = []
+    jstest_calls: list[dict[str, object]] = []
+    monkeypatch.setattr(
+        "oarepo_cli.cli.repository.invenio_cli.run_invenio_cli",
+        lambda *args, **kwargs: services_calls.append((args, kwargs)),
+    )
     monkeypatch.setattr(
         "oarepo_cli.cli.repository.js_commands.run_jstest_command",
-        lambda context, **kwargs: calls.append({"context": context, **kwargs}),
+        lambda context, **kwargs: jstest_calls.append({"context": context, **kwargs}),
     )
 
     runner = CliRunner()
@@ -412,11 +419,14 @@ def test_jstest_delegates_to_js_commands_run_jstest_command(
     )
 
     assert result.exit_code == 0, result.output
-    assert calls == [
+    # --skip-services: no invenio-cli services start call
+    assert services_calls == []
+    # service_env=None for repository (doesn't need connection env vars)
+    assert jstest_calls == [
         {
             "context": mock_context,
             "setup": False,
-            "skip_services": True,
+            "service_env": None,
             "extra_args": ["-t", "some.test"],
             "quiet": True,
         }
@@ -455,9 +465,7 @@ def test_test_starts_services_by_default_then_runs_tests(
     )
     monkeypatch.setattr(
         "oarepo_cli.cli.repository.repository.run_tests",
-        lambda context, **kwargs: (
-            test_calls.append({"context": context, **kwargs}) or _fake_process_result()
-        ),
+        lambda context, **kwargs: test_calls.append({"context": context, **kwargs}),
     )
 
     runner = CliRunner()
@@ -482,10 +490,7 @@ def test_test_no_services_skips_starting_services(
         "oarepo_cli.cli.repository.invenio_cli.run_invenio_cli",
         lambda *args, **kwargs: services_calls.append((args, kwargs)),
     )
-    monkeypatch.setattr(
-        "oarepo_cli.cli.repository.repository.run_tests",
-        lambda context, **kwargs: _fake_process_result(),  # noqa: ARG005
-    )
+    monkeypatch.setattr("oarepo_cli.cli.repository.repository.run_tests", lambda *_a, **_k: None)
 
     runner = CliRunner()
     result = runner.invoke(app, ["repository", "test", "--no-services"])
@@ -504,9 +509,7 @@ def test_test_forwards_coverage_and_extra_args(
     calls: list[dict[str, object]] = []
     monkeypatch.setattr(
         "oarepo_cli.cli.repository.repository.run_tests",
-        lambda context, **kwargs: (
-            calls.append({"context": context, **kwargs}) or _fake_process_result()
-        ),
+        lambda context, **kwargs: calls.append({"context": context, **kwargs}),
     )
 
     runner = CliRunner()
@@ -525,17 +528,28 @@ def test_test_forwards_coverage_and_extra_args(
     ]
 
 
-def test_test_reports_failing_tests_with_pytest_exit_code(
+def test_test_reports_dependency_install_failure_and_exits_1(
     mock_context: Mock,  # noqa: ARG001 -- fixture used for its discover_context patch
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """A failing pytest run exits with pytest's own return code, not a generic 1."""
+    """A ProcessExecutionError from run_tests() (e.g. installing pytest/pytest-cov
+    failed) is reported cleanly, exit code 1 -- run_tests() itself never returns on
+    success (it execs into pytest directly), so this is the only failure mode this
+    command's own code can still observe and translate into a message."""
     monkeypatch.setattr(
         "oarepo_cli.cli.repository.invenio_cli.run_invenio_cli", lambda *_a, **_k: None
     )
     monkeypatch.setattr(
         "oarepo_cli.cli.repository.repository.run_tests",
-        lambda context, **kwargs: _fake_process_result(return_code=1),  # noqa: ARG005
+        Mock(
+            side_effect=ProcessExecutionError(
+                message="uv pip install pytest failed",
+                command=["uv", "pip", "install", "pytest"],
+                returncode=1,
+                stdout=None,
+                stderr=None,
+            )
+        ),
     )
 
     runner = CliRunner()

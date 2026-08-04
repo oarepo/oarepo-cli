@@ -822,14 +822,22 @@ def jstest_command(
 
     try:
         context = discover_context()
+
+        console = ConsoleOutput(quiet=quiet)
+        if not skip_services:
+            console.info("→ Starting Docker services...\n")
+            invenio_cli.run_invenio_cli(context, ["services", "start"], quiet=quiet)
+
+        # A repository doesn't need service connection env vars -- it resolves
+        # connection details from invenio.cfg/.invenio.private, not from the
+        # .env-services file docker-services-cli would write for a library
+        js_commands.run_jstest_command(
+            context, setup=setup, service_env=None, extra_args=extra_args, quiet=quiet
+        )
     except OARepoError as e:
         console_err = ConsoleOutput(quiet=False)
         console_err.error(f"\n✗ repository jstest failed: {e}\n", fg=typer.colors.RED)
         raise typer.Exit(1) from e
-
-    js_commands.run_jstest_command(
-        context, setup=setup, skip_services=skip_services, extra_args=extra_args, quiet=quiet
-    )
 
 
 @repository_app.command(
@@ -872,6 +880,9 @@ def test_command(
 
     Any additional arguments are passed directly to pytest.
 
+    This command replaces the current process (``os.execve``) with pytest
+    once dependencies are installed -- it never returns on success.
+
     Examples:
         $ oarepo-cli repository test
         $ oarepo-cli repository test --with-coverage
@@ -879,9 +890,9 @@ def test_command(
         $ oarepo-cli repository test -v -k test_specific
 
     Exit codes:
-        Exit code of the underlying pytest invocation
-        1: Starting Docker services failed, or project context could not be
-           discovered
+        Whatever pytest itself exits with
+        1: Starting Docker services failed, installing pytest/pytest-cov
+           failed, or project context could not be discovered
     """
     pytest_args = ctx.args if ctx.args else []
 
@@ -894,20 +905,15 @@ def test_command(
             invenio_cli.run_invenio_cli(context, ["services", "start"], quiet=quiet)
 
         console.info("→ Running tests...\n")
-        result = repository.run_tests(
-            context, pytest_args=pytest_args, coverage=with_coverage, quiet=quiet
-        )
+        # run_tests() installs pytest/pytest-cov if missing (can raise
+        # ProcessExecutionError, caught below) before exec'ing into pytest --
+        # unlike a pure passthrough, there's real pre-exec work here that
+        # needs this try/except, so the call stays inside it.
+        repository.run_tests(context, pytest_args=pytest_args, coverage=with_coverage, quiet=quiet)
     except OARepoError as e:
         console_err = ConsoleOutput(quiet=False)  # Always show errors
         console_err.error(f"\n✗ repository test failed: {e}\n", fg=typer.colors.RED)
         raise typer.Exit(1) from e
-
-    if result.success:
-        console.success("\n✓ All tests passed!\n", fg=typer.colors.BRIGHT_GREEN, bold=True)
-    else:
-        console.error("\n✗ Tests failed!\n", fg=typer.colors.RED, bold=True)
-
-    raise typer.Exit(code=result.return_code)
 
 
 @repository_app.command("translations", context_settings=_SERVICES_CONTEXT_SETTINGS)

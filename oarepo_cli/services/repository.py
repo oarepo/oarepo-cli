@@ -580,8 +580,16 @@ def run_tests(
     pytest_args: Sequence[str] = (),
     coverage: bool = False,
     quiet: bool = False,
-) -> process.ProcessResult:
-    """Run pytest in the repository's venv.
+) -> NoReturn:
+    """Install pytest/pytest-cov if needed, then replace the current process with pytest.
+
+    Never returns: unlike installing dependencies (which must complete and
+    be checked before pytest can run), nothing needs to happen in this
+    process once pytest starts -- this doesn't stop Docker services
+    afterward (see below), so there's no cleanup step being skipped by
+    exec'ing. Lets a terminal Ctrl+C hit pytest directly and preserves its
+    exit code exactly, mirroring every other one-shot passthrough in this
+    module (``exec_invenio``, ``exec_shell``).
 
     Unlike ``services.test_orchestrator.TestOrchestrator`` (used by
     ``library test``), this doesn't manage Docker services itself -- the
@@ -611,9 +619,9 @@ def run_tests(
         coverage: If True, enable coverage reporting (HTML + terminal)
         quiet: If True, suppress dependency-installation progress messages
 
-    Returns:
-        ProcessResult from the pytest invocation (``check=False`` --
-        callers report success/failure themselves via the exit code)
+    Raises:
+        ProcessExecutionError: If installing pytest/pytest-cov fails
+        OSError: If pytest can't be exec'd (not found, not executable, ...)
     """
     console = ConsoleOutput(quiet=quiet)
     bin_dir = get_platform_detector().get_venv_bin_dir()
@@ -652,12 +660,9 @@ def run_tests(
         cmd.extend(["--cov-report=html", "--cov-report=term"])
     cmd.extend(pytest_args)
 
-    return process.run(
-        cmd,
-        cwd=context.root_directory,
-        check=False,
-        interactive=True,
-    )
+    os.chdir(context.root_directory)
+    env = process.build_subprocess_env()
+    os.execve(str(pytest_bin), cmd, env)
 
 
 def get_python_version(context: ProjectContext) -> str:

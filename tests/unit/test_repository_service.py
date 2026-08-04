@@ -540,6 +540,18 @@ def _run_tests_context(tmp_path: Path, *, code_directories: list[Path]) -> Mock:
     return context
 
 
+def _mock_exec(monkeypatch: pytest.MonkeyPatch) -> list[tuple[object, ...]]:
+    """Mock os.chdir/os.execve at the repository module, so run_tests() never really
+    exec's (which would replace the test runner's own process)."""
+    execve_calls: list[tuple[object, ...]] = []
+    monkeypatch.setattr("oarepo_cli.services.repository.os.chdir", lambda _path: None)
+    monkeypatch.setattr(
+        "oarepo_cli.services.repository.os.execve",
+        lambda *args: execve_calls.append(args),
+    )
+    return execve_calls
+
+
 def test_run_tests_installs_pytest_when_missing(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
@@ -559,6 +571,7 @@ def test_run_tests_installs_pytest_when_missing(
         return _fake_process_result()
 
     monkeypatch.setattr("oarepo_cli.services.repository.process.run", fake_run)
+    _mock_exec(monkeypatch)
 
     repository.run_tests(context, quiet=True)
 
@@ -583,10 +596,42 @@ def test_run_tests_skips_pytest_install_when_already_present(
         "oarepo_cli.services.repository.process.run",
         lambda command, **_kwargs: calls.append(list(command)) or _fake_process_result(),
     )
+    _mock_exec(monkeypatch)
 
     repository.run_tests(context, quiet=True)
 
     assert not any(c[:3] == ["uv", "pip", "install"] for c in calls)
+
+
+def test_run_tests_execs_pytest_with_correct_env(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """run_tests() chdirs into the project root (execve has no cwd of its own) and
+    execve's into the venv's own pytest, rather than blocking on a subprocess -- there's
+    nothing to do afterward (no services to stop, unlike library test), so a terminal
+    Ctrl+C hits pytest directly and its exit code is preserved exactly."""
+    context = _run_tests_context(tmp_path, code_directories=[])
+    bin_dir = get_platform_detector().get_venv_bin_dir()
+    pytest_bin = context.venv_path / bin_dir / "pytest"
+    pytest_bin.parent.mkdir(parents=True)
+    pytest_bin.touch()
+    monkeypatch.setattr("oarepo_cli.services.repository.process.run", lambda *a, **k: None)  # noqa: ARG005
+    chdir_calls = []
+    execve_calls = []
+    monkeypatch.setattr("oarepo_cli.services.repository.os.chdir", chdir_calls.append)
+    monkeypatch.setattr(
+        "oarepo_cli.services.repository.os.execve",
+        lambda *args: execve_calls.append(args),
+    )
+
+    repository.run_tests(context, quiet=True)
+
+    assert chdir_calls == [tmp_path]
+    assert len(execve_calls) == 1
+    binary, argv, env = execve_calls[0]
+    assert binary == str(pytest_bin)
+    assert argv == [str(pytest_bin)]
+    assert env["PATH"]  # a real, built environment, not an empty dict
 
 
 def test_run_tests_covers_every_module_directory_not_a_single_package(
@@ -606,19 +651,19 @@ def test_run_tests_covers_every_module_directory_not_a_single_package(
     pytest_bin.touch()
     (context.venv_path / bin_dir / "python").touch()
 
-    calls: list[list[str]] = []
     monkeypatch.setattr(
         "oarepo_cli.services.repository.process.run",
-        lambda command, **_kwargs: calls.append(list(command)) or _fake_process_result(),
+        lambda *_a, **_k: _fake_process_result(),
     )
+    execve_calls = _mock_exec(monkeypatch)
 
     repository.run_tests(context, coverage=True, quiet=True)
 
-    pytest_call = next(c for c in calls if c[0] == str(pytest_bin))
-    assert pytest_call.count("--cov") == 2
-    assert "common" in pytest_call
-    assert "i18n" in pytest_call
-    assert "tests" not in pytest_call
+    _binary, argv, _env = execve_calls[0]
+    assert argv.count("--cov") == 2
+    assert "common" in argv
+    assert "i18n" in argv
+    assert "tests" not in argv
 
 
 def test_run_tests_forwards_pytest_args(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
@@ -629,13 +674,9 @@ def test_run_tests_forwards_pytest_args(tmp_path: Path, monkeypatch: pytest.Monk
     pytest_bin.parent.mkdir(parents=True)
     pytest_bin.touch()
 
-    calls: list[list[str]] = []
-    monkeypatch.setattr(
-        "oarepo_cli.services.repository.process.run",
-        lambda command, **_kwargs: calls.append(list(command)) or _fake_process_result(),
-    )
+    execve_calls = _mock_exec(monkeypatch)
 
     repository.run_tests(context, pytest_args=["-v", "-k", "test_specific"], quiet=True)
 
-    pytest_call = next(c for c in calls if c[0] == str(pytest_bin))
-    assert pytest_call[-3:] == ["-v", "-k", "test_specific"]
+    _binary, argv, _env = execve_calls[0]
+    assert argv[-3:] == ["-v", "-k", "test_specific"]

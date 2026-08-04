@@ -1038,8 +1038,19 @@ def library_jstest(
     extra_args = ctx.args if ctx.args else []
 
     context = discover_context()
+
+    # Start services unless already running or explicitly skipped, and get
+    # the environment variables needed to connect to them
+    if skip_services:
+        services_mgr = ServicesLifecycleManager(
+            config=context.config, project_root=context.root_directory
+        )
+        service_env = services_mgr.load_service_env()
+    else:
+        service_env = _start_services_if_needed_impl(quiet=quiet)
+
     js_commands.run_jstest_command(
-        context, setup=setup, skip_services=skip_services, extra_args=extra_args, quiet=quiet
+        context, setup=setup, service_env=service_env, extra_args=extra_args, quiet=quiet
     )
 
 
