@@ -10,7 +10,7 @@ from pathlib import Path
 import pytest
 
 from oarepo_cli.core.config import CliConfig, VenvConfig
-from oarepo_cli.core.context import ContextBuilder, discover_context
+from oarepo_cli.core.context import ContextBuilder, discover_context, find_pyproject_toml
 from oarepo_cli.core.errors import ConfigurationError
 
 
@@ -312,6 +312,40 @@ dependencies = ["oarepo>=14.0.0,<15.0.0"]
         assert context.pyproject_path == tmp_path / "pyproject.toml"
     finally:
         monkeypatch.undo()
+
+
+def test_find_pyproject_toml_in_given_directory(tmp_path: Path) -> None:
+    """find_pyproject_toml() finds a pyproject.toml directly in the given directory."""
+    (tmp_path / "pyproject.toml").write_text("[project]\nname = 'test'\n")
+
+    assert find_pyproject_toml(tmp_path) == tmp_path / "pyproject.toml"
+
+
+def test_find_pyproject_toml_searches_parents(tmp_path: Path) -> None:
+    """find_pyproject_toml() searches upward through parent directories."""
+    (tmp_path / "pyproject.toml").write_text("[project]\nname = 'test'\n")
+    subdir = tmp_path / "subdir" / "nested"
+    subdir.mkdir(parents=True)
+
+    assert find_pyproject_toml(subdir) == tmp_path / "pyproject.toml"
+
+
+def test_find_pyproject_toml_returns_none_when_not_found(tmp_path: Path) -> None:
+    """find_pyproject_toml() returns None (not an exception) when nothing is found."""
+    subdir = tmp_path / "subdir"
+    subdir.mkdir()
+
+    assert find_pyproject_toml(subdir) is None
+
+
+def test_find_pyproject_toml_defaults_to_cwd(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """find_pyproject_toml() defaults to searching from the current working directory."""
+    (tmp_path / "pyproject.toml").write_text("[project]\nname = 'test'\n")
+    monkeypatch.chdir(tmp_path)
+
+    assert find_pyproject_toml() == tmp_path / "pyproject.toml"
 
 
 def test_multi_version_selects_highest_by_default(tmp_path: Path) -> None:

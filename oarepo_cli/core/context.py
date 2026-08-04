@@ -106,6 +106,32 @@ class ProjectContext:
         return assets_dir if assets_dir.exists() else None
 
 
+def find_pyproject_toml(start: Path | None = None) -> Path | None:
+    """Search upward from ``start`` (default: cwd) for a ``pyproject.toml``.
+
+    Standalone helper for callers that only need the raw pyproject.toml
+    path -- e.g. ``library oarepo-versions``, which reports the OARepo/
+    Python/Node versions a project *declares* and must therefore keep
+    working before a venv exists or an OARepo version can be resolved,
+    unlike ``ContextBuilder.validate()``'s full ``ProjectContext`` (which
+    requires both). ``ContextBuilder.from_cwd()`` uses this too, so the
+    upward-search logic itself only lives in one place.
+
+    Args:
+        start: Directory to start searching from (default: current working
+            directory)
+
+    Returns:
+        Path to the found pyproject.toml, or None if none exists in
+        ``start`` or any parent directory
+    """
+    for directory in [start or Path.cwd(), *(start or Path.cwd()).parents]:
+        candidate = directory / "pyproject.toml"
+        if candidate.exists():
+            return candidate
+    return None
+
+
 class ContextBuilder:
     """Fluent builder for constructing ProjectContext with validation.
 
@@ -138,15 +164,13 @@ class ContextBuilder:
         """
         cwd = Path.cwd()
 
-        # Search upward for pyproject.toml
-        for parent in [cwd, *cwd.parents]:
-            pyproject = parent / "pyproject.toml"
-            if pyproject.exists():
-                self._root_directory = parent
-                self._pyproject_path = pyproject
-                return self
+        pyproject = find_pyproject_toml(cwd)
+        if pyproject is None:
+            raise ConfigurationError(f"pyproject.toml not found in {cwd} or any parent directory")
 
-        raise ConfigurationError(f"pyproject.toml not found in {cwd} or any parent directory")
+        self._root_directory = pyproject.parent
+        self._pyproject_path = pyproject
+        return self
 
     def from_directory(self, path: Path) -> ContextBuilder:
         """Discover project context from a specific directory.
