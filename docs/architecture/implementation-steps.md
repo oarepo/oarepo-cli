@@ -1353,6 +1353,119 @@ own help, not invenio-cli's.
 
 ---
 
+### Step 4.11: Fix Duplicate Summary Print in `library clean`
+**Goal**: Fix a copy-paste bug found during the post-Phase-4 library/repository
+parity audit ([after_repository_cleanup.md](./after_repository_cleanup.md) §2.1).
+
+- [ ] Remove the duplicated "Display summary" if/else block in
+  `cli/library.py`'s `library_clean()` -- the entire block (deciding between
+  `✨ ✓ Cleanup completed! Removed: ...` and `✨ ✓ Environment is already
+  clean!`) appears twice verbatim, so every `library clean` run prints its
+  summary message twice
+- [ ] Add/adjust a test asserting the summary is printed exactly once
+
+**Deliverables**:
+- `library clean` prints its summary exactly once
+
+**Tests**:
+- Existing `library clean` tests updated (or a new one added) to assert the
+  summary message appears exactly once in output, for both the
+  "something was removed" and "already clean" cases
+
+---
+
+### Step 4.12: Unify Exception Handling Across `library`/`repository` CLI Commands
+**Goal**: Resolve the exception-handling inconsistency found during the audit
+([after_repository_cleanup.md](./after_repository_cleanup.md) §2.2): every
+`repository.py` command narrowly catches `except (OARepoError,
+ProcessExecutionError)`, while every `library.py` command broadly catches
+`except Exception`. **Decision: the narrower `repository.py` pattern is
+correct** -- a broad `except Exception` silently turns real bugs (e.g. an
+`AttributeError`) into a clean, misleading "exit 1" instead of surfacing a
+traceback.
+
+- [ ] Change all top-level command `except Exception` blocks in
+  `cli/library.py` (17 sites) to `except (OARepoError, ProcessExecutionError)`,
+  matching `cli/repository.py`'s pattern
+- [ ] Verify no `library.py` command actually relies on catching a
+  non-`OARepoError` exception type (e.g. a raw `OSError`/`subprocess` error
+  that isn't already wrapped) -- wrap it into an appropriate `OARepoError`
+  subclass at the source (in `services/`) instead of widening the CLI-layer
+  catch back out
+- [ ] While touching these sites, simplify `repository.py`'s
+  `except (OARepoError, ProcessExecutionError)` to plain `except OARepoError`
+  -- `ProcessExecutionError` already subclasses `OARepoError`
+  (`core/errors.py`), so the tuple is redundant
+- [ ] Re-run the full test suite -- some tests may currently rely on the
+  broad catch (e.g. asserting a specific exit code for an exception type
+  that isn't an `OARepoError`); fix the underlying exception type rather
+  than the test if so
+
+**Deliverables**:
+- Every CLI command in both modules uses the same, narrow exception-handling
+  policy
+
+**Tests**:
+- Existing command-level tests continue to pass; add a regression test per
+  module confirming an unexpected (non-`OARepoError`) exception now
+  propagates instead of being swallowed into a generic "exit 1"
+
+---
+
+### Step 4.13: Refactor `library oarepo-versions` to Use `discover_context()`
+**Goal**: Fix the inconsistency found during the audit
+([after_repository_cleanup.md](./after_repository_cleanup.md) §2.3):
+`library_oarepo_versions()` is the only command (of 31 across both modules)
+that doesn't use `discover_context()` -- it hand-rolls its own
+parent-directory walk for `pyproject.toml` and wires up
+`PyProjectReader`/`VersionResolver` directly, with function-local imports
+(`json`, `Path`, `ConfigurationError`, `PyProjectReader`, `VersionResolver`)
+that exist only because they were never hoisted (not to break a circular
+import, the only sanctioned reason per AGENTS.md).
+
+- [ ] Before refactoring, confirm `discover_context()`'s failure mode still
+  satisfies `oarepo-versions`' contract (it may need to work in places a
+  fully-resolved `ProjectContext` can't be built -- e.g. no venv yet --
+  since it only ever needed `pyproject.toml`); adjust `discover_context()`
+  or fall back to a narrower helper if not
+- [ ] Rewrite `library_oarepo_versions()` to use `discover_context()` (or
+  the confirmed narrower alternative) instead of its own directory walk
+- [ ] Move `json`, `Path`, `ConfigurationError`, `PyProjectReader`,
+  `VersionResolver` imports to module level
+- [ ] Verify the command's output/exit codes are unchanged
+
+**Deliverables**:
+- `library oarepo-versions` uses the same context-discovery path as every
+  other command; no function-local imports remain in it
+
+**Tests**:
+- Existing `library oarepo-versions` tests continue to pass unchanged
+  (output format/exit codes are a compatibility contract, not something
+  this refactor should touch)
+
+---
+
+### Step 4.14: Move `library_shell`'s Function-Local `traceback` Import
+**Goal**: Fix the second AGENTS.md-import-rule violation found during the
+audit ([after_repository_cleanup.md](./after_repository_cleanup.md) §2.4):
+`library_shell()` has `import traceback  # noqa: TID251` inside its
+`except Exception` branch, not to break a circular import.
+
+- [ ] Move `import traceback` to module level in `cli/library.py` and drop
+  the `# noqa: TID251` suppression
+- [ ] Re-run `make lint` to confirm no new, unsuppressed violation appears
+  (if one does, address the underlying cause rather than re-adding the
+  suppression)
+
+**Deliverables**:
+- No function-local, non-circular-import imports remain in `cli/library.py`
+
+**Tests**:
+- No behavior change expected; existing `library shell` tests continue to
+  pass
+
+---
+
 ## Phase 5: Repository Installer
 
 ### Step 5.1: Repository Installer CLI
