@@ -382,7 +382,11 @@ def exec_invenio(context: ProjectContext, args: Sequence[str]) -> NoReturn:
     """
     os.chdir(context.root_directory)
     binary = get_invenio_binary(context)
-    env = {**os.environ, "PYTHONWARNINGS": "ignore"}
+    # build_subprocess_env() strips oarepo-cli's own venv and injects
+    # OAREPO_ENV_DEFAULTS (INVENIO_*/... settings), same as any process.run()
+    # call gets -- there's no other subprocess env-merging safety net once
+    # this replaces the current process.
+    env = process.build_subprocess_env({"PYTHONWARNINGS": "ignore"})
     os.execve(str(binary), [str(binary), *args], env)
 
 
@@ -413,7 +417,7 @@ def exec_shell(context: ProjectContext) -> NoReturn:
     platform = get_platform_detector()
     bin_dir = platform.get_venv_bin_dir()
 
-    shell_env = dict(os.environ)
+    shell_env = process.build_subprocess_env()
     shell_env["VIRTUAL_ENV"] = str(context.venv_path)
     venv_bin_path = str(context.venv_path / bin_dir)
     shell_env["PATH"] = f"{venv_bin_path}{os.pathsep}{shell_env.get('PATH', '')}"
@@ -568,6 +572,97 @@ def reset_repository(context: ProjectContext, *, quiet: bool = False) -> None:
         quiet=quiet,
     )
     _run_invenio(context, ["roles", "add", "user@demo.org", "administration"], quiet=quiet)
+
+
+def run_tests(
+    context: ProjectContext,
+    *,
+    pytest_args: Sequence[str] = (),
+    coverage: bool = False,
+    quiet: bool = False,
+) -> NoReturn:
+    """Install pytest/pytest-cov if needed, then replace the current process with pytest.
+
+    Never returns: unlike installing dependencies (which must complete and
+    be checked before pytest can run), nothing needs to happen in this
+    process once pytest starts -- this doesn't stop Docker services
+    afterward (see below), so there's no cleanup step being skipped by
+    exec'ing. Lets a terminal Ctrl+C hit pytest directly and preserves its
+    exit code exactly, mirroring every other one-shot passthrough in this
+    module (``exec_invenio``, ``exec_shell``).
+
+    Unlike ``services.test_orchestrator.TestOrchestrator`` (used by
+    ``library test``), this doesn't manage Docker services itself -- the
+    caller starts them via ``invenio-cli services start`` first, like
+    ``repository run``/``shell`` (a repository's services are always
+    invenio-cli-managed, unlike a library's raw docker-services-cli setup
+    via ``ServicesLifecycleManager``, which wouldn't correctly drive a
+    repository's own ``docker/docker-compose.yml``), and doesn't stop them
+    afterward either, matching every other ``repository`` command.
+
+    Also doesn't assume a single importable package name for ``--cov``
+    like ``TestOrchestrator`` does (derived from ``[project].name``, correct
+    for a library's one src/-or-package-dir layout): a repository's
+    ``code_directories`` are typically several top-level module directories
+    (see Step 4.15's ``[tool.uv.build-backend]`` support), each already a
+    real importable package name, so every one of them (except ``tests/``)
+    is passed to ``--cov`` instead.
+
+    Unlike a library (which either declares a ``tests`` extra itself or
+    already depends on it transitively), a fresh repository has no such
+    convention, so ``pytest``/``pytest-cov`` are installed directly into the
+    venv on demand if missing, rather than via an extras group.
+
+    Args:
+        context: Project context with paths and configuration
+        pytest_args: Additional arguments to pass to pytest
+        coverage: If True, enable coverage reporting (HTML + terminal)
+        quiet: If True, suppress dependency-installation progress messages
+
+    Raises:
+        ProcessExecutionError: If installing pytest/pytest-cov fails
+        OSError: If pytest can't be exec'd (not found, not executable, ...)
+    """
+    console = ConsoleOutput(quiet=quiet)
+    bin_dir = get_platform_detector().get_venv_bin_dir()
+    venv_python = context.venv_path / bin_dir / "python"
+    pytest_bin = context.venv_path / bin_dir / "pytest"
+
+    if not pytest_bin.exists():
+        console.info("→ Installing pytest...\n")
+        process.run(
+            ["uv", "pip", "install", "--python", str(venv_python), "pytest"],
+            cwd=context.root_directory,
+            check=True,
+            interactive=not quiet,
+        )
+
+    if coverage:
+        check_cov = process.run(
+            [str(venv_python), "-c", "import pytest_cov"],
+            check=False,
+            capture_output=True,
+        )
+        if not check_cov.success:
+            console.info("→ Installing pytest-cov...\n")
+            process.run(
+                ["uv", "pip", "install", "--python", str(venv_python), "pytest-cov"],
+                cwd=context.root_directory,
+                check=True,
+                interactive=not quiet,
+            )
+
+    cmd = [str(pytest_bin)]
+    if coverage:
+        for directory in context.code_directories:
+            if directory.name != "tests":
+                cmd.extend(["--cov", directory.name])
+        cmd.extend(["--cov-report=html", "--cov-report=term"])
+    cmd.extend(pytest_args)
+
+    os.chdir(context.root_directory)
+    env = process.build_subprocess_env()
+    os.execve(str(pytest_bin), cmd, env)
 
 
 def get_python_version(context: ProjectContext) -> str:

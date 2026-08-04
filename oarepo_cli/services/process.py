@@ -1,6 +1,8 @@
 # SPDX-FileCopyrightText: 2026 CESNET z.s.p.o.
 # SPDX-License-Identifier: MIT
 
+"""Subprocess execution helpers: run/stream a command, or exec-replace this process."""
+
 from __future__ import annotations
 
 import os
@@ -120,40 +122,50 @@ def get_system_path() -> str:
     return _strip_venv_vars(dict(os.environ)).get("PATH", os.environ.get("PATH", ""))
 
 
-def _merge_env(
-    env: dict[str, str] | None,
+def build_subprocess_env(
+    env: dict[str, str] | None = None,
+    *,
     strip_venv: bool = True,
     include_oarepo_defaults: bool = True,
-) -> dict[str, str] | None:
-    """Merge custom environment with parent environment.
+) -> dict[str, str]:
+    """Build a full environment dict for a subprocess or ``os.execve``/``os.execvpe`` call.
+
+    The single source of truth for env-var handling shared by every
+    command-execution path in this codebase: :func:`run`, :func:`stream`,
+    and every exec-based passthrough (``services.invenio_cli.exec_invenio_cli``,
+    ``services.server.ServerRunner._exec_bare_invenio``,
+    ``services.repository.exec_invenio``/``exec_shell``, ``cli.library``'s
+    ``library_shell``/``library_invenio``, ``services.js_tools.run_jstest``'s
+    real test-run path). Previously duplicated -- with subtly different
+    behavior each time -- inline in :func:`run` (via the old, private
+    ``_merge_env``), a second time in :func:`stream`, and not at all in any
+    of the exec-based functions (which just did
+    ``{**os.environ, <manual overrides>}`` directly, silently missing both
+    the venv-stripping and the OAREPO_ENV_DEFAULTS every blocking call got).
 
     Args:
-        env: Custom environment variables to merge (None = no custom vars)
-        strip_venv: If True, strip VIRTUAL_ENV and related variables to prevent
-                    oarepo-cli's own venv from leaking into subprocesses
-        include_oarepo_defaults: If True, include OARepo default environment variables
-                                 (UV_EXTRA_INDEX_URL, INVENIO_* settings, etc.)
+        env: Custom environment variables, applied last (override everything else)
+        strip_venv: If True, strip ``VIRTUAL_ENV`` and related variables to
+            prevent oarepo-cli's own venv from leaking into a target
+            project's venv
+        include_oarepo_defaults: If True, include ``OAREPO_ENV_DEFAULTS``
+            (``UV_EXTRA_INDEX_URL``, ``INVENIO_*`` settings, etc.), only
+            where not already set in the parent environment
 
     Returns:
-        Merged environment or None if env was None and strip_venv is False
+        A full environment dict, suitable for ``subprocess.run(env=...)``/
+        ``os.execve``/``os.execvpe``
     """
-    if env is None and not strip_venv and not include_oarepo_defaults:
-        return None
+    run_env = dict(os.environ)
 
-    # Start with parent environment
-    run_env = dict(**os.environ)
-
-    # Strip venv variables if requested
     if strip_venv:
         run_env = _strip_venv_vars(run_env)
 
-    # Add OARepo defaults (only if not already set in parent environment)
     if include_oarepo_defaults:
         for key, value in OAREPO_ENV_DEFAULTS.items():
             if key not in run_env:
                 run_env[key] = value
 
-    # Apply custom environment (overrides everything)
     if env is not None:
         run_env.update(env)
 
@@ -196,7 +208,7 @@ def run(
     """
     from oarepo_cli.core.errors import ProcessExecutionError, TimeoutExceeded
 
-    run_env = _merge_env(env, strip_venv=strip_venv)
+    run_env = build_subprocess_env(env, strip_venv=strip_venv)
     start_time = time.time()
 
     # Interactive mode: inherit stdout/stderr for real-time output
@@ -321,18 +333,12 @@ def stream(
     Yields:
         Lines of stdout interleaved with stderr
     """
-    # Start with parent environment, strip venv vars if requested
-    run_env = _strip_venv_vars(dict(os.environ)) if strip_venv else dict(os.environ)
+    run_env = build_subprocess_env(strip_venv=strip_venv)
 
-    # Add OARepo defaults (only if not already set)
-    for key, value in OAREPO_ENV_DEFAULTS.items():
-        if key not in run_env:
-            run_env[key] = value
-
-    # Add streaming defaults
+    # Add streaming defaults, then apply custom environment on top (same
+    # precedence as before: custom env overrides everything, including
+    # STREAM_ENV_DEFAULTS)
     run_env.update(STREAM_ENV_DEFAULTS)
-
-    # Apply custom environment
     if env is not None:
         run_env.update(env)
 

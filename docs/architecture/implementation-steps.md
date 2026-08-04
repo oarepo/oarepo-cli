@@ -1857,26 +1857,85 @@ one does **not** depend on Step 4.15: `TestOrchestrator` never touches
 `cwd=root_directory` and relies on pytest's own test discovery -- so this
 should be closer to a drop-in port.
 
-- [ ] Add `repository test` to `cli/repository.py`, delegating to the
+- [x] Add `repository test` to `cli/repository.py`, delegating to the
   existing `services.test_orchestrator.TestOrchestrator` exactly like
   `library test` (same `--skip-services`/`--with-coverage` options)
-- [ ] Confirm `TestOrchestrator`'s services-start/stop lifecycle
+- [x] Confirm `TestOrchestrator`'s services-start/stop lifecycle
   (`ServicesLifecycleManager`) is the right mechanism for a repository too,
   or whether -- per Step 4.17's services-lifecycle question -- it should
   start services via `invenio-cli services start` instead, for consistency
   with how the rest of the `repository` command group manages services
-- [ ] Verify pytest/coverage are available in a repository's venv the same
+- [x] Verify pytest/coverage are available in a repository's venv the same
   way they are for a library's (installed as test dependencies), and that a
   freshly-installed repository actually has a `tests/` directory with
   anything to run
 
-**Deliverables**:
-- `oarepo-cli repository test`, functionally equivalent to `library test`
+**This turned out not to be a drop-in port.** `TestOrchestrator` was not
+reused; `services.repository.run_tests()` was added instead, and
+`repository test` doesn't call `TestOrchestrator` at all:
 
-**Tests** (mirroring `tests/integration/test_library_test.py` and
-`tests/integration/test_test_orchestrator.py`):
-- [ ] Test execution against a real repository fixture (`tests/testrepo`)
-- [ ] Test `--skip-services`/`--with-coverage` behavior matches `library`'s
+- **Services lifecycle**: confirmed -- like Step 4.17 -- that
+  `ServicesLifecycleManager` (raw `docker-services-cli`, matching a
+  library's setup) doesn't apply to a repository, which manages its own
+  `docker/docker-compose.yml` through `invenio-cli services *` instead.
+  Beyond that mechanism swap, the *lifecycle shape* itself differs:
+  `TestOrchestrator` starts services only if not already running and stops
+  them again in a `finally` block once the test run completes -- a
+  reasonable "clean up after yourself" default for a library's ephemeral,
+  repeated test runs. `repository run`/`shell` never do this "already
+  running?" check or auto-stop -- they start services unconditionally
+  (unless `--no-services`) and leave them running, since a repository's
+  services are a shared, long-lived dev environment other commands
+  (`run`, `shell`) expect to keep using. `repository test` follows that
+  same shape: unconditional start via `invenio_cli.run_invenio_cli(...,
+  ["services", "start"])` unless `--no-services` (naming matches
+  `run`/`shell`, not `library test`'s `--skip-services`), no stop
+  afterward.
+- **Coverage target**: `TestOrchestrator._build_pytest_command()` passes a
+  single `--cov <name>`, derived from `[project].name` -- correct for a
+  library's one `src/`-or-package-dir layout, but wrong for a repository:
+  its `code_directories` are typically several top-level modules (Step
+  4.15's `[tool.uv.build-backend]` support), each already a real
+  importable package name, and the project's own declared name (e.g.
+  `testrepo`) isn't one of them at all. `run_tests()` instead passes
+  `--cov <name>` for every non-`tests` `code_directories` entry.
+- **pytest/coverage availability**: confirmed a real problem, not just a
+  hypothetical -- `tests/testrepo`'s `pyproject.toml` declares no `tests`
+  extras group (unlike a library, which either declares one itself or
+  depends on it transitively), so `TestOrchestrator`'s
+  extras-group-triggered install would never fire, leaving `pytest`
+  genuinely absent from a fresh repository's venv. `run_tests()` installs
+  `pytest`/`pytest-cov` directly (`uv pip install --python <venv's own
+  python> ...`) if missing, unconditionally, rather than gating on an
+  extras group. (Caught the hard way during testing: installing against
+  `context.python_binary` -- the interpreter used to *create* the venv, not
+  the venv's own -- fails against a real uv-managed system interpreter,
+  "externally managed"; fixed to target the venv's own python explicitly.)
+- **No shared module with `library test`** (unlike Steps 4.18/4.19): the
+  underlying orchestration differs enough (services mechanism, lifecycle
+  shape, coverage targeting) that forcing one shared implementation would
+  need a strategy-style injection for services lifecycle alone, adding
+  more complexity than the ~15-line CLI body it would save. `library_test`
+  is therefore untouched, still using `TestOrchestrator` directly.
+
+**Deliverables**:
+- `oarepo-cli repository test`, running the repository's test suite with
+  invenio-cli-managed services and multi-module-aware coverage
+
+**Tests** (unit tests for `services.repository.run_tests()` in
+`tests/unit/test_repository_service.py`, CLI-wiring tests in
+`tests/integration/test_repository_misc.py`, and a new
+`tests/integration/test_repository_test.py` for real end-to-end coverage):
+- [x] Test execution against a real project fixture -- the
+  `lint_project_multi_module` fixture from Step 4.18, always with
+  `--no-services` (no Docker needed for this at all); `tests/testrepo`
+  itself has no `tests/` directory, so isn't suited to exercising a real
+  passing/failing run
+- [x] Test `--no-services`/`--with-coverage` behavior, and that the
+  services-lifecycle/coverage-targeting deviations above hold (invenio-cli
+  used, not `ServicesLifecycleManager`; every module directory covered, not
+  a single package name; pytest installed on demand against the venv's own
+  python)
 
 ---
 

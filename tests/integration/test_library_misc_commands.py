@@ -6,11 +6,14 @@
 from __future__ import annotations
 
 from typing import TYPE_CHECKING
+from unittest.mock import Mock
 
 import pytest
 from typer.testing import CliRunner
 
 from oarepo_cli.cli.main import app
+from oarepo_cli.core.config import CliConfig
+from oarepo_cli.core.context import ProjectContext
 
 if TYPE_CHECKING:
     from pathlib import Path
@@ -188,3 +191,73 @@ def test_license_headers_adds_to_jinja(
     assert "SPDX-FileCopyrightText" in lines[2]
     assert "SPDX-License-Identifier" in lines[3]
     assert lines[4] == "#}"  # End of multi-line comment
+
+
+@pytest.fixture
+def mock_library_context(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Mock:
+    """Mock discover_context() and venv-existence checks so library shell/invenio
+    reach their os.execve call without needing a real venv."""
+    context = Mock(spec=ProjectContext)
+    context.root_directory = tmp_path
+    context.venv_path = tmp_path / ".venv"
+    context.python_binary = tmp_path / ".venv" / "bin" / "python3.14"
+    context.oarepo_version = 14
+    context.config = CliConfig()
+    monkeypatch.setattr("oarepo_cli.cli.library.discover_context", lambda: context)
+    monkeypatch.setattr(
+        "oarepo_cli.cli.library.VirtualEnvironmentManager.ensure_venv_exists",
+        lambda self, requirements, quiet=False: context.venv_path,  # noqa: ARG005
+    )
+    monkeypatch.setattr(
+        "oarepo_cli.cli.library.ServicesLifecycleManager.load_service_env", lambda _self: {}
+    )
+    return context
+
+
+def test_library_shell_applies_same_env_defaults_as_blocking_calls(
+    runner: CliRunner, mock_library_context: Mock, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """library shell's exec'd environment gets the same OAREPO_ENV_DEFAULTS/venv-stripping
+    treatment any process.run() call gets -- regression test: previously library_shell
+    built its env from bare os.environ, silently missing both."""
+    monkeypatch.setenv("VIRTUAL_ENV", "/oarepo-cli/own/venv")
+    monkeypatch.delenv("INVENIO_APP_THEME", raising=False)
+    execve_calls = []
+    monkeypatch.setattr(
+        "oarepo_cli.cli.library.os.execve",
+        lambda *args: execve_calls.append(args),
+    )
+
+    result = runner.invoke(app, ["library", "shell", "--skip-services"], catch_exceptions=False)
+
+    assert result.exit_code == 0, result.output
+    _bash_path, _argv, env = execve_calls[0]
+    assert env["VIRTUAL_ENV"] == str(mock_library_context.venv_path)
+    assert env["INVENIO_APP_THEME"] == '["semantic-ui"]'
+
+
+def test_library_invenio_applies_same_env_defaults_as_blocking_calls(
+    runner: CliRunner, mock_library_context: Mock, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """library invenio's exec'd environment gets the same OAREPO_ENV_DEFAULTS/venv-stripping
+    treatment any process.run() call gets -- regression test: previously library_invenio
+    built its env from bare os.environ, silently missing both."""
+    invenio_path = mock_library_context.venv_path / "bin" / "invenio"
+    invenio_path.parent.mkdir(parents=True)
+    invenio_path.touch()
+    monkeypatch.setenv("VIRTUAL_ENV", "/oarepo-cli/own/venv")
+    monkeypatch.delenv("INVENIO_APP_THEME", raising=False)
+    execve_calls = []
+    monkeypatch.setattr(
+        "oarepo_cli.cli.library.os.execve",
+        lambda *args: execve_calls.append(args),
+    )
+
+    result = runner.invoke(
+        app, ["library", "invenio", "--skip-services", "db", "upgrade"], catch_exceptions=False
+    )
+
+    assert result.exit_code == 0, result.output
+    _invenio_path, _argv, env = execve_calls[0]
+    assert env["VIRTUAL_ENV"] == str(mock_library_context.venv_path)
+    assert env["INVENIO_APP_THEME"] == '["semantic-ui"]'

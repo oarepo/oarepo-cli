@@ -7,7 +7,7 @@ from __future__ import annotations
 
 import json
 import os
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, NoReturn
 
 if TYPE_CHECKING:
     from oarepo_cli.core.context import ProjectContext
@@ -130,28 +130,49 @@ def run_jstest(
     context: ProjectContext,
     *,
     setup: bool = False,
-    skip_services: bool = False,
+    service_env: dict[str, str] | None = None,
     extra_args: list[str] | None = None,
-    quiet: bool = False,
-) -> process.ProcessResult:
-    """Run JavaScript tests (Jest) via invenio webpack.
+    quiet: bool = False,  # noqa: ARG001 -- kept for interface symmetry with run_jslint
+) -> process.ProcessResult | NoReturn:
+    """Replace the current process with ``invenio webpack run test`` (Jest).
 
-    Mirrors ``library_runner.sh``'s ``run_jstest``: runs tests via
-    ``invenio webpack run test`` with services started unless
-    --skip-services is set.
+    Mirrors ``library_runner.sh``'s ``run_jstest``. Never returns once the
+    real test run starts: nothing needs to happen in this process
+    afterward, so a terminal Ctrl+C hits Jest directly and its exit code is
+    preserved exactly -- mirrors this module's ``run_jslint`` sibling being
+    the exception (multi-step, so it can't do the same, see its own
+    docstring) and every other one-shot passthrough elsewhere in this
+    codebase (``services.repository.exec_invenio``, etc.). Only the two
+    precondition-failure paths below (``setup`` not implemented, missing
+    ``invenio`` binary) return a value instead -- they're infrastructure
+    errors, not a real test-run outcome, so there's nothing to exec into.
+
+    Unlike ``library``/``repository``'s callers of this function, which
+    decide *how* to start Docker services differently (``library``: raw
+    docker-services-cli via ``ServicesLifecycleManager``; ``repository``:
+    ``invenio-cli services start``, matching ``repository run``/``shell``/
+    ``test`` -- see those for why raw docker-services-cli doesn't apply to
+    a repository), this function itself no longer starts anything: the
+    caller starts services beforehand and passes in whatever connection env
+    vars (if any) the subprocess needs.
 
     Args:
         context: Project context with paths and configuration
         setup: If True, run setup instead of tests
-        skip_services: If True, skip starting Docker services
+        service_env: Environment variables for connecting to already-started
+            services, if any (a repository needs none -- see
+            ``services.repository.exec_shell``'s identical rationale)
         extra_args: Additional arguments passed to the test command
-        quiet: If True, suppress progress output
+        quiet: Unused (kept for interface symmetry with ``run_jslint``)
 
     Returns:
-        ProcessResult from the test command
+        A precondition-failure ``ProcessResult`` for the ``setup``/missing-binary
+        cases; never returns otherwise
+
+    Raises:
+        OSError: If invenio can't be exec'd (not found, not executable, ...)
     """
     from oarepo_cli.core.platform import get_platform_detector
-    from oarepo_cli.services.services_lifecycle import ServicesLifecycleManager
 
     extra_args = extra_args or []
 
@@ -182,22 +203,7 @@ def run_jstest(
             duration_ms=0,
         )
 
-    # Load or start services to get environment variables
-    services_mgr = ServicesLifecycleManager(
-        config=context.config, project_root=context.root_directory
-    )
-
-    if skip_services:
-        service_env = services_mgr.load_service_env()
-    else:
-        # Start services if needed and get environment
-        service_env = services_mgr.start_services_if_needed()
-
-    # Build environment
-    import os
-
-    cmd_env = dict(os.environ)
-    cmd_env.update(service_env)
+    cmd_env = process.build_subprocess_env(service_env)
     cmd_env["VIRTUAL_ENV"] = str(context.venv_path)
     venv_bin_path = str(context.venv_path / bin_dir)
     cmd_env["PATH"] = f"{venv_bin_path}{os.pathsep}{cmd_env.get('PATH', '')}"
@@ -205,10 +211,5 @@ def run_jstest(
     # Run: invenio webpack run test [extra_args]
     cmd = [str(invenio_path), "webpack", "run", "test", *extra_args]
 
-    return process.run(
-        cmd,
-        cwd=context.root_directory,
-        env=cmd_env,
-        check=False,
-        interactive=not quiet,
-    )
+    os.chdir(context.root_directory)
+    os.execve(str(invenio_path), cmd, cmd_env)

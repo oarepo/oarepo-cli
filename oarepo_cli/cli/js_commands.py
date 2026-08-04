@@ -54,11 +54,19 @@ def run_jstest_command(
     context: ProjectContext,
     *,
     setup: bool,
-    skip_services: bool,
+    service_env: dict[str, str] | None,
     extra_args: Sequence[str],
     quiet: bool,
 ) -> NoReturn:
-    """Run ``run_jstest()`` and exit with its result, for `library`/`repository jstest`."""
+    """Run ``run_jstest()`` and exit with its result, for `library`/`repository jstest`.
+
+    The caller is responsible for starting Docker services (if needed) and passing
+    their connection environment variables via ``service_env``.
+
+    ``run_jstest()`` never returns on successful test runs (it ``os.execve``s into
+    Jest) -- only precondition failures (setup not implemented, missing ``invenio``
+    binary) return a ``ProcessResult``, which this function then exits with.
+    """
     console = ConsoleOutput(quiet=quiet)
     if setup:
         console.info("🛠️  Setting up JavaScript tests...", fg=typer.colors.BRIGHT_BLUE, bold=True)
@@ -69,7 +77,7 @@ def run_jstest_command(
         result = run_jstest(
             context,
             setup=setup,
-            skip_services=skip_services,
+            service_env=service_env,
             extra_args=list(extra_args),
             quiet=quiet,
         )
@@ -77,6 +85,8 @@ def run_jstest_command(
         console.error(f"❌ Error running jstest: {e}", fg=typer.colors.BRIGHT_RED, bold=True)
         raise typer.Exit(code=1) from e
 
+    # Only precondition failures (setup not implemented, missing invenio binary)
+    # return a ProcessResult -- successful test runs never return (os.execve)
     if result.success:
         console.success("✨ ✓ JavaScript tests complete!", fg=typer.colors.BRIGHT_GREEN, bold=True)
     else:

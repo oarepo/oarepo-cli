@@ -8,7 +8,7 @@ from __future__ import annotations
 import os
 from typing import TYPE_CHECKING, NoReturn
 
-from oarepo_cli.services import invenio_cli, repository
+from oarepo_cli.services import invenio_cli, process, repository
 from oarepo_cli.ui import ConsoleOutput
 
 if TYPE_CHECKING:
@@ -133,5 +133,7 @@ class ServerRunner:
             str(key_path),
             *extra_args,
         ]
-        env = {**os.environ, **site_env, "FLASK_DEBUG": "1", "PYTHONWARNINGS": "ignore"}
+        env = process.build_subprocess_env(
+            {**site_env, "FLASK_DEBUG": "1", "PYTHONWARNINGS": "ignore"}
+        )
         os.execve(str(invenio_path), argv, env)

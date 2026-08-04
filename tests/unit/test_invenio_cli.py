@@ -147,4 +147,29 @@ def test_exec_invenio_cli_chdirs_and_execs_resolved_binary(
     assert binary == "/venv/bin/invenio-cli"
     assert argv == ["/venv/bin/invenio-cli", "run", "--debugger"]
     assert env["FOO"] == "bar"
+
+
+def test_exec_invenio_cli_applies_same_env_defaults_as_run_invenio_cli(
+    mock_context: Mock, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """exec_invenio_cli's environment gets the same OAREPO_ENV_DEFAULTS/venv-stripping
+    treatment as run_invenio_cli's (via process.run()) -- regression test: previously
+    exec_invenio_cli built its env from bare os.environ, silently missing both."""
+    monkeypatch.setattr(
+        "oarepo_cli.services.invenio_cli._invenio_cli_path", lambda: "/venv/bin/invenio-cli"
+    )
+    monkeypatch.setenv("VIRTUAL_ENV", "/oarepo-cli/own/venv")
+    monkeypatch.delenv("INVENIO_APP_THEME", raising=False)
+    execvpe_calls = []
+    monkeypatch.setattr("oarepo_cli.services.invenio_cli.os.chdir", lambda _path: None)
+    monkeypatch.setattr(
+        "oarepo_cli.services.invenio_cli.os.execvpe",
+        lambda *args: execvpe_calls.append(args),
+    )
+
+    invenio_cli.exec_invenio_cli(mock_context, ["run"])
+
+    _binary, _argv, env = execvpe_calls[0]
+    assert "VIRTUAL_ENV" not in env
+    assert env["INVENIO_APP_THEME"] == '["semantic-ui"]'
     assert env["UV_PRERELEASE"] == "allow"
