@@ -7,6 +7,7 @@ from __future__ import annotations
 
 import json
 import os
+import traceback
 from typing import Annotated
 
 import typer
@@ -602,8 +603,6 @@ def library_shell(
             fg=typer.colors.BRIGHT_RED,
             bold=True,
         )
-        import traceback  # noqa: TID251
-
         traceback.print_exc()
         raise typer.Exit(code=1) from e
 
