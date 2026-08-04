@@ -47,6 +47,11 @@ class LocalPackageManager:
     every local package but triggers only a single ``upgrade_repository``
     call at the end (via ``remove_package(..., upgrade=False)`` per
     package), rather than one full upgrade per package.
+
+    Unlike bash, every ``upgrade_repository()`` call here passes
+    ``clean_cache=False``: adding/removing a local package doesn't change
+    any other package's version, so purging the uv cache -- and forcing a
+    full re-download of everything else -- buys nothing and is slow.
     """
 
     def __init__(self, context: ProjectContext, *, quiet: bool = False) -> None:
@@ -100,7 +105,7 @@ class LocalPackageManager:
         self._write_document(document)
 
         console.info("→ Upgrading repository with the new local package\n")
-        upgrade_repository(self._context, quiet=self._quiet)
+        upgrade_repository(self._context, quiet=self._quiet, clean_cache=False)
 
         console.success(f"✓ Local package '{name}' added successfully.\n")
 
@@ -140,7 +145,7 @@ class LocalPackageManager:
 
         if upgrade:
             console.info("→ Upgrading repository after removing the local package\n")
-            upgrade_repository(self._context, quiet=self._quiet)
+            upgrade_repository(self._context, quiet=self._quiet, clean_cache=False)
 
         console.success(f"✓ Local package '{canonical_name}' removed successfully.\n")
 
@@ -171,7 +176,7 @@ class LocalPackageManager:
         if names:
             console = ConsoleOutput(quiet=self._quiet)
             console.info("→ Upgrading repository after removing all local packages\n")
-            upgrade_repository(self._context, quiet=self._quiet)
+            upgrade_repository(self._context, quiet=self._quiet, clean_cache=False)
 
         return names
 

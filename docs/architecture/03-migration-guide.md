@@ -87,8 +87,8 @@ oarepo-cli library test
 | `./run.sh model create <name> <config>` | `oarepo-cli repository model create <name> <config>` | Identical behavior |
 | `./run.sh model update <name>` | `oarepo-cli repository model update <name>` | Identical behavior |
 | `./run.sh model update <name> <answers>` | `oarepo-cli repository model update <name> <answers>` | Identical behavior |
-| `./run.sh local add <path>` | `oarepo-cli repository local add <path>` | Identical behavior |
-| `./run.sh local remove <name>` | `oarepo-cli repository local remove <name>` | Identical behavior |
+| `./run.sh local add <path>` | `oarepo-cli repository local add <path>` | Deviation: the triggered repository upgrade no longer cleans the uv cache (see Step 4.6.1) |
+| `./run.sh local remove <name>` | `oarepo-cli repository local remove <name>` | Deviation: bash never implemented this (told users to edit `pyproject.toml` by hand); also skips the uv cache clean, like `local add` |
 | `./run.sh run` | `oarepo-cli repository run` | Identical behavior |
 | `./run.sh run --no-services` | `oarepo-cli repository run --no-services` | Same flag |
 | `./run.sh run --no-celery` | `oarepo-cli repository run --no-celery` | Same flag |
