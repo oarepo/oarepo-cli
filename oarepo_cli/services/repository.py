@@ -570,6 +570,92 @@ def reset_repository(context: ProjectContext, *, quiet: bool = False) -> None:
     _run_invenio(context, ["roles", "add", "user@demo.org", "administration"], quiet=quiet)
 
 
+def run_tests(
+    context: ProjectContext,
+    *,
+    pytest_args: Sequence[str] = (),
+    coverage: bool = False,
+    quiet: bool = False,
+) -> process.ProcessResult:
+    """Run pytest in the repository's venv.
+
+    Unlike ``services.test_orchestrator.TestOrchestrator`` (used by
+    ``library test``), this doesn't manage Docker services itself -- the
+    caller starts them via ``invenio-cli services start`` first, like
+    ``repository run``/``shell`` (a repository's services are always
+    invenio-cli-managed, unlike a library's raw docker-services-cli setup
+    via ``ServicesLifecycleManager``, which wouldn't correctly drive a
+    repository's own ``docker/docker-compose.yml``), and doesn't stop them
+    afterward either, matching every other ``repository`` command.
+
+    Also doesn't assume a single importable package name for ``--cov``
+    like ``TestOrchestrator`` does (derived from ``[project].name``, correct
+    for a library's one src/-or-package-dir layout): a repository's
+    ``code_directories`` are typically several top-level module directories
+    (see Step 4.15's ``[tool.uv.build-backend]`` support), each already a
+    real importable package name, so every one of them (except ``tests/``)
+    is passed to ``--cov`` instead.
+
+    Unlike a library (which either declares a ``tests`` extra itself or
+    already depends on it transitively), a fresh repository has no such
+    convention, so ``pytest``/``pytest-cov`` are installed directly into the
+    venv on demand if missing, rather than via an extras group.
+
+    Args:
+        context: Project context with paths and configuration
+        pytest_args: Additional arguments to pass to pytest
+        coverage: If True, enable coverage reporting (HTML + terminal)
+        quiet: If True, suppress dependency-installation progress messages
+
+    Returns:
+        ProcessResult from the pytest invocation (``check=False`` --
+        callers report success/failure themselves via the exit code)
+    """
+    console = ConsoleOutput(quiet=quiet)
+    bin_dir = get_platform_detector().get_venv_bin_dir()
+    venv_python = context.venv_path / bin_dir / "python"
+    pytest_bin = context.venv_path / bin_dir / "pytest"
+
+    if not pytest_bin.exists():
+        console.info("→ Installing pytest...\n")
+        process.run(
+            ["uv", "pip", "install", "--python", str(venv_python), "pytest"],
+            cwd=context.root_directory,
+            check=True,
+            interactive=not quiet,
+        )
+
+    if coverage:
+        check_cov = process.run(
+            [str(venv_python), "-c", "import pytest_cov"],
+            check=False,
+            capture_output=True,
+        )
+        if not check_cov.success:
+            console.info("→ Installing pytest-cov...\n")
+            process.run(
+                ["uv", "pip", "install", "--python", str(venv_python), "pytest-cov"],
+                cwd=context.root_directory,
+                check=True,
+                interactive=not quiet,
+            )
+
+    cmd = [str(pytest_bin)]
+    if coverage:
+        for directory in context.code_directories:
+            if directory.name != "tests":
+                cmd.extend(["--cov", directory.name])
+        cmd.extend(["--cov-report=html", "--cov-report=term"])
+    cmd.extend(pytest_args)
+
+    return process.run(
+        cmd,
+        cwd=context.root_directory,
+        check=False,
+        interactive=True,
+    )
+
+
 def get_python_version(context: ProjectContext) -> str:
     """Return the resolved Python interpreter's version string (e.g. "Python 3.14.4").
 

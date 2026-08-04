@@ -510,6 +510,7 @@ The `repository` subcommand provides tools for managing full OARepo repository i
 | [`check`](#repository-check) | Read-only equivalent of `lint`+`format` | ✅ Implemented |
 | [`jslint`](#repository-jslint) | Run ESLint and Prettier on JS files | ✅ Implemented |
 | [`jstest`](#repository-jstest) | Run JavaScript tests (Jest) | ✅ Implemented |
+| [`test`](#repository-test) | Run pytest tests | ✅ Implemented |
 | [`translations`](#repository-translations) | Extract/compile translations | ✅ Implemented |
 | [`index`](#repository-index-rebuild) | Rebuild search index | ✅ Implemented |
 | [`reset`](#repository-reset) | Full reset with confirmation | ✅ Implemented |
@@ -865,6 +866,35 @@ oarepo-cli repository jstest --skip-services
 **Exit codes:**
 - Exit code of the underlying test command
 - `1`: Project context could not be discovered
+
+### `repository test`
+
+Runs the repository's test suite using pytest. By default, Docker services are started first (via `invenio-cli services start`, like [`repository run`](#repository-run)/[`shell`](#repository-shell)) -- use `--no-services` to skip. Unlike [`library test`](#library-test), services are never stopped afterward, matching every other `repository` command.
+
+`--with-coverage` covers every module directory (see [`repository lint`](#repository-lint)) rather than a single package, since a repository's code is typically laid out as several top-level modules. Since a fresh repository has no "tests" extras convention of its own (unlike a library), `pytest`/`pytest-cov` are installed directly into the venv on demand if missing.
+
+```bash
+oarepo-cli repository test
+```
+
+**Options:**
+- `--no-services`: Don't start Docker services first
+- `--with-coverage`: Enable coverage reporting (HTML and terminal)
+- `--quiet` / `-q`: Suppress output from starting Docker services
+
+Any additional arguments are passed directly to pytest.
+
+**Examples:**
+```bash
+oarepo-cli repository test
+oarepo-cli repository test --with-coverage
+oarepo-cli repository test --no-services
+oarepo-cli repository test -v -k test_specific
+```
+
+**Exit codes:**
+- Exit code of the underlying pytest invocation
+- `1`: Starting Docker services failed, or project context could not be discovered
 
 ### `repository translations`
 

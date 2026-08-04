@@ -487,3 +487,117 @@ def test_get_python_version_returns_stripped_output(monkeypatch: pytest.MonkeyPa
     )
 
     assert repository.get_python_version(context) == "Python 3.14.4"
+
+
+def _run_tests_context(tmp_path: Path, *, code_directories: list[Path]) -> Mock:
+    context = Mock(spec=ProjectContext)
+    context.root_directory = tmp_path
+    context.venv_path = tmp_path / ".venv"
+    # Deliberately distinct from the venv's own python (a system/version-resolver
+    # interpreter, used only to *create* the venv) -- installing into it directly, as
+    # opposed to the venv's own python, would fail against a uv-managed interpreter
+    # ("externally managed", found the hard way against a real fixture).
+    context.python_binary = Path("/usr/bin/python3.14")
+    context.code_directories = code_directories
+    return context
+
+
+def test_run_tests_installs_pytest_when_missing(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """run_tests() installs pytest into the venv's own python directly (not via a
+    "tests" extras group, unlike TestOrchestrator, and not context.python_binary,
+    which is the interpreter used to *create* the venv, not the venv's own) when it
+    isn't already there -- a fresh repository has no "tests" extras convention to
+    rely on."""
+    context = _run_tests_context(tmp_path, code_directories=[])
+    bin_dir = get_platform_detector().get_venv_bin_dir()
+    venv_python = context.venv_path / bin_dir / "python"
+
+    calls: list[list[str]] = []
+
+    def fake_run(command: list[str], **_kwargs: object) -> process.ProcessResult:
+        calls.append(list(command))
+        return _fake_process_result()
+
+    monkeypatch.setattr("oarepo_cli.services.repository.process.run", fake_run)
+
+    repository.run_tests(context, quiet=True)
+
+    install_call = next(c for c in calls if c[:3] == ["uv", "pip", "install"])
+    assert install_call[-1] == "pytest"
+    assert str(venv_python) in install_call
+    assert str(context.python_binary) not in install_call
+
+
+def test_run_tests_skips_pytest_install_when_already_present(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """run_tests() doesn't reinstall pytest if the venv's own binary already exists."""
+    context = _run_tests_context(tmp_path, code_directories=[])
+    bin_dir = get_platform_detector().get_venv_bin_dir()
+    pytest_bin = context.venv_path / bin_dir / "pytest"
+    pytest_bin.parent.mkdir(parents=True)
+    pytest_bin.touch()
+
+    calls: list[list[str]] = []
+    monkeypatch.setattr(
+        "oarepo_cli.services.repository.process.run",
+        lambda command, **_kwargs: calls.append(list(command)) or _fake_process_result(),
+    )
+
+    repository.run_tests(context, quiet=True)
+
+    assert not any(c[:3] == ["uv", "pip", "install"] for c in calls)
+
+
+def test_run_tests_covers_every_module_directory_not_a_single_package(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """--with-coverage covers every non-tests code_directories entry by name -- unlike
+    TestOrchestrator's single [project].name-derived target, since a repository's
+    code_directories are typically several real, importable top-level packages
+    (Step 4.15), not one src/-or-package-dir."""
+    common = tmp_path / "common"
+    i18n = tmp_path / "i18n"
+    tests_dir = tmp_path / "tests"
+    context = _run_tests_context(tmp_path, code_directories=[common, i18n, tests_dir])
+    bin_dir = get_platform_detector().get_venv_bin_dir()
+    pytest_bin = context.venv_path / bin_dir / "pytest"
+    pytest_bin.parent.mkdir(parents=True)
+    pytest_bin.touch()
+    (context.venv_path / bin_dir / "python").touch()
+
+    calls: list[list[str]] = []
+    monkeypatch.setattr(
+        "oarepo_cli.services.repository.process.run",
+        lambda command, **_kwargs: calls.append(list(command)) or _fake_process_result(),
+    )
+
+    repository.run_tests(context, coverage=True, quiet=True)
+
+    pytest_call = next(c for c in calls if c[0] == str(pytest_bin))
+    assert pytest_call.count("--cov") == 2
+    assert "common" in pytest_call
+    assert "i18n" in pytest_call
+    assert "tests" not in pytest_call
+
+
+def test_run_tests_forwards_pytest_args(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """Extra pytest args are appended verbatim to the pytest invocation."""
+    context = _run_tests_context(tmp_path, code_directories=[])
+    bin_dir = get_platform_detector().get_venv_bin_dir()
+    pytest_bin = context.venv_path / bin_dir / "pytest"
+    pytest_bin.parent.mkdir(parents=True)
+    pytest_bin.touch()
+
+    calls: list[list[str]] = []
+    monkeypatch.setattr(
+        "oarepo_cli.services.repository.process.run",
+        lambda command, **_kwargs: calls.append(list(command)) or _fake_process_result(),
+    )
+
+    repository.run_tests(context, pytest_args=["-v", "-k", "test_specific"], quiet=True)
+
+    pytest_call = next(c for c in calls if c[0] == str(pytest_bin))
+    assert pytest_call[-3:] == ["-v", "-k", "test_specific"]

@@ -832,6 +832,84 @@ def jstest_command(
     )
 
 
+@repository_app.command(
+    "test",
+    context_settings={
+        "allow_extra_args": True,
+        "allow_interspersed_args": True,
+        "ignore_unknown_options": True,
+    },
+)
+def test_command(
+    ctx: typer.Context,
+    no_services: Annotated[
+        bool,
+        typer.Option("--no-services", help="Don't start Docker services first"),
+    ] = False,
+    with_coverage: Annotated[
+        bool, typer.Option("--with-coverage", help="Enable coverage reporting")
+    ] = False,
+    quiet: Annotated[
+        bool,
+        typer.Option(
+            "--quiet",
+            "-q",
+            help="Suppress output from starting Docker services",
+        ),
+    ] = False,
+) -> None:
+    """Run the repository's test suite using pytest.
+
+    By default, Docker services are started first (via ``invenio-cli
+    services start``, like ``repository run``/``shell``) -- use
+    ``--no-services`` to skip, e.g. if they're already running. Unlike
+    ``library test``, services are never stopped afterward, matching every
+    other ``repository`` command.
+
+    Use ``--with-coverage`` to generate coverage reports (HTML and
+    terminal), covering every module directory (see ``repository lint``)
+    rather than a single package.
+
+    Any additional arguments are passed directly to pytest.
+
+    Examples:
+        $ oarepo-cli repository test
+        $ oarepo-cli repository test --with-coverage
+        $ oarepo-cli repository test --no-services
+        $ oarepo-cli repository test -v -k test_specific
+
+    Exit codes:
+        Exit code of the underlying pytest invocation
+        1: Starting Docker services failed, or project context could not be
+           discovered
+    """
+    pytest_args = ctx.args if ctx.args else []
+
+    try:
+        context = discover_context()
+
+        console = ConsoleOutput(quiet=quiet)
+        if not no_services:
+            console.info("→ Starting Docker services...\n")
+            invenio_cli.run_invenio_cli(context, ["services", "start"], quiet=quiet)
+
+        console.info("→ Running tests...\n")
+        result = repository.run_tests(
+            context, pytest_args=pytest_args, coverage=with_coverage, quiet=quiet
+        )
+    except OARepoError as e:
+        console_err = ConsoleOutput(quiet=False)  # Always show errors
+        console_err.error(f"\n✗ repository test failed: {e}\n", fg=typer.colors.RED)
+        raise typer.Exit(1) from e
+
+    if result.success:
+        console.success("\n✓ All tests passed!\n", fg=typer.colors.BRIGHT_GREEN, bold=True)
+    else:
+        console.error("\n✗ Tests failed!\n", fg=typer.colors.RED, bold=True)
+
+    raise typer.Exit(code=result.return_code)
+
+
 @repository_app.command("translations", context_settings=_SERVICES_CONTEXT_SETTINGS)
 def translations_command(
     ctx: typer.Context,
