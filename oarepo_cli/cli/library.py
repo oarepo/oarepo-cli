@@ -325,20 +325,6 @@ def library_clean(
             bold=True,
         )
 
-    # Display summary
-    if items_removed:
-        console.success(
-            f"✨ ✓ Cleanup completed! Removed: {', '.join(items_removed)}",
-            fg=typer.colors.BRIGHT_GREEN,
-            bold=True,
-        )
-    else:
-        console.success(
-            "✨ ✓ Environment is already clean!",
-            fg=typer.colors.BRIGHT_GREEN,
-            bold=True,
-        )
-
 
 @library_app.command("upgrade")
 def library_upgrade(

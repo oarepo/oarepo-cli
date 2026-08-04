@@ -108,6 +108,36 @@ def test_library_clean_command_shows_output_real(
     assert len(result.output) >= 0  # Always true, just checking no exception
 
 
+def test_library_clean_command_prints_summary_once_when_something_removed(
+    runner: CliRunner,
+    testlib_with_artifacts: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """The "Cleanup completed" summary line is printed exactly once, not twice
+    (regression test for a copy-paste bug where the summary block was duplicated)."""
+    monkeypatch.chdir(testlib_with_artifacts)
+
+    result = runner.invoke(app, ["library", "clean"], catch_exceptions=False)
+
+    assert result.exit_code == 0, result.output
+    assert result.output.count("Cleanup completed") == 1
+
+
+def test_library_clean_command_prints_summary_once_when_already_clean(
+    runner: CliRunner,
+    clean_testlib: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """The "already clean" summary line is printed exactly once, not twice
+    (regression test for a copy-paste bug where the summary block was duplicated)."""
+    monkeypatch.chdir(clean_testlib)
+
+    result = runner.invoke(app, ["library", "clean"], catch_exceptions=False)
+
+    assert result.exit_code == 0, result.output
+    assert result.output.count("already clean") == 1
+
+
 def test_library_clean_command_partial_cleanup_real(
     runner: CliRunner,
     clean_testlib: Path,
