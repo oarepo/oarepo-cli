@@ -12,12 +12,11 @@ from typing import Annotated
 
 import typer
 
-from oarepo_cli.cli import lint_commands
+from oarepo_cli.cli import js_commands, lint_commands
 from oarepo_cli.core.context import discover_context, find_pyproject_toml
 from oarepo_cli.core.errors import OARepoError
 from oarepo_cli.core.platform import get_platform_detector
 from oarepo_cli.services import process
-from oarepo_cli.services.js_tools import run_jslint, run_jstest
 from oarepo_cli.services.license_headers import add_license_headers
 from oarepo_cli.services.pyproject_reader import PyProjectReader
 from oarepo_cli.services.services_lifecycle import ServicesLifecycleManager
@@ -996,24 +995,7 @@ def library_jslint(
         oarepo-cli library jslint
     """
     context = discover_context()
-    console = ConsoleOutput(quiet=quiet)
-
-    console.info("🔍 Running JavaScript linters...", fg=typer.colors.BRIGHT_BLUE, bold=True)
-
-    try:
-        result = run_jslint(context, quiet=quiet)
-    except OARepoError as e:
-        console.error(f"❌ Error running jslint: {e}", fg=typer.colors.BRIGHT_RED, bold=True)
-        raise typer.Exit(code=1) from e
-
-    if result.success:
-        console.success(
-            "✨ ✓ JavaScript linting complete!", fg=typer.colors.BRIGHT_GREEN, bold=True
-        )
-    else:
-        console.error("❌ JavaScript linting failed!", fg=typer.colors.BRIGHT_RED, bold=True)
-
-    raise typer.Exit(code=result.return_code)
+    js_commands.run_jslint_command(context, quiet=quiet)
 
 
 @library_app.command(
@@ -1052,27 +1034,9 @@ def library_jstest(
     extra_args = ctx.args if ctx.args else []
 
     context = discover_context()
-    console = ConsoleOutput(quiet=quiet)
-
-    if setup:
-        console.info("🛠️  Setting up JavaScript tests...", fg=typer.colors.BRIGHT_BLUE, bold=True)
-    else:
-        console.info("🧪 Running JavaScript tests...", fg=typer.colors.BRIGHT_BLUE, bold=True)
-
-    try:
-        result = run_jstest(
-            context, setup=setup, skip_services=skip_services, extra_args=extra_args, quiet=quiet
-        )
-    except OARepoError as e:
-        console.error(f"❌ Error running jstest: {e}", fg=typer.colors.BRIGHT_RED, bold=True)
-        raise typer.Exit(code=1) from e
-
-    if result.success:
-        console.success("✨ ✓ JavaScript tests complete!", fg=typer.colors.BRIGHT_GREEN, bold=True)
-    else:
-        console.error("❌ JavaScript tests failed!", fg=typer.colors.BRIGHT_RED, bold=True)
-
-    raise typer.Exit(code=result.return_code)
+    js_commands.run_jstest_command(
+        context, setup=setup, skip_services=skip_services, extra_args=extra_args, quiet=quiet
+    )
 
 
 @library_app.command("oarepo-versions")

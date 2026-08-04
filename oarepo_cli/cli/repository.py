@@ -10,7 +10,7 @@ from typing import Annotated
 
 import typer
 
-from oarepo_cli.cli import lint_commands
+from oarepo_cli.cli import js_commands, lint_commands
 from oarepo_cli.core.context import discover_context
 from oarepo_cli.core.errors import OARepoError
 from oarepo_cli.services import invenio_cli, repository, translations
@@ -744,6 +744,92 @@ def check_command(
         raise typer.Exit(1) from e
 
     lint_commands.run_check(context, quiet=quiet)
+
+
+@repository_app.command("jslint")
+def jslint_command(
+    quiet: Annotated[
+        bool, typer.Option("--quiet", "-q", help="Suppress output from subprocesses")
+    ] = False,
+) -> None:
+    """Run ESLint and Prettier on the repository's JavaScript files.
+
+    Installs necessary dependencies if needed
+    (``@inveniosoftware/eslint-config-invenio``), generates
+    ``.eslintrc.yaml`` configuration, runs eslint with ``--fix`` to
+    auto-fix issues, and runs prettier to format code.
+
+    In CI environments (``CI=true``), prettier runs in check mode
+    (``--check``) instead of write mode (``--write``).
+
+    Skips entirely if no ``package.json`` is found at the repository root
+    (JS assets are optional for a repository).
+
+    Exit codes:
+        Exit code of the underlying eslint/prettier invocation
+        1: Project context could not be discovered
+    """
+    try:
+        context = discover_context()
+    except OARepoError as e:
+        console_err = ConsoleOutput(quiet=False)
+        console_err.error(f"\n✗ repository jslint failed: {e}\n", fg=typer.colors.RED)
+        raise typer.Exit(1) from e
+
+    js_commands.run_jslint_command(context, quiet=quiet)
+
+
+@repository_app.command(
+    "jstest",
+    context_settings={
+        "allow_extra_args": True,
+        "allow_interspersed_args": True,
+        "ignore_unknown_options": True,
+    },
+)
+def jstest_command(
+    ctx: typer.Context,
+    setup: Annotated[
+        bool, typer.Option("--setup", help="Set up Jest configuration instead of running tests")
+    ] = False,
+    skip_services: Annotated[
+        bool, typer.Option("--skip-services", help="Skip starting Docker services")
+    ] = False,
+    quiet: Annotated[
+        bool, typer.Option("--quiet", "-q", help="Suppress output from subprocesses")
+    ] = False,
+) -> None:
+    """Run JavaScript tests (Jest) via ``invenio webpack``.
+
+    Runs Jest tests through ``invenio webpack run test``, collecting every
+    registered ``invenio_assets.webpack`` entry point -- including the
+    repository's own (see ``[project.entry-points."invenio_assets.webpack"]``
+    in ``pyproject.toml``), same as for a library. Requires the repository
+    to already be installed (``repository install``), so its webpack build
+    exists.
+
+    Use ``--setup`` to set up the Jest configuration (currently delegates
+    to bash script). By default, starts Docker services if needed. Use
+    ``--skip-services`` to skip service startup.
+
+    Any additional arguments are passed directly to the test command.
+
+    Exit codes:
+        Exit code of the underlying test command
+        1: Project context could not be discovered
+    """
+    extra_args = ctx.args if ctx.args else []
+
+    try:
+        context = discover_context()
+    except OARepoError as e:
+        console_err = ConsoleOutput(quiet=False)
+        console_err.error(f"\n✗ repository jstest failed: {e}\n", fg=typer.colors.RED)
+        raise typer.Exit(1) from e
+
+    js_commands.run_jstest_command(
+        context, setup=setup, skip_services=skip_services, extra_args=extra_args, quiet=quiet
+    )
 
 
 @repository_app.command("translations", context_settings=_SERVICES_CONTEXT_SETTINGS)

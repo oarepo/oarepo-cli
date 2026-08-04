@@ -1790,20 +1790,46 @@ on Step 4.15 for correct multi-module source-directory detection.
 **Goal**: Port `library jslint`/`jstest` to `repository`. Depends on Step
 4.15 for correct multi-module source-directory detection.
 
-- [ ] Add `repository jslint`/`repository jstest` to `cli/repository.py`,
+- [x] Add `repository jslint`/`repository jstest` to `cli/repository.py`,
   delegating to the existing `services.js_tools.run_jslint()`/`run_jstest()`
   exactly like their `library` counterparts
-- [ ] **Verify before implementing**: `run_jstest()` shells out to `invenio
+- [x] **Verify before implementing**: `run_jstest()` shells out to `invenio
   webpack run test`, which assumes a webpack/Jest setup created via
   `invenio webpack create` (a library workflow). Confirm a real repository
   project (which already ships `assets/`, `static/`, `ui/`, `i18n/`,
   `babel.ini`, `oarepo.yaml` per `tests/testrepo`) exposes the same `invenio
   webpack run test` entry point, or whether repository JS testing needs a
   different command/setup entirely
-- [ ] `run_jslint()`'s `package.json`-missing short-circuit (prints "No
+- [x] `run_jslint()`'s `package.json`-missing short-circuit (prints "No
   package.json found, skipping") already degrades gracefully -- confirm
   this is the desired behavior for a repository without JS assets configured
   yet, or whether it should be an error instead
+
+**Verification results**: `invenio webpack run test`/`invenio webpack create`
+are general Invenio mechanisms, not library-specific -- they collect
+*every* registered `invenio_assets.webpack` entry point project-wide (from
+installed packages *and* the project's own `pyproject.toml`; `tests/testrepo`
+itself registers two: `i18n = "i18n.webpack:theme"`, `components =
+"ui.components.webpack:theme"`), and `install_repository()`'s "Run
+invenio-cli install" step already triggers this webpack build during a real
+`repository install` -- exactly the same precondition `library jstest`
+already has (an installed venv with webpack already created). No changes
+needed to `services/js_tools.py`; both functions are reused completely
+as-is. `run_jslint()`'s package.json-missing skip is kept unchanged too
+(not special-cased for repository) -- it's the same safe default already
+accepted for a library without its own root-level JS lint config, and a
+repository not having one at the project root is the common case (its real
+webpack assets/`package.json` live inside the Flask instance path, not the
+git-tracked project root -- confirmed against `library_runner.sh`'s own
+`assets_path="${instance_path}/assets"`, used by its jstest setup path but
+notably *not* by `run_jslint()`, which really does check the bare project
+root either way).
+
+**No code duplication** (per Step 4.18's precedent): extracted the
+CLI-layer command bodies into a new shared `cli/js_commands.py`
+(`run_jslint_command()`/`run_jstest_command()`), reused verbatim by both
+`library.py` and `repository.py`, refactoring `library_jslint`/`jstest` to
+call it too rather than leaving the duplicated bodies in place.
 
 **Deliverables**:
 - `oarepo-cli repository jslint`/`jstest`, functionally equivalent to their
@@ -1811,12 +1837,16 @@ on Step 4.15 for correct multi-module source-directory detection.
   hold for a repository project
 
 **Tests** (mirroring `tests/integration/test_library_misc_commands.py`'s
-`library jslint`/`library jstest` coverage):
-- [ ] Test each command executes against a real multi-module repository
-  fixture (`tests/testrepo`)
-- [ ] Test the no-`package.json` short-circuit
-- [ ] Test `jslint` excludes `tests/` from the directories it lints,
-  matching `library jslint`'s existing behavior
+`library jslint`/`library jstest` coverage, plus CLI-wiring tests in
+`tests/integration/test_repository_misc.py`):
+- [x] Test each command's `--help`; a full real `jstest` run needs an
+  installed venv plus node/npm/webpack -- too heavy for this suite, and not
+  exercised for `library jstest` either
+- [x] Test the no-`package.json` short-circuit, against the
+  `lint_project_multi_module` fixture added in Step 4.18
+- [x] `jslint`/`jstest` reuse `context.code_directories` and its existing
+  `tests/`-exclusion unchanged -- already covered by Step 4.15's tests, not
+  re-tested here
 
 ---
 
