@@ -1,8 +1,8 @@
 # SPDX-FileCopyrightText: 2026 CESNET z.s.p.o.
 # SPDX-License-Identifier: MIT
 
-"""Tests for `repository cli`/`invenio`/`shell`/`lint`/`format`/`check`/`translations`/
-`index rebuild`/`reset`/`info`.
+"""Tests for `repository cli`/`invenio`/`shell`/`lint`/`format`/`check`/`jslint`/`jstest`/
+`translations`/`index rebuild`/`reset`/`info`.
 
 Delegation, argument wiring, and error/exit-code handling are covered here
 by mocking `discover_context()` and the specific service function/module
@@ -357,6 +357,81 @@ def test_check_reports_context_discovery_failure(monkeypatch: pytest.MonkeyPatch
 
     runner = CliRunner()
     result = runner.invoke(app, ["repository", "check"])
+
+    assert result.exit_code == 1
+
+
+# --- repository jslint/jstest ---------------------------------------------
+
+
+def test_jslint_delegates_to_js_commands_run_jslint_command(
+    mock_context: Mock, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """`repository jslint` delegates to the shared js_commands.run_jslint_command(), the
+    same function `library jslint` calls (Step 4.19)."""
+    calls: list[dict[str, object]] = []
+    monkeypatch.setattr(
+        "oarepo_cli.cli.repository.js_commands.run_jslint_command",
+        lambda context, **kwargs: calls.append({"context": context, **kwargs}),
+    )
+
+    runner = CliRunner()
+    result = runner.invoke(app, ["repository", "jslint", "--quiet"])
+
+    assert result.exit_code == 0, result.output
+    assert calls == [{"context": mock_context, "quiet": True}]
+
+
+def test_jslint_reports_context_discovery_failure(monkeypatch: pytest.MonkeyPatch) -> None:
+    """A context-discovery failure is reported cleanly, exit code 1."""
+    monkeypatch.setattr(
+        "oarepo_cli.cli.repository.discover_context",
+        Mock(side_effect=ConfigurationError("pyproject.toml not found")),
+    )
+
+    runner = CliRunner()
+    result = runner.invoke(app, ["repository", "jslint"])
+
+    assert result.exit_code == 1
+
+
+def test_jstest_delegates_to_js_commands_run_jstest_command(
+    mock_context: Mock, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """`repository jstest` delegates to the shared js_commands.run_jstest_command(),
+    forwarding --setup/--skip-services/--quiet and any extra args."""
+    calls: list[dict[str, object]] = []
+    monkeypatch.setattr(
+        "oarepo_cli.cli.repository.js_commands.run_jstest_command",
+        lambda context, **kwargs: calls.append({"context": context, **kwargs}),
+    )
+
+    runner = CliRunner()
+    result = runner.invoke(
+        app, ["repository", "jstest", "--skip-services", "--quiet", "-t", "some.test"]
+    )
+
+    assert result.exit_code == 0, result.output
+    assert calls == [
+        {
+            "context": mock_context,
+            "setup": False,
+            "skip_services": True,
+            "extra_args": ["-t", "some.test"],
+            "quiet": True,
+        }
+    ]
+
+
+def test_jstest_reports_context_discovery_failure(monkeypatch: pytest.MonkeyPatch) -> None:
+    """A context-discovery failure is reported cleanly, exit code 1."""
+    monkeypatch.setattr(
+        "oarepo_cli.cli.repository.discover_context",
+        Mock(side_effect=ConfigurationError("pyproject.toml not found")),
+    )
+
+    runner = CliRunner()
+    result = runner.invoke(app, ["repository", "jstest"])
 
     assert result.exit_code == 1
 

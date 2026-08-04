@@ -508,6 +508,8 @@ The `repository` subcommand provides tools for managing full OARepo repository i
 | [`lint`](#repository-lint) | Run linters and type checkers | ✅ Implemented |
 | [`format`](#repository-format) | Format code with ruff | ✅ Implemented |
 | [`check`](#repository-check) | Read-only equivalent of `lint`+`format` | ✅ Implemented |
+| [`jslint`](#repository-jslint) | Run ESLint and Prettier on JS files | ✅ Implemented |
+| [`jstest`](#repository-jstest) | Run JavaScript tests (Jest) | ✅ Implemented |
 | [`translations`](#repository-translations) | Extract/compile translations | ✅ Implemented |
 | [`index`](#repository-index-rebuild) | Rebuild search index | ✅ Implemented |
 | [`reset`](#repository-reset) | Full reset with confirmation | ✅ Implemented |
@@ -822,6 +824,46 @@ oarepo-cli repository check
 
 **Exit codes:**
 - Exit code of the first failing check
+- `1`: Project context could not be discovered
+
+### `repository jslint`
+
+Runs ESLint and Prettier on the repository's JavaScript files. Installs `@inveniosoftware/eslint-config-invenio` if needed, generates `.eslintrc.yaml`, runs eslint with `--fix`, and runs prettier (in check mode under `CI=true`). Skips entirely if no `package.json` is found at the repository root -- the common case, since a repository doesn't commit one there. Functionally identical to [`library jslint`](#library-jslint).
+
+```bash
+oarepo-cli repository jslint
+```
+
+**Options:**
+- `--quiet` / `-q`: Suppress output from subprocesses
+
+**Exit codes:**
+- Exit code of the underlying eslint/prettier invocation
+- `1`: Project context could not be discovered
+
+### `repository jstest`
+
+Runs JavaScript tests (Jest) via `invenio webpack run test`, collecting every registered `invenio_assets.webpack` entry point -- including the repository's own (see `[project.entry-points."invenio_assets.webpack"]` in `pyproject.toml`), same as for a library. Requires the repository to already be installed ([`repository install`](#repository-install)), so its webpack build exists. Functionally identical to [`library jstest`](#library-jstest).
+
+```bash
+oarepo-cli repository jstest [OPTIONS]
+```
+
+**Options:**
+- `--setup`: Set up Jest configuration instead of running tests (currently delegates to bash script)
+- `--skip-services`: Don't start Docker services first
+- `--quiet` / `-q`: Suppress output from subprocesses
+
+Any additional arguments are passed directly to the test command.
+
+**Examples:**
+```bash
+oarepo-cli repository jstest
+oarepo-cli repository jstest --skip-services
+```
+
+**Exit codes:**
+- Exit code of the underlying test command
 - `1`: Project context could not be discovered
 
 ### `repository translations`
