@@ -1,7 +1,39 @@
 # SPDX-FileCopyrightText: 2026 CESNET z.s.p.o.
 # SPDX-License-Identifier: MIT
 
-"""Invenio-CLI integration for OARepo repository projects."""
+"""Invenio-CLI integration: delegation and exec-replacement for repository commands.
+
+This module provides two patterns for invoking the CESNET-patched invenio-cli
+(installed from the CESNET GitLab PyPI registry, verified at startup by
+core/dependency_check.py):
+
+1. **Blocking delegation** (`run_invenio_cli`): Run `invenio-cli <args>` as a
+   subprocess, wait for completion, return exit code + output. Used by:
+   - `repository services` subcommands (setup/start/stop/destroy)
+   - Any command that needs to capture/inspect invenio-cli's output
+
+2. **Exec-replacement** (`exec_invenio_cli`): Replace the current Python process
+   with `invenio-cli <args>` via os.execvpe(), never returning. Used by:
+   - `repository cli` (passes arbitrary invenio commands)
+   - `repository reset`/`info`/`translations` (thin passthroughs)
+   - Any command where the user expects to interact with invenio-cli directly
+
+Key Invariant:
+- Exit codes are preserved exactly (never collapsed to 0/1)
+- Environment variables from .env-services are passed through
+- VIRTUAL_ENV stripping happens via process.build_subprocess_env()
+
+Why Exec-Replacement?
+Some invenio-cli commands expect a TTY and/or set up signal handlers (e.g.
+`invenio run`). Running them as a subprocess breaks this. Exec-replacement
+makes oarepo-cli transparent: the user sees invenio-cli's exact behavior,
+including Ctrl+C handling, progress bars, colored output, etc.
+
+See Also:
+- core/dependency_check.py: Validates invenio-cli is the CESNET-patched version
+- services/process.py: build_subprocess_env() handles venv stripping
+- cli/repository.py: Commands that use these functions
+"""
 
 from __future__ import annotations
 

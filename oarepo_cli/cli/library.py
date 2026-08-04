@@ -58,13 +58,13 @@ def _start_services_impl(*, quiet: bool = False) -> None:
     """Shared implementation for starting services.
 
     Args:
-        quiet: If True, pass --quiet to docker-services-cli
+        quiet: If True, suppress console output and pass --quiet to docker-services-cli
     """
     # Discover project context
     context = discover_context()
 
-    # Console always shows output for service commands
-    console = ConsoleOutput(quiet=False)
+    # Create console with the provided quiet flag
+    console = ConsoleOutput(quiet=quiet)
 
     console.info("🚀 Starting services...", fg=typer.colors.BRIGHT_BLUE, bold=True)
 
@@ -123,13 +123,13 @@ def _stop_services_impl(*, quiet: bool = False) -> None:
     """Shared implementation for stopping services.
 
     Args:
-        quiet: If True, pass --quiet to docker-services-cli
+        quiet: If True, suppress console output and pass --quiet to docker-services-cli
     """
     # Discover project context
     context = discover_context()
 
-    # Console always shows output for service commands
-    console = ConsoleOutput(quiet=False)
+    # Create console with the provided quiet flag
+    console = ConsoleOutput(quiet=quiet)
 
     if not (context.root_directory / ".env-services").exists():
         console.info("✓ No services running", fg=typer.colors.YELLOW)

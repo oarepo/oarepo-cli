@@ -3,14 +3,27 @@
 
 """Shared CLI-layer implementation for `library`/`repository` jslint/jstest.
 
-`library jslint`/`jstest` and `repository jslint`/`jstest` are functionally
-identical -- both just run `services.js_tools.run_jslint()`/`run_jstest()`
--- so the console messages, error handling, and exit-code logic live here
-once, rather than duplicated verbatim across `cli/library.py` and
-`cli/repository.py` (mirrors `cli/lint_commands.py`'s identical rationale
-for `lint`/`format`/`check`). Each module still owns its own Typer command
-registration (decorator, options, docstring/`--help` text, and
-`discover_context()` call/error handling, which differs between the two).
+Both `library jslint`/`jstest` and `repository jslint`/`jstest` are functionally
+identical -- they discover the project context and delegate to
+`services.js_tools.run_jslint()`/`run_jstest()`, which shell out to npm test
+commands (jstest) or look for and execute ./node_modules/.bin/jslint (jslint).
+
+This module provides the shared command implementations to avoid duplicating
+the console output, error handling, and exit-code propagation logic across
+`cli/library.py` and `cli/repository.py`. Each of those modules registers
+their own `@library_app.command`/`@repository_app.command` Typer decorators,
+but both immediately call the functions defined here.
+
+Key Pattern:
+- Thin delegation layer: no business logic lives here
+- Exit codes are preserved exactly from the underlying npm/jslint processes
+- Quiet flag is respected for suppressing console output
+- Similar to `cli/lint_commands.py` (same pattern for lint/format/check)
+
+See Also:
+- services/js_tools.py: Actual implementation of JS linting/testing
+- cli/library.py: library_jslint(), library_jstest() command registrations
+- cli/repository.py: repository_jslint(), repository_jstest() registrations
 """
 
 from __future__ import annotations

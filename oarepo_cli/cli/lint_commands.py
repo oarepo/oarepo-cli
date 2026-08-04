@@ -3,14 +3,32 @@
 
 """Shared CLI-layer implementation for `library`/`repository` lint/format/check.
 
-`library lint`/`format`/`check` and `repository lint`/`format`/`check` are
-functionally identical -- both just run `services.lint.LintRunner` over
-`context.code_directories` -- so the console messages, error handling, and
-exit-code logic live here once, rather than duplicated verbatim across
-`cli/library.py` and `cli/repository.py`. Each module still owns its own
-Typer command registration (decorator, options, docstring/`--help` text,
-and `discover_context()` call/error handling, which differs between the
-two -- see each module's own commands).
+Both `library` and `repository` provide lint/format/check commands with
+identical behavior: run ruff and ty over `context.code_directories`. The
+only difference is the command registration (`@library_app.command` vs.
+`@repository_app.command`), so this module centralizes the implementation
+to avoid duplicating console output, error handling, and exit-code logic.
+
+Key Differences Between Commands:
+- `lint` / `format`: Fix issues by default (--fix for lint, always fixes for format)
+- `check`: Read-only verification (fails with non-zero exit code if issues found)
+
+All three commands:
+1. Discover the project context to find code_directories
+2. Create a LintRunner (services/lint.py) with appropriate mode/flags
+3. Run ruff + ty over each code directory
+4. Propagate exit codes exactly (0 = clean, non-zero = issues/errors)
+5. Respect the --quiet flag for suppressing console output
+
+Pattern:
+- Thin CLI layer: business logic lives in services/lint.py
+- Exit codes preserved (required by architecture ADRs)
+- No abstraction over ruff/ty themselves (called directly as subprocesses)
+
+See Also:
+- services/lint.py: LintRunner implementation with ruff/ty subprocess execution
+- cli/library.py: library_lint(), library_format(), library_check() registrations
+- cli/repository.py: repository_lint(), repository_format(), repository_check()
 """
 
 from __future__ import annotations
