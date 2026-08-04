@@ -11,6 +11,7 @@ from typing import Annotated
 import typer
 
 from oarepo_cli.core.context import discover_context
+from oarepo_cli.core.errors import OARepoError
 from oarepo_cli.core.platform import get_platform_detector
 from oarepo_cli.services import process
 from oarepo_cli.services.js_tools import run_jslint, run_jstest
@@ -83,7 +84,7 @@ def _start_services_impl(*, quiet: bool = False) -> None:
                 f"  Environment variables written to {context.root_directory / '.env-services'}",
                 fg=typer.colors.GREEN,
             )
-    except Exception as e:
+    except OARepoError as e:
         console.error(f"❌ Error starting services: {e}", fg=typer.colors.BRIGHT_RED, bold=True)
         raise typer.Exit(code=1) from e
 
@@ -143,7 +144,7 @@ def _stop_services_impl(*, quiet: bool = False) -> None:
         console.success(
             "✨ ✓ Services stopped successfully!", fg=typer.colors.BRIGHT_GREEN, bold=True
         )
-    except Exception as e:
+    except OARepoError as e:
         console.error(f"❌ Error stopping services: {e}", fg=typer.colors.BRIGHT_RED, bold=True)
         raise typer.Exit(code=1) from e
 
@@ -257,6 +258,7 @@ def library_clean(
             services_mgr.stop_services()
             console.info("  ✓ Services stopped", fg=typer.colors.GREEN)
             items_removed.append("services")
+        # Best-effort cleanup step: keep going even on a non-OARepoError failure.
         except Exception as e:
             console.warning(
                 f"  ⚠ Warning: Failed to stop services: {e}",
@@ -273,6 +275,7 @@ def library_clean(
             env_services_file.unlink()
             console.info("  ✓ .env-services removed", fg=typer.colors.GREEN)
             items_removed.append(".env-services")
+        # Best-effort cleanup step: keep going even on a non-OARepoError failure.
         except Exception as e:
             console.warning(
                 f"  ⚠ Warning: Failed to remove .env-services: {e}",
@@ -301,6 +304,7 @@ def library_clean(
             if lock_existed:
                 console.info("  ✓ uv.lock file removed", fg=typer.colors.GREEN)
                 items_removed.append("uv.lock")
+        # Best-effort cleanup step: keep going even on a non-OARepoError failure.
         except Exception as e:
             console.warning(
                 f"  ⚠ Warning: Failed to remove venv/uv.lock: {e}",
@@ -358,6 +362,7 @@ def library_upgrade(
         try:
             services_mgr.stop_services()
             console.info("  ✓ Services stopped", fg=typer.colors.GREEN)
+        # Best-effort cleanup step: keep going even on a non-OARepoError failure.
         except Exception as e:
             console.warning(
                 f"  ⚠ Warning: Failed to stop services: {e}",
@@ -370,6 +375,7 @@ def library_upgrade(
     try:
         process.run(["uv", "cache", "clean"], check=True, interactive=not quiet)
         console.info("  ✓ Cache cleaned", fg=typer.colors.GREEN)
+    # Best-effort step: keep going even on a non-OARepoError failure.
     except Exception as e:
         console.warning(f"  ⚠ Warning: Failed to clean uv cache: {e}", fg=typer.colors.YELLOW)
 
@@ -539,16 +545,16 @@ def library_test(
         # Exit with pytest's exit code
         raise typer.Exit(code=result.return_code)
 
-    except Exception as e:
-        # Catch any orchestration errors (not pytest failures)
-        if not isinstance(e, typer.Exit):
-            console.error(
-                f"❌ Error running tests: {e}",
-                fg=typer.colors.BRIGHT_RED,
-                bold=True,
-            )
-            raise typer.Exit(code=1) from e
-        raise
+    except OARepoError as e:
+        # Catch any orchestration errors (not pytest failures, which are reported
+        # above via result.return_code) -- typer.Exit itself is never caught here
+        # since it isn't an OARepoError, so it always propagates untouched.
+        console.error(
+            f"❌ Error running tests: {e}",
+            fg=typer.colors.BRIGHT_RED,
+            bold=True,
+        )
+        raise typer.Exit(code=1) from e
 
 
 @library_app.command("shell")
@@ -587,7 +593,7 @@ def library_shell(
 
     try:
         venv_path = venv_mgr.ensure_venv_exists(requirements, quiet=True)
-    except Exception as e:
+    except OARepoError as e:
         console.error(
             f"❌ Error ensuring virtual environment: {e}",
             fg=typer.colors.BRIGHT_RED,
@@ -725,7 +731,7 @@ def library_invenio(
 
     try:
         venv_path = venv_mgr.ensure_venv_exists(requirements, quiet=True)
-    except Exception as e:
+    except OARepoError as e:
         console.error(
             f"❌ Error ensuring virtual environment: {e}",
             fg=typer.colors.BRIGHT_RED,
@@ -826,7 +832,7 @@ def library_lint(
 
     try:
         result = runner.run_lint(fix=fix)
-    except Exception as e:
+    except OARepoError as e:
         console.error(f"❌ Error running linters: {e}", fg=typer.colors.BRIGHT_RED, bold=True)
         raise typer.Exit(code=1) from e
 
@@ -884,7 +890,7 @@ def library_format(
 
     try:
         result = runner.run_format(fix=fix, extra_args=extra_args)
-    except Exception as e:
+    except OARepoError as e:
         console.error(f"❌ Error formatting code: {e}", fg=typer.colors.BRIGHT_RED, bold=True)
         raise typer.Exit(code=1) from e
 
@@ -921,7 +927,7 @@ def library_check(
 
     try:
         result = runner.run_lint(fix=False)
-    except Exception as e:
+    except OARepoError as e:
         console.error(f"❌ Error running checks: {e}", fg=typer.colors.BRIGHT_RED, bold=True)
         raise typer.Exit(code=1) from e
 
@@ -966,7 +972,7 @@ def library_translations(
 
     try:
         result = run_translations(context, extra_args=extra_args, quiet=quiet)
-    except Exception as e:
+    except OARepoError as e:
         console.error(f"❌ Error running translations: {e}", fg=typer.colors.BRIGHT_RED, bold=True)
         raise typer.Exit(code=1) from e
 
@@ -1006,7 +1012,7 @@ def library_license_headers(
 
     try:
         result = add_license_headers(context, organization=organization, quiet=quiet)
-    except Exception as e:
+    except OARepoError as e:
         console.error(
             f"❌ Error adding license headers: {e}", fg=typer.colors.BRIGHT_RED, bold=True
         )
@@ -1045,7 +1051,7 @@ def library_jslint(
 
     try:
         result = run_jslint(context, quiet=quiet)
-    except Exception as e:
+    except OARepoError as e:
         console.error(f"❌ Error running jslint: {e}", fg=typer.colors.BRIGHT_RED, bold=True)
         raise typer.Exit(code=1) from e
 
@@ -1106,7 +1112,7 @@ def library_jstest(
         result = run_jstest(
             context, setup=setup, skip_services=skip_services, extra_args=extra_args, quiet=quiet
         )
-    except Exception as e:
+    except OARepoError as e:
         console.error(f"❌ Error running jstest: {e}", fg=typer.colors.BRIGHT_RED, bold=True)
         raise typer.Exit(code=1) from e
 

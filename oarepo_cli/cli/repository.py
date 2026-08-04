@@ -11,7 +11,7 @@ from typing import Annotated
 import typer
 
 from oarepo_cli.core.context import discover_context
-from oarepo_cli.core.errors import OARepoError, ProcessExecutionError
+from oarepo_cli.core.errors import OARepoError
 from oarepo_cli.services import invenio_cli, repository, translations
 from oarepo_cli.services.local_packages import LocalPackageManager
 from oarepo_cli.services.models import ModelManager
@@ -125,7 +125,7 @@ def _run_services_subcommand(ctx: typer.Context, subcommand: str, *, quiet: bool
 
     try:
         context = discover_context()
-    except (OARepoError, ProcessExecutionError) as e:
+    except OARepoError as e:
         console_err = ConsoleOutput(quiet=False)
         console_err.error(f"\n✗ services {subcommand} failed: {e}\n", fg=typer.colors.RED)
         raise typer.Exit(1) from e
@@ -236,7 +236,7 @@ def install(
             bold=True,
         )
 
-    except (OARepoError, ProcessExecutionError) as e:
+    except OARepoError as e:
         console_err = ConsoleOutput(quiet=False)  # Always show errors
         console_err.error(f"\n✗ Installation failed: {e}\n", fg=typer.colors.RED)
         raise typer.Exit(1) from e
@@ -283,7 +283,7 @@ def upgrade(
             bold=True,
         )
 
-    except (OARepoError, ProcessExecutionError) as e:
+    except OARepoError as e:
         console_err = ConsoleOutput(quiet=False)  # Always show errors
         console_err.error(f"\n✗ Upgrade failed: {e}\n", fg=typer.colors.RED)
         raise typer.Exit(1) from e
@@ -325,7 +325,7 @@ def model_create(
     try:
         context = discover_context()
         ModelManager(context, quiet=quiet).create_model(name, config_file=config_file)
-    except (OARepoError, ProcessExecutionError) as e:
+    except OARepoError as e:
         console_err = ConsoleOutput(quiet=False)  # Always show errors
         console_err.error(f"\n✗ Model creation failed: {e}\n", fg=typer.colors.RED)
         raise typer.Exit(1) from e
@@ -367,7 +367,7 @@ def model_update(
     try:
         context = discover_context()
         ModelManager(context, quiet=quiet).update_model(name, answers_file=answers_file)
-    except (OARepoError, ProcessExecutionError) as e:
+    except OARepoError as e:
         console_err = ConsoleOutput(quiet=False)  # Always show errors
         console_err.error(f"\n✗ Model update failed: {e}\n", fg=typer.colors.RED)
         raise typer.Exit(1) from e
@@ -400,7 +400,7 @@ def local_add(
     try:
         context = discover_context()
         LocalPackageManager(context, quiet=quiet).add_package(path)
-    except (OARepoError, ProcessExecutionError) as e:
+    except OARepoError as e:
         console_err = ConsoleOutput(quiet=False)  # Always show errors
         console_err.error(f"\n✗ Local package addition failed: {e}\n", fg=typer.colors.RED)
         raise typer.Exit(1) from e
@@ -451,7 +451,7 @@ def local_remove(
             manager.remove_all_packages()
         elif name is not None:
             manager.remove_package(name)
-    except (OARepoError, ProcessExecutionError) as e:
+    except OARepoError as e:
         console_err = ConsoleOutput(quiet=False)  # Always show errors
         console_err.error(f"\n✗ Local package removal failed: {e}\n", fg=typer.colors.RED)
         raise typer.Exit(1) from e
@@ -508,7 +508,7 @@ def run_command(
             no_celery=no_celery,
             extra_args=ctx.args,
         )
-    except (OARepoError, ProcessExecutionError) as e:
+    except OARepoError as e:
         console_err = ConsoleOutput(quiet=False)  # Always show errors
         console_err.error(f"\n✗ Failed to start server: {e}\n", fg=typer.colors.RED)
         raise typer.Exit(1) from e
@@ -533,7 +533,7 @@ def cli_command(ctx: typer.Context) -> None:
     """
     try:
         context = discover_context()
-    except (OARepoError, ProcessExecutionError) as e:
+    except OARepoError as e:
         console_err = ConsoleOutput(quiet=False)
         console_err.error(f"\n✗ repository cli failed: {e}\n", fg=typer.colors.RED)
         raise typer.Exit(1) from e
@@ -571,7 +571,7 @@ def translations_command(
             invenio_cli.run_invenio_cli(context, ["translations", "compile"], quiet=quiet)
         else:
             translations.run_translations(context, extra_args=ctx.args, quiet=quiet).check()
-    except (OARepoError, ProcessExecutionError) as e:
+    except OARepoError as e:
         console_err = ConsoleOutput(quiet=False)
         console_err.error(f"\n✗ Translations failed: {e}\n", fg=typer.colors.RED)
         raise typer.Exit(1) from e
@@ -594,7 +594,7 @@ def index_rebuild(
     try:
         context = discover_context()
         repository.rebuild_index(context, quiet=quiet)
-    except (OARepoError, ProcessExecutionError) as e:
+    except OARepoError as e:
         console_err = ConsoleOutput(quiet=False)
         console_err.error(f"\n✗ Index rebuild failed: {e}\n", fg=typer.colors.RED)
         raise typer.Exit(1) from e
@@ -642,7 +642,7 @@ def reset_command(
             "Please run `oarepo-cli repository run` to start the server "
             "and wait for the initial data to be loaded.\n"
         )
-    except (OARepoError, ProcessExecutionError) as e:
+    except OARepoError as e:
         console_err = ConsoleOutput(quiet=False)
         console_err.error(f"\n✗ Reset failed: {e}\n", fg=typer.colors.RED)
         raise typer.Exit(1) from e
@@ -660,7 +660,7 @@ def info_command() -> None:
     """
     try:
         context = discover_context()
-    except (OARepoError, ProcessExecutionError) as e:
+    except OARepoError as e:
         console_err = ConsoleOutput(quiet=False)
         console_err.error(f"\n✗ repository info failed: {e}\n", fg=typer.colors.RED)
         raise typer.Exit(1) from e

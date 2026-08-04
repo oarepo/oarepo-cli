@@ -245,6 +245,27 @@ def test_index_rebuild_reports_error_and_exits_1(
     assert "Index rebuild failed" in result.output
 
 
+def test_index_rebuild_does_not_swallow_non_oareporerror_exceptions(
+    mock_context: Mock,  # noqa: ARG001 -- fixture used for its discover_context patch
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """A non-OARepoError raised by rebuild_index propagates instead of being turned
+    into a clean "exit 1" -- regression test locking in repository.py's existing,
+    narrow except OARepoError (simplified from except (OARepoError,
+    ProcessExecutionError) in Step 4.12, since ProcessExecutionError already
+    subclasses OARepoError)."""
+    monkeypatch.setattr(
+        "oarepo_cli.cli.repository.repository.rebuild_index",
+        Mock(side_effect=ValueError("boom")),
+    )
+
+    runner = CliRunner()
+    result = runner.invoke(app, ["repository", "index", "rebuild"])
+
+    assert isinstance(result.exception, ValueError)
+    assert "Index rebuild failed" not in result.output
+
+
 # --- repository reset ----------------------------------------------------
 
 
