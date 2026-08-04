@@ -302,26 +302,33 @@ def install_repository(context: ProjectContext, *, quiet: bool = False) -> None:
         console.warning("⚠️  Warning: invenio-cli failed to compile backend translations!")
 
 
-def upgrade_repository(context: ProjectContext, *, quiet: bool = False) -> None:
-    """Upgrade repository: clean venv/cache and reinstall from scratch.
+def upgrade_repository(
+    context: ProjectContext, *, quiet: bool = False, clean_cache: bool = True
+) -> None:
+    """Upgrade repository: clean venv (and, by default, cache) and reinstall from scratch.
 
     Mirrors ``repository_runner.sh``'s ``upgrade_repository`` function:
     1. Removes the virtual environment (if present)
     2. Removes uv.lock (if present)
-    3. Cleans the uv cache (``uv cache clean --force``)
+    3. Cleans the uv cache (``uv cache clean --force``), unless ``clean_cache`` is False
     4. Reinstalls the repository (see ``install_repository`` above)
 
-    Shared by ``repository upgrade`` and ``LocalPackageManager`` (which
-    triggers a full upgrade after adding/removing a local package,
-    unconditionally -- mirroring repository_runner.sh's
-    ``local_sources_cmd``'s unconditional call to ``upgrade_repository``
-    after ``uv add``, unlike ``ModelManager.create_model()``'s conditional
-    reinstall). Callers are responsible for their own top-level success
-    message and ``(OARepoError, ProcessExecutionError)`` handling.
+    Shared by ``repository upgrade`` (``clean_cache=True``, matching bash) and
+    ``LocalPackageManager`` (which triggers a full upgrade after adding/removing
+    a local package, unconditionally -- mirroring repository_runner.sh's
+    ``local_sources_cmd``'s unconditional call to ``upgrade_repository`` after
+    ``uv add``, unlike ``ModelManager.create_model()``'s conditional reinstall
+    -- but with ``clean_cache=False``: a local package's own dependencies
+    haven't changed, so purging already-downloaded wheels for everything else
+    just to reinstall the same versions is wasted time, unlike a real
+    ``repository upgrade``, which explicitly wants to force a fresh resolve).
+    Callers are responsible for their own top-level success message and
+    ``(OARepoError, ProcessExecutionError)`` handling.
 
     Args:
         context: Project context with paths and configuration
         quiet: If True, suppress status/progress messages
+        clean_cache: If False, skip the ``uv cache clean --force`` step
 
     Raises:
         ProcessExecutionError: If ``uv cache clean`` or ``install_repository``
@@ -336,8 +343,9 @@ def upgrade_repository(context: ProjectContext, *, quiet: bool = False) -> None:
         console.info("→ Removing uv.lock...\n")
     venv_manager.cleanup()
 
-    console.info("→ Cleaning uv cache...\n")
-    process.run(["uv", "cache", "clean", "--force"], check=True, interactive=not quiet)
+    if clean_cache:
+        console.info("→ Cleaning uv cache...\n")
+        process.run(["uv", "cache", "clean", "--force"], check=True, interactive=not quiet)
 
     console.info("→ Reinstalling repository...\n")
     install_repository(context, quiet=quiet)

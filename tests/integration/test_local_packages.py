@@ -7,8 +7,9 @@ LocalPackageManager only ever touches a project's pyproject.toml (via
 tomlkit) and, on success, calls services.repository.upgrade_repository --
 there's no slow external tool (uv, copier, invenio-cli) to run for real
 here, so these tests exercise the real tomlkit read/modify/write path
-against real tmp_path files and mock out upgrade_repository (a full
-venv-wipe + uv-cache-clean + reinstall cycle, already covered end to end by
+against real tmp_path files and mock out upgrade_repository (a venv-wipe +
+reinstall cycle -- with the uv cache clean step skipped here via
+clean_cache=False, see Step 4.6.1 -- already covered end to end by
 test_repository_upgrade.py), per AGENTS.md's guidance to fake slow external
 tools rather than re-run them at this layer.
 """
@@ -112,7 +113,7 @@ def test_add_package_triggers_repository_upgrade(
     manager.add_package(package_dir)
 
     assert len(mock_upgrade) == 1
-    assert mock_upgrade[0] == {"context": context, "quiet": True}
+    assert mock_upgrade[0] == {"context": context, "quiet": True, "clean_cache": False}
 
 
 def test_add_package_missing_pyproject_raises(
@@ -240,7 +241,7 @@ def test_remove_package_triggers_repository_upgrade(
 
     manager.remove_package("mypkg")
 
-    assert mock_upgrade == [{"context": context, "quiet": True}]
+    assert mock_upgrade == [{"context": context, "quiet": True, "clean_cache": False}]
 
 
 def test_remove_package_leaves_other_sources_untouched(

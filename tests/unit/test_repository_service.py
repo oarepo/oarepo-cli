@@ -190,6 +190,68 @@ def _fake_process_result(**overrides: object) -> process.ProcessResult:
     return process.ProcessResult(**defaults)  # type: ignore[arg-type]
 
 
+def test_upgrade_repository_cleans_cache_by_default(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """upgrade_repository() runs `uv cache clean --force` when clean_cache is left at its
+    default (True) -- matches `repository upgrade`'s bash-compatible behavior."""
+    context = Mock(spec=ProjectContext)
+    context.root_directory = tmp_path
+    context.venv_path = tmp_path / ".venv"
+    context.config = CliConfig()
+
+    calls: list[list[str]] = []
+
+    def fake_run(command: list[str], **_kwargs: object) -> process.ProcessResult:
+        calls.append(list(command))
+        return _fake_process_result()
+
+    monkeypatch.setattr("oarepo_cli.services.repository.process.run", fake_run)
+    monkeypatch.setattr(
+        "oarepo_cli.services.repository.VirtualEnvironmentManager.cleanup", lambda _self: None
+    )
+    monkeypatch.setattr(
+        "oarepo_cli.services.repository.install_repository", lambda *_args, **_kwargs: None
+    )
+
+    repository.upgrade_repository(context, quiet=True)
+
+    assert ["uv", "cache", "clean", "--force"] in calls
+
+
+def test_upgrade_repository_skips_cache_clean_when_disabled(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """upgrade_repository(clean_cache=False) -- used by LocalPackageManager -- never runs
+    `uv cache clean`, since adding/removing a local package doesn't change any other
+    package's version and purging the cache would just force a wasted re-download."""
+    context = Mock(spec=ProjectContext)
+    context.root_directory = tmp_path
+    context.venv_path = tmp_path / ".venv"
+    context.config = CliConfig()
+
+    calls: list[list[str]] = []
+
+    def fake_run(command: list[str], **_kwargs: object) -> process.ProcessResult:
+        calls.append(list(command))
+        return _fake_process_result()
+
+    monkeypatch.setattr("oarepo_cli.services.repository.process.run", fake_run)
+    monkeypatch.setattr(
+        "oarepo_cli.services.repository.VirtualEnvironmentManager.cleanup", lambda _self: None
+    )
+    install_calls: list[object] = []
+    monkeypatch.setattr(
+        "oarepo_cli.services.repository.install_repository",
+        lambda *_args, **kwargs: install_calls.append(kwargs),
+    )
+
+    repository.upgrade_repository(context, quiet=True, clean_cache=False)
+
+    assert calls == []
+    assert install_calls == [{"quiet": True}]
+
+
 def test_get_invenio_binary_resolves_venv_bin_dir(tmp_path: Path) -> None:
     """get_invenio_binary() resolves <venv>/<bin_dir>/invenio, platform-aware."""
     context = Mock(spec=ProjectContext)

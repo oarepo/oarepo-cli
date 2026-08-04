@@ -642,7 +642,7 @@ oarepo-cli repository model update my_model model_config.yaml
 
 ### `repository local`
 
-Manages locally-developed packages as editable `[tool.uv.sources]` entries in `pyproject.toml`, for developing a dependency (e.g. a custom `oarepo`/`invenio` extension) alongside the repository. Both subcommands edit `pyproject.toml` in place (preserving comments/formatting/ordering elsewhere in the file) and then trigger a full [`repository upgrade`](#repository-upgrade) — unconditionally, unlike `repository model create`'s conditional reinstall.
+Manages locally-developed packages as editable `[tool.uv.sources]` entries in `pyproject.toml`, for developing a dependency (e.g. a custom `oarepo`/`invenio` extension) alongside the repository. Both subcommands edit `pyproject.toml` in place (preserving comments/formatting/ordering elsewhere in the file) and then trigger a full [`repository upgrade`](#repository-upgrade) — unconditionally, unlike `repository model create`'s conditional reinstall, but *without* clearing the uv cache (unlike a plain `repository upgrade`): a local package's own dependencies haven't changed, so there's nothing stale to purge.
 
 ```bash
 oarepo-cli repository local add <path>

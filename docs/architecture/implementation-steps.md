@@ -1105,6 +1105,41 @@ support, so this fills that gap.
 
 ---
 
+### Step 4.6.1: Skip uv Cache Clean on Local Package Add/Remove
+**Goal**: Correction to Step 4.6 -- adding/removing a local package must not
+clean the uv cache.
+
+- [x] Add a `clean_cache: bool = True` keyword to
+  `services.repository.upgrade_repository()`, guarding the `uv cache clean
+  --force` step
+- [x] `LocalPackageManager.add_package()`/`remove_package()`/
+  `remove_all_packages()` call `upgrade_repository(..., clean_cache=False)`
+- [x] `repository upgrade` (the CLI command) keeps the default
+  (`clean_cache=True`), unchanged
+
+**Rationale**: unlike `repository upgrade` (which exists precisely to force
+a fresh resolve of every dependency), adding or removing a local, editable
+package doesn't change any other package's pinned version -- so purging the
+entire uv cache and forcing a full re-download of everything else on the
+next install buys nothing and is slow. This is a deliberate deviation from
+`repository_runner.sh`'s `local_sources_cmd`, which called the same
+unconditional, cache-clearing `upgrade_repository()` bash function as
+`./run.sh upgrade` (`local remove` has no bash equivalent to deviate from --
+see Step 4.6's own deviation note).
+
+**Deliverables**:
+- `local add`/`local remove`/`local remove --all` no longer clean the uv
+  cache; `repository upgrade` is unaffected
+
+**Tests**:
+- `tests/unit/test_repository_service.py`: `upgrade_repository(...,
+  clean_cache=False)` does not run `uv cache clean`; default
+  (`clean_cache=True`) behavior unchanged
+- `tests/integration/test_local_packages.py`: `add_package`/`remove_package`/
+  `remove_all_packages` call `upgrade_repository` with `clean_cache=False`
+
+---
+
 ### Step 4.7: Repository `local` Command
 **Goal**: Implement `oarepo-cli repository local` command.
 
