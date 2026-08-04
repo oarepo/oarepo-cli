@@ -619,8 +619,11 @@ def library_shell(
     platform = get_platform_detector()
     bin_dir = platform.get_venv_bin_dir()
 
-    # Build environment for the shell
-    shell_env = dict(os.environ)
+    # Build environment for the shell: build_subprocess_env() strips oarepo-cli's own
+    # venv and injects OAREPO_ENV_DEFAULTS, same as any process.run() call gets --
+    # there's no other subprocess env-merging safety net once this replaces the
+    # current process.
+    shell_env = process.build_subprocess_env()
 
     # Add service environment variables
     shell_env.update(service_env)
@@ -768,8 +771,9 @@ def library_invenio(
         )
         raise typer.Exit(code=1)
 
-    # Build environment for the command
-    cmd_env = dict(os.environ)
+    # Build environment for the command: build_subprocess_env() strips oarepo-cli's
+    # own venv and injects OAREPO_ENV_DEFAULTS, same as any process.run() call gets.
+    cmd_env = process.build_subprocess_env()
 
     # Add service environment variables
     cmd_env.update(service_env)
