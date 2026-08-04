@@ -505,6 +505,9 @@ The `repository` subcommand provides tools for managing full OARepo repository i
 | [`cli`](#repository-cli) | Delegate to invenio-cli | ✅ Implemented |
 | [`invenio`](#repository-invenio) | Delegate to the venv's own bare invenio | ✅ Implemented |
 | [`shell`](#repository-shell) | Start an interactive shell in the venv | ✅ Implemented |
+| [`lint`](#repository-lint) | Run linters and type checkers | ✅ Implemented |
+| [`format`](#repository-format) | Format code with ruff | ✅ Implemented |
+| [`check`](#repository-check) | Read-only equivalent of `lint`+`format` | ✅ Implemented |
 | [`translations`](#repository-translations) | Extract/compile translations | ✅ Implemented |
 | [`index`](#repository-index-rebuild) | Rebuild search index | ✅ Implemented |
 | [`reset`](#repository-reset) | Full reset with confirmation | ✅ Implemented |
@@ -759,6 +762,67 @@ oarepo-cli repository shell --no-services
 **Exit codes:**
 - Whatever the shell itself exits with
 - `1`: Starting Docker services failed, or project context could not be discovered
+
+### `repository lint`
+
+Runs linters and type checkers on the repository's codebase -- ruff check, ruff format, a license header check, a `from __future__ import annotations` check, and ty check, in order, stopping at the first failure. Runs across every module directory declared in `[tool.uv.build-backend]` (or `src/`/the flat layout, if used instead). **By default, auto-fixes** what ruff and ty can fix. Functionally identical to [`library lint`](#library-lint) (both share the same underlying implementation), just operating on a repository's own code.
+
+```bash
+oarepo-cli repository lint
+```
+
+**Options:**
+- `--fix` / `--no-fix`: Auto-fix (default) vs. report-only mode
+- `--quiet` / `-q`: Suppress output from subprocesses
+
+**Examples:**
+```bash
+oarepo-cli repository lint
+oarepo-cli repository lint --no-fix
+```
+
+**Exit codes:**
+- Exit code of the first failing check
+- `1`: Project context could not be discovered
+
+### `repository format`
+
+Formats the repository's codebase using ruff. **By default, rewrites files**. Functionally identical to [`library format`](#library-format).
+
+```bash
+oarepo-cli repository format
+```
+
+**Options:**
+- `--fix` / `--no-fix`: Rewrite files (default) vs. preview-only mode (`ruff format --check`)
+- `--quiet` / `-q`: Suppress output from subprocesses
+
+Any additional arguments are passed directly to the ruff invocation(s).
+
+**Examples:**
+```bash
+oarepo-cli repository format
+oarepo-cli repository format --no-fix
+```
+
+**Exit codes:**
+- Exit code of the underlying ruff invocation
+- `1`: Project context could not be discovered
+
+### `repository check`
+
+Read-only equivalent of [`repository lint`](#repository-lint)/[`repository format`](#repository-format) that **never modifies files**. Safe for CI/CD. Functionally identical to [`library check`](#library-check).
+
+```bash
+oarepo-cli repository check
+```
+
+**Options:**
+- `--quiet` / `-q`: Suppress output from subprocesses
+
+**Exit codes:**
+- Exit code of the first failing check
+- `1`: Project context could not be discovered
 
 ### `repository translations`
 

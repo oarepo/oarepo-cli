@@ -10,6 +10,7 @@ from typing import Annotated
 
 import typer
 
+from oarepo_cli.cli import lint_commands
 from oarepo_cli.core.context import discover_context
 from oarepo_cli.core.errors import OARepoError
 from oarepo_cli.services import invenio_cli, repository, translations
@@ -623,6 +624,126 @@ def shell_command(
         console_err = ConsoleOutput(quiet=False)  # Always show errors
         console_err.error(f"\n✗ repository shell failed: {e}\n", fg=typer.colors.RED)
         raise typer.Exit(1) from e
+
+
+@repository_app.command("lint")
+def lint_command(
+    fix: Annotated[
+        bool,
+        typer.Option(
+            "--fix/--no-fix", help="Auto-fix what ruff/ty can fix (default) vs. report only"
+        ),
+    ] = True,
+    quiet: Annotated[
+        bool, typer.Option("--quiet", "-q", help="Suppress output from subprocesses")
+    ] = False,
+) -> None:
+    """Run linters and type checkers on the repository's codebase.
+
+    Runs, in order, stopping at the first failure: ruff check, ruff format,
+    a license header check, a ``from __future__ import annotations`` check,
+    and ty check, across every module directory declared in
+    ``[tool.uv.build-backend]`` (or ``src/``/the flat layout, if used
+    instead). Generates ``.ruff.toml`` and ``ty.toml`` config files in the
+    project root.
+
+    By default (``--fix``), auto-fixes what ruff and ty can fix (``ruff
+    check --fix``, ``ruff format``, ``ty check --fix``) instead of only
+    reporting. Use ``--no-fix`` (or ``repository check``, its dedicated
+    read-only equivalent) to never modify any file.
+
+    Exit codes:
+        Exit code of the first failing check
+        1: Project context could not be discovered
+    """
+    try:
+        context = discover_context()
+    except OARepoError as e:
+        console_err = ConsoleOutput(quiet=False)
+        console_err.error(f"\n✗ repository lint failed: {e}\n", fg=typer.colors.RED)
+        raise typer.Exit(1) from e
+
+    lint_commands.run_lint(context, fix=fix, quiet=quiet)
+
+
+@repository_app.command(
+    "format",
+    context_settings={
+        "allow_extra_args": True,
+        "allow_interspersed_args": True,
+        "ignore_unknown_options": True,
+    },
+)
+def format_command(
+    ctx: typer.Context,
+    fix: Annotated[
+        bool,
+        typer.Option(
+            "--fix/--no-fix",
+            help="Rewrite files (default) vs. preview-only (`ruff format --check`)",
+        ),
+    ] = True,
+    quiet: Annotated[
+        bool, typer.Option("--quiet", "-q", help="Suppress output from subprocesses")
+    ] = False,
+) -> None:
+    """Format the repository's codebase using ruff.
+
+    By default (``--fix``), runs ``ruff format`` followed by ``ruff check
+    --fix``, rewriting files. Use ``--no-fix`` for a preview-only run
+    (``ruff format --check``, nothing written) -- or ``repository check``,
+    its dedicated read-only equivalent.
+
+    Any additional arguments are passed directly to the ruff invocation(s).
+
+    Examples:
+        $ oarepo-cli repository format
+        $ oarepo-cli repository format --no-fix
+
+    Exit codes:
+        Exit code of the underlying ruff invocation
+        1: Project context could not be discovered
+    """
+    extra_args = ctx.args if ctx.args else []
+
+    try:
+        context = discover_context()
+    except OARepoError as e:
+        console_err = ConsoleOutput(quiet=False)
+        console_err.error(f"\n✗ repository format failed: {e}\n", fg=typer.colors.RED)
+        raise typer.Exit(1) from e
+
+    lint_commands.run_format(context, fix=fix, extra_args=extra_args, quiet=quiet)
+
+
+@repository_app.command("check")
+def check_command(
+    quiet: Annotated[
+        bool, typer.Option("--quiet", "-q", help="Suppress output from subprocesses")
+    ] = False,
+) -> None:
+    """Check the repository's codebase without modifying any file.
+
+    The read-only equivalent of ``repository lint``/``repository format``:
+    runs ruff check, ruff format --check, a license header check, a
+    ``from __future__ import annotations`` check, and ty check -- none of
+    them applying fixes. Equivalent to ``repository lint --no-fix``,
+    provided as its own command as the safe-for-CI entry point. Still
+    generates ``.ruff.toml``/``ty.toml`` config files in the project root
+    (that's config generation, not modifying target project source).
+
+    Exit codes:
+        Exit code of the first failing check
+        1: Project context could not be discovered
+    """
+    try:
+        context = discover_context()
+    except OARepoError as e:
+        console_err = ConsoleOutput(quiet=False)
+        console_err.error(f"\n✗ repository check failed: {e}\n", fg=typer.colors.RED)
+        raise typer.Exit(1) from e
+
+    lint_commands.run_check(context, quiet=quiet)
 
 
 @repository_app.command("translations", context_settings=_SERVICES_CONTEXT_SETTINGS)
