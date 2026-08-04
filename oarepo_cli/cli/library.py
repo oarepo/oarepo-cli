@@ -5,22 +5,25 @@
 
 from __future__ import annotations
 
+import json
 import os
 from typing import Annotated
 
 import typer
 
-from oarepo_cli.core.context import discover_context
+from oarepo_cli.core.context import discover_context, find_pyproject_toml
 from oarepo_cli.core.errors import OARepoError
 from oarepo_cli.core.platform import get_platform_detector
 from oarepo_cli.services import process
 from oarepo_cli.services.js_tools import run_jslint, run_jstest
 from oarepo_cli.services.license_headers import add_license_headers
 from oarepo_cli.services.lint import LintRunner
+from oarepo_cli.services.pyproject_reader import PyProjectReader
 from oarepo_cli.services.services_lifecycle import ServicesLifecycleManager
 from oarepo_cli.services.test_orchestrator import TestOrchestrator
 from oarepo_cli.services.translations import run_translations
 from oarepo_cli.services.venv import VenvRequirements, VirtualEnvironmentManager
+from oarepo_cli.services.version_resolver import VersionResolver
 from oarepo_cli.ui import ConsoleOutput
 
 # Create the library subcommand group
@@ -1155,24 +1158,14 @@ def library_oarepo_versions(
         oarepo-cli library oarepo-versions
         oarepo-cli library oarepo-versions | jq .python_versions
     """
-    import json
-    from pathlib import Path
+    # Deliberately not discover_context(): this command only ever needs
+    # pyproject.toml to exist (it reports what a project *declares*, before
+    # any venv is created or an OARepo version is even resolvable), whereas
+    # discover_context() additionally requires a working Python binary and a
+    # resolvable OARepo version -- either of which may not exist yet.
+    pyproject_path = find_pyproject_toml()
 
-    # We need to use the version resolver to get the version info
-    from oarepo_cli.core.errors import ConfigurationError
-    from oarepo_cli.services.pyproject_reader import PyProjectReader
-    from oarepo_cli.services.version_resolver import VersionResolver
-
-    # Find pyproject.toml in current directory or parent directories
-    pyproject_path = None
-    current = Path.cwd()
-    for directory in [current, *current.parents]:
-        candidate = directory / "pyproject.toml"
-        if candidate.exists():
-            pyproject_path = candidate
-            break
-
-    if not pyproject_path:
+    if pyproject_path is None:
         console = ConsoleOutput(quiet=quiet)
         console.error(
             "❌ pyproject.toml not found in current directory or any parent",
@@ -1186,7 +1179,7 @@ def library_oarepo_versions(
 
     try:
         info = resolver.resolve_from_pyproject(pyproject_path)
-    except ConfigurationError as e:
+    except OARepoError as e:
         console = ConsoleOutput(quiet=quiet)
         console.error(f"❌ Error resolving versions: {e}", fg=typer.colors.BRIGHT_RED, bold=True)
         raise typer.Exit(code=1) from e
