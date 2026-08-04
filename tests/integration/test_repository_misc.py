@@ -1,7 +1,7 @@
 # SPDX-FileCopyrightText: 2026 CESNET z.s.p.o.
 # SPDX-License-Identifier: MIT
 
-"""Tests for `repository cli`/`translations`/`index rebuild`/`reset`/`info`.
+"""Tests for `repository cli`/`invenio`/`shell`/`translations`/`index rebuild`/`reset`/`info`.
 
 Delegation, argument wiring, and error/exit-code handling are covered here
 by mocking `discover_context()` and the specific service function/module
@@ -150,6 +150,116 @@ def test_invenio_reports_context_discovery_failure(monkeypatch: pytest.MonkeyPat
     result = runner.invoke(app, ["repository", "invenio", "db", "upgrade"])
 
     assert result.exit_code == 1
+
+
+# --- repository shell ----------------------------------------------------
+
+
+def test_shell_starts_services_by_default_then_execs_shell(
+    mock_context: Mock, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """`repository shell` starts Docker services via invenio-cli (like `repository run`,
+    not ServicesLifecycleManager) before exec'ing the shell, by default."""
+    services_calls: list[dict[str, object]] = []
+    shell_calls: list[object] = []
+    monkeypatch.setattr(
+        "oarepo_cli.cli.repository.invenio_cli.run_invenio_cli",
+        lambda context, args, **kwargs: services_calls.append(
+            {"context": context, "args": list(args), **kwargs}
+        ),
+    )
+    monkeypatch.setattr("oarepo_cli.cli.repository.repository.exec_shell", shell_calls.append)
+
+    runner = CliRunner()
+    result = runner.invoke(app, ["repository", "shell"])
+
+    assert result.exit_code == 0, result.output
+    assert services_calls == [
+        {"context": mock_context, "args": ["services", "start"], "quiet": False}
+    ]
+    assert shell_calls == [mock_context]
+
+
+def test_shell_no_services_skips_starting_services(
+    mock_context: Mock, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """--no-services skips starting Docker services but still execs the shell."""
+    services_calls: list[object] = []
+    shell_calls: list[object] = []
+    monkeypatch.setattr(
+        "oarepo_cli.cli.repository.invenio_cli.run_invenio_cli",
+        lambda *args, **kwargs: services_calls.append((args, kwargs)),
+    )
+    monkeypatch.setattr("oarepo_cli.cli.repository.repository.exec_shell", shell_calls.append)
+
+    runner = CliRunner()
+    result = runner.invoke(app, ["repository", "shell", "--no-services"])
+
+    assert result.exit_code == 0, result.output
+    assert services_calls == []
+    assert shell_calls == [mock_context]
+
+
+def test_shell_quiet_forwarded_to_services_start(
+    mock_context: Mock,  # noqa: ARG001 -- fixture used for its discover_context patch
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """--quiet is forwarded to the services-start invenio-cli call."""
+    services_calls: list[dict[str, object]] = []
+    monkeypatch.setattr(
+        "oarepo_cli.cli.repository.invenio_cli.run_invenio_cli",
+        lambda context, args, **kwargs: services_calls.append(
+            {"context": context, "args": list(args), **kwargs}
+        ),
+    )
+    monkeypatch.setattr("oarepo_cli.cli.repository.repository.exec_shell", lambda _context: None)
+
+    runner = CliRunner()
+    result = runner.invoke(app, ["repository", "shell", "--quiet"])
+
+    assert result.exit_code == 0, result.output
+    assert services_calls[0]["quiet"] is True
+
+
+def test_shell_reports_context_discovery_failure(monkeypatch: pytest.MonkeyPatch) -> None:
+    """A context-discovery failure is reported cleanly, exit code 1."""
+    monkeypatch.setattr(
+        "oarepo_cli.cli.repository.discover_context",
+        Mock(side_effect=ConfigurationError("pyproject.toml not found")),
+    )
+
+    runner = CliRunner()
+    result = runner.invoke(app, ["repository", "shell"])
+
+    assert result.exit_code == 1
+
+
+def test_shell_reports_services_start_failure_and_never_execs_shell(
+    mock_context: Mock,  # noqa: ARG001 -- fixture used for its discover_context patch
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """A ProcessExecutionError starting services is reported cleanly, exit code 1, and
+    the shell is never exec'd."""
+    shell_calls: list[object] = []
+    monkeypatch.setattr(
+        "oarepo_cli.cli.repository.invenio_cli.run_invenio_cli",
+        Mock(
+            side_effect=ProcessExecutionError(
+                message="invenio-cli services start failed",
+                command=["invenio-cli", "services", "start"],
+                returncode=1,
+                stdout=None,
+                stderr=None,
+            )
+        ),
+    )
+    monkeypatch.setattr("oarepo_cli.cli.repository.repository.exec_shell", shell_calls.append)
+
+    runner = CliRunner()
+    result = runner.invoke(app, ["repository", "shell"])
+
+    assert result.exit_code == 1
+    assert shell_calls == []
 
 
 # --- repository translations -------------------------------------------

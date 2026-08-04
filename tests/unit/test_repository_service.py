@@ -290,6 +290,43 @@ def test_exec_invenio_chdirs_and_execs_resolved_binary(
     assert env["PYTHONWARNINGS"] == "ignore"
 
 
+def test_exec_shell_sets_up_venv_activation_and_execs_bash(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """exec_shell() chdirs into the project root, activates the venv (VIRTUAL_ENV/PATH,
+    VIRTUAL_ENV_PROMPT, a fallback PS1), and execve's into the default shell -- without
+    loading any .env-services variables, unlike library_shell."""
+    context = Mock(spec=ProjectContext)
+    context.root_directory = tmp_path
+    context.venv_path = tmp_path / ".venv"
+
+    monkeypatch.delenv("VIRTUAL_ENV_DISABLE_PROMPT", raising=False)
+    monkeypatch.setenv("PROMPT_COMMAND", "some_prompt_tool")
+
+    chdir_calls = []
+    execve_calls = []
+    monkeypatch.setattr("oarepo_cli.services.repository.os.chdir", chdir_calls.append)
+    monkeypatch.setattr(
+        "oarepo_cli.services.repository.os.execve",
+        lambda *args: execve_calls.append(args),
+    )
+
+    repository.exec_shell(context)
+
+    assert chdir_calls == [tmp_path]
+    assert len(execve_calls) == 1
+    bash_path, argv, env = execve_calls[0]
+    bin_dir = get_platform_detector().get_venv_bin_dir()
+    assert bash_path == get_platform_detector().get_default_shell()
+    assert argv == ["bash"]
+    assert env["VIRTUAL_ENV"] == str(context.venv_path)
+    assert env["PATH"].startswith(str(context.venv_path / bin_dir))
+    assert env["VIRTUAL_ENV_PROMPT"] == tmp_path.name
+    assert env["PS1"] == f"({tmp_path.name}) \\u@\\h:\\w\\$ "
+    assert "PROMPT_COMMAND" not in env
+    assert env["BASH_SILENCE_DEPRECATION_WARNING"] == "1"
+
+
 def test_rebuild_index_runs_expected_invenio_sequence(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:

@@ -569,6 +569,62 @@ def invenio_command(ctx: typer.Context) -> None:
     repository.exec_invenio(context, ctx.args)
 
 
+@repository_app.command("shell")
+def shell_command(
+    no_services: Annotated[
+        bool,
+        typer.Option("--no-services", help="Don't start Docker services first"),
+    ] = False,
+    quiet: Annotated[
+        bool,
+        typer.Option(
+            "--quiet",
+            "-q",
+            help="Suppress output from starting Docker services",
+        ),
+    ] = False,
+) -> None:
+    """Start an interactive bash shell in the repository's virtual environment.
+
+    Opens a bash shell with the virtual environment activated. By default,
+    Docker services are started first (via ``invenio-cli services start``,
+    like ``repository run``) -- use ``--no-services`` to skip, e.g. if
+    they're already running.
+
+    Unlike ``library shell``, no environment variables are loaded from an
+    ``.env-services`` file: a repository resolves its own service
+    connection details from ``invenio.cfg``/``.invenio.private`` instead.
+
+    This command replaces the current process (``os.execve``) with the
+    shell -- it never returns on success.
+
+    Examples:
+        $ oarepo-cli repository shell
+        $ oarepo-cli repository shell --no-services
+
+    Exit codes:
+        Whatever the shell itself exits with
+        1: Starting Docker services failed, or project context could not be
+           discovered
+    """
+    try:
+        context = discover_context()
+
+        console = ConsoleOutput(quiet=quiet)
+        if not no_services:
+            console.info("→ Starting Docker services...\n")
+            invenio_cli.run_invenio_cli(context, ["services", "start"], quiet=quiet)
+
+        console.info("→ Starting bash shell in virtual environment...\n")
+        console.info("  Type 'exit' or press Ctrl+D to exit the shell.\n")
+
+        repository.exec_shell(context)
+    except OARepoError as e:
+        console_err = ConsoleOutput(quiet=False)  # Always show errors
+        console_err.error(f"\n✗ repository shell failed: {e}\n", fg=typer.colors.RED)
+        raise typer.Exit(1) from e
+
+
 @repository_app.command("translations", context_settings=_SERVICES_CONTEXT_SETTINGS)
 def translations_command(
     ctx: typer.Context,

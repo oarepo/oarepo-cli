@@ -504,6 +504,7 @@ The `repository` subcommand provides tools for managing full OARepo repository i
 | [`run`](#repository-run) | Start repository server | ✅ Implemented |
 | [`cli`](#repository-cli) | Delegate to invenio-cli | ✅ Implemented |
 | [`invenio`](#repository-invenio) | Delegate to the venv's own bare invenio | ✅ Implemented |
+| [`shell`](#repository-shell) | Start an interactive shell in the venv | ✅ Implemented |
 | [`translations`](#repository-translations) | Extract/compile translations | ✅ Implemented |
 | [`index`](#repository-index-rebuild) | Rebuild search index | ✅ Implemented |
 | [`reset`](#repository-reset) | Full reset with confirmation | ✅ Implemented |
@@ -734,6 +735,30 @@ oarepo-cli repository invenio --help
 **Exit codes:**
 - Whatever invenio itself exits with
 - `1`: Project context could not be discovered
+
+### `repository shell`
+
+Starts an interactive bash shell with the repository's virtual environment activated. By default, Docker services are started first (via `invenio-cli services start`, like [`repository run`](#repository-run)) -- use `--no-services` to skip, e.g. if they're already running. This command replaces the current process (`os.execve`) with the shell -- it never returns on success.
+
+Unlike [`library shell`](#library-shell), no environment variables are loaded from an `.env-services` file: a repository resolves its own service connection details from `invenio.cfg`/`.invenio.private` instead.
+
+```bash
+oarepo-cli repository shell
+```
+
+**Options:**
+- `--no-services`: Don't start Docker services first
+- `--quiet` / `-q`: Suppress output from starting Docker services
+
+**Examples:**
+```bash
+oarepo-cli repository shell
+oarepo-cli repository shell --no-services
+```
+
+**Exit codes:**
+- Whatever the shell itself exits with
+- `1`: Starting Docker services failed, or project context could not be discovered
 
 ### `repository translations`
 
