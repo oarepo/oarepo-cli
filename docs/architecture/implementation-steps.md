@@ -1538,11 +1538,11 @@ i.e. one directory per entry in `module-name`, resolved relative to
 `module-root` (empty string means the project root itself) -- unlike a
 library's single `src/`or `<package_name>/` directory.
 
-- [ ] Add a typed accessor to `PyProjectData` (`services/pyproject_reader.py`)
+- [x] Add a typed accessor to `PyProjectData` (`services/pyproject_reader.py`)
   for `[tool.uv.build-backend]`'s `module-name` (list of strings, default
   `[]`) and `module-root` (string, default `""`), following the existing
   pattern used for `default_extras`
-- [ ] Extend `ProjectContext.code_directories` (`core/context.py`) with a new
+- [x] Extend `ProjectContext.code_directories` (`core/context.py`) with a new
   detection branch, in this precedence order:
   1. `src/` (existing)
   2. **New**: `[tool.uv.build-backend].module-name` non-empty -> one
@@ -1552,20 +1552,42 @@ library's single `src/`or `<package_name>/` directory.
   4. `[tool.hatch.build.targets.wheel].packages[0]` (existing)
   5. Else raise `ConfigurationError` (existing)
   `tests/` is still appended afterwards if present, unchanged.
-- [ ] Fix `LintRunner.run_lint()`'s `ty check` invocation
+- [x] Fix `LintRunner.run_lint()`'s `ty check` invocation
   (`services/lint.py`): it currently passes only `code_directories[0]` --
   correct today because a library's `code_directories` only ever has one
   source entry (plus `tests/`), but silently wrong for a multi-module
   repository, which would only ever type-check the first module. Pass every
   non-`tests` entry in `code_directories` instead.
-- [ ] Verify `check_license_headers()`/`check_future_annotations()`
+- [x] Verify `check_license_headers()`/`check_future_annotations()`
   (`services/lint.py`) and `run_jslint()` (`services/js_tools.py`) already
   iterate over the full `code_directories` list (they do, as of this
   writing) -- no change needed there, just confirm during review
-- [ ] Add unit tests for the new `PyProjectData` accessor and the new
+- [x] Add unit tests for the new `PyProjectData` accessor and the new
   `code_directories` branch, and an integration-level test against the real
   `tests/testrepo/pyproject.toml` fixture asserting `code_directories`
   resolves to `[common/, i18n/, ui/]` (plus `tests/` if present)
+
+**Deviations from the original plan**:
+- The `src/` vs. `module-name` vs. flat-layout precedence is enforced with
+  `if`/`elif`/`else`, not three independent checks -- a repository's project
+  name never coincides with an existing top-level directory in practice, so
+  this is mostly a documentation clarification of intent rather than a
+  behavior difference, but it's now explicit rather than incidental. Both
+  existing library layouts (`src/` and flat/package-name-derived) are
+  unchanged and still take priority over `module-name` when both would
+  apply, verified by dedicated precedence tests.
+- No dedicated `LintRunner` unit test file existed yet (noted as a gap in
+  the original plan text); added `tests/unit/test_lint_service.py` rather
+  than extending the slower, real-tool
+  `tests/integration/test_library_lint_format.py`, to directly assert the
+  exact `ty check` argument list via a mocked `process.run` -- both the
+  multi-directory regression and confirmation that a library's existing
+  single-directory-plus-tests layout is unchanged.
+- The real-fixture test landed as
+  `tests/integration/test_repository_code_directories.py`, a new file: only
+  reads `tests/testrepo`'s real `pyproject.toml`/directories via
+  `ContextBuilder`, no install or services lifecycle involved, so it's fast
+  and side-effect-free despite living in `tests/integration/`.
 
 **Deliverables**:
 - `code_directories` correctly resolves multi-module repository layouts
@@ -1574,11 +1596,13 @@ library's single `src/`or `<package_name>/` directory.
 **Tests**:
 - `tests/unit/test_pyproject_reader.py`: new accessor, default when absent
 - `tests/unit/test_context.py`: `code_directories` precedence order,
-  including the new `module-name` branch
-- `tests/integration/test_library_lint_format.py`-style coverage, extended
-  or mirrored, for `ty check` being invoked with all non-`tests` code
-  directories, not just the first (currently only covered at the
-  integration level, no dedicated `LintRunner` unit test file exists yet)
+  including the new `module-name` branch, and that `src/`/flat-layout still
+  win over it when present (backwards compatibility)
+- `tests/unit/test_lint_service.py`: `ty check` invoked with every
+  non-`tests` code directory, not just the first, and that a library's
+  existing single-directory layout still passes exactly that one directory
+- `tests/integration/test_repository_code_directories.py`: `code_directories`
+  resolves the real `tests/testrepo` fixture's `["common", "i18n", "ui"]`
 
 ---
 

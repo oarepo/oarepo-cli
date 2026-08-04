@@ -38,25 +38,44 @@ class ProjectContext:
     def code_directories(self) -> list[Path]:
         """Source and test directories to lint/type-check/format.
 
-        Mirrors ``library_runner.sh``'s ``code_directories`` detection:
-        prefer a top-level ``src/`` directory, else the package's own
-        top-level directory (derived from the project name, or from
+        Mirrors ``library_runner.sh``'s ``code_directories`` detection for a
+        library project: prefer a top-level ``src/`` directory (the "src
+        layout"), else the package's own top-level directory derived from
+        the project name (the "flat layout"), or from
         ``[tool.hatch.build.targets.wheel].packages`` if that doesn't exist
-        either), plus ``tests/`` if present.
+        either -- both preserved exactly, unchanged.
+
+        A repository project built with the ``uv_build`` backend has no
+        bash equivalent to mirror: it declares its source as several
+        top-level module directories in ``[tool.uv.build-backend]``'s
+        ``module-name`` (e.g. ``["common", "i18n", "ui"]``) instead of a
+        single ``src/``/package directory. Checked between the ``src/`` and
+        flat-layout checks -- a repository's project name never matches an
+        existing top-level directory anyway, but this keeps the precedence
+        explicit rather than relying on that coincidence.
+
+        ``tests/`` is appended afterwards if present, for either kind of
+        project.
 
         Returns:
             List of existing directories to process
 
         Raises:
-            ConfigurationError: If neither ``src/`` nor a package directory can be found
+            ConfigurationError: If none of the above can be found
         """
         pyproject_data = PyProjectReader().read(self.pyproject_path)
 
         directories: list[Path] = []
 
         src_dir = self.root_directory / "src"
+        module_names = pyproject_data.uv_build_module_names
         if src_dir.is_dir():
             directories.append(src_dir)
+        elif module_names:
+            module_root = self.root_directory / pyproject_data.uv_build_module_root
+            directories.extend(
+                module_root / name for name in module_names if (module_root / name).is_dir()
+            )
         else:
             top_level = pyproject_data.name.replace("-", "_")
             package_dir = self.root_directory / top_level

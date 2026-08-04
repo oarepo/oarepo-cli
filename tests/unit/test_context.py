@@ -72,6 +72,107 @@ dependencies = ["oarepo>=14.0.0,<15.0.0"]
     assert context.code_directories == [tmp_path / "src", tmp_path / "tests"]
 
 
+def test_computed_properties_code_directories_uv_build_modules(tmp_path: Path) -> None:
+    """code_directories resolves every [tool.uv.build-backend].module-name entry,
+    matching a real repository's multi-module uv_build layout (tests/testrepo)."""
+    (tmp_path / "pyproject.toml").write_text(
+        """
+[project]
+name = "test-repository"
+requires-python = ">=3.12,<3.15"
+dependencies = ["oarepo>=14.0.0,<15.0.0"]
+
+[tool.uv.build-backend]
+module-root = ""
+module-name = ["common", "i18n", "ui"]
+"""
+    )
+    (tmp_path / "common").mkdir()
+    (tmp_path / "i18n").mkdir()
+    (tmp_path / "ui").mkdir()
+    (tmp_path / "tests").mkdir()
+
+    context = ContextBuilder().from_directory(tmp_path).validate()
+
+    assert context.code_directories == [
+        tmp_path / "common",
+        tmp_path / "i18n",
+        tmp_path / "ui",
+        tmp_path / "tests",
+    ]
+
+
+def test_computed_properties_code_directories_uv_build_modules_skips_missing(
+    tmp_path: Path,
+) -> None:
+    """A declared module-name entry that doesn't exist on disk is silently skipped,
+    rather than raising -- e.g. a module not yet scaffolded."""
+    (tmp_path / "pyproject.toml").write_text(
+        """
+[project]
+name = "test-repository"
+requires-python = ">=3.12,<3.15"
+dependencies = ["oarepo>=14.0.0,<15.0.0"]
+
+[tool.uv.build-backend]
+module-root = ""
+module-name = ["common", "not-yet-created"]
+"""
+    )
+    (tmp_path / "common").mkdir()
+
+    context = ContextBuilder().from_directory(tmp_path).validate()
+
+    assert context.code_directories == [tmp_path / "common"]
+
+
+def test_computed_properties_code_directories_src_takes_priority_over_uv_build_modules(
+    tmp_path: Path,
+) -> None:
+    """src/, when present, wins over [tool.uv.build-backend].module-name."""
+    (tmp_path / "pyproject.toml").write_text(
+        """
+[project]
+name = "test-repository"
+requires-python = ">=3.12,<3.15"
+dependencies = ["oarepo>=14.0.0,<15.0.0"]
+
+[tool.uv.build-backend]
+module-root = ""
+module-name = ["common"]
+"""
+    )
+    (tmp_path / "src").mkdir()
+    (tmp_path / "common").mkdir()
+
+    context = ContextBuilder().from_directory(tmp_path).validate()
+
+    assert context.code_directories == [tmp_path / "src"]
+
+
+def test_computed_properties_code_directories_uv_build_module_root_prefix(
+    tmp_path: Path,
+) -> None:
+    """A non-empty module-root prefixes every module-name entry."""
+    (tmp_path / "pyproject.toml").write_text(
+        """
+[project]
+name = "test-repository"
+requires-python = ">=3.12,<3.15"
+dependencies = ["oarepo>=14.0.0,<15.0.0"]
+
+[tool.uv.build-backend]
+module-root = "packages"
+module-name = ["common"]
+"""
+    )
+    (tmp_path / "packages" / "common").mkdir(parents=True)
+
+    context = ContextBuilder().from_directory(tmp_path).validate()
+
+    assert context.code_directories == [tmp_path / "packages" / "common"]
+
+
 def test_computed_properties_code_directories_package_layout(tmp_path: Path) -> None:
     """Test code_directories falls back to the package's own top-level directory."""
     (tmp_path / "pyproject.toml").write_text(
