@@ -14,7 +14,7 @@ from packaging.utils import canonicalize_name
 from oarepo_cli.core.errors import ConfigurationError
 from oarepo_cli.services.pyproject_reader import PyProjectReader
 from oarepo_cli.services.repository import upgrade_repository
-from oarepo_cli.ui import ConsoleOutput
+from oarepo_cli.ui import ConsoleOutput  # noqa: TC001 (used at runtime, not just type hints)
 
 if TYPE_CHECKING:
     from pathlib import Path
@@ -54,15 +54,15 @@ class LocalPackageManager:
     full re-download of everything else -- buys nothing and is slow.
     """
 
-    def __init__(self, context: ProjectContext, *, quiet: bool = False) -> None:
+    def __init__(self, context: ProjectContext, console: ConsoleOutput) -> None:
         """Initialize the local package manager.
 
         Args:
             context: Project context with paths and configuration
-            quiet: If True, suppress status/progress messages
+            console: Console output handler for status messages
         """
         self._context = context
-        self._quiet = quiet
+        self._console = console
 
     def add_package(self, path: Path) -> None:
         """Add a local, editable package to ``[tool.uv.sources]``.
@@ -88,8 +88,7 @@ class LocalPackageManager:
 
         name = canonicalize_name(PyProjectReader().read(package_pyproject).name)
 
-        console = ConsoleOutput(quiet=self._quiet)
-        console.info(f"→ Adding local package '{name}' from {path}\n")
+        self._console.info(f"→ Adding local package '{name}' from {path}\n")
 
         document = self._read_document()
 
@@ -104,10 +103,11 @@ class LocalPackageManager:
 
         self._write_document(document)
 
-        console.info("→ Upgrading repository with the new local package\n")
-        upgrade_repository(self._context, quiet=self._quiet, clean_cache=False)
+        self._console.info("→ Upgrading repository with the new local package\n")
+        # Pass console's quiet state to upgrade_repository
+        upgrade_repository(self._context, quiet=self._console.is_quiet, clean_cache=False)
 
-        console.success(f"✓ Local package '{name}' added successfully.\n")
+        self._console.success(f"✓ Local package '{name}' added successfully.\n")
 
     def remove_package(self, name: str, *, upgrade: bool = True) -> None:
         """Remove a local package from ``[tool.uv.sources]``.
@@ -132,8 +132,7 @@ class LocalPackageManager:
                 f"No local package named '{canonical_name}' found in [tool.uv.sources]."
             )
 
-        console = ConsoleOutput(quiet=self._quiet)
-        console.info(f"→ Removing local package '{canonical_name}'\n")
+        self._console.info(f"→ Removing local package '{canonical_name}'\n")
 
         del sources[canonical_name]
         if not sources:
@@ -144,10 +143,10 @@ class LocalPackageManager:
         self._write_document(document)
 
         if upgrade:
-            console.info("→ Upgrading repository after removing the local package\n")
-            upgrade_repository(self._context, quiet=self._quiet, clean_cache=False)
+            self._console.info("→ Upgrading repository after removing the local package\n")
+            upgrade_repository(self._context, quiet=self._console.is_quiet, clean_cache=False)
 
-        console.success(f"✓ Local package '{canonical_name}' removed successfully.\n")
+        self._console.success(f"✓ Local package '{canonical_name}' removed successfully.\n")
 
     def list_local_packages(self) -> list[str]:
         """Return the canonical names of all locally-added editable packages.
@@ -174,9 +173,8 @@ class LocalPackageManager:
             self.remove_package(name, upgrade=False)
 
         if names:
-            console = ConsoleOutput(quiet=self._quiet)
-            console.info("→ Upgrading repository after removing all local packages\n")
-            upgrade_repository(self._context, quiet=self._quiet, clean_cache=False)
+            self._console.info("→ Upgrading repository after removing all local packages\n")
+            upgrade_repository(self._context, quiet=self._console.is_quiet, clean_cache=False)
 
         return names
 

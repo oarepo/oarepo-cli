@@ -37,6 +37,7 @@ from oarepo_cli.core.config import CliConfig, ModelConfig
 from oarepo_cli.core.context import ProjectContext
 from oarepo_cli.core.errors import ConfigurationError
 from oarepo_cli.services.models import ModelManager
+from oarepo_cli.ui import ConsoleOutput
 
 STATIC_COPIER_YML = """\
 model_name:
@@ -136,7 +137,7 @@ def make_context(root: Path, template_dir: Path, *, version: str = "") -> Projec
 def test_create_model_renders_local_template(repo_root: Path, static_template: Path) -> None:
     """create_model() renders the template for real, using model_name as data."""
     context = make_context(repo_root, static_template)
-    manager = ModelManager(context, quiet=True)
+    manager = ModelManager(context, ConsoleOutput(quiet=True))
 
     manager.create_model("my_model")
 
@@ -155,7 +156,7 @@ def test_create_model_with_config_file_seeds_answers(
     config_file.write_text("model_name: configured_model\ngreeting: hi there\n")
 
     context = make_context(repo_root, answered_template)
-    manager = ModelManager(context, quiet=True)
+    manager = ModelManager(context, ConsoleOutput(quiet=True))
 
     manager.create_model("ignored_name", config_file=config_file)
 
@@ -168,7 +169,7 @@ def test_create_model_with_config_file_seeds_answers(
 def test_create_model_missing_config_file_raises(repo_root: Path, static_template: Path) -> None:
     """A non-existent config_file raises ConfigurationError before copier ever runs."""
     context = make_context(repo_root, static_template)
-    manager = ModelManager(context, quiet=True)
+    manager = ModelManager(context, ConsoleOutput(quiet=True))
 
     with pytest.raises(ConfigurationError, match="Missing model config file"):
         manager.create_model("my_model", config_file=repo_root / "does-not-exist.yml")
@@ -187,7 +188,7 @@ def test_create_model_reinstalls_when_venv_exists(
     )
 
     context = make_context(repo_root, static_template)
-    manager = ModelManager(context, quiet=True)
+    manager = ModelManager(context, ConsoleOutput(quiet=True))
 
     manager.create_model("my_model")
 
@@ -207,7 +208,7 @@ def test_create_model_skips_reinstall_without_venv(
     )
 
     context = make_context(repo_root, static_template)
-    manager = ModelManager(context, quiet=True)
+    manager = ModelManager(context, ConsoleOutput(quiet=True))
 
     manager.create_model("my_model")
 
@@ -230,7 +231,7 @@ def test_template_url_handling_vcs_ref_only_for_github_urls(
 
     # Local template path: vcs_ref must be None even though template_version is set.
     context = make_context(repo_root, static_template, version="some-ref")
-    ModelManager(context, quiet=True).create_model("my_model")
+    ModelManager(context, ConsoleOutput(quiet=True)).create_model("my_model")
 
     assert calls[0]["vcs_ref"] is None
 
@@ -254,7 +255,7 @@ def test_update_model_calls_copier_update_correctly(
     config_file.write_text("model_name: my_model\ngreeting: hello\n")
 
     context = make_context(repo_root, answered_template, version="HEAD")
-    manager = ModelManager(context, quiet=True)
+    manager = ModelManager(context, ConsoleOutput(quiet=True))
     manager.create_model("my_model", config_file=config_file)
 
     _git("init", "-q", cwd=repo_root)
@@ -293,7 +294,7 @@ def test_update_model_calls_copier_update_correctly(
 def test_update_model_missing_model_dir_raises(repo_root: Path, static_template: Path) -> None:
     """update_model() on a model that was never created raises ConfigurationError."""
     context = make_context(repo_root, static_template)
-    manager = ModelManager(context, quiet=True)
+    manager = ModelManager(context, ConsoleOutput(quiet=True))
 
     with pytest.raises(ConfigurationError, match="does not exist"):
         manager.update_model("never_created")
@@ -307,7 +308,7 @@ def test_update_model_missing_answers_file_raises(
     config_file.write_text("model_name: my_model\ngreeting: hello\n")
 
     context = make_context(repo_root, answered_template)
-    manager = ModelManager(context, quiet=True)
+    manager = ModelManager(context, ConsoleOutput(quiet=True))
     manager.create_model("my_model", config_file=config_file)
 
     with pytest.raises(ConfigurationError, match="does not exist"):

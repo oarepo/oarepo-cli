@@ -25,6 +25,7 @@ from oarepo_cli.core.config import CliConfig
 from oarepo_cli.core.context import ProjectContext
 from oarepo_cli.core.errors import ConfigurationError
 from oarepo_cli.services.local_packages import LocalPackageManager
+from oarepo_cli.ui import ConsoleOutput
 
 if TYPE_CHECKING:
     from pathlib import Path
@@ -90,7 +91,7 @@ def test_add_package_writes_sources_and_dependency(
     """add_package() adds a [tool.uv.sources] entry and a dependencies entry."""
     package_dir = make_local_package(tmp_path, "mypkg")
     context = make_context(repo_root)
-    manager = LocalPackageManager(context, quiet=True)
+    manager = LocalPackageManager(context, ConsoleOutput(quiet=True))
 
     manager.add_package(package_dir)
 
@@ -108,7 +109,7 @@ def test_add_package_triggers_repository_upgrade(
     ModelManager.create_model()'s conditional reinstall."""
     package_dir = make_local_package(tmp_path, "mypkg")
     context = make_context(repo_root)
-    manager = LocalPackageManager(context, quiet=True)
+    manager = LocalPackageManager(context, ConsoleOutput(quiet=True))
 
     manager.add_package(package_dir)
 
@@ -121,7 +122,7 @@ def test_add_package_missing_pyproject_raises(
 ) -> None:
     """A path without its own pyproject.toml raises ConfigurationError before any write."""
     context = make_context(repo_root)
-    manager = LocalPackageManager(context, quiet=True)
+    manager = LocalPackageManager(context, ConsoleOutput(quiet=True))
     original_content = context.pyproject_path.read_text()
 
     with pytest.raises(ConfigurationError, match="No pyproject.toml in"):
@@ -139,7 +140,7 @@ def test_add_package_is_idempotent_on_dependencies(
     """Adding the same package twice doesn't duplicate its dependencies entry."""
     package_dir = make_local_package(tmp_path, "mypkg")
     context = make_context(repo_root)
-    manager = LocalPackageManager(context, quiet=True)
+    manager = LocalPackageManager(context, ConsoleOutput(quiet=True))
 
     manager.add_package(package_dir)
     manager.add_package(package_dir)
@@ -157,7 +158,7 @@ def test_add_package_normalizes_name(
     """The package's [project].name is canonicalized (PEP 503), matching uv's own behavior."""
     package_dir = make_local_package(tmp_path, "My_Package", dirname="my_package")
     context = make_context(repo_root)
-    manager = LocalPackageManager(context, quiet=True)
+    manager = LocalPackageManager(context, ConsoleOutput(quiet=True))
 
     manager.add_package(package_dir)
 
@@ -176,7 +177,7 @@ def test_add_package_path_relative_to_root_outside_root(
     sibling_root.mkdir()
     package_dir = make_local_package(sibling_root, "mypkg")
     context = make_context(repo_root)
-    manager = LocalPackageManager(context, quiet=True)
+    manager = LocalPackageManager(context, ConsoleOutput(quiet=True))
 
     manager.add_package(package_dir)
 
@@ -193,7 +194,7 @@ def test_add_package_preserves_existing_formatting(
     """Existing comments/tables in pyproject.toml survive the tomlkit round trip."""
     package_dir = make_local_package(tmp_path, "mypkg")
     context = make_context(repo_root)
-    manager = LocalPackageManager(context, quiet=True)
+    manager = LocalPackageManager(context, ConsoleOutput(quiet=True))
 
     manager.add_package(package_dir)
 
@@ -222,7 +223,7 @@ def test_remove_package_removes_sources_and_dependency(
     """remove_package() removes both the [tool.uv.sources] entry and the dependency."""
     _add_local_source(repo_root / "pyproject.toml", "mypkg", "../mypkg")
     context = make_context(repo_root)
-    manager = LocalPackageManager(context, quiet=True)
+    manager = LocalPackageManager(context, ConsoleOutput(quiet=True))
 
     manager.remove_package("mypkg")
 
@@ -237,7 +238,7 @@ def test_remove_package_triggers_repository_upgrade(
     """remove_package() also unconditionally triggers upgrade_repository."""
     _add_local_source(repo_root / "pyproject.toml", "mypkg", "../mypkg")
     context = make_context(repo_root)
-    manager = LocalPackageManager(context, quiet=True)
+    manager = LocalPackageManager(context, ConsoleOutput(quiet=True))
 
     manager.remove_package("mypkg")
 
@@ -252,7 +253,7 @@ def test_remove_package_leaves_other_sources_untouched(
     _add_local_source(repo_root / "pyproject.toml", "mypkg", "../mypkg")
     _add_local_source(repo_root / "pyproject.toml", "otherpkg", "../otherpkg")
     context = make_context(repo_root)
-    manager = LocalPackageManager(context, quiet=True)
+    manager = LocalPackageManager(context, ConsoleOutput(quiet=True))
 
     manager.remove_package("mypkg")
 
@@ -269,7 +270,7 @@ def test_remove_package_normalizes_name(
     """remove_package() canonicalizes its name argument the same way add_package() does."""
     _add_local_source(repo_root / "pyproject.toml", "my-package", "../my_package")
     context = make_context(repo_root)
-    manager = LocalPackageManager(context, quiet=True)
+    manager = LocalPackageManager(context, ConsoleOutput(quiet=True))
 
     manager.remove_package("My_Package")
 
@@ -282,7 +283,7 @@ def test_remove_package_unknown_name_raises(
 ) -> None:
     """Removing a package that was never added raises ConfigurationError, no write attempted."""
     context = make_context(repo_root)
-    manager = LocalPackageManager(context, quiet=True)
+    manager = LocalPackageManager(context, ConsoleOutput(quiet=True))
     original_content = context.pyproject_path.read_text()
 
     with pytest.raises(ConfigurationError, match="No local package named 'mypkg'"):
@@ -298,7 +299,7 @@ def test_remove_package_upgrade_false_skips_upgrade(
     """remove_package(upgrade=False) still removes the entries, but doesn't upgrade."""
     _add_local_source(repo_root / "pyproject.toml", "mypkg", "../mypkg")
     context = make_context(repo_root)
-    manager = LocalPackageManager(context, quiet=True)
+    manager = LocalPackageManager(context, ConsoleOutput(quiet=True))
 
     manager.remove_package("mypkg", upgrade=False)
 
@@ -322,7 +323,7 @@ def test_list_local_packages_excludes_non_path_sources(
     (repo_root / "pyproject.toml").write_text(tomlkit.dumps(document))
 
     context = make_context(repo_root)
-    manager = LocalPackageManager(context, quiet=True)
+    manager = LocalPackageManager(context, ConsoleOutput(quiet=True))
     manager.add_package(make_local_package(tmp_path, "mypkg"))
 
     names = manager.list_local_packages()
@@ -338,7 +339,7 @@ def test_remove_all_packages_removes_everything_in_one_upgrade(
     _add_local_source(repo_root / "pyproject.toml", "pkg-a", "../pkg-a")
     _add_local_source(repo_root / "pyproject.toml", "pkg-b", "../pkg-b")
     context = make_context(repo_root)
-    manager = LocalPackageManager(context, quiet=True)
+    manager = LocalPackageManager(context, ConsoleOutput(quiet=True))
 
     removed = manager.remove_all_packages()
 
@@ -355,7 +356,7 @@ def test_remove_all_packages_with_none_present_skips_upgrade(
 ) -> None:
     """remove_all_packages() is a no-op (no upgrade triggered) when there's nothing to remove."""
     context = make_context(repo_root)
-    manager = LocalPackageManager(context, quiet=True)
+    manager = LocalPackageManager(context, ConsoleOutput(quiet=True))
 
     removed = manager.remove_all_packages()
 

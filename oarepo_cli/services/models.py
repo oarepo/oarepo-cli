@@ -12,7 +12,7 @@ import yaml
 
 from oarepo_cli.core.errors import ConfigurationError
 from oarepo_cli.services.repository import install_repository
-from oarepo_cli.ui import ConsoleOutput
+from oarepo_cli.ui import ConsoleOutput  # noqa: TC001 (used at runtime, not just type hints)
 
 if TYPE_CHECKING:
     from pathlib import Path
@@ -67,15 +67,15 @@ class ModelManager:
     that to actually work.
     """
 
-    def __init__(self, context: ProjectContext, *, quiet: bool = False) -> None:
+    def __init__(self, context: ProjectContext, console: ConsoleOutput) -> None:
         """Initialize the model manager.
 
         Args:
             context: Project context with paths and configuration
-            quiet: If True, suppress status/progress messages
+            console: Console output handler for status messages
         """
         self._context = context
-        self._quiet = quiet
+        self._console = console
 
     def create_model(self, name: str, config_file: Path | None = None) -> None:
         """Create a new record model from the model copier template.
@@ -104,13 +104,14 @@ class ModelManager:
         if config_file is not None and not config_file.exists():
             raise ConfigurationError(f"Missing model config file: {config_file}")
 
-        console = ConsoleOutput(quiet=self._quiet)
         template = self._context.config.model.template_url
         version = self._context.config.model.template_version
         is_github = template.startswith("https://")
 
-        console.info(f"→ Creating model '{name}' from {template}\n")
+        self._console.info(f"→ Creating model '{name}' from {template}\n")
 
+        # copier's quiet flag controls its own output
+        quiet_for_copier = self._console.is_quiet
         data = _load_yaml_data(config_file) if config_file is not None else {"model_name": name}
         copier.run_copy(
             template,
@@ -118,15 +119,16 @@ class ModelManager:
             data=data,
             vcs_ref=version if is_github else None,
             unsafe=True,
-            quiet=self._quiet,
+            quiet=quiet_for_copier,
         )
 
         if self._context.venv_path.exists():
-            console.info("→ Reinstalling repository with the new model\n")
-            install_repository(self._context, quiet=self._quiet)
+            self._console.info("→ Reinstalling repository with the new model\n")
+            # Pass console's quiet state to install_repository
+            install_repository(self._context, quiet=quiet_for_copier)
 
-        console.success(f"✓ Model '{name}' created successfully.\n")
-        console.warning(
+        self._console.success(f"✓ Model '{name}' created successfully.\n")
+        self._console.warning(
             "\nTo create the necessary database tables and search indices for "
             "your new model, run: oarepo-cli repository reset\n"
             "NOTE: this will PURGE ALL EXISTING DATA in your containers!\n"
@@ -166,11 +168,12 @@ class ModelManager:
         if not resolved_answers_file.exists():
             raise ConfigurationError(f"Answers file '{resolved_answers_file}' does not exist.")
 
-        console = ConsoleOutput(quiet=self._quiet)
         version = self._context.config.model.template_version
 
-        console.info(f"→ Updating model '{name}' with answers file {resolved_answers_file}\n")
+        self._console.info(f"→ Updating model '{name}' with answers file {resolved_answers_file}\n")
 
+        # copier's quiet flag controls its own output
+        quiet_for_copier = self._console.is_quiet
         copier.run_update(
             self._context.root_directory,
             data=_load_yaml_data(resolved_answers_file),
@@ -185,7 +188,7 @@ class ModelManager:
             # confirmation prompt. Without it, run_update always raises
             # "Enable overwrite to update a subproject."
             overwrite=True,
-            quiet=self._quiet,
+            quiet=quiet_for_copier,
         )
 
-        console.success(f"✓ Model '{name}' updated successfully.\n")
+        self._console.success(f"✓ Model '{name}' updated successfully.\n")
