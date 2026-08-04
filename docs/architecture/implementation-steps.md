@@ -1726,25 +1726,44 @@ the open product question raised in the audit
 ([after_repository_cleanup.md](./after_repository_cleanup.md) §4). Depends
 on Step 4.15 for correct multi-module source-directory detection.
 
-- [ ] Add `repository lint`/`repository format`/`repository check` to
+- [x] Add `repository lint`/`repository format`/`repository check` to
   `cli/repository.py`, delegating to the existing `services.lint.LintRunner`
   exactly like their `library` counterparts (same `--fix`/`--no-fix` option
   on `lint`/`format`, defaulting to `--fix`; `check` is the always-read-only
   equivalent)
-- [ ] **Decide**: `LintRunner.run_lint()` unconditionally runs the license
+- [x] **Decide**: `LintRunner.run_lint()` unconditionally runs the license
   header check and the `from __future__ import annotations` check as part
   of `lint`/`check` (there's no way to opt out short of a dedicated
   `license-headers` command, which is out of scope here per the current
   request). Confirm this is desired for repository code too before wiring
   it up as-is, since repository projects may have different header/typing
   conventions than library packages
-- [ ] Confirm `ty.toml`/`.ruff.toml` template generation
+- [x] Confirm `ty.toml`/`.ruff.toml` template generation
   (`configuration/resources.py` templates) doesn't assume a
   single-package/library project shape
-- [ ] Reuse the exact exception-handling policy decided in Step 4.12
+- [x] Reuse the exact exception-handling policy decided in Step 4.12
   (narrow `except OARepoError`, not broad `except Exception`) -- these are
   new commands, so they should start out consistent rather than needing a
   follow-up fix
+
+**Decisions/deviations from the original plan**:
+- **License headers/future-annotations checks**: confirmed (user input) to
+  wire up as-is, matching `library` exactly -- `repository lint`/`check`
+  will fail against the real `tests/testrepo` fixture today (it has neither
+  convention yet), which is accepted as correct/expected rather than a bug
+  to work around.
+- **No code duplication** (explicitly requested): extracted the CLI-layer
+  command body -- console messages, `LintRunner` construction, exception
+  handling, exit-code logic -- into a new shared module,
+  `cli/lint_commands.py` (`run_lint()`/`run_format()`/`run_check()`),
+  reused verbatim by both `library.py` and `repository.py`. Refactored
+  `library_lint`/`library_format`/`library_check` to call it too, rather
+  than leaving their bodies duplicated in two places. Each module still
+  owns its own Typer registration (decorator, options, docstring) and its
+  own `discover_context()` call/error handling, which legitimately differ
+  between the two (`library.py` doesn't wrap `discover_context()` in
+  `try`/`except` at all, a pre-existing asymmetry with `repository.py`
+  left untouched here as out of scope).
 
 **Deliverables**:
 - `oarepo-cli repository lint`/`format`/`check`, functionally equivalent to
@@ -1752,12 +1771,18 @@ on Step 4.15 for correct multi-module source-directory detection.
   multi-module `code_directories`
 
 **Tests** (mirroring `tests/integration/test_library_lint_format.py`/
-`test_library_check.py`):
-- [ ] Test each command executes against a real multi-module repository
-  fixture (`tests/testrepo`)
-- [ ] Test `ty check` covers every module directory (regression test for
-  Step 4.15's fix)
-- [ ] Test `--fix`/`--no-fix` behavior matches `library`'s
+`test_library_check.py`, plus CLI-wiring tests in
+`tests/integration/test_repository_misc.py`):
+- [x] Test each command executes against a real multi-module repository
+  fixture -- a new, lint-clean `lint_project_multi_module` fixture
+  (`tests/integration/conftest.py`) shaped like the real `tests/testrepo`
+  (`[tool.uv.build-backend]`, not `tests/testrepo` itself, which isn't
+  lint-clean per the decision above and would only prove the command fails,
+  not that it works end-to-end)
+- [x] Test `ty check` covers every module directory (regression test for
+  Step 4.15's fix, exercised for real here via a type error planted in the
+  *second* module directory)
+- [x] Test `--fix`/`--no-fix` behavior matches `library`'s
 
 ---
 

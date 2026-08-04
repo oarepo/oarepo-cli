@@ -60,13 +60,15 @@ def test_lint_does_not_swallow_non_oareporerror_exceptions(
 ) -> None:
     """A non-OARepoError raised by LintRunner propagates instead of being turned into a
     clean "exit 1" -- regression test for narrowing library.py's except clauses from
-    the previous blanket `except Exception` to `except OARepoError` (Step 4.12)."""
+    the previous blanket `except Exception` to `except OARepoError` (Step 4.12). The
+    shared lint/format/check command body now lives in cli/lint_commands.py (Step
+    4.18), reused by both `library lint` and `repository lint`."""
     monkeypatch.chdir(lint_project)
 
     def _raise_value_error(_self: object, **_kwargs: object) -> None:
         raise ValueError("boom")
 
-    monkeypatch.setattr("oarepo_cli.cli.library.LintRunner.run_lint", _raise_value_error)
+    monkeypatch.setattr("oarepo_cli.cli.lint_commands.LintRunner.run_lint", _raise_value_error)
 
     result = runner.invoke(app, ["library", "lint", "--quiet"])
 

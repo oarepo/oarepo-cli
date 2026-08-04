@@ -1,7 +1,8 @@
 # SPDX-FileCopyrightText: 2026 CESNET z.s.p.o.
 # SPDX-License-Identifier: MIT
 
-"""Tests for `repository cli`/`invenio`/`shell`/`translations`/`index rebuild`/`reset`/`info`.
+"""Tests for `repository cli`/`invenio`/`shell`/`lint`/`format`/`check`/`translations`/
+`index rebuild`/`reset`/`info`.
 
 Delegation, argument wiring, and error/exit-code handling are covered here
 by mocking `discover_context()` and the specific service function/module
@@ -260,6 +261,104 @@ def test_shell_reports_services_start_failure_and_never_execs_shell(
 
     assert result.exit_code == 1
     assert shell_calls == []
+
+
+# --- repository lint/format/check ----------------------------------------
+
+
+def test_lint_delegates_to_lint_commands_run_lint(
+    mock_context: Mock, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """`repository lint` delegates to the shared lint_commands.run_lint(), passing
+    through --fix/--quiet -- the same function `library lint` calls (Step 4.18)."""
+    calls: list[dict[str, object]] = []
+    monkeypatch.setattr(
+        "oarepo_cli.cli.repository.lint_commands.run_lint",
+        lambda context, **kwargs: calls.append({"context": context, **kwargs}),
+    )
+
+    runner = CliRunner()
+    result = runner.invoke(app, ["repository", "lint", "--no-fix", "--quiet"])
+
+    assert result.exit_code == 0, result.output
+    assert calls == [{"context": mock_context, "fix": False, "quiet": True}]
+
+
+def test_lint_reports_context_discovery_failure(monkeypatch: pytest.MonkeyPatch) -> None:
+    """A context-discovery failure is reported cleanly, exit code 1."""
+    monkeypatch.setattr(
+        "oarepo_cli.cli.repository.discover_context",
+        Mock(side_effect=ConfigurationError("pyproject.toml not found")),
+    )
+
+    runner = CliRunner()
+    result = runner.invoke(app, ["repository", "lint"])
+
+    assert result.exit_code == 1
+
+
+def test_format_delegates_to_lint_commands_run_format(
+    mock_context: Mock, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """`repository format` delegates to the shared lint_commands.run_format(), forwarding
+    --fix/--quiet and any extra args (e.g. a path) to the underlying ruff invocation."""
+    calls: list[dict[str, object]] = []
+    monkeypatch.setattr(
+        "oarepo_cli.cli.repository.lint_commands.run_format",
+        lambda context, **kwargs: calls.append({"context": context, **kwargs}),
+    )
+
+    runner = CliRunner()
+    result = runner.invoke(app, ["repository", "format", "--quiet", "common/"])
+
+    assert result.exit_code == 0, result.output
+    assert calls == [
+        {"context": mock_context, "fix": True, "extra_args": ["common/"], "quiet": True}
+    ]
+
+
+def test_format_reports_context_discovery_failure(monkeypatch: pytest.MonkeyPatch) -> None:
+    """A context-discovery failure is reported cleanly, exit code 1."""
+    monkeypatch.setattr(
+        "oarepo_cli.cli.repository.discover_context",
+        Mock(side_effect=ConfigurationError("pyproject.toml not found")),
+    )
+
+    runner = CliRunner()
+    result = runner.invoke(app, ["repository", "format"])
+
+    assert result.exit_code == 1
+
+
+def test_check_delegates_to_lint_commands_run_check(
+    mock_context: Mock, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """`repository check` delegates to the shared lint_commands.run_check(), the
+    always-read-only equivalent (no --fix option)."""
+    calls: list[dict[str, object]] = []
+    monkeypatch.setattr(
+        "oarepo_cli.cli.repository.lint_commands.run_check",
+        lambda context, **kwargs: calls.append({"context": context, **kwargs}),
+    )
+
+    runner = CliRunner()
+    result = runner.invoke(app, ["repository", "check", "--quiet"])
+
+    assert result.exit_code == 0, result.output
+    assert calls == [{"context": mock_context, "quiet": True}]
+
+
+def test_check_reports_context_discovery_failure(monkeypatch: pytest.MonkeyPatch) -> None:
+    """A context-discovery failure is reported cleanly, exit code 1."""
+    monkeypatch.setattr(
+        "oarepo_cli.cli.repository.discover_context",
+        Mock(side_effect=ConfigurationError("pyproject.toml not found")),
+    )
+
+    runner = CliRunner()
+    result = runner.invoke(app, ["repository", "check"])
+
+    assert result.exit_code == 1
 
 
 # --- repository translations -------------------------------------------
