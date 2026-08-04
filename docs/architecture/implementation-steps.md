@@ -1357,12 +1357,12 @@ own help, not invenio-cli's.
 **Goal**: Fix a copy-paste bug found during the post-Phase-4 library/repository
 parity audit ([after_repository_cleanup.md](./after_repository_cleanup.md) §2.1).
 
-- [ ] Remove the duplicated "Display summary" if/else block in
+- [x] Remove the duplicated "Display summary" if/else block in
   `cli/library.py`'s `library_clean()` -- the entire block (deciding between
   `✨ ✓ Cleanup completed! Removed: ...` and `✨ ✓ Environment is already
   clean!`) appears twice verbatim, so every `library clean` run prints its
   summary message twice
-- [ ] Add/adjust a test asserting the summary is printed exactly once
+- [x] Add/adjust a test asserting the summary is printed exactly once
 
 **Deliverables**:
 - `library clean` prints its summary exactly once
@@ -1384,22 +1384,42 @@ correct** -- a broad `except Exception` silently turns real bugs (e.g. an
 `AttributeError`) into a clean, misleading "exit 1" instead of surfacing a
 traceback.
 
-- [ ] Change all top-level command `except Exception` blocks in
+- [x] Change all top-level command `except Exception` blocks in
   `cli/library.py` (17 sites) to `except (OARepoError, ProcessExecutionError)`,
   matching `cli/repository.py`'s pattern
-- [ ] Verify no `library.py` command actually relies on catching a
+- [x] Verify no `library.py` command actually relies on catching a
   non-`OARepoError` exception type (e.g. a raw `OSError`/`subprocess` error
   that isn't already wrapped) -- wrap it into an appropriate `OARepoError`
   subclass at the source (in `services/`) instead of widening the CLI-layer
   catch back out
-- [ ] While touching these sites, simplify `repository.py`'s
+- [x] While touching these sites, simplify `repository.py`'s
   `except (OARepoError, ProcessExecutionError)` to plain `except OARepoError`
   -- `ProcessExecutionError` already subclasses `OARepoError`
   (`core/errors.py`), so the tuple is redundant
-- [ ] Re-run the full test suite -- some tests may currently rely on the
+- [x] Re-run the full test suite -- some tests may currently rely on the
   broad catch (e.g. asserting a specific exit code for an exception type
   that isn't an `OARepoError`); fix the underlying exception type rather
   than the test if so
+
+**Deviations from the original plan**:
+- Of `library.py`'s 17 `except Exception` sites, only 12 are the "wrap a
+  whole command, print an error, exit 1" pattern this step targets --
+  `library_clean()`'s 3 step-by-step cleanup handlers and `library_upgrade()`'s
+  2 (stop services, clean cache) are a different, correct pattern:
+  best-effort, log-a-warning-and-continue steps in an idempotent multi-step
+  operation (e.g. `.unlink()` on `.env-services` can raise a raw `OSError`,
+  which must not abort the rest of the cleanup). Left broad on purpose, now
+  with a comment explaining why so a future audit doesn't re-flag them.
+- Landed as plain `except OARepoError` in both files directly (not
+  `except (OARepoError, ProcessExecutionError)` in `library.py` first, then
+  simplified) -- `ProcessExecutionError` already subclasses `OARepoError`,
+  so there was no intermediate state worth landing.
+- `library_test()`'s handler had a manual `if not isinstance(e, typer.Exit):
+  ... else: raise` guard, needed because `typer.Exit` subclasses
+  `RuntimeError`/`Exception`, so the old broad catch used to intercept its
+  own `raise typer.Exit(code=result.return_code)` on the success path. Under
+  `except OARepoError`, `typer.Exit` is never caught here at all, so the
+  guard was removed as dead code rather than kept.
 
 **Deliverables**:
 - Every CLI command in both modules uses the same, narrow exception-handling
@@ -1423,16 +1443,38 @@ parent-directory walk for `pyproject.toml` and wires up
 that exist only because they were never hoisted (not to break a circular
 import, the only sanctioned reason per AGENTS.md).
 
-- [ ] Before refactoring, confirm `discover_context()`'s failure mode still
+- [x] Before refactoring, confirm `discover_context()`'s failure mode still
   satisfies `oarepo-versions`' contract (it may need to work in places a
   fully-resolved `ProjectContext` can't be built -- e.g. no venv yet --
   since it only ever needed `pyproject.toml`); adjust `discover_context()`
   or fall back to a narrower helper if not
-- [ ] Rewrite `library_oarepo_versions()` to use `discover_context()` (or
+- [x] Rewrite `library_oarepo_versions()` to use `discover_context()` (or
   the confirmed narrower alternative) instead of its own directory walk
-- [ ] Move `json`, `Path`, `ConfigurationError`, `PyProjectReader`,
+- [x] Move `json`, `Path`, `ConfigurationError`, `PyProjectReader`,
   `VersionResolver` imports to module level
-- [ ] Verify the command's output/exit codes are unchanged
+- [x] Verify the command's output/exit codes are unchanged
+
+**Deviations from the original plan**:
+- Confirmed `discover_context()` does *not* fit: `ContextBuilder.validate()`
+  requires a resolvable OARepo version and an existing Python binary
+  (raising `ConfigurationError` for either), but `oarepo-versions` must keep
+  working for a project with no `oarepo` dependency at all --
+  `test_oarepo_versions_no_oarepo_extra` exercises exactly this and would
+  have broken. Used the "narrower helper" fallback the step anticipated
+  instead: extracted the upward `pyproject.toml` search into a new
+  `core.context.find_pyproject_toml()`, also adopted by
+  `ContextBuilder.from_cwd()` (dropping its own duplicate copy of the same
+  loop), so `library_oarepo_versions()` no longer hand-rolls it but still
+  doesn't need a full `ProjectContext`.
+- Widened the resolver's error handling from `except ConfigurationError` to
+  `except OARepoError`, matching Step 4.12's convention -- this also now
+  catches `VersionMismatchError`, which `resolve_from_pyproject()` can
+  raise but the old code never caught (would have crashed with a raw
+  traceback instead of a clean exit 1).
+- `Path` itself didn't need hoisting: `pathlib.Path` isn't imported at all
+  in `cli/library.py` (unlike `cli/repository.py`, which does need it for a
+  type annotation) -- the plan's checklist item is satisfied by simply no
+  longer needing it in this function.
 
 **Deliverables**:
 - `library oarepo-versions` uses the same context-discovery path as every
@@ -1451,11 +1493,15 @@ audit ([after_repository_cleanup.md](./after_repository_cleanup.md) §2.4):
 `library_shell()` has `import traceback  # noqa: TID251` inside its
 `except Exception` branch, not to break a circular import.
 
-- [ ] Move `import traceback` to module level in `cli/library.py` and drop
+- [x] Move `import traceback` to module level in `cli/library.py` and drop
   the `# noqa: TID251` suppression
-- [ ] Re-run `make lint` to confirm no new, unsuppressed violation appears
+- [x] Re-run `make lint` to confirm no new, unsuppressed violation appears
   (if one does, address the underlying cause rather than re-adding the
   suppression)
+
+**Deviation from the original plan**: `TID` (flake8-tidy-imports, the rule
+`TID251` belongs to) isn't in this project's `[tool.ruff.lint].select` list
+at all -- the suppression was already a no-op before this step removed it.
 
 **Deliverables**:
 - No function-local, non-circular-import imports remain in `cli/library.py`
