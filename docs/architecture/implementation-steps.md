@@ -1466,6 +1466,264 @@ audit ([after_repository_cleanup.md](./after_repository_cleanup.md) §2.4):
 
 ---
 
+### Step 4.15: Multi-Module Source-Directory Detection (`[tool.uv.build-backend]`)
+**Goal**: Generalize `ProjectContext.code_directories` so it also recognizes
+repository-style projects, which lay out their source as several top-level
+module directories declared in `[tool.uv.build-backend]` rather than a
+single `src/`/package directory -- a prerequisite for Steps 4.18-4.19 below
+(`repository lint`/`format`/`check`/`jslint`/`jstest` all consume
+`code_directories`).
+
+Real repositories built with the `uv_build` backend declare their modules
+like this (see `tests/testrepo/pyproject.toml`, already checked into the
+repo as a fixture):
+
+```toml
+[tool.uv.build-backend]
+module-root = ""
+module-name = ["common", "i18n", "ui", "datasets"]
+
+[build-system]
+requires = ["uv_build>=0.8.7,<0.9.0"]
+build-backend = "uv_build"
+```
+
+i.e. one directory per entry in `module-name`, resolved relative to
+`module-root` (empty string means the project root itself) -- unlike a
+library's single `src/`or `<package_name>/` directory.
+
+- [ ] Add a typed accessor to `PyProjectData` (`services/pyproject_reader.py`)
+  for `[tool.uv.build-backend]`'s `module-name` (list of strings, default
+  `[]`) and `module-root` (string, default `""`), following the existing
+  pattern used for `default_extras`
+- [ ] Extend `ProjectContext.code_directories` (`core/context.py`) with a new
+  detection branch, in this precedence order:
+  1. `src/` (existing)
+  2. **New**: `[tool.uv.build-backend].module-name` non-empty -> one
+     directory per entry, each `root_directory / module_root / name`,
+     included if it exists on disk
+  3. `<package_name>/` derived from `[project].name` (existing)
+  4. `[tool.hatch.build.targets.wheel].packages[0]` (existing)
+  5. Else raise `ConfigurationError` (existing)
+  `tests/` is still appended afterwards if present, unchanged.
+- [ ] Fix `LintRunner.run_lint()`'s `ty check` invocation
+  (`services/lint.py`): it currently passes only `code_directories[0]` --
+  correct today because a library's `code_directories` only ever has one
+  source entry (plus `tests/`), but silently wrong for a multi-module
+  repository, which would only ever type-check the first module. Pass every
+  non-`tests` entry in `code_directories` instead.
+- [ ] Verify `check_license_headers()`/`check_future_annotations()`
+  (`services/lint.py`) and `run_jslint()` (`services/js_tools.py`) already
+  iterate over the full `code_directories` list (they do, as of this
+  writing) -- no change needed there, just confirm during review
+- [ ] Add unit tests for the new `PyProjectData` accessor and the new
+  `code_directories` branch, and an integration-level test against the real
+  `tests/testrepo/pyproject.toml` fixture asserting `code_directories`
+  resolves to `[common/, i18n/, ui/]` (plus `tests/` if present)
+
+**Deliverables**:
+- `code_directories` correctly resolves multi-module repository layouts
+- `ty check` covers every source module, not just the first
+
+**Tests**:
+- `tests/unit/test_pyproject_reader.py`: new accessor, default when absent
+- `tests/unit/test_context.py`: `code_directories` precedence order,
+  including the new `module-name` branch
+- `tests/integration/test_library_lint_format.py`-style coverage, extended
+  or mirrored, for `ty check` being invoked with all non-`tests` code
+  directories, not just the first (currently only covered at the
+  integration level, no dedicated `LintRunner` unit test file exists yet)
+
+---
+
+### Step 4.16: Repository `invenio` Command
+**Goal**: Add the bare-`invenio` passthrough identified as a real,
+unported bash capability in the post-Phase-4 audit
+([after_repository_cleanup.md](./after_repository_cleanup.md) §3.1).
+`repository_runner.sh` has `run.sh invenio <args>`
+(`activate_venv; invenio "$@"`), distinct from `run.sh cli` (which maps to
+`invenio-cli`); `library invenio` already has a direct analog, `repository`
+never got one.
+
+- [ ] Add `repository invenio` to `cli/repository.py`: a pure passthrough
+  to the venv's own `invenio` binary, process-replacing (`os.execve`/
+  `os.execvpe`) like `repository cli` does via `invenio_cli.exec_invenio_cli`
+  -- so `--help` reaches `invenio`'s own help and the exit code is preserved
+  exactly. Reuse `services.repository.get_invenio_binary()` (already used
+  internally by `rebuild_index`/`reset_repository`) to resolve the binary;
+  add an `exec`-based sibling to it (or a shared helper with `cli`'s
+  `exec_invenio_cli`) rather than the current blocking `_run_invenio()`,
+  since this is a one-shot interactive command like `cli`, not a sequence of
+  internal calls
+- [ ] Use the same `_SERVICES_CONTEXT_SETTINGS` context settings as `cli`/
+  `translations` (`allow_extra_args`, `ignore_unknown_options`,
+  `help_option_names: []`) so arbitrary `invenio` subcommands and `--help`
+  both pass through untouched
+- [ ] Update `03-migration-guide.md`'s repository command table and
+  `00-main-architecture.md` §1.3 to list `invenio` alongside `cli`
+
+**Deliverables**:
+- `oarepo-cli repository invenio <args>` mirrors `run.sh invenio <args>`
+
+**Tests** (mirroring `tests/integration/test_repository_misc.py`'s existing
+`cli` coverage):
+- [ ] Test forwards arbitrary args to the venv's `invenio` binary
+- [ ] Test `--help` reaches `invenio`'s own help output
+- [ ] Test exit code is preserved exactly
+- [ ] Test failure when project context can't be discovered
+
+---
+
+### Step 4.17: Repository `shell` Command
+**Goal**: Add an interactive shell command for repositories, mirroring
+`library shell`. **Note**: unlike Step 4.16, this has no bash equivalent --
+`repository_runner.sh` never had a `shell` subcommand. Added for
+library/repository UX parity, not bash compatibility.
+
+- [ ] Add `repository shell` to `cli/repository.py`: opens an interactive
+  bash shell with the venv activated (`VIRTUAL_ENV`/`PATH`), mirroring
+  `library_shell`'s environment setup (`VIRTUAL_ENV_PROMPT`, fallback `PS1`,
+  dropping inherited `PROMPT_COMMAND`, silencing macOS's bash deprecation
+  nag) and process-replacement via `os.execve`
+- [ ] **Decide the services-lifecycle question before implementing**:
+  `library shell` starts services via `ServicesLifecycleManager`
+  (docker-services-cli directly) and loads `.env-services` into the shell's
+  environment, because a library has no other way to reach its dev
+  database. A repository is a Flask app that already resolves its own
+  service connections from `invenio.cfg`/`.invenio.private`
+  (`configure_local_ports()`), and its services are managed via `invenio-cli
+  services *` (see `ServerRunner`/`repository services`), not
+  `ServicesLifecycleManager` -- `repository shell` should almost certainly
+  start services the same way `ServerRunner`/`repository services start`
+  does (`invenio_cli.run_invenio_cli(context, ["services", "start"], ...)`),
+  not via the library's `ServicesLifecycleManager`/`.env-services` path.
+  Confirm whether a shell even needs services running by default, or
+  whether it should mirror `run`'s `--no-services` flag instead of
+  `library shell`'s `--skip-services`, for naming consistency with the rest
+  of the `repository` command group
+- [ ] Add `--quiet`/`-q` consistent with other `repository` commands
+  (`library shell` has none since it's a forced-`quiet=False` passthrough;
+  decide whether to match that or the rest of `repository`'s convention)
+
+**Deliverables**:
+- `oarepo-cli repository shell` opens an interactive shell in the
+  repository's venv, with the repository's actual services-lifecycle
+  mechanism (not library's) wired up correctly
+
+**Tests** (mirroring `tests/integration/test_library_misc_commands.py`'s
+`library shell`/`library invenio` coverage where applicable):
+- [ ] Test venv activation env vars are set correctly
+- [ ] Test services are started via the repository's own mechanism, not
+  `ServicesLifecycleManager`
+- [ ] Test failure when project context can't be discovered / venv missing
+
+---
+
+### Step 4.18: Repository `lint`, `format`, `check` Commands
+**Goal**: Port `library lint`/`format`/`check` to `repository`, resolving
+the open product question raised in the audit
+([after_repository_cleanup.md](./after_repository_cleanup.md) §4). Depends
+on Step 4.15 for correct multi-module source-directory detection.
+
+- [ ] Add `repository lint`/`repository format`/`repository check` to
+  `cli/repository.py`, delegating to the existing `services.lint.LintRunner`
+  exactly like their `library` counterparts (same `--fix`/`--no-fix` option
+  on `lint`/`format`, defaulting to `--fix`; `check` is the always-read-only
+  equivalent)
+- [ ] **Decide**: `LintRunner.run_lint()` unconditionally runs the license
+  header check and the `from __future__ import annotations` check as part
+  of `lint`/`check` (there's no way to opt out short of a dedicated
+  `license-headers` command, which is out of scope here per the current
+  request). Confirm this is desired for repository code too before wiring
+  it up as-is, since repository projects may have different header/typing
+  conventions than library packages
+- [ ] Confirm `ty.toml`/`.ruff.toml` template generation
+  (`configuration/resources.py` templates) doesn't assume a
+  single-package/library project shape
+- [ ] Reuse the exact exception-handling policy decided in Step 4.12
+  (narrow `except OARepoError`, not broad `except Exception`) -- these are
+  new commands, so they should start out consistent rather than needing a
+  follow-up fix
+
+**Deliverables**:
+- `oarepo-cli repository lint`/`format`/`check`, functionally equivalent to
+  their `library` counterparts but operating over a repository's
+  multi-module `code_directories`
+
+**Tests** (mirroring `tests/integration/test_library_lint_format.py`/
+`test_library_check.py`):
+- [ ] Test each command executes against a real multi-module repository
+  fixture (`tests/testrepo`)
+- [ ] Test `ty check` covers every module directory (regression test for
+  Step 4.15's fix)
+- [ ] Test `--fix`/`--no-fix` behavior matches `library`'s
+
+---
+
+### Step 4.19: Repository `jslint`, `jstest` Commands
+**Goal**: Port `library jslint`/`jstest` to `repository`. Depends on Step
+4.15 for correct multi-module source-directory detection.
+
+- [ ] Add `repository jslint`/`repository jstest` to `cli/repository.py`,
+  delegating to the existing `services.js_tools.run_jslint()`/`run_jstest()`
+  exactly like their `library` counterparts
+- [ ] **Verify before implementing**: `run_jstest()` shells out to `invenio
+  webpack run test`, which assumes a webpack/Jest setup created via
+  `invenio webpack create` (a library workflow). Confirm a real repository
+  project (which already ships `assets/`, `static/`, `ui/`, `i18n/`,
+  `babel.ini`, `oarepo.yaml` per `tests/testrepo`) exposes the same `invenio
+  webpack run test` entry point, or whether repository JS testing needs a
+  different command/setup entirely
+- [ ] `run_jslint()`'s `package.json`-missing short-circuit (prints "No
+  package.json found, skipping") already degrades gracefully -- confirm
+  this is the desired behavior for a repository without JS assets configured
+  yet, or whether it should be an error instead
+
+**Deliverables**:
+- `oarepo-cli repository jslint`/`jstest`, functionally equivalent to their
+  `library` counterparts wherever the underlying webpack/Jest assumptions
+  hold for a repository project
+
+**Tests** (mirroring `tests/integration/test_library_misc_commands.py`'s
+`library jslint`/`library jstest` coverage):
+- [ ] Test each command executes against a real multi-module repository
+  fixture (`tests/testrepo`)
+- [ ] Test the no-`package.json` short-circuit
+- [ ] Test `jslint` excludes `tests/` from the directories it lints,
+  matching `library jslint`'s existing behavior
+
+---
+
+### Step 4.20: Repository `test` Command
+**Goal**: Port `library test` to `repository`. Unlike Steps 4.18-4.19, this
+one does **not** depend on Step 4.15: `TestOrchestrator` never touches
+`code_directories` -- it just runs the venv's own `pytest` with
+`cwd=root_directory` and relies on pytest's own test discovery -- so this
+should be closer to a drop-in port.
+
+- [ ] Add `repository test` to `cli/repository.py`, delegating to the
+  existing `services.test_orchestrator.TestOrchestrator` exactly like
+  `library test` (same `--skip-services`/`--with-coverage` options)
+- [ ] Confirm `TestOrchestrator`'s services-start/stop lifecycle
+  (`ServicesLifecycleManager`) is the right mechanism for a repository too,
+  or whether -- per Step 4.17's services-lifecycle question -- it should
+  start services via `invenio-cli services start` instead, for consistency
+  with how the rest of the `repository` command group manages services
+- [ ] Verify pytest/coverage are available in a repository's venv the same
+  way they are for a library's (installed as test dependencies), and that a
+  freshly-installed repository actually has a `tests/` directory with
+  anything to run
+
+**Deliverables**:
+- `oarepo-cli repository test`, functionally equivalent to `library test`
+
+**Tests** (mirroring `tests/integration/test_library_test.py` and
+`tests/integration/test_test_orchestrator.py`):
+- [ ] Test execution against a real repository fixture (`tests/testrepo`)
+- [ ] Test `--skip-services`/`--with-coverage` behavior matches `library`'s
+
+---
+
 ## Phase 5: Repository Installer
 
 ### Step 5.1: Repository Installer CLI
