@@ -714,6 +714,14 @@ def list_repository_models(context: ProjectContext) -> list[ModelInfo]:
 
 
 def _extract_model_version(model_py: Path) -> str:
+    """Extract the __version__ string from a model's Python file.
+
+    Args:
+        model_py: Path to the model's __init__.py or model.py file
+
+    Returns:
+        The version string if found, otherwise "unknown"
+    """
     for line in model_py.read_text().splitlines():
         match = _MODEL_VERSION_PATTERN.search(line)
         if match:
