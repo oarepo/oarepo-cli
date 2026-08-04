@@ -125,17 +125,17 @@ def exec_invenio_cli(
             (matching ``run_invenio_cli``/the pre-exec ``services start``
             call, which both pass ``cwd=`` explicitly)
         args: Arguments to pass to invenio-cli
-        env: Additional environment variables (merged with this process's
-            own environment -- unlike ``run_invenio_cli``, there's no
-            subprocess env-merging safety net once this replaces it)
+        env: Additional environment variables, applied on top of
+            ``process.build_subprocess_env()``'s usual stripping/defaults
+            (same as ``run_invenio_cli``'s own env handling via
+            ``process.run()`` -- there's no other subprocess env-merging
+            safety net once this replaces the current process)
 
     Raises:
         OSError: If the invenio-cli binary can't be exec'd (not found, not
             executable, ...)
     """
-    run_env = {**os.environ, **_default_prerelease_env()}
-    if env:
-        run_env.update(env)
+    run_env = process.build_subprocess_env({**_default_prerelease_env(), **(env or {})})
 
     os.chdir(context.root_directory)
     binary = _invenio_cli_path()

@@ -168,6 +168,26 @@ def test_run_no_celery_execs_bare_invenio_binary(
     assert env["INVENIO_SITE_CERT_PATH"] == str(repo_root / "docker" / "development.crt")
 
 
+def test_run_no_celery_applies_same_env_defaults_as_blocking_calls(
+    repo_root: Path,
+    mock_services_start: list[list[str]],  # noqa: ARG001
+    mock_exec_bare_invenio: list[dict[str, Any]],
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """--no-celery's exec'd environment gets the same OAREPO_ENV_DEFAULTS/venv-stripping
+    treatment any process.run() call gets -- regression test: previously
+    _exec_bare_invenio built its env from bare os.environ, silently missing both."""
+    monkeypatch.setenv("VIRTUAL_ENV", "/oarepo-cli/own/venv")
+    monkeypatch.delenv("INVENIO_APP_THEME", raising=False)
+    context = make_context(repo_root)
+
+    ServerRunner(context, quiet=True).run(no_celery=True)
+
+    env = mock_exec_bare_invenio[0]["env"]
+    assert "VIRTUAL_ENV" not in env
+    assert env["INVENIO_APP_THEME"] == '["semantic-ui"]'
+
+
 def test_run_no_celery_does_not_call_invenio_cli(
     repo_root: Path,
     mock_services_start: list[list[str]],  # noqa: ARG001

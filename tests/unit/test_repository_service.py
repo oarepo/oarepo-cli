@@ -290,6 +290,44 @@ def test_exec_invenio_chdirs_and_execs_resolved_binary(
     assert env["PYTHONWARNINGS"] == "ignore"
 
 
+def test_exec_invenio_and_exec_shell_apply_same_env_defaults_as_blocking_calls(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """exec_invenio()'s and exec_shell()'s environments get the same
+    OAREPO_ENV_DEFAULTS/venv-stripping treatment any process.run() call gets --
+    regression test: previously both built their env from bare os.environ, silently
+    missing both."""
+    context = Mock(spec=ProjectContext)
+    context.root_directory = tmp_path
+    context.venv_path = tmp_path / ".venv"
+
+    monkeypatch.setenv("VIRTUAL_ENV", "/oarepo-cli/own/venv")
+    monkeypatch.delenv("INVENIO_APP_THEME", raising=False)
+    monkeypatch.setattr("oarepo_cli.services.repository.os.chdir", lambda _path: None)
+
+    invenio_execve_calls = []
+    monkeypatch.setattr(
+        "oarepo_cli.services.repository.os.execve",
+        lambda *args: invenio_execve_calls.append(args),
+    )
+    repository.exec_invenio(context, ["db", "upgrade"])
+    _binary, _argv, invenio_env = invenio_execve_calls[0]
+    assert invenio_env["INVENIO_APP_THEME"] == '["semantic-ui"]'
+
+    shell_execve_calls = []
+    monkeypatch.setattr(
+        "oarepo_cli.services.repository.os.execve",
+        lambda *args: shell_execve_calls.append(args),
+    )
+    repository.exec_shell(context)
+    _bash_path, _argv, shell_env = shell_execve_calls[0]
+    # exec_shell() explicitly overrides VIRTUAL_ENV to the *target* venv -- that's not
+    # the same as failing to strip oarepo-cli's own -- but the default it should have
+    # picked up (independent of anything exec_shell sets explicitly) proves the
+    # underlying env was actually built via build_subprocess_env(), not bare os.environ.
+    assert shell_env["INVENIO_APP_THEME"] == '["semantic-ui"]'
+
+
 def test_exec_shell_sets_up_venv_activation_and_execs_bash(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:

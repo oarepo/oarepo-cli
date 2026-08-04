@@ -382,7 +382,11 @@ def exec_invenio(context: ProjectContext, args: Sequence[str]) -> NoReturn:
     """
     os.chdir(context.root_directory)
     binary = get_invenio_binary(context)
-    env = {**os.environ, "PYTHONWARNINGS": "ignore"}
+    # build_subprocess_env() strips oarepo-cli's own venv and injects
+    # OAREPO_ENV_DEFAULTS (INVENIO_*/... settings), same as any process.run()
+    # call gets -- there's no other subprocess env-merging safety net once
+    # this replaces the current process.
+    env = process.build_subprocess_env({"PYTHONWARNINGS": "ignore"})
     os.execve(str(binary), [str(binary), *args], env)
 
 
@@ -413,7 +417,7 @@ def exec_shell(context: ProjectContext) -> NoReturn:
     platform = get_platform_detector()
     bin_dir = platform.get_venv_bin_dir()
 
-    shell_env = dict(os.environ)
+    shell_env = process.build_subprocess_env()
     shell_env["VIRTUAL_ENV"] = str(context.venv_path)
     venv_bin_path = str(context.venv_path / bin_dir)
     shell_env["PATH"] = f"{venv_bin_path}{os.pathsep}{shell_env.get('PATH', '')}"
