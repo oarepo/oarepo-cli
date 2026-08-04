@@ -100,6 +100,58 @@ def test_cli_reports_context_discovery_failure(monkeypatch: pytest.MonkeyPatch) 
     assert result.exit_code == 1
 
 
+# --- repository invenio -------------------------------------------------
+
+
+def test_invenio_delegates_to_exec_invenio(
+    mock_context: Mock, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """`repository invenio <args>` execs the bare invenio binary with the given args
+    verbatim (not invenio-cli -- see `repository cli` for that)."""
+    calls: list[dict[str, object]] = []
+    monkeypatch.setattr(
+        "oarepo_cli.cli.repository.repository.exec_invenio",
+        lambda context, args, **_kwargs: calls.append({"context": context, "args": list(args)}),
+    )
+
+    runner = CliRunner()
+    result = runner.invoke(app, ["repository", "invenio", "db", "upgrade"])
+
+    assert result.exit_code == 0, result.output
+    assert calls == [{"context": mock_context, "args": ["db", "upgrade"]}]
+
+
+def test_invenio_help_forwarded_to_invenio(
+    mock_context: Mock,  # noqa: ARG001 -- fixture used for its discover_context patch
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """--help is forwarded to invenio rather than intercepted by Typer/Click."""
+    calls: list[dict[str, object]] = []
+    monkeypatch.setattr(
+        "oarepo_cli.cli.repository.repository.exec_invenio",
+        lambda _context, args, **_kwargs: calls.append({"args": list(args)}),
+    )
+
+    runner = CliRunner()
+    result = runner.invoke(app, ["repository", "invenio", "--help"])
+
+    assert result.exit_code == 0, result.output
+    assert calls == [{"args": ["--help"]}]
+
+
+def test_invenio_reports_context_discovery_failure(monkeypatch: pytest.MonkeyPatch) -> None:
+    """A context-discovery failure is reported cleanly, exit code 1."""
+    monkeypatch.setattr(
+        "oarepo_cli.cli.repository.discover_context",
+        Mock(side_effect=ConfigurationError("pyproject.toml not found")),
+    )
+
+    runner = CliRunner()
+    result = runner.invoke(app, ["repository", "invenio", "db", "upgrade"])
+
+    assert result.exit_code == 1
+
+
 # --- repository translations -------------------------------------------
 
 

@@ -503,6 +503,7 @@ The `repository` subcommand provides tools for managing full OARepo repository i
 | [`local`](#repository-local) | Manage local package dependencies | ✅ Implemented |
 | [`run`](#repository-run) | Start repository server | ✅ Implemented |
 | [`cli`](#repository-cli) | Delegate to invenio-cli | ✅ Implemented |
+| [`invenio`](#repository-invenio) | Delegate to the venv's own bare invenio | ✅ Implemented |
 | [`translations`](#repository-translations) | Extract/compile translations | ✅ Implemented |
 | [`index`](#repository-index-rebuild) | Rebuild search index | ✅ Implemented |
 | [`reset`](#repository-reset) | Full reset with confirmation | ✅ Implemented |
@@ -714,6 +715,24 @@ oarepo-cli repository cli --help
 
 **Exit codes:**
 - Whatever invenio-cli itself exits with
+- `1`: Project context could not be discovered
+
+### `repository invenio`
+
+Pure passthrough to the venv's own `invenio` binary (bare invenio, not invenio-cli -- see [`repository cli`](#repository-cli) for that): replaces this process (`os.execve`) with `invenio <args>`, so `--help` reaches invenio's own help (not oarepo-cli's), and the exit code is preserved exactly.
+
+```bash
+oarepo-cli repository invenio [invenio_args...]
+```
+
+**Examples:**
+```bash
+oarepo-cli repository invenio db upgrade
+oarepo-cli repository invenio --help
+```
+
+**Exit codes:**
+- Whatever invenio itself exits with
 - `1`: Project context could not be discovered
 
 ### `repository translations`
