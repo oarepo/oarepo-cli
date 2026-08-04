@@ -386,6 +386,65 @@ def exec_invenio(context: ProjectContext, args: Sequence[str]) -> NoReturn:
     os.execve(str(binary), [str(binary), *args], env)
 
 
+def exec_shell(context: ProjectContext) -> NoReturn:
+    """Replace the current process with an interactive bash shell in the repository's venv.
+
+    Mirrors ``cli/library.py``'s ``library_shell``'s environment setup
+    (``VIRTUAL_ENV``/``PATH``, ``VIRTUAL_ENV_PROMPT``, a fallback ``PS1``,
+    dropping an inherited ``PROMPT_COMMAND``, silencing macOS's bash
+    deprecation nag) -- but unlike ``library_shell``, doesn't load any
+    ``.env-services`` environment variables: a repository resolves its own
+    service connection details from ``invenio.cfg``/``.invenio.private``
+    (see ``configure_local_ports()``), not from env vars
+    docker-services-cli would write, so there's nothing to load. Docker
+    services themselves are the caller's responsibility (started via
+    ``invenio-cli services start``, like ``repository run``, not
+    ``ServicesLifecycleManager`` -- a repository's services are always
+    managed through invenio-cli, unlike a library's).
+
+    Args:
+        context: Project context with paths and configuration -- also
+            ``chdir``s into ``context.root_directory`` first, since
+            ``execve`` has no ``cwd`` parameter of its own
+
+    Raises:
+        OSError: If the shell can't be exec'd (not found, not executable, ...)
+    """
+    platform = get_platform_detector()
+    bin_dir = platform.get_venv_bin_dir()
+
+    shell_env = dict(os.environ)
+    shell_env["VIRTUAL_ENV"] = str(context.venv_path)
+    venv_bin_path = str(context.venv_path / bin_dir)
+    shell_env["PATH"] = f"{venv_bin_path}{os.pathsep}{shell_env.get('PATH', '')}"
+
+    # Advertise the venv to prompt tools that read it directly (uv's own
+    # activate script sets this too). Use the project name rather than
+    # ".venv" since it's the more useful thing to see in the prompt.
+    shell_env["VIRTUAL_ENV_PROMPT"] = context.root_directory.name
+
+    # Fallback PS1 for plain bash with no prompt tool of its own. Only takes
+    # effect if nothing later in shell startup (rc files, prompt tools that
+    # respect this convention) resets it -- VIRTUAL_ENV_DISABLE_PROMPT lets
+    # users who prefer their own prompt opt out entirely.
+    if "VIRTUAL_ENV_DISABLE_PROMPT" not in shell_env:
+        shell_env["PS1"] = f"({context.root_directory.name}) \\u@\\h:\\w\\$ "
+
+    # Drop PROMPT_COMMAND: prompt tools (e.g. starship) set it to recompute
+    # PS1 before every prompt render, so an inherited value would silently
+    # override PS1 above the moment the first prompt is drawn.
+    shell_env.pop("PROMPT_COMMAND", None)
+
+    # Suppress macOS's "default interactive shell is now zsh" nag: it's
+    # printed on every interactive bash startup and reads like something
+    # went wrong.
+    shell_env["BASH_SILENCE_DEPRECATION_WARNING"] = "1"
+
+    os.chdir(context.root_directory)
+    bash_path = platform.get_default_shell()
+    os.execve(bash_path, ["bash"], shell_env)
+
+
 def _run_invenio(context: ProjectContext, args: Sequence[str], *, quiet: bool = False) -> None:
     """Run a bare ``invenio`` subcommand in the venv, waiting for it to complete.
 

@@ -1660,12 +1660,12 @@ specifically.
 `repository_runner.sh` never had a `shell` subcommand. Added for
 library/repository UX parity, not bash compatibility.
 
-- [ ] Add `repository shell` to `cli/repository.py`: opens an interactive
+- [x] Add `repository shell` to `cli/repository.py`: opens an interactive
   bash shell with the venv activated (`VIRTUAL_ENV`/`PATH`), mirroring
   `library_shell`'s environment setup (`VIRTUAL_ENV_PROMPT`, fallback `PS1`,
   dropping inherited `PROMPT_COMMAND`, silencing macOS's bash deprecation
   nag) and process-replacement via `os.execve`
-- [ ] **Decide the services-lifecycle question before implementing**:
+- [x] **Decide the services-lifecycle question before implementing**:
   `library shell` starts services via `ServicesLifecycleManager`
   (docker-services-cli directly) and loads `.env-services` into the shell's
   environment, because a library has no other way to reach its dev
@@ -1681,9 +1681,30 @@ library/repository UX parity, not bash compatibility.
   whether it should mirror `run`'s `--no-services` flag instead of
   `library shell`'s `--skip-services`, for naming consistency with the rest
   of the `repository` command group
-- [ ] Add `--quiet`/`-q` consistent with other `repository` commands
+- [x] Add `--quiet`/`-q` consistent with other `repository` commands
   (`library shell` has none since it's a forced-`quiet=False` passthrough;
   decide whether to match that or the rest of `repository`'s convention)
+
+**Decisions**: confirmed (user input) that an interactive `invenio shell`
+session needs services running, so `repository shell` starts Docker
+services by default, matching `run`'s `--no-services` flag name/default
+rather than `library shell`'s `--skip-services`. `--quiet`/`-q` was added,
+matching the rest of `repository`'s convention rather than `library
+shell`'s forced-non-quiet passthrough. No `.env-services`-equivalent
+loading: a repository never needs it (see `exec_shell()`'s docstring). The
+venv-activation/exec logic itself lives in a new
+`services.repository.exec_shell()` (not inline in `cli/repository.py`),
+matching this module's established thin-CLI-over-a-service-function
+pattern (`exec_invenio`, `rebuild_index`, ...) rather than `library.py`'s
+fully-inline style -- and, like `repository cli`/`invenio`, the exec call
+itself sits outside the `except OARepoError` block, so an `OSError` from a
+failed exec propagates raw rather than being caught and reformatted (unlike
+`library_shell`, which does catch it) -- kept consistent with
+`repository.py`'s own established convention for its other exec-based
+commands rather than mirroring `library_shell` on this specific point.
+`repository install` is assumed already run (the venv is assumed to exist,
+like `cli`/`invenio`/`run`) -- unlike `library_shell`, this command doesn't
+call `ensure_venv_exists()` to create it on demand.
 
 **Deliverables**:
 - `oarepo-cli repository shell` opens an interactive shell in the
@@ -1692,10 +1713,10 @@ library/repository UX parity, not bash compatibility.
 
 **Tests** (mirroring `tests/integration/test_library_misc_commands.py`'s
 `library shell`/`library invenio` coverage where applicable):
-- [ ] Test venv activation env vars are set correctly
-- [ ] Test services are started via the repository's own mechanism, not
+- [x] Test venv activation env vars are set correctly
+- [x] Test services are started via the repository's own mechanism, not
   `ServicesLifecycleManager`
-- [ ] Test failure when project context can't be discovered / venv missing
+- [x] Test failure when project context can't be discovered / venv missing
 
 ---
 
