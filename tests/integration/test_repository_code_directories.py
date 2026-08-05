@@ -3,8 +3,8 @@
 
 """Integration test for ProjectContext.code_directories against the real, checked-in
 tests/testrepo fixture -- a real repository project built with the uv_build backend's
-multi-module [tool.uv.build-backend] layout (Step 4.15), rather than a library's
-single src/-or-package-dir layout.
+multi-module [tool.uv.build-backend] layout, rather than a library's single
+src/-or-package-dir layout.
 
 Only reads testrepo_project's real pyproject.toml/directories -- no install, no
 services, so it's safe to run alongside a real, separately-running repository.

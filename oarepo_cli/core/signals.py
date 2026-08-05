@@ -18,9 +18,7 @@ things already do the right thing with that, for free:
 Installing a custom ``signal.signal(SIGINT, ...)`` handler would only get
 in the way of both of those: a raw OS-level handler runs instead of Python
 raising the exception, so none of the normal ``except``/``finally``/
-context-manager unwinding gets a chance to run. This is exactly the
-mistake the previous, now-removed ``FileLock``-based signal handling made
-(see implementation-steps.md's Step 2.3/6.1 for the history).
+context-manager unwinding gets a chance to run.
 
 SIGTERM is different: Python's default disposition for it is immediate
 termination, with no exception raised and no chance for any cleanup code

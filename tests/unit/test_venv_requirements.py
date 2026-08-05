@@ -61,11 +61,9 @@ def test_validation_passes_without_oarepo_version() -> None:
 def test_validation_passes_with_compatible_versions() -> None:
     """Test that validation passes with compatible Python and OARepo versions.
 
-    Note: Currently, the VersionResolver.validate_compatibility() is a no-op
-    that accepts all combinations. When a real compatibility matrix is added,
-    these tests should be updated with actual valid combinations.
+    Python 3.14 is the only version OAREPO_PYTHON_COMPATIBILITY lists for
+    OARepo 14, so this combination must not raise.
     """
-    # Should not raise any exception for now
     req = VenvRequirements(
         python_binary="python3.14",
         oarepo_version=14,

@@ -10,7 +10,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 
 from oarepo_cli.core.config import CliConfig
-from oarepo_cli.core.errors import ConfigurationError, ValidationError
+from oarepo_cli.core.errors import ConfigurationError
 from oarepo_cli.services.process import get_system_path
 from oarepo_cli.services.pyproject_reader import PyProjectReader
 from oarepo_cli.services.version_resolver import VersionResolver
@@ -274,7 +274,8 @@ class ContextBuilder:
 
         Raises:
             ConfigurationError: If required files/paths are missing
-            ValidationError: If versions are incompatible
+            VersionMismatchError: If the Python/OARepo version combination
+                is incompatible
         """
         if self._root_directory is None or self._pyproject_path is None:
             raise ConfigurationError("Project root and pyproject.toml must be set")
@@ -337,17 +338,13 @@ class ContextBuilder:
                 "pyproject.toml, or set the OAREPO_VERSION environment variable"
             )
 
-        # Validate venv path exists or can be created
-        if not venv_path.exists():
-            # For now, we just warn - actual venv creation happens later
-            pass
+        # A missing venv is not an error here: repository/library `install`
+        # creates it on demand, so context discovery only needs to resolve
+        # where it *would* live, not that it already exists.
 
-        # Validate OARepo-Python compatibility (placeholder)
+        # Validate OARepo-Python compatibility
         resolver = VersionResolver(pyproject_reader=pyproject_reader)
-        try:
-            resolver.validate_compatibility(python_binary.name, oarepo_version)
-        except ValidationError as e:
-            raise e
+        resolver.validate_compatibility(python_binary.name, oarepo_version)
 
         return ProjectContext(
             root_directory=self._root_directory,

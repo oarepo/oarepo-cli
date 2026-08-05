@@ -37,19 +37,19 @@ class RepositoryInstaller:
     setup steps that follow it (SSL certificate generation, a Docker
     Compose cleanup, git initialization), but invokes copier directly as a
     library (``copier.run_copy``) using this venv's own installed
-    ``copier`` + ``copier-template-extensions``, exactly the approach
-    ``services.models.ModelManager`` already uses for model templates --
-    rather than shelling out to ``uvx --python <python_binary> --with
+    ``copier`` + ``copier-template-extensions``, the same approach
+    ``services.models.ModelManager`` uses for model templates -- rather
+    than shelling out to ``uvx --python <python_binary> --with
     copier-template-extensions --with pycountry copier copy ...`` for a
     fresh ephemeral environment on every call.
 
-    One consequence: the ``--python``/``--uv``/``--uvx`` options on
-    ``cli.installer.new_repository`` no longer select which
-    interpreter/tool actually runs copier -- they're still validated there
-    for interface compatibility with the shell script (a missing binary is
-    still reported clearly, before anything else runs) but aren't forwarded
-    here, since there's no longer a separate copier process to run them
-    with.
+    Because copier runs in-process here, the ``--python``/``--uv``/
+    ``--uvx`` options on ``cli.installer.new_repository`` don't select
+    which interpreter/tool actually runs it -- they're validated there for
+    interface compatibility with the shell script (a missing binary is
+    still reported clearly, before anything else runs) but aren't passed
+    to this class, since there's no separate copier process for them to
+    apply to.
     """
 
     def __init__(self, console: ConsoleOutput) -> None:

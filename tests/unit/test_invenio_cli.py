@@ -154,8 +154,8 @@ def test_exec_invenio_cli_applies_same_env_defaults_as_run_invenio_cli(
     mock_context: Mock, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     """exec_invenio_cli's environment gets the same OAREPO_ENV_DEFAULTS/venv-stripping
-    treatment as run_invenio_cli's (via process.run()) -- regression test: previously
-    exec_invenio_cli built its env from bare os.environ, silently missing both."""
+    treatment as run_invenio_cli's (via process.run()), rather than building it from
+    bare os.environ, which would silently miss both."""
     monkeypatch.setattr(
         "oarepo_cli.services.invenio_cli._invenio_cli_path", lambda: "/venv/bin/invenio-cli"
     )

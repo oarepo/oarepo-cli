@@ -294,9 +294,9 @@ def test_exec_invenio_and_exec_shell_apply_same_env_defaults_as_blocking_calls(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     """exec_invenio()'s and exec_shell()'s environments get the same
-    OAREPO_ENV_DEFAULTS/venv-stripping treatment any process.run() call gets --
-    regression test: previously both built their env from bare os.environ, silently
-    missing both."""
+    OAREPO_ENV_DEFAULTS/venv-stripping treatment any process.run() call gets,
+    rather than building their env from bare os.environ, which would silently
+    miss both."""
     context = Mock(spec=ProjectContext)
     context.root_directory = tmp_path
     context.venv_path = tmp_path / ".venv"
@@ -639,8 +639,8 @@ def test_run_tests_covers_every_module_directory_not_a_single_package(
 ) -> None:
     """--with-coverage covers every non-tests code_directories entry by name -- unlike
     TestOrchestrator's single [project].name-derived target, since a repository's
-    code_directories are typically several real, importable top-level packages
-    (Step 4.15), not one src/-or-package-dir."""
+    code_directories are typically several real, importable top-level packages,
+    not one src/-or-package-dir."""
     common = tmp_path / "common"
     i18n = tmp_path / "i18n"
     tests_dir = tmp_path / "tests"

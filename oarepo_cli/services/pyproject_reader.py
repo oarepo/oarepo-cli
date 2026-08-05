@@ -68,9 +68,12 @@ class PyProjectData:
                      and oarepo 13 in tests extra.
 
         Note:
-            This replaces the Step 3.12 approach of reading from
-            [tool.oarepo-cli].version, eliminating duplicate configuration.
-            Version constraints are parsed using packaging.requirements.
+            Extracted from the dependency declarations themselves (the
+            single source of truth) rather than a separate
+            [tool.oarepo-cli].version config value, which would risk
+            drifting out of sync -- see the deprecated-config warning
+            below. Version constraints are parsed using
+            packaging.requirements.
         """
         # Check for deprecated [tool.oarepo-cli].oarepo.version config and warn
         if (

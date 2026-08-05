@@ -152,12 +152,9 @@ def build_subprocess_env(
     ``services.server.ServerRunner._exec_bare_invenio``,
     ``services.repository.exec_invenio``/``exec_shell``, ``cli.library``'s
     ``library_shell``/``library_invenio``, ``services.js_tools.run_jstest``'s
-    real test-run path). Previously duplicated -- with subtly different
-    behavior each time -- inline in :func:`run` (via the old, private
-    ``_merge_env``), and not at all in any of the exec-based functions
-    (which just did ``{**os.environ, <manual overrides>}`` directly,
-    silently missing both the venv-stripping and the OAREPO_ENV_DEFAULTS
-    every blocking call got).
+    real test-run path) all call this rather than build their own env dict,
+    so venv-stripping and ``OAREPO_ENV_DEFAULTS`` apply identically
+    everywhere a subprocess or exec call is made.
 
     Args:
         env: Custom environment variables, applied last (override everything else)

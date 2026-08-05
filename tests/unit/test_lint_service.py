@@ -47,10 +47,9 @@ def test_run_lint_ty_check_covers_every_module_directory(
     tmp_path: Path, mock_context: Mock, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     """ty check is invoked with every non-tests code directory, not just the first --
-    regression test for a multi-module repository (Step 4.15): the old code only ever
-    passed code_directories[0], which for a library (always a single source dir) is
-    harmless, but for a repository's several module directories would silently skip
-    all but the first."""
+    matters for a repository, whose code_directories are typically several
+    top-level module directories (unlike a library, which always has a single
+    source dir, so passing only the first would silently skip the rest)."""
     common = tmp_path / "common"
     i18n = tmp_path / "i18n"
     ui = tmp_path / "ui"
@@ -80,8 +79,8 @@ def test_run_lint_ty_check_covers_every_module_directory(
 def test_run_lint_ty_check_single_directory_matches_library_layout(
     tmp_path: Path, mock_context: Mock, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    """A library's usual single-source-dir-plus-tests layout still passes exactly
-    that one source directory to ty, unchanged from before Step 4.15."""
+    """A library's usual single-source-dir-plus-tests layout passes exactly that
+    one source directory to ty."""
     src = tmp_path / "src"
     tests_dir = tmp_path / "tests"
     src.mkdir()

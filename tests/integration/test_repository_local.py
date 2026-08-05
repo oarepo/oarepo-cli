@@ -248,6 +248,7 @@ def make_context(root: Path) -> ProjectContext:
 
 @pytest.fixture
 def repo_root(tmp_path: Path) -> Path:
+    """A minimal repository root with just a pyproject.toml, no venv/git."""
     root = tmp_path / "repo"
     root.mkdir()
     (root / "pyproject.toml").write_text(

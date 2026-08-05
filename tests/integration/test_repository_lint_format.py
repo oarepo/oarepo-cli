@@ -4,8 +4,8 @@
 """Integration tests for `repository lint`/`format`, using real ruff/ty against a
 multi-module uv_build project (unlike test_library_lint_format.py's single-src-dir
 project) -- the CLI wiring and LintRunner internals themselves are already covered
-there and in tests/unit/test_lint_service.py, since Step 4.18 reuses both verbatim
-(cli/lint_commands.py, services/lint.py) rather than duplicating them for repository.
+there and in tests/unit/test_lint_service.py, since `repository lint`/`format` reuse
+both verbatim (cli/lint_commands.py, services/lint.py) rather than duplicating them.
 """
 
 from __future__ import annotations
@@ -61,8 +61,8 @@ def test_repository_lint_fails_on_type_error_in_second_module(
     runner: CliRunner, lint_project_multi_module: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     """`repository lint` catches a type error in the *second* module directory --
-    regression test for Step 4.15's ty-check fix, which used to only pass
-    code_directories[0] (the first module) to ty, silently skipping the rest."""
+    matters because ty is invoked against every code_directories entry, not just the
+    first, since a repository typically has several module directories."""
     monkeypatch.chdir(lint_project_multi_module)
 
     second_module = lint_project_multi_module / "i18n" / "__init__.py"
