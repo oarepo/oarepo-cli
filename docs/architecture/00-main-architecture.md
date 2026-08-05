@@ -277,7 +277,7 @@ mapping from the old mypy/pyright configuration to `ty`'s.
 ```bash
 oarepo-cli library <command>    # Library runner replacement
 oarepo-cli repository <command> # Repository runner replacement
-oarepo-cli repo-install         # Repository installer (top-level for convenience)
+oarepo-cli new                  # Repository installer (top-level for convenience)
 ```
 
 **Rationale:**

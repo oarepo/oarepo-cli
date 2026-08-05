@@ -8,7 +8,7 @@ A standalone Python command-line tool for OARepo library and repository developm
 
 - **`library`**: Tools for developing OARepo library packages (models, modules, extensions)
 - **`repository`**: Tools for managing full OARepo repository instances
-- **`repo-install`**: Scaffold a brand-new repository from a copier template (see [Repository Installer](#repository-installer))
+- **`new`**: Scaffold a brand-new repository from a copier template (see [Repository Installer](#repository-installer))
 
 The CLI handles virtual environment management, dependency installation, Docker service orchestration, testing, linting, formatting, and more—all while preserving the familiar workflows from the original bash scripts.
 
@@ -489,11 +489,11 @@ Manages Docker services with subcommands.
 
 ## Repository Installer
 
-`repo-install` is a top-level command (not a `repository` subcommand) that scaffolds a
+`new` is a top-level command (not a `repository` subcommand) that scaffolds a
 brand-new repository from a copier template, replacing `repository_installer.sh`.
 
 ```bash
-oarepo-cli repo-install my-repo
+oarepo-cli new my-repo
 ```
 
 **Options:**
@@ -1125,7 +1125,7 @@ If you're migrating from the old bash scripts:
 | `./run.sh format` | `oarepo-cli library format` |
 | `./run.sh shell` | `oarepo-cli library shell` |
 | `./run.sh oarepo-versions` | `oarepo-cli library oarepo-versions` |
-| `./repository_installer.sh NAME` | `oarepo-cli repo-install NAME` (argument validation only so far — see [Repository Installer](#repository-installer)) |
+| `./repository_installer.sh NAME` | `oarepo-cli new NAME` (argument validation only so far — see [Repository Installer](#repository-installer)) |
 
 **Breaking changes:**
 - `library lint` and `library format` **auto-fix by default** (use `--no-fix` for report-only)

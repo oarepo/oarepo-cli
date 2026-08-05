@@ -1,7 +1,7 @@
 # SPDX-FileCopyrightText: 2026 CESNET z.s.p.o.
 # SPDX-License-Identifier: MIT
 
-"""Top-level `repo-install` command: scaffolds a brand-new repository.
+"""Top-level `new` command: scaffolds a brand-new repository.
 
 This is the CLI-only skeleton for `repository_installer.sh`'s replacement:
 argument parsing, defaults, and the same upfront validation the shell
@@ -51,7 +51,7 @@ def _require_binary(binary: str, option: str) -> None:
         )
 
 
-def repo_install(
+def new_repository(
     repository_name: Annotated[
         str,
         typer.Argument(help="Name of the repository to create (also the target directory)"),
@@ -93,10 +93,10 @@ def repo_install(
     setting up Docker compose symlinks, and initializing git.
 
     Examples:
-        $ oarepo-cli repo-install my-repo
-        $ oarepo-cli repo-install --python python3.14 --version rdm-14 my-repo
-        $ oarepo-cli repo-install --template ../local-template my-repo
-        $ oarepo-cli repo-install --config answers.yaml my-repo
+        $ oarepo-cli new my-repo
+        $ oarepo-cli new --python python3.14 --version rdm-14 my-repo
+        $ oarepo-cli new --template ../local-template my-repo
+        $ oarepo-cli new --config answers.yaml my-repo
 
     Exit codes:
         0: Success
@@ -111,7 +111,7 @@ def repo_install(
         _require_binary(uvx, "--uvx")
         _require_binary(python, "--python")
     except OARepoError as e:
-        console.error(f"\n✗ repo-install failed: {e}\n", fg=typer.colors.RED)
+        console.error(f"\n✗ Repository creation failed: {e}\n", fg=typer.colors.RED)
         raise typer.Exit(1) from e
 
     console.info(

@@ -105,11 +105,11 @@ oarepo-cli library test
 
 | Old Command | New Command | Notes |
 |-------------|-------------|-------|
-| `./repository_installer.sh my-repo` | `oarepo-cli repo-install my-repo` | Top-level command |
-| `./repository_installer.sh --python python3.14 my-repo` | `oarepo-cli repo-install --python python3.14 my-repo` | Same flag |
-| `./repository_installer.sh --template <url> my-repo` | `oarepo-cli repo-install --template <url> my-repo` | Same flag |
-| `./repository_installer.sh --version rdm-14 my-repo` | `oarepo-cli repo-install --version rdm-14 my-repo` | Same flag |
-| `./repository_installer.sh --config file.yaml my-repo` | `oarepo-cli repo-install --config file.yaml my-repo` | Same flag |
+| `./repository_installer.sh my-repo` | `oarepo-cli new my-repo` | Top-level command |
+| `./repository_installer.sh --python python3.14 my-repo` | `oarepo-cli new --python python3.14 my-repo` | Same flag |
+| `./repository_installer.sh --template <url> my-repo` | `oarepo-cli new --template <url> my-repo` | Same flag |
+| `./repository_installer.sh --version rdm-14 my-repo` | `oarepo-cli new --version rdm-14 my-repo` | Same flag |
+| `./repository_installer.sh --config file.yaml my-repo` | `oarepo-cli new --config file.yaml my-repo` | Same flag |
 
 ---
 
@@ -657,7 +657,7 @@ oarepo-cli repository self-update  # DEPRECATED
 ### Repository Installer
 
 ```
-oarepo-cli repo-install <repo_name>
+oarepo-cli new <repo_name>
     --python <binary>
     --template <url|path>
     --version <ref>

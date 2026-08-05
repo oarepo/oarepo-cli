@@ -33,7 +33,7 @@ A single Python executable with subcommand groups:
 ```bash
 oarepo-cli library <command>     # Library runner replacement
 oarepo-cli repository <command>  # Repository runner replacement
-oarepo-cli repo-install          # Repository installer
+oarepo-cli new                   # Repository installer
 ```
 
 **Key Design Decisions:**
@@ -287,7 +287,7 @@ Development proceeds through 8 phases, from project scaffolding to release, work
 - [ ] Repository: model, local, run, cli
 - [ ] Repository: translations, index, reset, info
 - [ ] Repository: **self-update REMOVED** (not implemented)
-- [ ] Top-level: repo-install
+- [ ] Top-level: new
 
 ### Testing
 - [ ] Unit tests for parsers, resolvers, configs
