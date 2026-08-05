@@ -20,7 +20,7 @@ from typing import TYPE_CHECKING
 
 import pytest
 
-from oarepo_cli.core.errors import ProcessExecutionError, TimeoutExceeded
+from oarepo_cli.core.errors import ProcessExecutionError
 from oarepo_cli.services import process
 
 if TYPE_CHECKING:
@@ -132,23 +132,6 @@ def test_forward_stdout_parameter_is_accepted() -> None:
     assert result.return_code == 0
 
 
-def test_timeout_does_not_raise_when_command_completes_in_time() -> None:
-    result = process.run(["echo", "quick"], timeout=30.0, check=False)
-    assert result.return_code == 0
-
-
-def test_timeout_raises_timeout_exceeded() -> None:
-    with pytest.raises(TimeoutExceeded) as exc_info:
-        process.run(
-            ["python3", "-c", "import time; time.sleep(5)"],
-            timeout=0.1,
-            check=True,
-        )
-
-    assert exc_info.value.timeout == 0.1
-    assert "time" in str(exc_info.value.command)
-
-
 def test_shell_injection_prevented() -> None:
     """Ensure arguments are not interpreted as shell commands."""
     result = process.run(["echo", "; rm -rf /"], check=False)
@@ -163,26 +146,6 @@ def test_utf8_encoding_handled_correctly() -> None:
 
     assert "世界" in result.stdout
     assert "🌍" in result.stdout
-
-
-def test_timeout_with_partial_output_is_decoded_to_str() -> None:
-    """Regression test for _decode_partial_output(): subprocess.TimeoutExpired's
-    partial stdout/stderr come back as raw bytes even in text mode (only a
-    successful communicate() decodes to str), so process.run() must decode
-    them itself rather than assume they're already str."""
-    with pytest.raises(TimeoutExceeded) as exc_info:
-        process.run(
-            [
-                "python3",
-                "-c",
-                "import sys, time; print('partial'); sys.stdout.flush(); time.sleep(5)",
-            ],
-            timeout=0.3,
-            check=True,
-        )
-
-    assert exc_info.value.stdout is not None
-    assert "partial" in exc_info.value.stdout
 
 
 def _sigterm_worker(child_pid_file: str) -> None:

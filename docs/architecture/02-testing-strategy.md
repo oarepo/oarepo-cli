@@ -241,7 +241,6 @@ import pytest
 from pathlib import Path
 from oarepo_cli.services import process
 from oarepo_cli.services.process import ProcessExecutionError
-from oarepo_cli.core.errors import TimeoutExceeded
 
 
 def test_returns_zero_exit_code_for_success():
@@ -296,11 +295,6 @@ def test_shell_injection_prevented():
     result = process.run(["echo", "; rm -rf / ;"], check=False)
     # Output should be the literal string, not an executed command
     assert "; rm -rf / ;" in result.stdout
-
-
-def test_timeout_raises_exception():
-    with pytest.raises(TimeoutExceeded):
-        process.run(["sleep", "100"], timeout=0.1)
 
 
 def test_get_output_returns_stripped_stdout():
@@ -701,12 +695,6 @@ def test_venv_cleanup_on_keyboard_interrupt(temp_project_dir):
 
         # Verify partial artifacts were cleaned up
         assert not (temp_project_dir / ".venv").exists()
-
-
-def test_process_timeout_handling():
-    """Long-running processes respect timeout parameter."""
-    with pytest.raises(TimeoutExceeded):
-        process.run(["sleep", "100"], timeout=1.0)
 
 
 def test_concurrent_execution_lock(temp_project_dir):

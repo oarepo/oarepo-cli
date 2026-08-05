@@ -104,14 +104,25 @@ Per-phase deliverable. Steps within a phase can often be parallelized; see each 
 ### Step 0.4: Process Execution Helper
 **Goal**: Provide a single, safe way to run subprocesses, used directly by every service.
 
-Subprocess execution has exactly one real implementation (the stdlib `subprocess` module), so it's exposed as plain module-level functions rather than a `Protocol`/`ABC` with constructor-injected implementations — a swappable interface only pays for itself once there's a second real implementation to swap in. The functions centralize real, non-trivial logic that's worth not duplicating at every call site: never `shell=True`, UTF-8 decoding, timeout → `TimeoutExceeded` translation with partial-output capture, env-dict merging, optional output streaming.
+Subprocess execution has exactly one real implementation (the stdlib `subprocess` module), so it's exposed as plain module-level functions rather than a `Protocol`/`ABC` with constructor-injected implementations — a swappable interface only pays for itself once there's a second real implementation to swap in. The functions centralize real, non-trivial logic that's worth not duplicating at every call site: never `shell=True`, UTF-8 decoding, env-dict merging.
 
-For unit-level tests, call `run()`/`stream()`/`get_output()` directly against real, trivial, always-available commands (`echo`, `true`, `false`, `python3 -c`) — no fixture needed. Services that shell out to slow, optional, side-effecting external tools (`uv`, `docker-services-cli`, `copier`, `invenio-cli`) are exercised for real in integration tests against the `tests/testlib/` fixture project (see Step 2.2 and onward). [`pytest-subprocess`](https://pytest-subprocess.readthedocs.io/)'s `fake_process` fixture, which patches `subprocess.Popen` process-wide, remains available at the **OS boundary** for the rare unit test that needs to simulate a specific absent/failing binary without a real one on hand.
+> **Later removed** (Step 6.1): this step originally also included `stream()`
+> (a `Popen`-based line-streaming generator) and a `timeout` parameter →
+> `TimeoutExceeded` translation with partial-output capture. Neither was ever
+> called with a non-default value by any real command — every actual call
+> site either didn't use `stream()` at all, or left `timeout` at its default
+> of `None` (no timeout). Both were removed entirely rather than kept as
+> unexercised surface area; see Step 6.1 for why (in short: real commands
+> shelled out to by this CLI, like `uv sync` or a docker pull, can
+> legitimately run long, so a fixed timeout was never going to be safe to
+> actually use here).
+
+For unit-level tests, call `run()`/`get_output()` directly against real, trivial, always-available commands (`echo`, `true`, `false`, `python3 -c`) — no fixture needed. Services that shell out to slow, optional, side-effecting external tools (`uv`, `docker-services-cli`, `copier`, `invenio-cli`) are exercised for real in integration tests against the `tests/testlib/` fixture project (see Step 2.2 and onward). [`pytest-subprocess`](https://pytest-subprocess.readthedocs.io/)'s `fake_process` fixture, which patches `subprocess.Popen` process-wide, remains available at the **OS boundary** for the rare unit test that needs to simulate a specific absent/failing binary without a real one on hand.
 
 - [x] Define `services/process.py` with `ProcessResult` dataclass
-- [x] Implement `run()`, `stream()`, `get_output()` as plain module-level functions wrapping `subprocess.run`/`Popen`
+- [x] Implement `run()`, `get_output()` as plain module-level functions wrapping `subprocess.run`/`Popen` (`stream()` was also added here, then removed in Step 6.1 -- see above)
 - [x] Never use `shell=True`; always pass args as list
-- [x] Implement timeout handling → `TimeoutExceeded`, with partial output captured
+- [x] ~~Implement timeout handling → `TimeoutExceeded`, with partial output captured~~ removed in Step 6.1, see above
 - [x] Ensure proper encoding handling (UTF-8)
 - [x] Add `pytest-subprocess` as a dev dependency, for the rare unit test that needs to simulate a specific absent/failing binary
 
@@ -123,12 +134,12 @@ For unit-level tests, call `run()`/`stream()`/`get_output()` directly against re
 - [x] Test successful command execution, using trivial, always-available real commands (`echo`, `true`, `false`, `python3 -c`) — call `process.run(...)` directly, no fixture needed
 - [x] Test error capture on failure
 - [x] Test `check=True/False` behavior
-- [x] Test timeout raises `TimeoutExceeded`
+- [x] ~~Test timeout raises `TimeoutExceeded`~~ removed in Step 6.1, see above
 - [x] Test environment variable inheritance
 - [x] Test working directory parameter
 - [x] Test shell injection is prevented (literal output, not executed)
 - [x] Test `get_output()` returns stripped stdout
-- [x] Test `stream()` yields lines
+- [x] ~~Test `stream()` yields lines~~ removed in Step 6.1, see above
 
 ---
 
@@ -2076,30 +2087,34 @@ steps, etc.):
       `services.process.run()`'s child is always killed on any exception
       (mirroring `subprocess.run()`), and `SIGTERM`'s handler waits for
       that same cleanup before this process exits
-- [x] Preserved (and gave its own regression test to) a detail easy to get
-      wrong when rewriting `run()`'s `TimeoutExpired` handling: partial
-      stdout/stderr on `subprocess.TimeoutExpired` come back as raw
-      `bytes`, *not* `str`, even when `Popen`/`subprocess.run()` was
-      created with `text=True` -- only a successful `communicate()`
-      decodes to `str`; a `TimeoutExpired` mid-read doesn't. The original
-      code's `.decode("utf-8")` calls were correct; an early draft of this
-      rewrite assumed they were an unrelated latent bug and dropped them,
-      which `test_timeout_with_partial_output_does_not_crash` (added here)
-      immediately caught
 - [x] Removed Step 2.3's `FileLock`/`LockAcquisitionError` and the unused
       `services.process.stream()` (never called from any real command;
       its own interrupt handling was equally absent) rather than leave
       either as dead code
+- [x] Removed `run()`'s `timeout` parameter and `core.errors.TimeoutExceeded`
+      entirely, as a follow-up once this step's own "no timeout-based
+      force-kill" direction was questioned further: a repo-wide search
+      turned up zero callers anywhere passing a non-`None` `timeout` --
+      the parameter defaulted to `None` (no timeout) at every real call
+      site, only ever exercised with a real value in tests. Unused surface
+      area carries real cost even when "just sitting there": rewriting its
+      `subprocess.TimeoutExpired` handling for the `Popen` migration above
+      is exactly what produced the partial-output `bytes`-vs-`str` mistake
+      an early draft of this step made (caught immediately by its own
+      regression test, then reverted) -- a bug in machinery nothing
+      actually used. `_run_subprocess()` now calls `proc.communicate()`
+      unconditionally; `TimeoutExpired` can no longer be raised by
+      anything in this codebase
 
 **Tests**:
 - [x] `tests/unit/test_signals.py` -- `register_active_process()`/
       `unregister_active_process()`, `_forward_sigterm()` forwards and
       waits, `install()` is idempotent
 - [x] `tests/unit/test_process.py` -- `SIGTERM` mid-`run()` forwards to
-      the child and both exit; the child is still killed on
-      `KeyboardInterrupt`/timeout (regression coverage for the
-      `_run_subprocess` rewrite)
-- [x] No timeout-forces-kill test -- deliberately out of scope, see above
+      the child and both exit; the child is still killed on any exception
+      (`KeyboardInterrupt` included), regression coverage for the
+      `_run_subprocess` rewrite
+- [x] No timeout tests -- the parameter no longer exists, see above
 
 ---
 

@@ -383,12 +383,12 @@ class ContextBuilder:
 
 ### 4.2 Process Execution Helper (`services/process.py`)
 
-**Responsibility**: Run subprocesses safely and consistently — never `shell=True`, UTF-8 output, timeout handling, env-dict merging. Plain module-level functions, called directly by every service; no protocol, no constructor injection, since there is exactly one real implementation.
+**Responsibility**: Run subprocesses safely and consistently — never `shell=True`, UTF-8 output, env-dict merging. Plain module-level functions, called directly by every service; no protocol, no constructor injection, since there is exactly one real implementation.
 
 ```python
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Iterator, Optional, Sequence
+from typing import Optional, Sequence
 
 
 @dataclass
@@ -410,7 +410,6 @@ def run(
     capture_output: bool = True,
     check: bool = True,
     forward_stdout: bool = False,
-    timeout: Optional[float] = None,
 ) -> ProcessResult:
     """Execute a command and wait for completion. Never uses shell=True."""
     ...

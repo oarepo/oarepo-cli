@@ -188,38 +188,20 @@ def build_subprocess_env(
     return run_env
 
 
-def _decode_partial_output(data: str | bytes | None) -> str | None:
-    """Decode the partial stdout/stderr a ``subprocess.TimeoutExpired`` carries.
-
-    It's raw ``bytes`` even when the ``Popen`` was created with
-    ``text=True`` (only a *successful* ``communicate()`` decodes to
-    ``str`` -- see ``_run_subprocess``), so this has to handle both.
-    """
-    if data is None:
-        return None
-    if isinstance(data, bytes):
-        return data.decode("utf-8", errors="replace")
-    return data
-
-
 def _run_subprocess(
     command: Sequence[str],
     *,
     cwd: Path | None,
     env: dict[str, str],
     capture: bool,
-    timeout: float | None,
 ) -> tuple[int, str, str]:
     """Run ``command`` via ``Popen``, registering it so a SIGTERM can be forwarded to it.
 
     Mirrors ``subprocess.run()``'s own semantics exactly (kills the child on
-    ``KeyboardInterrupt``/``TimeoutExpired``/any other exception raised
-    while waiting for it) but keeps a reference to the ``Popen`` object so
-    ``core.signals`` can forward a SIGTERM to it -- something
-    ``subprocess.run()`` itself doesn't expose a hook for.
-
-    Raises:
-        subprocess.TimeoutExpired: If the command doesn't finish within ``timeout``
+    ``KeyboardInterrupt``/any other exception raised while waiting for it)
+    but keeps a reference to the ``Popen`` object so ``core.signals`` can
+    forward a SIGTERM to it -- something ``subprocess.run()`` itself
+    doesn't expose a hook for.
     """
     popen_kwargs: dict[str, Any] = {"cwd": cwd, "env": env}
     if capture:
@@ -234,11 +216,7 @@ def _run_subprocess(
     with subprocess.Popen(command, **popen_kwargs) as proc:
         signals.register_active_process(proc)
         try:
-            stdout, stderr = proc.communicate(timeout=timeout)
-        except subprocess.TimeoutExpired:
-            proc.kill()
-            proc.wait()
-            raise
+            stdout, stderr = proc.communicate()
         except BaseException:
             proc.kill()
             raise
@@ -255,15 +233,16 @@ def run(
     env: dict[str, str] | None = None,
     output_mode: ProcessOutputMode = ProcessOutputMode.CAPTURE,
     check: bool = True,
-    timeout: float | None = None,
     strip_venv: bool = True,
 ) -> ProcessResult:
     """Execute a command and wait for completion. Never uses shell=True.
 
-    A SIGTERM received while this is running is forwarded to the child
-    (see ``core.signals``) and waited for -- not force-killed after a
-    timeout, since some commands this is used for (``uv sync``, docker
-    image pulls, ``copier`` template rendering) can legitimately run long.
+    Deliberately no timeout: commands this is used for (``uv sync``,
+    docker image pulls, ``copier`` template rendering) can legitimately run
+    long, and a fixed limit would kill a healthy operation just as often as
+    a stuck one. A SIGTERM received while this is running is forwarded to
+    the child (see ``core.signals``) and waited for, however long that
+    takes.
 
     Args:
         command: List of command arguments (never a shell string)
@@ -271,7 +250,6 @@ def run(
         env: Environment variables (merged with parent environment)
         output_mode: How to handle command output (CAPTURE/FORWARD/INTERACTIVE)
         check: Raise ProcessExecutionError on non-zero exit code
-        timeout: Maximum execution time in seconds
         strip_venv: Strip VIRTUAL_ENV and related variables (default: True)
                     to prevent oarepo-cli's own venv from leaking
 
@@ -280,30 +258,14 @@ def run(
 
     Raises:
         ProcessExecutionError: If check=True and return_code != 0
-        TimeoutExceeded: If timeout is exceeded
     """
-    from oarepo_cli.core.errors import ProcessExecutionError, TimeoutExceeded
+    from oarepo_cli.core.errors import ProcessExecutionError
 
     run_env = build_subprocess_env(env, strip_venv=strip_venv)
     start_time = time.time()
     capture = output_mode != ProcessOutputMode.INTERACTIVE
 
-    try:
-        returncode, stdout, stderr = _run_subprocess(
-            command, cwd=cwd, env=run_env, capture=capture, timeout=timeout
-        )
-    except subprocess.TimeoutExpired as exc:
-        # Whatever partial output was captured before the timeout comes back
-        # as raw bytes on exc.stdout/exc.stderr -- even in text mode, since
-        # Popen only decodes to str for a *successful* communicate() (see
-        # Popen._communicate()'s internal buffering); it isn't str already,
-        # unlike everywhere else in this module.
-        raise TimeoutExceeded(
-            command=list(command),
-            timeout=timeout,
-            stdout=_decode_partial_output(exc.stdout),
-            stderr=_decode_partial_output(exc.stderr),
-        ) from exc
+    returncode, stdout, stderr = _run_subprocess(command, cwd=cwd, env=run_env, capture=capture)
 
     duration_ms = int((time.time() - start_time) * 1000)
 
