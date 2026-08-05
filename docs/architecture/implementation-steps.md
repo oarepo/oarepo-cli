@@ -1944,18 +1944,18 @@ reused; `services.repository.run_tests()` was added instead, and
 ### Step 5.1: Repository Installer CLI
 **Goal**: Implement top-level `repo-install` command.
 
-- [ ] Implement `cli/installer.py` with `repo_install()` function
-- [ ] Options: `--python`, `--template`, `--version`, `--uv`, `--uvx`, `--config`
-- [ ] Positional: `REPOSITORY_NAME`
-- [ ] Validate all inputs
+- [x] Implement `cli/installer.py` with `repo_install()` function
+- [x] Options: `--python`, `--template`, `--version`, `--uv`, `--uvx`, `--config`
+- [x] Positional: `REPOSITORY_NAME`
+- [x] Validate all inputs
 
 **Deliverables**:
 - Installer command skeleton
 
 **Tests** (`tests/unit/test_installer_cli.py`):
-- [ ] Test argument parsing
-- [ ] Test validation errors
-- [ ] Test help text
+- [x] Test argument parsing
+- [x] Test validation errors
+- [x] Test help text
 
 ---
 
