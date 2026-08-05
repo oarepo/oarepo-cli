@@ -89,9 +89,16 @@ def repo_root(tmp_path: Path) -> Path:
 
 @pytest.fixture
 def mock_context(monkeypatch: pytest.MonkeyPatch) -> Mock:
-    """Mock discover_context() so no real project is needed."""
+    """Mock discover_context() so no real project is needed.
+
+    Patched in both `cli.repository` (used directly by `model update`) and
+    `cli.command_wrapper` (used by the `@with_context_and_console` decorator
+    wrapping `model create`) since each module holds its own bound reference
+    to the imported function.
+    """
     context = Mock()
     monkeypatch.setattr("oarepo_cli.cli.repository.discover_context", lambda: context)
+    monkeypatch.setattr("oarepo_cli.cli.command_wrapper.discover_context", lambda: context)
     return context
 
 
@@ -174,7 +181,7 @@ def test_model_create_reports_error_and_exits_1(
     result = runner.invoke(app, ["repository", "model", "create", "my_model", "missing.yml"])
 
     assert result.exit_code == 1
-    assert "Model creation failed" in result.output
+    assert "Error creating model" in result.output
 
 
 def test_model_create_reports_context_discovery_failure(
@@ -186,6 +193,7 @@ def test_model_create_reports_context_discovery_failure(
         raise ConfigurationError("pyproject.toml not found")
 
     monkeypatch.setattr("oarepo_cli.cli.repository.discover_context", raise_config_error)
+    monkeypatch.setattr("oarepo_cli.cli.command_wrapper.discover_context", raise_config_error)
 
     runner = CliRunner()
     result = runner.invoke(app, ["repository", "model", "create", "my_model"])
@@ -295,6 +303,7 @@ def test_model_create_and_update_against_real_template(
         config=config,
     )
     monkeypatch.setattr("oarepo_cli.cli.repository.discover_context", lambda: context)
+    monkeypatch.setattr("oarepo_cli.cli.command_wrapper.discover_context", lambda: context)
 
     config_file = tmp_path / "answers.yml"
     config_file.write_text("model_name: my_model\ngreeting: hello\n")

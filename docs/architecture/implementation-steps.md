@@ -2013,35 +2013,6 @@ reused; `services.repository.run_tests()` was added instead, and
 
 ---
 
-### Step 6.2: Structured Logging
-**Goal**: Optional structured logging for automation.
-
-- [ ] Implement `utils/logging.py` with colored and JSON formatters
-- [ ] Configurable log level via `--verbose`
-- [ ] Redact sensitive values (passwords, tokens)
-- [ ] Log subprocess commands (sanitized)
-
-**Tests** (`tests/unit/test_logging.py`):
-- [ ] Test colored output format
-- [ ] Test JSON output format
-- [ ] Test sensitive value redaction
-
----
-
-### Step 6.3: Performance Benchmarking
-**Goal**: Measure and optimize performance.
-
-- [ ] Benchmark CLI startup time
-- [ ] Benchmark venv creation
-- [ ] Compare with shell script timings
-- [ ] Identify and fix bottlenecks
-
-**Tests** (`tests/benchmarks/`):
-- [ ] Startup < 100ms for lightweight commands
-- [ ] No regression vs shell scripts
-
----
-
 ### Step 6.4: Comprehensive Documentation
 **Goal**: User-facing documentation.
 
