@@ -57,16 +57,9 @@ All previous high-priority issues have been addressed. See git history for detai
 
 ## 4. Low Priority Issues
 
-### 4.1 Test Fixture Naming Inconsistency
+### All Resolved ✅
 
-**Locations:** Test files
-**Severity:** Low (Style)
-
-**Issue:**
-Some fixtures use `mock_*` prefix, others use descriptive names without prefixes. There's no consistent convention.
-
-**Recommendation:**
-Document preferred fixture naming convention in AGENTS.md and apply uniformly in new tests.
+All low priority issues have been addressed.
 
 ---
 
@@ -148,7 +141,7 @@ _All high-priority issues have been resolved!_ 🎉
 4. **Consider renaming forward_stdout** for clarity (issue 3.4) - 1-2 hours
 
 ### Long Term (Backlog)
-6. **Standardize fixture naming** convention (issue 4.1) - 1 hour
+_(All backlog items have been completed)_ ✅
 
 ---
 
@@ -238,6 +231,10 @@ The remaining issues are all medium/low priority maintainability improvements th
 See git history for detailed change tracking. Key milestones:
 
 ### 2026-08-05
+- ✅ Test fixture naming convention documented in AGENTS.md (issue 4.1)
+  - Added clear guidelines: `mock_*` for Mock objects, `clean_*` for cleanup fixtures
+  - Provided examples for descriptive naming patterns
+  - Emphasized good documentation practices
 - ✅ Lock file race conditions addressed (PR #152)
   - Added SIGTERM/SIGINT signal handlers
   - Added atexit handler for cleanup
