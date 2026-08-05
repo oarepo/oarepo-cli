@@ -2132,6 +2132,30 @@ steps, etc.):
 
 ---
 
+### Step 6.4.1: `node_versions` inconsistency between `oarepo-versions` and `VersionResolver`
+
+**Goal**: Not yet fixed -- noted while auditing README.md for accuracy against the
+real CLI behavior (Step 6.4), kept here so it isn't lost.
+
+`cli.library.library_oarepo_versions()` hardcodes `"node_versions": ["24"]`
+directly in its JSON output, entirely independent of
+`services.version_resolver.VersionResolver`/`VersionInfo.node_versions`,
+which is always populated as `[]` (Node.js version detection isn't
+implemented there) and is never read by `library_oarepo_versions()` at all.
+So the CLI's actual, user-visible output (`["24"]`, matching the old bash
+script) and the `VersionResolver`'s own dedicated field for the same
+information silently disagree, with two independent, redundant code paths
+for what should be one value.
+
+- [ ] Decide which is the source of truth: either make `VersionResolver`
+      resolve a real `node_versions` (if that's ever needed for anything
+      beyond this one JSON field) and have `library_oarepo_versions()` use
+      it, or drop `VersionInfo.node_versions` entirely (it currently has no
+      other reader) and keep the hardcoded `["24"]` as a simple constant in
+      `cli/library.py`, documented as such rather than looking resolved.
+
+---
+
 ### Step 6.5: Final Characterization Tests
 **Goal**: Ensure full behavioral parity.
 
