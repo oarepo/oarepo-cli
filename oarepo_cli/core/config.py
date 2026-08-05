@@ -11,6 +11,8 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
+from oarepo_cli.configuration.constants import VENV_DIR, ServiceType
+
 
 @dataclass
 class BuildConfig:
@@ -31,7 +33,7 @@ class TestingConfig:
 class VenvConfig:
     """Virtual environment configuration."""
 
-    path: Path = field(default_factory=lambda: Path(".venv"))
+    path: Path = field(default_factory=lambda: Path(VENV_DIR))
 
 
 @dataclass
@@ -53,11 +55,11 @@ class ServicesConfig:
     """Services configuration."""
 
     skip: bool = False
-    db: str = "postgresql"
-    search: str = "opensearch"
-    mq: str = "rabbitmq"
-    cache: str = "redis"
-    s3: str = "minio"
+    db: str = ServiceType.POSTGRESQL
+    search: str = ServiceType.OPENSEARCH
+    mq: str = ServiceType.RABBITMQ
+    cache: str = ServiceType.REDIS
+    s3: str = ServiceType.MINIO
 
 
 @dataclass
@@ -148,18 +150,18 @@ class CliConfig:
                 coverage=_get_bool("OAREPO_TEST_COVERAGE", False),
                 skip_services=_get_bool("OAREPO_TEST_SKIP_SERVICES", False),
             ),
-            venv=VenvConfig(path=Path(_get_str("OAREPO_VENV_PATH", ".venv"))),
+            venv=VenvConfig(path=Path(_get_str("OAREPO_VENV_PATH", VENV_DIR))),
             python=PythonConfig(binary=_get_str("OAREPO_PYTHON_BINARY", "") or None),
             oarepo=OARepoConfig(
                 version=_get_int("OAREPO_VERSION", 0) or None,
             ),
             services=ServicesConfig(
                 skip=_get_bool("OAREPO_SERVICES_SKIP", False),
-                db=_get_str("OAREPO_SERVICES_DB", "postgresql"),
-                search=_get_str("OAREPO_SERVICES_SEARCH", "opensearch"),
-                mq=_get_str("OAREPO_SERVICES_MQ", "rabbitmq"),
-                cache=_get_str("OAREPO_SERVICES_CACHE", "redis"),
-                s3=_get_str("OAREPO_SERVICES_S3", "minio"),
+                db=_get_str("OAREPO_SERVICES_DB", ServiceType.POSTGRESQL),
+                search=_get_str("OAREPO_SERVICES_SEARCH", ServiceType.OPENSEARCH),
+                mq=_get_str("OAREPO_SERVICES_MQ", ServiceType.RABBITMQ),
+                cache=_get_str("OAREPO_SERVICES_CACHE", ServiceType.REDIS),
+                s3=_get_str("OAREPO_SERVICES_S3", ServiceType.MINIO),
             ),
             model=ModelConfig(
                 template_url=_get_str(
@@ -233,8 +235,8 @@ class CliConfig:
 
         # Venv config
         venv_data = get_nested(tool_data, "venv", default={})
-        venv_path = venv_data.get("path", ".venv")
-        venv = VenvConfig(path=Path(venv_path) if venv_path else Path(".venv"))
+        venv_path = venv_data.get("path", VENV_DIR)
+        venv = VenvConfig(path=Path(venv_path) if venv_path else Path(VENV_DIR))
 
         # Python config
         python_data = get_nested(tool_data, "python", default={})
@@ -252,11 +254,11 @@ class CliConfig:
         services_data = get_nested(tool_data, "services", default={})
         services = ServicesConfig(
             skip=services_data.get("skip", False),
-            db=services_data.get("db", "postgresql"),
-            search=services_data.get("search", "opensearch"),
-            mq=services_data.get("mq", "rabbitmq"),
-            cache=services_data.get("cache", "redis"),
-            s3=services_data.get("s3", "minio"),
+            db=services_data.get("db", ServiceType.POSTGRESQL),
+            search=services_data.get("search", ServiceType.OPENSEARCH),
+            mq=services_data.get("mq", ServiceType.RABBITMQ),
+            cache=services_data.get("cache", ServiceType.REDIS),
+            s3=services_data.get("s3", ServiceType.MINIO),
         )
 
         # Model config

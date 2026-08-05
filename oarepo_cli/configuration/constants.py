@@ -47,3 +47,22 @@ OAREPO_ENV_DEFAULTS = {
 
 # Regex pattern for extracting OARepo major versions from dependency specifiers
 OAREPO_VERSION_RE = re.compile(r"oarepo(\d+)")
+
+# File and directory names
+ENV_SERVICES_FILE = ".env-services"
+VENV_DIR = ".venv"
+PYPROJECT_FILE = "pyproject.toml"
+UV_LOCK_FILE = "uv.lock"
+INVENIO_PRIVATE_FILE = ".invenio.private"
+
+
+class ServiceType:
+    """Service type identifiers for docker-services-cli."""
+
+    POSTGRESQL = "postgresql"
+    OPENSEARCH = "opensearch"
+    RABBITMQ = "rabbitmq"
+    REDIS = "redis"
+    MINIO = "minio"
+    MYSQL = "mysql"  # Alternative to postgresql
+    ELASTICSEARCH = "elasticsearch"  # Alternative to opensearch
