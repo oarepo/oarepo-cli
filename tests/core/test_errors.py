@@ -1,6 +1,8 @@
 # SPDX-FileCopyrightText: 2026 CESNET z.s.p.o.
 # SPDX-License-Identifier: MIT
 
+"""Tests for oarepo_cli.core.errors and safe_run decorator."""
+
 from __future__ import annotations
 
 import pytest
@@ -17,21 +19,25 @@ from oarepo_cli.core.errors import (
 
 
 def test_base_exception_can_be_raised() -> None:
+    """The base OARepoError can be raised and caught like any exception."""
     with pytest.raises(OARepoError):
         raise OARepoError("Base error message")
 
 
 def test_configuration_error_can_be_raised() -> None:
+    """ConfigurationError can be raised and caught like any exception."""
     with pytest.raises(ConfigurationError):
         raise ConfigurationError("Config is invalid")
 
 
 def test_version_mismatch_error_can_be_raised() -> None:
+    """VersionMismatchError can be raised and caught like any exception."""
     with pytest.raises(VersionMismatchError):
         raise VersionMismatchError("Version mismatch")
 
 
 def test_process_execution_error_can_be_raised() -> None:
+    """ProcessExecutionError can be raised and caught like any exception."""
     with pytest.raises(ProcessExecutionError):
         raise ProcessExecutionError(
             "Process failed",
@@ -43,16 +49,19 @@ def test_process_execution_error_can_be_raised() -> None:
 
 
 def test_file_not_found_error_can_be_raised() -> None:
+    """FileNotFoundError can be raised and caught like any exception."""
     with pytest.raises(FileNotFoundError):
         raise FileNotFoundError("File not found")
 
 
 def test_validation_error_can_be_raised() -> None:
+    """ValidationError can be raised and caught like any exception."""
     with pytest.raises(ValidationError):
         raise ValidationError("Validation failed")
 
 
 def test_all_exceptions_are_subclasses_of_base() -> None:
+    """Every specific exception type is a subclass of OARepoError."""
     assert issubclass(ConfigurationError, OARepoError)
     assert issubclass(VersionMismatchError, OARepoError)
     assert issubclass(ProcessExecutionError, OARepoError)
@@ -61,6 +70,7 @@ def test_all_exceptions_are_subclasses_of_base() -> None:
 
 
 def test_base_exception_catches_all_subclasses() -> None:
+    """`except OARepoError` catches any specific subclass raised."""
     with pytest.raises(OARepoError):
         raise ConfigurationError("Should be caught by base")
 
@@ -73,30 +83,37 @@ def test_base_exception_catches_all_subclasses() -> None:
 
 
 def test_base_exception_exit_code() -> None:
+    """OARepoError's default exit_code is 1."""
     assert OARepoError.exit_code == 1
 
 
 def test_configuration_error_exit_code() -> None:
+    """ConfigurationError.exit_code is 10."""
     assert ConfigurationError.exit_code == 10
 
 
 def test_version_mismatch_error_exit_code() -> None:
+    """VersionMismatchError.exit_code is 11."""
     assert VersionMismatchError.exit_code == 11
 
 
 def test_process_execution_error_exit_code() -> None:
+    """ProcessExecutionError.exit_code is 12."""
     assert ProcessExecutionError.exit_code == 12
 
 
 def test_file_not_found_error_exit_code() -> None:
+    """FileNotFoundError.exit_code is 13."""
     assert FileNotFoundError.exit_code == 13
 
 
 def test_validation_error_exit_code() -> None:
+    """ValidationError.exit_code is 14."""
     assert ValidationError.exit_code == 14
 
 
 def test_process_execution_error_basic_attributes() -> None:
+    """ProcessExecutionError stores message/command/returncode/stdout/stderr as given."""
     exc = ProcessExecutionError(
         "Process failed",
         command=["echo", "test"],
@@ -112,6 +129,7 @@ def test_process_execution_error_basic_attributes() -> None:
 
 
 def test_process_execution_error_str_format_with_all_fields() -> None:
+    """str() includes the message, command, return code, stdout, and stderr."""
     exc = ProcessExecutionError(
         "Process failed",
         command=["echo", "test"],
@@ -128,6 +146,7 @@ def test_process_execution_error_str_format_with_all_fields() -> None:
 
 
 def test_process_execution_error_str_format_without_stdout_stderr() -> None:
+    """str() omits the Stdout:/Stderr: lines entirely when neither was captured."""
     exc = ProcessExecutionError(
         "Process failed",
         command=["echo", "test"],
@@ -144,6 +163,7 @@ def test_process_execution_error_str_format_without_stdout_stderr() -> None:
 
 
 def test_process_execution_error_command_with_multiple_args() -> None:
+    """str() joins a multi-argument command with spaces."""
     exc = ProcessExecutionError(
         "Failed",
         command=["python", "-m", "pytest", "-v"],
@@ -153,6 +173,8 @@ def test_process_execution_error_command_with_multiple_args() -> None:
 
 
 def test_safe_run_returns_result_on_success() -> None:
+    """safe_run() returns the wrapped function's own return value on success."""
+
     def success_func() -> int:
         return 42
 
@@ -161,6 +183,8 @@ def test_safe_run_returns_result_on_success() -> None:
 
 
 def test_safe_run_raises_on_oarepo_error_when_check_true() -> None:
+    """safe_run(check=True) (the default) re-raises an OARepoError from the wrapped function."""
+
     def failing_func() -> None:
         raise ConfigurationError("Config error")
 
@@ -169,6 +193,8 @@ def test_safe_run_raises_on_oarepo_error_when_check_true() -> None:
 
 
 def test_safe_run_returns_exception_when_check_false() -> None:
+    """safe_run(check=False) returns the exception instance instead of raising it."""
+
     def failing_func() -> None:
         raise ConfigurationError("Config error")
 
@@ -178,6 +204,8 @@ def test_safe_run_returns_exception_when_check_false() -> None:
 
 
 def test_safe_run_passes_arguments() -> None:
+    """safe_run() forwards positional arguments to the wrapped function."""
+
     def add_func(a: int, b: int) -> int:
         return a + b
 
@@ -186,6 +214,8 @@ def test_safe_run_passes_arguments() -> None:
 
 
 def test_safe_run_passes_keyword_arguments() -> None:
+    """safe_run() forwards keyword arguments to the wrapped function."""
+
     def greet_func(name: str, greeting: str = "Hello") -> str:
         return f"{greeting}, {name}!"
 
@@ -194,6 +224,8 @@ def test_safe_run_passes_keyword_arguments() -> None:
 
 
 def test_safe_run_preserves_custom_exit_codes() -> None:
+    """The re-raised exception's exit_code is still the original exception class's own."""
+
     def failing_func() -> None:
         raise ConfigurationError("Custom error")
 

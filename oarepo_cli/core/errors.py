@@ -15,6 +15,7 @@ class OARepoError(Exception):
     exit_code: int = 1
 
     def __init__(self, message: str, *args: object) -> None:
+        """Store `message` for both `str(exc)` and `.message` access."""
         super().__init__(message, *args)
         self.message = message
 
@@ -45,6 +46,7 @@ class ProcessExecutionError(OARepoError):
         stdout: str | None = None,
         stderr: str | None = None,
     ) -> None:
+        """Store the failed command and its captured exit code/output."""
         super().__init__(message)
         self.command = command
         self.returncode = returncode
@@ -52,6 +54,7 @@ class ProcessExecutionError(OARepoError):
         self.stderr = stderr
 
     def __str__(self) -> str:
+        """Render the message plus command/return code/stdout/stderr, one per line."""
         parts = [super().__str__()]
         parts.append(f"Command: {' '.join(self.command)}")
         parts.append(f"Return code: {self.returncode}")

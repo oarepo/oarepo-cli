@@ -31,6 +31,7 @@ def _reset_signals_state(monkeypatch: pytest.MonkeyPatch) -> None:
 
 
 def test_register_and_unregister_active_process() -> None:
+    """register_active_process()/unregister_active_process() set/clear the module registry."""
     proc = subprocess.Popen(
         [sys.executable, "-c", "import time; time.sleep(5)"],
         stdout=subprocess.DEVNULL,
@@ -65,6 +66,7 @@ def test_forward_sigterm_signals_and_waits_for_active_process() -> None:
 
 
 def test_forward_sigterm_without_active_process_just_exits() -> None:
+    """With no registered child, the handler just exits, without erroring."""
     with pytest.raises(SystemExit) as exc_info:
         signals._forward_sigterm(signal.SIGTERM, None)
 
@@ -84,6 +86,7 @@ def test_forward_sigterm_skips_already_finished_process() -> None:
 
 
 def test_install_registers_sigterm_handler(monkeypatch: pytest.MonkeyPatch) -> None:
+    """install() registers _forward_sigterm as the SIGTERM handler."""
     calls: list[tuple[int, object]] = []
     monkeypatch.setattr(signal, "signal", lambda sig, handler: calls.append((sig, handler)))
 

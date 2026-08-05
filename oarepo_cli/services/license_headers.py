@@ -128,12 +128,15 @@ def _remove_old_copyright_block(content: str, comment_style: CommentStyle) -> st
 
     # Determine comment check function based on style
     def is_hash_comment(s: str) -> bool:
+        """Return True if `s` starts a `#`-style comment line."""
         return s.startswith("#")
 
     def is_slash_comment(s: str) -> bool:
+        """Return True if `s` starts a `//`-style comment line."""
         return s.startswith("//")
 
     def is_jinja_comment(s: str) -> bool:
+        """Return True if `s` starts a `{#`-style Jinja comment line."""
         return s.startswith("{#")
 
     if comment_style == CommentStyle.HASH:

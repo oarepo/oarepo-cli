@@ -22,6 +22,7 @@ if TYPE_CHECKING:
 
 
 def test_parses_minimal_project(tmp_path: Path) -> None:
+    """A pyproject.toml with only [project].name/requires-python parses with empty defaults."""
     (tmp_path / "pyproject.toml").write_text(
         """
 [project]
@@ -41,6 +42,7 @@ requires-python = ">=3.12,<3.15"
 
 
 def test_parses_homepage_and_dependencies(tmp_path: Path) -> None:
+    """[project.urls].Homepage and [project].dependencies are both read correctly."""
     (tmp_path / "pyproject.toml").write_text(
         """
 [project]
@@ -209,6 +211,7 @@ version = 14
 
 
 def test_extracts_default_extras(tmp_path: Path) -> None:
+    """[tool.oarepo].default_extras is read into PyProjectData.default_extras."""
     (tmp_path / "pyproject.toml").write_text(
         """
 [project]
@@ -225,6 +228,7 @@ default_extras = ["dev", "tests"]
 
 
 def test_extracts_uv_build_module_names_and_root(tmp_path: Path) -> None:
+    """[tool.uv.build-backend]'s module-name/module-root are both read correctly."""
     (tmp_path / "pyproject.toml").write_text(
         """
 [project]
@@ -243,6 +247,7 @@ module-name = ["common", "i18n", "ui"]
 
 
 def test_uv_build_module_names_and_root_default_when_absent(tmp_path: Path) -> None:
+    """Without a [tool.uv.build-backend] section, module names/root default to empty."""
     (tmp_path / "pyproject.toml").write_text(
         """
 [project]
@@ -257,6 +262,7 @@ name = "test-package"
 
 
 def test_missing_file_raises_configuration_error(tmp_path: Path) -> None:
+    """Reading a pyproject.toml that doesn't exist raises ConfigurationError."""
     with pytest.raises(ConfigurationError) as exc_info:
         pyproject_reader.PyProjectReader().read(tmp_path / "nonexistent.toml")
 
@@ -264,6 +270,7 @@ def test_missing_file_raises_configuration_error(tmp_path: Path) -> None:
 
 
 def test_invalid_toml_raises_configuration_error(tmp_path: Path) -> None:
+    """Malformed TOML raises ConfigurationError instead of a raw tomllib exception."""
     (tmp_path / "pyproject.toml").write_text("invalid [[[[ syntax")
 
     with pytest.raises(ConfigurationError) as exc_info:

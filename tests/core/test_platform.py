@@ -1,6 +1,8 @@
 # SPDX-FileCopyrightText: 2026 CESNET z.s.p.o.
 # SPDX-License-Identifier: MIT
 
+"""Tests for oarepo_cli.core.platform."""
+
 from __future__ import annotations
 
 from unittest.mock import patch

@@ -74,8 +74,11 @@ def with_context_and_console(
     """
 
     def decorator(func: Any) -> Any:
+        """Wrap `func`, injecting `context`/`console` and handling errors around it."""
+
         @wraps(func)
         def wrapper(*args: Any, **kwargs: Any) -> Any:
+            """Discover context, run `func`, and report success/failure via console."""
             # Extract quiet flag from kwargs if needed
             quiet = bool(kwargs.get("quiet", False)) if console_quiet_from_args else False
 
@@ -137,6 +140,7 @@ def with_context_only(func: Any) -> Any:
 
     @wraps(func)
     def wrapper(*args: Any, **kwargs: Any) -> Any:
+        """Discover context and call `func` with it injected."""
         context = discover_context()
         return func(*args, context=context, **kwargs)
 

@@ -55,6 +55,7 @@ def make_context(root: Path) -> ProjectContext:
 
 @pytest.fixture
 def repo_root(tmp_path: Path) -> Path:
+    """An empty repository root directory, for ServerRunner tests that need a real path."""
     root = tmp_path / "repo"
     root.mkdir()
     return root
