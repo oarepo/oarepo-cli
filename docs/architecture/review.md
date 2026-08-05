@@ -102,32 +102,6 @@ Verify that:
 
 ---
 
-### 3.3 Unclear Ownership of .env-services File
-
-**Location:** Multiple service modules
-**Severity:** Medium (Architecture Clarity)
-
-**Issue:**
-The `.env-services` file is:
-- Written by `ServicesLifecycleManager`
-- Read by multiple CLI commands
-- Deleted by `ServicesLifecycleManager.stop_services()`
-
-But there's no clear architectural documentation about:
-- Who owns this file?
-- What happens if it's manually edited?
-- Should other code trust it as source of truth?
-- What if services are running but file doesn't exist?
-
-**Recommendation:**
-1. Document the file ownership and lifecycle in architecture docs
-2. Consider adding a validation method to check if file content matches actual running services
-3. Add clear comments in code about expected file format and constraints
-
-**Priority:** Medium - Documentation improvement would prevent future confusion.
-
----
-
 ### 3.4 Process Execution: forward_stdout Parameter Confusion
 
 **Location:** `services/process.py`
@@ -166,24 +140,6 @@ Some fixtures use `mock_*` prefix, others use descriptive names without prefixes
 
 **Recommendation:**
 Document preferred fixture naming convention in AGENTS.md and apply uniformly in new tests.
-
----
-
-### 4.2 Console Output: Hardcoded Colors
-
-**Locations:** `cli/` modules
-**Severity:** Low (Accessibility)
-
-**Issue:**
-Color codes (`typer.colors.BRIGHT_BLUE`, etc.) are hardcoded throughout CLI commands. No way to disable colors for:
-- Terminals that don't support colors
-- Log file output
-- Accessibility needs
-
-**Recommendation:**
-1. Add `--no-color` flag (or respect `NO_COLOR` environment variable)
-2. Centralize color definitions in ConsoleOutput class
-3. Make ConsoleOutput check terminal capabilities before applying colors
 
 ---
 
@@ -262,9 +218,7 @@ _All high-priority issues have been resolved!_ 🎉
 
 ### Medium Term (Next Quarter)
 2. **Validate lock file implementation** for race conditions (issue 3.2) - 2-3 hours
-3. **Document .env-services ownership** clearly (issue 3.3) - 1 hour
 4. **Consider renaming forward_stdout** for clarity (issue 3.4) - 1-2 hours
-5. **Add --no-color flag** and terminal capability detection (issue 4.2) - 2-3 hours
 
 ### Long Term (Backlog)
 6. **Standardize fixture naming** convention (issue 4.1) - 1 hour
@@ -282,7 +236,6 @@ _All high-priority issues have been resolved!_ 🎉
 ### Potential Gaps
 - Lock file race conditions not explicitly tested
 - Process timeout behavior not covered
-- Terminal color output not tested (hardcoded colors)
 - .env-services file validation edge cases
 
 ---
