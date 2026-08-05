@@ -257,23 +257,27 @@ For unit-level tests, call `run()`/`get_output()` directly against real, trivial
 
 - [x] Implement `VirtualEnvironmentManager` class
 - [x] Method: `ensure_venv(requirements, force=False)` → Path
-- [x] Method: `upgrade_environment()` → None
 - [x] Method: `cleanup()` → None
+- [x] Note: `upgrade_environment()` handled via `ensure_venv(force=True)` - no separate method needed
 - [x] Use `uv venv` for creation
-- [x] Use `uv pip install` for dependencies
+- [x] Use `uv sync` (editable) and `uv build`+`uv pip install` (non-editable) for dependencies
 - [x] Handle editable vs wheel builds
 
 **Deliverables**:
 - Venv management service
 - uv integration
 
-**Tests** (`tests/integration/test_venv_workflow.py`):
+**Tests** (`tests/integration/test_library_venv*.py` - CLI integration tests provide coverage):
 - [x] Test venv creation against real `uv`/`pip` calls (project_root passed explicitly, no cwd dependency)
 - [x] Test setuptools installed first
 - [x] Test oarepo installed with correct version constraint
 - [x] Test editable vs non-editable modes
 - [x] Test force recreation removes existing venv
 - [x] Test skip creation if venv already exists
+
+**Note**: Originally tested via `test_venv_workflow.py` (service-layer integration tests),
+but that was removed in test cleanup (PR #160) as redundant. Coverage maintained by
+`tests/integration/test_library_venv.py` (7 tests) and `test_library_venv_sync.py` (10 tests).
 
 ---
 
