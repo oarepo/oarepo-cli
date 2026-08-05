@@ -4,10 +4,11 @@ A standalone Python command-line tool for OARepo library and repository developm
 
 ## Overview
 
-`oarepo-cli` provides two main command groups:
+`oarepo-cli` provides two main command groups, plus a top-level convenience command:
 
 - **`library`**: Tools for developing OARepo library packages (models, modules, extensions)
 - **`repository`**: Tools for managing full OARepo repository instances
+- **`new`**: Scaffold a brand-new repository from a copier template (see [Repository Installer](#repository-installer))
 
 The CLI handles virtual environment management, dependency installation, Docker service orchestration, testing, linting, formatting, and more—all while preserving the familiar workflows from the original bash scripts.
 
@@ -485,6 +486,32 @@ Manages Docker services with subcommands.
 # Complete cleanup
 ./run.sh services destroy
 ```
+
+## Repository Installer
+
+`new` is a top-level command (not a `repository` subcommand) that scaffolds a
+brand-new repository from a copier template, replacing `repository_installer.sh`.
+
+```bash
+oarepo-cli new my-repo
+```
+
+**Options:**
+- `--python <binary>`: Python binary to use (default: `python3.14`)
+- `--template <url/path>`: Copier template — a GitHub URL or a local path (default: `https://github.com/oarepo/nrp-app-copier`)
+- `--version <ref>`: Template git ref, used when `--template` is a GitHub URL (default: `rdm-14`)
+- `--uv <binary>`: `uv` binary to use (default: `uv`)
+- `--uvx <binary>`: `uvx` binary to use (default: `uvx`)
+- `--config <file>`: Additional copier data file, seeding answers non-interactively
+
+**Current status:** argument parsing and upfront validation only (`uv`/`uvx`/`python` must
+resolve on `PATH`, the repository name must be non-blank) — the actual scaffolding (running
+copier, generating SSL certificates, Docker compose symlinks, git init) is not implemented yet.
+
+**Exit codes:**
+- `0`: Success
+- `1`: Invalid input (missing repository name, or `uv`/`uvx`/`python` binary not found)
+- `2`: Usage error (missing `REPOSITORY_NAME`, or `--config` file doesn't exist)
 
 ## Repository Tools
 
@@ -1098,7 +1125,7 @@ If you're migrating from the old bash scripts:
 | `./run.sh format` | `oarepo-cli library format` |
 | `./run.sh shell` | `oarepo-cli library shell` |
 | `./run.sh oarepo-versions` | `oarepo-cli library oarepo-versions` |
-| `./repository_installer.sh NAME` | `oarepo-cli repo-install NAME` (Phase 5) |
+| `./repository_installer.sh NAME` | `oarepo-cli new NAME` (argument validation only so far — see [Repository Installer](#repository-installer)) |
 
 **Breaking changes:**
 - `library lint` and `library format` **auto-fix by default** (use `--no-fix` for report-only)

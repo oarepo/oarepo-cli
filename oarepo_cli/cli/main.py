@@ -12,6 +12,7 @@ from typing import Annotated
 import typer
 
 from oarepo_cli import __version__
+from oarepo_cli.cli.installer import new_repository
 from oarepo_cli.cli.library import library_app
 from oarepo_cli.cli.repository import repository_app
 from oarepo_cli.core.dependency_check import check_invenio_cli_version
@@ -27,6 +28,9 @@ app = typer.Typer(
 # Register subcommand groups
 app.add_typer(library_app, name="library")
 app.add_typer(repository_app, name="repository")
+
+# Top-level convenience command (not part of a subcommand group)
+app.command("new")(new_repository)
 
 
 def version_callback(value: bool) -> None:
