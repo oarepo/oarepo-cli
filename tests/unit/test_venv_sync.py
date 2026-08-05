@@ -1,10 +1,10 @@
 # SPDX-FileCopyrightText: 2026 CESNET z.s.p.o.
 # SPDX-License-Identifier: MIT
-"""Unit tests for VirtualEnvironmentManager uv sync behavior.
+"""Unit tests for VirtualEnvironmentManager edge cases.
 
-These tests verify that the VirtualEnvironmentManager correctly builds
-uv sync commands with the right extras and flags, without actually
-executing the commands (mocked via pytest-subprocess).
+These tests cover specific edge cases and critical code paths that are
+difficult or slow to test via integration tests. The bulk of venv
+functionality is tested end-to-end in tests/integration/test_library_venv*.py.
 """
 
 from __future__ import annotations
@@ -51,201 +51,16 @@ search = []
     return project
 
 
-def test_sync_editable_builds_correct_command(
-    mock_project_root: Path,
-    fake_process: FakeProcess,
-) -> None:
-    """Test that uv sync is called with correct extras for editable install."""
-    venv_path = mock_project_root / ".venv"
-    config = CliConfig(venv=VenvConfig(path=venv_path))
-    manager = VirtualEnvironmentManager(config, project_root=mock_project_root)
-
-    # Mock uv venv creation
-    fake_process.register(["uv", "venv", "--python", "python3.14", "--seed", str(venv_path)])
-
-    # Mock uv sync with expected extras
-    python_path = venv_path / "bin" / "python"
-    fake_process.register(
-        [
-            "uv",
-            "sync",
-            "--python",
-            str(python_path),
-            "--prerelease",
-            "allow",
-            "--extra",
-            "dev",
-            "--extra",
-            "tests",
-            "--extra",
-            "oarepo14",
-        ]
-    )
-
-    requirements = VenvRequirements(
-        python_binary="python3.14",
-        oarepo_version=14,
-        extras=[],
-        editable=True,
-    )
-
-    manager.ensure_venv(requirements, quiet=True)
-
-    # Verify uv sync was called with correct arguments
-    assert (
-        fake_process.call_count(
-            [
-                "uv",
-                "sync",
-                "--python",
-                str(python_path),
-                "--prerelease",
-                "allow",
-                "--extra",
-                "dev",
-                "--extra",
-                "tests",
-                "--extra",
-                "oarepo14",
-            ]
-        )
-        == 1
-    )
-
-
-def test_sync_editable_with_additional_extras(
-    mock_project_root: Path,
-    fake_process: FakeProcess,
-) -> None:
-    """Test that additional extras are included in uv sync command."""
-    venv_path = mock_project_root / ".venv"
-    config = CliConfig(venv=VenvConfig(path=venv_path))
-    manager = VirtualEnvironmentManager(config, project_root=mock_project_root)
-
-    # Mock uv venv creation
-    fake_process.register(["uv", "venv", "--python", "python3.14", "--seed", str(venv_path)])
-
-    # Mock uv sync with all extras including additional ones
-    python_path = venv_path / "bin" / "python"
-    fake_process.register(
-        [
-            "uv",
-            "sync",
-            "--python",
-            str(python_path),
-            "--prerelease",
-            "allow",
-            "--extra",
-            "dev",
-            "--extra",
-            "tests",
-            "--extra",
-            "oarepo14",
-            "--extra",
-            "rdm",
-            "--extra",
-            "search",
-        ]
-    )
-
-    requirements = VenvRequirements(
-        python_binary="python3.14",
-        oarepo_version=14,
-        extras=["rdm", "search"],
-        editable=True,
-    )
-
-    manager.ensure_venv(requirements, quiet=True)
-
-    # Verify all extras were included
-    assert (
-        fake_process.call_count(
-            [
-                "uv",
-                "sync",
-                "--python",
-                str(python_path),
-                "--prerelease",
-                "allow",
-                "--extra",
-                "dev",
-                "--extra",
-                "tests",
-                "--extra",
-                "oarepo14",
-                "--extra",
-                "rdm",
-                "--extra",
-                "search",
-            ]
-        )
-        == 1
-    )
-
-
-def test_sync_editable_without_oarepo_version(
-    mock_project_root: Path,
-    fake_process: FakeProcess,
-) -> None:
-    """Test that uv sync works without oarepo version extra."""
-    venv_path = mock_project_root / ".venv"
-    config = CliConfig(venv=VenvConfig(path=venv_path))
-    manager = VirtualEnvironmentManager(config, project_root=mock_project_root)
-
-    # Mock uv venv creation
-    fake_process.register(["uv", "venv", "--python", "python3.14", "--seed", str(venv_path)])
-
-    # Mock uv sync without oarepo version extra
-    python_path = venv_path / "bin" / "python"
-    fake_process.register(
-        [
-            "uv",
-            "sync",
-            "--python",
-            str(python_path),
-            "--prerelease",
-            "allow",
-            "--extra",
-            "dev",
-            "--extra",
-            "tests",
-        ]
-    )
-
-    requirements = VenvRequirements(
-        python_binary="python3.14",
-        oarepo_version=None,
-        extras=[],
-        editable=True,
-    )
-
-    manager.ensure_venv(requirements, quiet=True)
-
-    # Verify uv sync was called without oarepo version extra
-    assert (
-        fake_process.call_count(
-            [
-                "uv",
-                "sync",
-                "--python",
-                str(python_path),
-                "--prerelease",
-                "allow",
-                "--extra",
-                "dev",
-                "--extra",
-                "tests",
-            ]
-        )
-        == 1
-    )
-
-
 def test_non_editable_uses_wheel_not_sync(
     mock_project_root: Path,
     fake_process: FakeProcess,
 ) -> None:
-    """Test that non-editable install uses uv build + uv pip install, not uv sync."""
+    """Test that non-editable install uses uv build + uv pip install, not uv sync.
+
+    This is a critical different code path from the editable install (which uses
+    uv sync). Integration tests primarily test editable mode, so this unit test
+    ensures the wheel-based installation path works correctly.
+    """
     venv_path = mock_project_root / ".venv"
     config = CliConfig(venv=VenvConfig(path=venv_path))
     manager = VirtualEnvironmentManager(config, project_root=mock_project_root)
@@ -319,15 +134,15 @@ def test_non_editable_uses_wheel_not_sync(
     )
 
 
-def test_sync_command_runs_from_project_root(
+def test_sync_editable_without_oarepo_version(
     mock_project_root: Path,
     fake_process: FakeProcess,
 ) -> None:
-    """Test that uv sync is executed from the project root directory.
+    """Test that uv sync works when oarepo_version is None.
 
-    Note: pytest-subprocess doesn't support cwd verification directly,
-    so this test just verifies the command is called. The process.run()
-    implementation ensures cwd=project_root is used.
+    This edge case (no OARepo version extra) is important for non-OARepo
+    projects that might use the CLI tooling. Integration tests typically
+    use oarepo_version=14, so this unit test ensures the None case works.
     """
     venv_path = mock_project_root / ".venv"
     config = CliConfig(venv=VenvConfig(path=venv_path))
@@ -336,7 +151,7 @@ def test_sync_command_runs_from_project_root(
     # Mock uv venv creation
     fake_process.register(["uv", "venv", "--python", "python3.14", "--seed", str(venv_path)])
 
-    # Mock uv sync - cwd verification happens in process.run() implementation
+    # Mock uv sync without oarepo version extra
     python_path = venv_path / "bin" / "python"
     fake_process.register(
         [
@@ -350,120 +165,48 @@ def test_sync_command_runs_from_project_root(
             "dev",
             "--extra",
             "tests",
-            "--extra",
-            "oarepo14",
         ]
     )
 
     requirements = VenvRequirements(
         python_binary="python3.14",
-        oarepo_version=14,
+        oarepo_version=None,
         extras=[],
         editable=True,
     )
 
     manager.ensure_venv(requirements, quiet=True)
 
-    # Command was called successfully (cwd is correct by implementation)
-
-
-def test_sync_uses_absolute_python_path(
-    mock_project_root: Path,
-    fake_process: FakeProcess,
-) -> None:
-    """Test that uv sync uses absolute path to venv Python interpreter."""
-    venv_path = mock_project_root / ".venv"
-    config = CliConfig(venv=VenvConfig(path=venv_path))
-    manager = VirtualEnvironmentManager(config, project_root=mock_project_root)
-
-    # Mock uv venv creation
-    fake_process.register(["uv", "venv", "--python", "python3.14", "--seed", str(venv_path)])
-
-    # Verify absolute path is used
-    python_path = venv_path / "bin" / "python"
-    assert python_path.is_absolute()
-
-    fake_process.register(
-        [
-            "uv",
-            "sync",
-            "--python",
-            str(python_path),
-            "--prerelease",
-            "allow",
-            "--extra",
-            "dev",
-            "--extra",
-            "tests",
-            "--extra",
-            "oarepo14",
-        ]
+    # Verify uv sync was called without oarepo version extra
+    assert (
+        fake_process.call_count(
+            [
+                "uv",
+                "sync",
+                "--python",
+                str(python_path),
+                "--prerelease",
+                "allow",
+                "--extra",
+                "dev",
+                "--extra",
+                "tests",
+            ]
+        )
+        == 1
     )
-
-    requirements = VenvRequirements(
-        python_binary="python3.14",
-        oarepo_version=14,
-        extras=[],
-        editable=True,
-    )
-
-    manager.ensure_venv(requirements, quiet=True)
-
-
-def test_gitignore_updated_before_sync(
-    mock_project_root: Path,
-    fake_process: FakeProcess,
-) -> None:
-    """Test that uv.lock is added to .gitignore before running uv sync."""
-    venv_path = mock_project_root / ".venv"
-    config = CliConfig(venv=VenvConfig(path=venv_path))
-    manager = VirtualEnvironmentManager(config, project_root=mock_project_root)
-
-    # Mock uv commands
-    fake_process.register(["uv", "venv", "--python", "python3.14", "--seed", str(venv_path)])
-
-    python_path = venv_path / "bin" / "python"
-    fake_process.register(
-        [
-            "uv",
-            "sync",
-            "--python",
-            str(python_path),
-            "--prerelease",
-            "allow",
-            "--extra",
-            "dev",
-            "--extra",
-            "tests",
-            "--extra",
-            "oarepo14",
-        ]
-    )
-
-    # Verify .gitignore doesn't have uv.lock yet
-    gitignore = mock_project_root / ".gitignore"
-    content_before = gitignore.read_text()
-    assert "uv.lock" not in content_before
-
-    requirements = VenvRequirements(
-        python_binary="python3.14",
-        oarepo_version=14,
-        extras=[],
-        editable=True,
-    )
-
-    manager.ensure_venv(requirements, quiet=True)
-
-    # Verify uv.lock was added to .gitignore
-    content_after = gitignore.read_text()
-    assert "uv.lock" in content_after
 
 
 def test_extras_list_format_each_extra_separate_flag(
     mock_project_root: Path,
     fake_process: FakeProcess,
 ) -> None:
-    """Test that each extra is passed as a separate --extra flag (not comma-separated)."""
+    """Test that each extra is passed as a separate --extra flag.
+
+    This is critical for correctness - uv expects '--extra dev --extra tests'
+    not '--extra dev,tests'. This format requirement is an implementation detail
+    but important enough to have a fast unit test to catch regressions.
+    """
     venv_path = mock_project_root / ".venv"
     config = CliConfig(venv=VenvConfig(path=venv_path))
     manager = VirtualEnvironmentManager(config, project_root=mock_project_root)

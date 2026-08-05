@@ -125,51 +125,13 @@ def test_stop_handles_no_env_file_real(
     assert result.exit_code == 0
 
 
-# Test the services subcommand aliases
+def test_services_subcommand_alias_works(runner: CliRunner) -> None:
+    """Test that 'library services' subcommand exists and shows help.
 
-
-def test_services_start_alias_real(
-    runner: CliRunner,
-    clean_testlib: Path,
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    """Test that 'library services start' works as an alias."""
-    monkeypatch.chdir(clean_testlib)
-
-    result = runner.invoke(app, ["library", "services", "start"], catch_exceptions=False)
-
-    # Should complete
-    assert result.exit_code in [0, 1]
-
-    # If successful, .env-services should exist
-    if result.exit_code == 0:
-        assert (clean_testlib / ".env-services").exists()
-
-
-def test_services_stop_alias_real(
-    runner: CliRunner,
-    clean_testlib: Path,
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    """Test that 'library services stop' works as an alias."""
-    monkeypatch.chdir(clean_testlib)
-
-    # Create existing .env-services file
-    env_file = clean_testlib / ".env-services"
-    env_file.write_text("export SQLALCHEMY_DATABASE_URI=postgresql://test\n")
-
-    result = runner.invoke(app, ["library", "services", "stop"], catch_exceptions=False)
-
-    # Should complete
-    assert result.exit_code in [0, 1]
-
-    # If successful, file should be removed
-    if result.exit_code == 0:
-        assert not env_file.exists()
-
-
-def test_services_help_displays(runner: CliRunner) -> None:
-    """Test that 'library services --help' displays help text."""
+    'library services start' and 'library services stop' are aliases for
+    'library start' and 'library stop'. We verify the subcommand exists
+    without re-testing all start/stop functionality.
+    """
     result = runner.invoke(app, ["library", "services", "--help"])
 
     assert result.exit_code == 0

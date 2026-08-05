@@ -1,7 +1,12 @@
 # SPDX-FileCopyrightText: 2026 CESNET z.s.p.o.
 # SPDX-License-Identifier: MIT
 
-"""Integration tests for the read-only library check command."""
+"""Integration tests for the read-only library check command.
+
+Since 'library check' is functionally equivalent to 'library lint --no-fix',
+we only verify that the alias works and enforces read-only behavior.
+Full lint functionality is tested in test_library_lint_format.py.
+"""
 
 from __future__ import annotations
 
@@ -22,29 +27,14 @@ def runner() -> CliRunner:
     return CliRunner()
 
 
-def test_check_help_displays(runner: CliRunner) -> None:
-    """Test that 'library check --help' displays help text."""
-    result = runner.invoke(app, ["library", "check", "--help"])
-
-    assert result.exit_code == 0
-    assert "check" in result.stdout.lower()
-
-
-def test_check_passes_on_clean_code(
-    runner: CliRunner, lint_project: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
-    """Test that 'library check' exits 0 on a clean project."""
-    monkeypatch.chdir(lint_project)
-
-    result = runner.invoke(app, ["library", "check", "--quiet"], catch_exceptions=False)
-
-    assert result.exit_code == 0
-
-
 def test_check_never_modifies_files(
     runner: CliRunner, lint_project: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    """Test that 'library check' reports a violation without modifying any file."""
+    """Test that 'library check' reports violations without modifying any file.
+
+    This is the critical behavior difference from 'library lint' - check is
+    read-only, while lint auto-fixes by default.
+    """
     monkeypatch.chdir(lint_project)
 
     module = lint_project / "src" / "cleanlib" / "__init__.py"
@@ -54,17 +44,17 @@ def test_check_never_modifies_files(
     result = runner.invoke(app, ["library", "check", "--quiet"], catch_exceptions=False)
 
     assert result.exit_code != 0
+    # Critical: file should not be modified (read-only check)
     assert module.read_text() == dirty
 
 
-def test_check_matches_lint_no_fix_exit_code(
+def test_check_matches_lint_no_fix_behavior(
     runner: CliRunner, lint_project: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    """Test that 'library check' and 'library lint --no-fix' agree on pass/fail.
+    """Test that 'library check' is functionally equivalent to 'library lint --no-fix'.
 
-    `library check` is documented as functionally equivalent to `library
-    lint --no-fix` - verify that directly rather than just testing each in
-    isolation.
+    This verifies the alias behaves as documented rather than just testing it
+    in isolation.
     """
     monkeypatch.chdir(lint_project)
 
