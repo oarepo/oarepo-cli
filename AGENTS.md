@@ -135,5 +135,30 @@ The API endpoint returns JSON with `path`, `line`, `original_line`, and `body` f
   from oarepo_cli.services import process
   ```
   This keeps type-only imports (which cause circular import issues) clearly separated from runtime imports.
+- **Test fixture naming**: Follow these conventions for pytest fixtures:
+  - **Use descriptive names without prefixes** for most fixtures: `testlib_project`, `clean_testlib`, `test_context`, `lint_project`
+  - **Use `mock_` prefix** only for fixtures that return Mock objects: `mock_context`, `mock_project_root`
+  - **Use `clean_` prefix** for cleanup fixtures that set up and tear down state: `clean_testlib`, `clean_testrepo`
+  - **Avoid generic names**: prefer `lint_project` over `project`, `test_context` over `context`
+  - **Document what the fixture provides** in the docstring, especially for complex fixtures
+  - Examples:
+    ```python
+    @pytest.fixture
+    def mock_context(tmp_path: Path) -> Mock:
+        """Create a mock ProjectContext for unit tests."""
+        ...
+
+
+    @pytest.fixture
+    def clean_testlib(testlib_project: Path) -> Iterator[Path]:
+        """Clean up testlib before and after each test."""
+        ...
+
+
+    @pytest.fixture
+    def lint_project(tmp_path: Path) -> Path:
+        """A minimal, lint-clean library project with a real venv."""
+        ...
+    ```
 - Follow `implementation-steps.md`'s status flags when checking off work:
   `[ ]` not started, `[~]` in progress, `[x]` done (code + tests passing), `[!]` blocked.
