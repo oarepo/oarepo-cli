@@ -545,13 +545,15 @@ work that replaced this.
 - Shell and invenio commands
 - Argument passthrough
 
-**Tests** (`tests/integration/test_library_passthrough.py`):
-- [~] Test shell starts interactive bash
-- [~] Test invenio runs with args
-- [~] Test skip-services skips service start
-- [~] Test arguments passed correctly
+**Tests** (`tests/unit/test_invenio_cli.py`, `tests/integration/test_library_misc_commands.py`):
+- [x] Test invenio CLI wrapper constructs correct command
+- [x] Test invenio runs with args
+- [x] Test skip-services skips service start (covered in integration tests)
+- [x] Test arguments passed correctly
+- [x] Test shell applies same env defaults as blocking calls
+- [x] Test invenio applies same env defaults as blocking calls
 
-**Note**: Commands are implemented and functional. Tests are partially complete but need fixture refinement for subprocess mocking. The core functionality (venv activation, environment variable loading, argument passthrough via os.execve) is working correctly.
+**Note**: Commands are fully implemented and functional. Unit tests verify command construction and environment variable handling. Integration tests verify the shell and invenio commands work with correct environment setup (`test_library_shell_applies_same_env_defaults_as_blocking_calls`, `test_library_invenio_applies_same_env_defaults_as_blocking_calls`).
 
 ---
 
