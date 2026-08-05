@@ -6,7 +6,6 @@ from __future__ import annotations
 __all__ = [
     "ConfigurationError",
     "FileNotFoundError",
-    "LockAcquisitionError",
     "OARepoError",
     "ProcessExecutionError",
     "ValidationError",
@@ -19,7 +18,6 @@ __all__ = [
 from oarepo_cli.core.errors import (
     ConfigurationError,
     FileNotFoundError,  # noqa: A001
-    LockAcquisitionError,
     OARepoError,
     ProcessExecutionError,
     ValidationError,

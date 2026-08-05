@@ -238,7 +238,7 @@ mapping from the old mypy/pyright configuration to `ty`'s.
 | Interactive prompts without timeout | Low | Add timeout for automation |
 | Exit codes not consistently propagated | Medium | Ensure subprocess exit codes are returned |
 | No structured logging | Low | Add optional JSON logging mode |
-| Race conditions in concurrent executions | Medium | Add lock files for venv operations |
+| Race conditions in concurrent executions | Medium | Resolved without lock files: `VirtualEnvironmentManager.ensure_venv()` detects and rebuilds a half-created venv on the next run (`_is_valid_venv()`) instead of locking around creation -- see Step 2.3/6.1 in `implementation-steps.md` for why an actual file lock was tried, then removed |
 
 ---
 
@@ -310,7 +310,7 @@ oarepo_cli/
 │   └── signals.py              # Signal handling for long-running processes
 ├── services/
 │   ├── __init__.py
-│   ├── process.py              # run()/stream()/get_output() — plain functions, no protocol
+│   ├── process.py              # run()/get_output() — plain functions, no protocol
 │   ├── network.py              # NetworkClient protocol + implementations
 │   ├── venv.py                 # VirtualEnvironmentManager
 │   ├── version_resolver.py     # Python/OARepo version resolution
@@ -383,12 +383,12 @@ class ContextBuilder:
 
 ### 4.2 Process Execution Helper (`services/process.py`)
 
-**Responsibility**: Run subprocesses safely and consistently — never `shell=True`, UTF-8 output, timeout handling, env-dict merging. Plain module-level functions, called directly by every service; no protocol, no constructor injection, since there is exactly one real implementation.
+**Responsibility**: Run subprocesses safely and consistently — never `shell=True`, UTF-8 output, env-dict merging. Plain module-level functions, called directly by every service; no protocol, no constructor injection, since there is exactly one real implementation.
 
 ```python
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Iterator, Optional, Sequence
+from typing import Optional, Sequence
 
 
 @dataclass
@@ -410,19 +410,8 @@ def run(
     capture_output: bool = True,
     check: bool = True,
     forward_stdout: bool = False,
-    timeout: Optional[float] = None,
 ) -> ProcessResult:
     """Execute a command and wait for completion. Never uses shell=True."""
-    ...
-
-
-def stream(
-    command: Sequence[str],
-    *,
-    cwd: Optional[Path] = None,
-    env: Optional[dict[str, str]] = None,
-) -> Iterator[str]:
-    """Execute a command and yield output lines as they're produced."""
     ...
 
 
@@ -438,7 +427,7 @@ def get_output(
 
 **Dependencies**: None (pure stdlib)
 
-**Testing**: Direct calls to `run()`/`stream()`/`get_output()` against trivial, always-available real commands (`echo`, `true`, `false`, `python3 -c`) verify exit code propagation, output capture, and environment isolation — no fixture or fake needed. Higher up the stack, services that shell out to slow/optional tools (`uv`, `docker-services-cli`, `copier`) are exercised for real in integration tests, not through a faked `subprocess.Popen` boundary.
+**Testing**: Direct calls to `run()`/`get_output()` against trivial, always-available real commands (`echo`, `true`, `false`, `python3 -c`) verify exit code propagation, output capture, and environment isolation — no fixture or fake needed. Higher up the stack, services that shell out to slow/optional tools (`uv`, `docker-services-cli`, `copier`) are exercised for real in integration tests, not through a faked `subprocess.Popen` boundary.
 
 ---
 
@@ -577,12 +566,6 @@ class ValidationError(OARepoError):
     """User input failed validation."""
 
     exit_code = 6
-
-
-class LockAcquisitionError(OARepoError):
-    """Could not acquire operation lock (concurrent execution)."""
-
-    exit_code = 7
 ```
 
 ---

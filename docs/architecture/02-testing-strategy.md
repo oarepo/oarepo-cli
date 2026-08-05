@@ -241,7 +241,6 @@ import pytest
 from pathlib import Path
 from oarepo_cli.services import process
 from oarepo_cli.services.process import ProcessExecutionError
-from oarepo_cli.core.errors import TimeoutExceeded
 
 
 def test_returns_zero_exit_code_for_success():
@@ -298,25 +297,15 @@ def test_shell_injection_prevented():
     assert "; rm -rf / ;" in result.stdout
 
 
-def test_timeout_raises_exception():
-    with pytest.raises(TimeoutExceeded):
-        process.run(["sleep", "100"], timeout=0.1)
-
-
 def test_get_output_returns_stripped_stdout():
     assert process.get_output(["echo", "hello world"]) == "hello world"
-
-
-def test_stream_yields_lines():
-    lines = list(process.stream(["python3", "-c", "print('line1'); print('line2')"]))
-    assert lines == ["line1", "line2"]
 ```
 
 ### Faking Subprocess Calls with `pytest-subprocess`
 
 Services that shell out to slow, optional, side-effecting external tools (`uv`, `docker-services-cli`, `copier`, `invenio-cli`) — `VirtualEnvironmentManager`, `ServicesLifecycleManager`, `TestOrchestrator`, and friends — are exercised for real in §5 (Integration Tests) against the `tests/testlib/` fixture project, not through a faked OS boundary. That's a deliberate choice: a hand-registered fake has no independent behavior of its own to verify against, so a suite built entirely on fakes can pass while the real tool integration is broken — which is exactly what happened once in this codebase (a `VirtualEnvironmentManager` test suite built on faked `uv` calls didn't catch a `cwd`-dependent path bug that only surfaced against the real tool).
 
-[`pytest-subprocess`](https://pytest-subprocess.readthedocs.io/)'s `fake_process` fixture — which patches `subprocess.Popen` (and everything built on it, including our own `process.run()`/`stream()`/`get_output()`) for the duration of a test — remains available as a dev dependency for the rare unit-level test that needs to simulate a specific absent or failing binary (e.g. `VersionResolver.find_available_python()` faking `which python3.14`, §3 above) without depending on what happens to be installed on the machine running the tests.
+[`pytest-subprocess`](https://pytest-subprocess.readthedocs.io/)'s `fake_process` fixture — which patches `subprocess.Popen` (and everything built on it, including our own `process.run()`/`get_output()`) for the duration of a test — remains available as a dev dependency for the rare unit-level test that needs to simulate a specific absent or failing binary (e.g. `VersionResolver.find_available_python()` faking `which python3.14`, §3 above) without depending on what happens to be installed on the machine running the tests.
 
 ---
 
@@ -706,12 +695,6 @@ def test_venv_cleanup_on_keyboard_interrupt(temp_project_dir):
 
         # Verify partial artifacts were cleaned up
         assert not (temp_project_dir / ".venv").exists()
-
-
-def test_process_timeout_handling():
-    """Long-running processes respect timeout parameter."""
-    with pytest.raises(TimeoutExceeded):
-        process.run(["sleep", "100"], timeout=1.0)
 
 
 def test_concurrent_execution_lock(temp_project_dir):

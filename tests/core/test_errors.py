@@ -8,7 +8,6 @@ import pytest
 from oarepo_cli.core.errors import (
     ConfigurationError,
     FileNotFoundError,
-    LockAcquisitionError,
     OARepoError,
     ProcessExecutionError,
     ValidationError,
@@ -53,18 +52,12 @@ def test_validation_error_can_be_raised() -> None:
         raise ValidationError("Validation failed")
 
 
-def test_lock_acquisition_error_can_be_raised() -> None:
-    with pytest.raises(LockAcquisitionError):
-        raise LockAcquisitionError("Cannot acquire lock")
-
-
 def test_all_exceptions_are_subclasses_of_base() -> None:
     assert issubclass(ConfigurationError, OARepoError)
     assert issubclass(VersionMismatchError, OARepoError)
     assert issubclass(ProcessExecutionError, OARepoError)
     assert issubclass(FileNotFoundError, OARepoError)
     assert issubclass(ValidationError, OARepoError)
-    assert issubclass(LockAcquisitionError, OARepoError)
 
 
 def test_base_exception_catches_all_subclasses() -> None:
@@ -101,10 +94,6 @@ def test_file_not_found_error_exit_code() -> None:
 
 def test_validation_error_exit_code() -> None:
     assert ValidationError.exit_code == 14
-
-
-def test_lock_acquisition_error_exit_code() -> None:
-    assert LockAcquisitionError.exit_code == 15
 
 
 def test_process_execution_error_basic_attributes() -> None:

@@ -20,7 +20,7 @@ graph TB
     end
 
     subgraph "Services Layer"
-        PROC[process.py<br/>run/stream/get_output]
+        PROC[process.py<br/>run/get_output]
         NET[network.py<br/>NetworkClient]
         VENV[venv.py<br/>VenvManager]
         VER[version_resolver.py<br/>VersionResolver]
@@ -351,10 +351,12 @@ def run(
     capture_output: bool = True,
     check: bool = True,
     forward_stdout: bool = False,
-    timeout: Optional[float] = None,
 ) -> ProcessResult:
     """
     Execute a command and wait for completion. Never uses shell=True.
+    Deliberately no timeout: commands this is used for can legitimately
+    run long, and a fixed limit would kill a healthy operation just as
+    often as a stuck one.
 
     Args:
         command: List of arguments (never shell string)
@@ -363,31 +365,12 @@ def run(
         capture_output: Capture stdout/stderr strings
         check: Raise on non-zero exit code
         forward_stdout: Stream output while capturing
-        timeout: Maximum execution time in seconds
 
     Returns:
         ProcessResult with exit code, output, timing
 
     Raises:
         ProcessExecutionError: If check=True and returncode != 0
-        TimeoutExceeded: If timeout is exceeded
-    """
-    ...
-
-
-def stream(
-    command: Sequence[str],
-    *,
-    cwd: Optional[Path] = None,
-    env: Optional[dict[str, str]] = None,
-) -> Iterator[str]:
-    """
-    Execute a command and yield output lines as they're produced.
-
-    Use for long-running commands where real-time output is needed.
-
-    Yields:
-        Lines of stdout interleaved with stderr
     """
     ...
 
@@ -1135,15 +1118,6 @@ def test_venv_cleanup_on_interrupt(tmp_path):
 
         # Verify partial artifacts were cleaned up
         assert not (tmp_path / ".venv").exists()
-
-
-def test_process_timeout_handling():
-    """Long-running processes respect timeout parameter."""
-    with pytest.raises(TimeoutExceeded):
-        process.run(
-            ["sleep", "100"],
-            timeout=1.0,
-        )
 
 
 def test_signal_propagation_to_children():
