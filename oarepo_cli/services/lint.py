@@ -14,6 +14,7 @@ if TYPE_CHECKING:
 
 from oarepo_cli.configuration import resources
 from oarepo_cli.services import process
+from oarepo_cli.services.process import ProcessOutputMode
 
 
 # Linters/type checkers are installed as regular oarepo-cli dependencies (see
@@ -136,7 +137,9 @@ class LintRunner:
             [ruff, "check", *fix_flag, "--exclude", "pyproject.toml"],
             cwd=root,
             check=False,
-            interactive=not self._quiet,
+            output_mode=ProcessOutputMode.INTERACTIVE
+            if not self._quiet
+            else ProcessOutputMode.CAPTURE,
         )
         if not result.success:
             return result
@@ -147,7 +150,9 @@ class LintRunner:
             [ruff, "format", *format_mode, "--exclude", "pyproject.toml"],
             cwd=root,
             check=False,
-            interactive=not self._quiet,
+            output_mode=ProcessOutputMode.INTERACTIVE
+            if not self._quiet
+            else ProcessOutputMode.CAPTURE,
         )
         if not result.success:
             return result
@@ -191,7 +196,9 @@ class LintRunner:
             ],
             cwd=root,
             check=False,
-            interactive=not self._quiet,
+            output_mode=ProcessOutputMode.INTERACTIVE
+            if not self._quiet
+            else ProcessOutputMode.CAPTURE,
         )
 
     def run_format(
@@ -225,14 +232,18 @@ class LintRunner:
                 [ruff, "format", "--check", "--exclude", "pyproject.toml", *extra_args],
                 cwd=root,
                 check=False,
-                interactive=not self._quiet,
+                output_mode=ProcessOutputMode.INTERACTIVE
+                if not self._quiet
+                else ProcessOutputMode.CAPTURE,
             )
 
         result = process.run(
             [ruff, "format", "--exclude", "pyproject.toml", *extra_args],
             cwd=root,
             check=False,
-            interactive=not self._quiet,
+            output_mode=ProcessOutputMode.INTERACTIVE
+            if not self._quiet
+            else ProcessOutputMode.CAPTURE,
         )
         if not result.success:
             return result
@@ -241,7 +252,9 @@ class LintRunner:
             [ruff, "check", "--fix", "--exclude", "pyproject.toml", *extra_args],
             cwd=root,
             check=False,
-            interactive=not self._quiet,
+            output_mode=ProcessOutputMode.INTERACTIVE
+            if not self._quiet
+            else ProcessOutputMode.CAPTURE,
         )
 
 

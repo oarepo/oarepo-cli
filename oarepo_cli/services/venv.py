@@ -16,6 +16,7 @@ if TYPE_CHECKING:
 from oarepo_cli.core.errors import ValidationError
 from oarepo_cli.core.platform import get_platform_detector
 from oarepo_cli.services import process
+from oarepo_cli.services.process import ProcessOutputMode
 from oarepo_cli.services.version_resolver import VersionResolver
 
 
@@ -270,7 +271,7 @@ class VirtualEnvironmentManager:
             ["uv", "venv", "--python", python, "--seed", str(path)],
             cwd=self._project_root,
             check=True,
-            interactive=not quiet,
+            output_mode=ProcessOutputMode.INTERACTIVE if not quiet else ProcessOutputMode.CAPTURE,
         )
 
     def _install_dependencies(
@@ -366,7 +367,7 @@ class VirtualEnvironmentManager:
             cwd=self._project_root,
             env=env,
             check=True,
-            interactive=not quiet,
+            output_mode=ProcessOutputMode.INTERACTIVE if not quiet else ProcessOutputMode.CAPTURE,
         )
 
     def _build_and_install_wheel(
@@ -396,7 +397,7 @@ class VirtualEnvironmentManager:
         process.run(
             ["uv", "build", "--wheel", "--out-dir", str(dist_dir), str(self._project_root)],
             check=True,
-            interactive=not quiet,
+            output_mode=ProcessOutputMode.INTERACTIVE if not quiet else ProcessOutputMode.CAPTURE,
         )
 
         # Find the built wheel
@@ -428,5 +429,5 @@ class VirtualEnvironmentManager:
                 f"{wheel_path}[{extras_str}]",
             ],
             check=True,
-            interactive=not quiet,
+            output_mode=ProcessOutputMode.INTERACTIVE if not quiet else ProcessOutputMode.CAPTURE,
         )

@@ -10,6 +10,7 @@ import subprocess
 import sys
 import time
 from dataclasses import dataclass
+from enum import Enum
 from pathlib import Path
 from typing import TYPE_CHECKING
 
@@ -26,6 +27,20 @@ VENV_ENV_VARS = {
     "_OLD_VIRTUAL_PATH",  # Original PATH before venv activation
     "_OLD_VIRTUAL_PYTHONHOME",  # Original PYTHONHOME before venv activation
 }
+
+
+class ProcessOutputMode(Enum):
+    """Output handling mode for subprocess execution.
+
+    Attributes:
+        CAPTURE: Capture stdout/stderr silently (default)
+        FORWARD: Capture stdout/stderr AND display in real-time
+        INTERACTIVE: Real-time output only, no capture (for interactive commands)
+    """
+
+    CAPTURE = "capture"  # Capture only, no display
+    FORWARD = "forward"  # Capture + display in real-time
+    INTERACTIVE = "interactive"  # Display only, no capture
 
 
 @dataclass
@@ -177,12 +192,10 @@ def run(
     *,
     cwd: Path | None = None,
     env: dict[str, str] | None = None,
-    capture_output: bool = True,
+    output_mode: ProcessOutputMode = ProcessOutputMode.CAPTURE,
     check: bool = True,
-    forward_stdout: bool = False,
     timeout: float | None = None,
     strip_venv: bool = True,
-    interactive: bool = False,
 ) -> ProcessResult:
     """Execute a command and wait for completion. Never uses shell=True.
 
@@ -190,14 +203,11 @@ def run(
         command: List of command arguments (never a shell string)
         cwd: Working directory for the command
         env: Environment variables (merged with parent environment)
-        capture_output: Whether to capture stdout/stderr as strings (ignored if interactive=True)
+        output_mode: How to handle command output (CAPTURE/FORWARD/INTERACTIVE)
         check: Raise ProcessExecutionError on non-zero exit code
-        forward_stdout: Stream output to console while capturing
         timeout: Maximum execution time in seconds
         strip_venv: Strip VIRTUAL_ENV and related variables (default: True)
                     to prevent oarepo-cli's own venv from leaking
-        interactive: If True, run with real-time output (stdout/stderr inherit from parent),
-                     capture_output is ignored. Use for long-running commands.
 
     Returns:
         ProcessResult with exit code, output, and timing
@@ -212,7 +222,7 @@ def run(
     start_time = time.time()
 
     # Interactive mode: inherit stdout/stderr for real-time output
-    if interactive:
+    if output_mode == ProcessOutputMode.INTERACTIVE:
         try:
             result = subprocess.run(
                 command,
@@ -251,13 +261,13 @@ def run(
                 stderr=None,
             ) from exc
 
-    # Captured mode: capture output (original behavior)
+    # Capture or Forward mode: capture output
     try:
         result = subprocess.run(
             command,
             cwd=cwd,
             env=run_env,
-            capture_output=capture_output,
+            capture_output=True,
             text=True,
             encoding="utf-8",
             errors="replace",
@@ -268,14 +278,15 @@ def run(
 
         process_result = ProcessResult(
             return_code=result.returncode,
-            stdout=result.stdout if capture_output else "",
-            stderr=result.stderr if capture_output else "",
+            stdout=result.stdout,
+            stderr=result.stderr,
             command=command,
             cwd=cwd or Path.cwd(),
             duration_ms=duration_ms,
         )
 
-        if forward_stdout and capture_output:
+        # Forward mode: also display the captured output
+        if output_mode == ProcessOutputMode.FORWARD:
             if result.stdout:
                 print(result.stdout, end="")
             if result.stderr:
@@ -286,8 +297,8 @@ def run(
                 message=f"Command failed with exit code {result.returncode}",
                 command=list(command),
                 returncode=result.returncode,
-                stdout=result.stdout if capture_output else None,
-                stderr=result.stderr if capture_output else None,
+                stdout=result.stdout,
+                stderr=result.stderr,
             )
 
         return process_result
@@ -385,7 +396,6 @@ def get_output(
         command,
         cwd=cwd,
         env=env,
-        capture_output=True,
         check=False,
         strip_venv=strip_venv,
     )

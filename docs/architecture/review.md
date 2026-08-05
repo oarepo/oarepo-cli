@@ -50,39 +50,6 @@ All previous high-priority issues have been addressed. See git history for detai
 
 ## 3. Medium Priority Issues
 
-### 3.1 Code Duplication in CLI Commands
-
-**Locations:**
-- `cli/library.py`: Multiple command implementations
-- `cli/repository.py`: Service subcommands
-
-**Severity:** Medium (Maintainability)
-
-**Issue:**
-The pattern of context discovery → ConsoleOutput creation → manager instantiation → error handling is duplicated across multiple CLI command functions.
-
-**Example:**
-```python
-# Pattern repeated in _start_services_impl, _stop_services_impl, etc.
-context = discover_context()
-console = ConsoleOutput(quiet=quiet)
-console.info("🚀 Starting...", fg=typer.colors.BRIGHT_BLUE, bold=True)
-services_mgr = ServicesLifecycleManager(...)
-try:
-    services_mgr.method()
-    console.success("✨ Success!", fg=typer.colors.BRIGHT_GREEN, bold=True)
-except OARepoError as e:
-    console.error(f"❌ Error: {e}", fg=typer.colors.BRIGHT_RED, bold=True)
-    raise typer.Exit(code=1) from e
-```
-
-**Recommendation:**
-Create a reusable command execution wrapper to reduce duplication and ensure consistent error handling across all commands.
-
-**Priority:** Medium - This is maintainability debt that could lead to inconsistencies if not addressed, but isn't blocking current development.
-
----
-
 ### 3.2 Potential Race Condition in Lock Cleanup
 
 **Location:** `utils/locks.py`
@@ -100,31 +67,6 @@ Verify that:
 
 **Priority:** Medium - Worth reviewing before production use at scale.
 
----
-
-### 3.4 Process Execution: forward_stdout Parameter Confusion
-
-**Location:** `services/process.py`
-**Severity:** Medium (API Clarity)
-
-**Issue:**
-The `forward_stdout` parameter name is misleading:
-
-```python
-def run(..., forward_stdout: bool = True) -> ProcessResult:
-    # When True, output is shown in real-time
-    # When False, output is captured and returned
-```
-
-The name suggests "forward to somewhere" but it actually means "show in real-time vs. capture for later use."
-
-**Recommendation:**
-Consider renaming to one of:
-- `show_output: bool` (clearer intent)
-- `capture_output: bool` (match subprocess.run naming, but inverted logic)
-- Or add a `ProcessOutputMode` enum: `SHOW_REALTIME | CAPTURE | SUPPRESS`
-
-**Priority:** Medium - Would improve API usability, but current code works correctly.
 
 ---
 
