@@ -13,6 +13,7 @@ from typing import TYPE_CHECKING
 
 import pytest
 
+from oarepo_cli.configuration.constants import ServiceType
 from oarepo_cli.core.config import CliConfig, ServicesConfig
 from oarepo_cli.services.services_lifecycle import ServicesLifecycleManager
 
@@ -26,11 +27,11 @@ def services_config() -> CliConfig:
     config = CliConfig()
     config.services = ServicesConfig(
         skip=False,
-        db="postgresql",
-        search="opensearch",
-        mq="rabbitmq",
-        cache="redis",
-        s3="minio",
+        db=ServiceType.POSTGRESQL,
+        search=ServiceType.OPENSEARCH,
+        mq=ServiceType.RABBITMQ,
+        cache=ServiceType.REDIS,
+        s3=ServiceType.MINIO,
     )
     return config
 
@@ -223,11 +224,11 @@ def test_start_services_with_custom_service_types_real(
     config = CliConfig()
     config.services = ServicesConfig(
         skip=False,
-        db="postgresql",
-        search="opensearch",
-        mq="rabbitmq",  # Use valid MQ service
-        cache="redis",
-        s3="minio",
+        db=ServiceType.POSTGRESQL,
+        search=ServiceType.OPENSEARCH,
+        mq=ServiceType.RABBITMQ,  # Use valid MQ service
+        cache=ServiceType.REDIS,
+        s3=ServiceType.MINIO,
     )
     manager = ServicesLifecycleManager(config=config, project_root=clean_testlib)
 

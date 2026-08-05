@@ -9,6 +9,7 @@ from pathlib import Path
 
 import pytest
 
+from oarepo_cli.configuration.constants import VENV_DIR, ServiceType
 from oarepo_cli.core.config import (
     BuildConfig,
     CeleryConfig,
@@ -27,15 +28,15 @@ def test_default_values_for_all_configs() -> None:
     assert config.build.editable is True
     assert config.test.coverage is False
     assert config.test.skip_services is False
-    assert config.venv.path == Path(".venv")
+    assert config.venv.path == Path(VENV_DIR)
     assert config.python.binary is None
     assert config.oarepo.version is None
     assert config.services.skip is False
-    assert config.services.db == "postgresql"
-    assert config.services.search == "opensearch"
-    assert config.services.mq == "rabbitmq"
-    assert config.services.cache == "redis"
-    assert config.services.s3 == "minio"
+    assert config.services.db == ServiceType.POSTGRESQL
+    assert config.services.search == ServiceType.OPENSEARCH
+    assert config.services.mq == ServiceType.RABBITMQ
+    assert config.services.cache == ServiceType.REDIS
+    assert config.services.s3 == ServiceType.MINIO
     assert config.model.template_url == "https://github.com/oarepo/nrp-model-copier"
     assert config.model.template_version == "rdm-14"
     assert config.translations.overlay_dir is None
@@ -189,7 +190,7 @@ services = { db = "mysql" }
 
     # Only db should be overridden
     assert config.services.db == "mysql"
-    assert config.services.search == "opensearch"  # Default
+    assert config.services.search == ServiceType.OPENSEARCH  # Default
     assert config.build.editable is True  # Default
 
 

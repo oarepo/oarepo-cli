@@ -123,5 +123,17 @@ The API endpoint returns JSON with `path`, `line`, `original_line`, and `body` f
   # SPDX-License-Identifier: MIT
   ```
   Plus `from __future__ import annotations` at the top of each file.
+- **TYPE_CHECKING imports**: Use this consistent pattern:
+  ```python
+  from typing import TYPE_CHECKING
+
+  if TYPE_CHECKING:
+      from pathlib import Path
+      from oarepo_cli.core.context import ProjectContext
+
+  # All runtime imports go here, after the TYPE_CHECKING block
+  from oarepo_cli.services import process
+  ```
+  This keeps type-only imports (which cause circular import issues) clearly separated from runtime imports.
 - Follow `implementation-steps.md`'s status flags when checking off work:
   `[ ]` not started, `[~]` in progress, `[x]` done (code + tests passing), `[!]` blocked.

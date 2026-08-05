@@ -12,6 +12,7 @@ if TYPE_CHECKING:
 
     from oarepo_cli.core.config import CliConfig
 
+from oarepo_cli.configuration.constants import ENV_SERVICES_FILE
 from oarepo_cli.services import process
 
 
@@ -33,7 +34,7 @@ class ServicesLifecycleManager:
         """
         self._config = config
         self._project_root = project_root
-        self._env_file = project_root / ".env-services"
+        self._env_file = project_root / ENV_SERVICES_FILE
         self._quiet = quiet
 
     def start_services(self) -> dict[str, str]:

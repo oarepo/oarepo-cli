@@ -13,6 +13,7 @@ from typing import Annotated
 import typer
 
 from oarepo_cli.cli import js_commands, lint_commands
+from oarepo_cli.configuration.constants import ENV_SERVICES_FILE
 from oarepo_cli.core.context import discover_context, find_pyproject_toml
 from oarepo_cli.core.errors import OARepoError
 from oarepo_cli.core.platform import get_platform_detector
@@ -84,7 +85,7 @@ def _start_services_impl(*, quiet: bool = False) -> None:
                 "✨ ✓ Services started successfully!", fg=typer.colors.BRIGHT_GREEN, bold=True
             )
             console.info(
-                f"  Environment variables written to {context.root_directory / '.env-services'}",
+                f"  Environment variables written to {context.root_directory / ENV_SERVICES_FILE}",
                 fg=typer.colors.GREEN,
             )
     except OARepoError as e:
@@ -131,7 +132,7 @@ def _stop_services_impl(*, quiet: bool = False) -> None:
     # Create console with the provided quiet flag
     console = ConsoleOutput(quiet=quiet)
 
-    if not (context.root_directory / ".env-services").exists():
+    if not (context.root_directory / ENV_SERVICES_FILE).exists():
         console.info("✓ No services running", fg=typer.colors.YELLOW)
         return
 
@@ -271,21 +272,21 @@ def library_clean(
         console.info("  ℹ No services running", fg=typer.colors.CYAN)
 
     # Remove .env-services file
-    env_services_file = context.root_directory / ".env-services"
+    env_services_file = context.root_directory / ENV_SERVICES_FILE
     if env_services_file.exists():
-        console.info("🗑️  Removing .env-services file...", fg=typer.colors.CYAN)
+        console.info(f"🗑️  Removing {ENV_SERVICES_FILE} file...", fg=typer.colors.CYAN)
         try:
             env_services_file.unlink()
-            console.info("  ✓ .env-services removed", fg=typer.colors.GREEN)
-            items_removed.append(".env-services")
+            console.info(f"  ✓ {ENV_SERVICES_FILE} removed", fg=typer.colors.GREEN)
+            items_removed.append(ENV_SERVICES_FILE)
         # Best-effort cleanup step: keep going even on a non-OARepoError failure.
         except Exception as e:
             console.warning(
-                f"  ⚠ Warning: Failed to remove .env-services: {e}",
+                f"  ⚠ Warning: Failed to remove {ENV_SERVICES_FILE}: {e}",
                 fg=typer.colors.YELLOW,
             )
     else:
-        console.info("  ℹ No .env-services file found", fg=typer.colors.CYAN)
+        console.info(f"  ℹ No {ENV_SERVICES_FILE} file found", fg=typer.colors.CYAN)
 
     # Remove venv directory and uv.lock using VirtualEnvironmentManager
     venv_existed = context.venv_path.exists()
