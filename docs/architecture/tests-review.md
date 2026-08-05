@@ -2,16 +2,48 @@
 
 **Date:** 2026-08-05
 **Original Test Count:** 560 tests across 56 files
-**Current Test Count:** 540 tests across 53 files (after Issue 1 cleanup)
+**Current Test Count:** 510 tests across 50 files (after Issues 1-6 cleanup)
 
 ## Status
 
-✅ **Issue 1 (Triple-Layer Venv Testing) - COMPLETED**
+✅ **ALL HIGH-PRIORITY ISSUES COMPLETED** (50 tests removed, -8.9%)
+
+Branch: `test-cleanup-issue-1-triple-layer-venv`
+PR: #160 (ready for review)
+
+### Completed Issues:
+
+**Issue 1 (Triple-Layer Venv Testing):**
 - Removed `test_venv_workflow.py` (11 tests)
 - Removed `test_venv_gitignore.py` (4 tests)
 - Reduced `test_venv_sync.py` from 8 to 3 tests (5 removed)
-- **Total removed: 20 tests**
-- Branch: `test-cleanup-issue-1-triple-layer-venv`
+- **Subtotal: 20 tests**
+
+**Issue 2 (.gitignore Redundancy):**
+- Handled in Issue 1 (test_venv_gitignore.py deletion)
+
+**Issue 3 (Lint Service Duplicate):**
+- Removed `test_lint_service.py` (2 tests)
+- **Subtotal: 2 tests**
+
+**Issue 4 (Cleanup Workflow Duplicate):**
+- Removed `test_cleanup_workflow.py` (6 tests)
+- **Subtotal: 6 tests**
+
+**Issue 5 (Alias Command Over-Testing):**
+- Reduced `test_library_install.py` from 4 to 2 tests (2 removed)
+- Reduced `test_library_check.py` from 4 to 2 tests (2 removed)
+- Reduced `test_library_services.py` from 10 to 7 tests (3 removed)
+- **Subtotal: 7 tests** (Note: only 7 removed, not 9 as originally estimated)
+
+**Issue 6 (Repository Misc Duplicates):**
+- Reduced `test_repository_misc.py` from 43 to 23 tests:
+  - Removed lint/format/check tests (9 removed)
+  - Removed jslint/jstest tests (4 removed)
+  - Removed test tests (7 removed)
+- **Subtotal: 20 tests**
+
+**Total: 50 tests removed (4 files deleted, 6 files reduced)**
 
 ## Executive Summary
 
@@ -49,112 +81,99 @@ This review identifies **significant redundancy** in the test suite, with approx
 
 ## Critical Redundancy Issues
 
-### 🔴 Issue 1: Triple-Layer Venv Testing (High Priority)
+### ✅ Issue 1: Triple-Layer Venv Testing (COMPLETED)
 
-**Problem:** Virtual environment creation is tested at 3 layers:
+**Status:** ✅ Completed in PR #160
 
-1. **Unit:** `test_venv_sync.py` (10 tests) - mocked subprocess
-2. **Service Integration:** `test_venv_workflow.py` (15 tests) - real `uv`, service API
+**Problem:** Venv synchronization tested at 3 layers:
+
+1. **Unit:** `test_venv_sync.py` (8 tests) - mocked subprocess calls
+2. **Service Integration:** `test_venv_workflow.py` (11 tests) - real `uv`, calling `VirtualEnvironmentManager`
 3. **CLI Integration:** `test_library_venv.py` (7 tests) + `test_library_venv_sync.py` (13 tests) - real `uv`, CLI
 
-**Analysis:**
-- Service integration tests and CLI integration tests call the same underlying code with real tools
-- Unit tests mock subprocess to verify command construction (brittle, tests implementation)
-- **90% overlap** between service and CLI layers
+**Actions Taken:**
+- ✅ KEPT: CLI integration tests (`test_library_venv*.py`) - user-facing, end-to-end verification
+- ✅ KEPT: 3 critical unit tests in `test_venv_sync.py` for edge cases
+- ✅ REMOVED: Service-layer integration tests (`test_venv_workflow.py`) - redundant (11 tests)
+- ✅ REMOVED: 5 redundant unit tests in `test_venv_sync.py` - testing implementation details
 
-**Recommendation:**
-- ✅ **KEEP:** CLI integration tests (`test_library_venv*.py`) - user-facing, end-to-end verification
-- ✅ **KEEP:** 2-3 critical unit tests for edge cases (e.g., PATH stripping, error handling)
-- ❌ **REMOVE:** Service-layer integration tests (`test_venv_workflow.py`) - redundant
-- ❌ **REMOVE:** Most unit tests in `test_venv_sync.py` - testing implementation details
-
-**Impact:** Remove ~20 tests, save significant CI time (integration tests are very slow)
+**Impact:** Removed 20 tests, significant CI time savings
 
 ---
 
-### 🔴 Issue 2: .gitignore Testing (High Priority)
+### ✅ Issue 2: .gitignore Testing (COMPLETED)
+
+**Status:** ✅ Completed in PR #160 (handled with Issue 1)
 
 **Problem:** `.gitignore` updates tested at 2 layers:
 
 1. **Unit:** `test_venv_gitignore.py` (4 tests) - tests private method `_ensure_uv_lock_gitignored()`
 2. **Integration:** `test_library_venv_sync.py` (2 tests) - tests actual CLI behavior
 
-**Analysis:**
-- Unit tests call a **private method** directly (violates testing best practices)
-- Integration tests already verify this behavior end-to-end
-- 100% overlap
+**Actions Taken:**
+- ✅ KEPT: Integration tests - verify user-facing behavior
+- ✅ REMOVED: All unit tests in `test_venv_gitignore.py` - testing private implementation (4 tests)
 
-**Recommendation:**
-- ✅ **KEEP:** Integration tests - verify user-facing behavior
-- ❌ **REMOVE:** All unit tests in `test_venv_gitignore.py` - testing private implementation
-
-**Impact:** Remove 4 tests
+**Impact:** Removed 4 tests (included in Issue 1's 20-test total)
 
 ---
 
-### 🔴 Issue 3: Lint Service Testing (High Priority)
+### ✅ Issue 3: Lint Service Testing (COMPLETED)
+
+**Status:** ✅ Completed in PR #160
 
 **Problem:** Lint command construction tested at 2 layers:
 
 1. **Unit:** `test_lint_service.py` (2 tests) - mocked `process.run`
 2. **Integration:** `test_library_lint_format.py` (21 tests) - real `ruff`/`ty` execution
 
-**Analysis:**
-- Unit tests verify exact command arguments (brittle)
-- Integration tests verify the commands actually work
-- 80% overlap
+**Actions Taken:**
+- ✅ KEPT: Integration tests - verify real tool execution
+- ✅ REMOVED: All unit tests in `test_lint_service.py` - testing implementation details (2 tests)
 
-**Recommendation:**
-- ✅ **KEEP:** Integration tests - verify real tool execution
-- ❌ **REMOVE:** Unit tests in `test_lint_service.py` - testing implementation details
-
-**Impact:** Remove 2 tests
+**Impact:** Removed 2 tests
 
 ---
 
-### 🔴 Issue 4: Cleanup Operations Testing (High Priority)
+### ✅ Issue 4: Cleanup Operations Testing (COMPLETED)
+
+**Status:** ✅ Completed in PR #160
 
 **Problem:** Cleanup tested at 2 layers:
 
 1. **Service:** `test_cleanup_workflow.py` (10 tests) - `CleanupManager` API
 2. **CLI:** `test_library_clean.py` (10 tests) - `library clean` command
 
-**Analysis:**
-- Both test the same functionality (venv removal, .env-services cleanup, idempotency)
-- Only difference is entry point (service API vs CLI)
-- Near 100% overlap
+**Actions Taken:**
+- ✅ KEPT: CLI integration tests - user-facing verification
+- ✅ REMOVED: All service tests in `test_cleanup_workflow.py` - redundant (6 tests)
 
-**Recommendation:**
-- ✅ **KEEP:** CLI integration tests - user-facing verification
-- ❌ **REMOVE OR REDUCE:** Service tests to 1-2 contract tests for `CleanupManager` interface
-
-**Impact:** Remove ~8 tests
+**Impact:** Removed 6 tests
 
 ---
 
-### 🔴 Issue 5: Alias Command Testing (High Priority)
+### ✅ Issue 5: Alias Command Testing (COMPLETED)
+
+**Status:** ✅ Completed in PR #160
 
 **Problem:** Alias commands re-test full functionality instead of just verifying the alias works:
 
-1. **`test_library_install.py`** (5 tests) - tests all venv functionality via `install` alias
+1. **`test_library_install.py`** (4 tests) - tests all venv functionality via `install` alias
 2. **`test_library_check.py`** (4 tests) - re-tests lint functionality via `check` alias
-3. **`test_library_services.py`** (13 tests) - tests both `library start/stop` AND `library services start/stop` (duplicates)
+3. **`test_library_services.py`** (10 tests) - tests both `library start/stop` AND `library services start/stop` (duplicates)
 
-**Analysis:**
-- `library install` is just an alias for `library venv` - no need to re-test venv creation
-- `library check` is just `library lint --no-fix` - no need to re-test lint
-- `library services start` === `library start` (same code path)
+**Actions Taken:**
+- ✅ REDUCED: `test_library_install.py` to 2 tests (alias works, passes flags) - removed 2 tests
+- ✅ REDUCED: `test_library_check.py` to 2 tests (alias works, read-only guarantee) - removed 2 tests
+- ✅ REDUCED: `test_library_services.py` to 7 tests (removed duplicate alias tests) - removed 3 tests
 
-**Recommendation:**
-- ❌ **REMOVE:** `test_library_install.py` entirely OR reduce to 1-2 tests (alias works, passes flags)
-- ❌ **REDUCE:** `test_library_check.py` to 2 tests (alias works, read-only guarantee)
-- ❌ **REDUCE:** `test_library_services.py` to ~7 tests (remove duplicate alias tests)
-
-**Impact:** Remove ~10 tests
+**Impact:** Removed 7 tests
 
 ---
 
-### 🔴 Issue 6: test_repository_misc.py Mega-File (High Priority)
+### ✅ Issue 6: test_repository_misc.py Mega-File (COMPLETED)
+
+**Status:** ✅ Completed in PR #160
 
 **Problem:** This single file has **43 tests** that duplicate coverage from dedicated test files:
 
@@ -164,19 +183,13 @@ This review identifies **significant redundancy** in the test suite, with approx
 - **Shell/CLI/Invenio** (8 tests) - unique, no dedicated file
 - **Translations/Index/Reset/Info** (15 tests) - unique, no dedicated file
 
-**Analysis:**
-- Dedicated files use real tools; `misc.py` uses mocks
-- For redundant sections, the real-tool tests are superior
-- Unique sections (shell/cli/invenio/translations/index/reset/info) should be kept
+**Actions Taken:**
+- ✅ REMOVED: Lint/format/check tests (9 tests) - covered by dedicated files
+- ✅ REMOVED: Test tests (7 tests) - covered by `test_repository_test.py`
+- ✅ REMOVED: JSlint/JStest tests (4 tests) - covered by `test_repository_jslint_jstest.py`
+- ✅ KEPT: Shell/CLI/Invenio/Translations/Index/Reset/Info tests (23 tests) - unique coverage
 
-**Recommendation:**
-- ❌ **REMOVE:** Lint/format/check tests (9 tests) - covered by dedicated files
-- ❌ **REMOVE:** Test tests (7 tests) - covered by `test_repository_test.py`
-- ❌ **REMOVE:** JSlint/JStest tests (4 tests) - covered by `test_repository_jslint_jstest.py`
-- ✅ **KEEP:** Shell/CLI/Invenio/Translations/Index/Reset/Info tests (20 tests) - unique coverage
-- **Alternative:** Move unique tests to dedicated files and delete `test_repository_misc.py` entirely
-
-**Impact:** Remove ~20 tests (or reorganize into dedicated files)
+**Impact:** Removed 20 tests (from 43 down to 23)
 
 ---
 
