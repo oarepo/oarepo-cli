@@ -1962,22 +1962,26 @@ reused; `services.repository.run_tests()` was added instead, and
 ### Step 5.2: Repository Installation Workflow
 **Goal**: Implement complete repository scaffolding.
 
-- [ ] Implement `services/repository_installer.py` with `RepositoryInstaller` class
-- [ ] Method: `install(name, template, version, python_binary)` → Path
-- [ ] Run `copier copy` with template
-- [ ] Generate SSL certificates with openssl
-- [ ] Setup Docker compose symlinks
-- [ ] Initialize git repository (if not in CI)
-- [ ] Return path to created repository
+- [x] Implement `services/repository_installer.py` with `RepositoryInstaller` class
+- [x] Method: `install(name, *, template, version, config_file)` → Path (no
+      `python_binary` -- copier runs in-process, the same
+      `services.models.ModelManager` approach, so there's no separate copier
+      process left to select an interpreter for; see the class docstring)
+- [x] Run `copier copy` with template (via `copier.run_copy`, in-process,
+      like `ModelManager`, not `uvx --python ... copier copy ...`)
+- [x] Generate SSL certificates with openssl
+- [x] Setup Docker compose symlinks
+- [x] Initialize git repository (if not in CI)
+- [x] Return path to created repository
 
 **Deliverables**:
 - Full repository installation
 
 **Tests** (`tests/integration/test_repository_installer.py`):
-- [ ] Test copier executed with params
-- [ ] Test certificates generated
-- [ ] Test git initialized
-- [ ] Integration test: create real repository (slow)
+- [x] Test copier executed with params
+- [x] Test certificates generated
+- [x] Test git initialized
+- [x] Integration test: create real repository (slow)
 
 ---
 

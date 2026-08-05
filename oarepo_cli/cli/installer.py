@@ -3,17 +3,17 @@
 
 """Top-level `new` command: scaffolds a brand-new repository.
 
-This is the CLI-only skeleton for `repository_installer.sh`'s replacement:
-argument parsing, defaults, and the same upfront validation the shell
-script performs in its `parse_arguments()` (uv/uvx/python binaries must
-resolve on PATH, a repository name must be given) -- before any subprocess
-runs. Mirrors `core/context.py`'s ProjectContext resolution, which
-performs the identical "not found" check for its own Python binary.
+Argument parsing, defaults, and the same upfront validation
+`repository_installer.sh`'s `parse_arguments()` performs (uv/uvx/python
+binaries must resolve on PATH, a repository name must be given) -- before
+any subprocess runs. Mirrors `core/context.py`'s ProjectContext
+resolution, which performs the identical "not found" check for its own
+Python binary.
 
 The actual scaffolding (copier invocation, certificate generation, Docker
-compose symlinks, git init) is a separate, later step -- see
-`implementation-steps.md`'s Step 5.2 (`services/repository_installer.py`,
-`RepositoryInstaller`), not implemented yet.
+Compose cleanup, git init) is `services.repository_installer.RepositoryInstaller`
+-- see its class docstring for why `--python`/`--uv`/`--uvx` are validated
+here but not forwarded to it.
 """
 
 from __future__ import annotations
@@ -26,6 +26,7 @@ import typer
 
 from oarepo_cli.core.errors import ConfigurationError, OARepoError
 from oarepo_cli.services.process import get_system_path
+from oarepo_cli.services.repository_installer import RepositoryInstaller
 from oarepo_cli.ui import ConsoleOutput
 
 DEFAULT_PYTHON = "python3.14"
@@ -39,10 +40,10 @@ def _require_binary(binary: str, option: str) -> None:
     """Raise ConfigurationError if `binary` cannot be resolved on PATH.
 
     Mirrors repository_installer.sh's `command -v "${binary}"` checks for
-    uv/uvx/python: verified upfront since copier is invoked as `uvx
-    --python <python_binary> ... copier ...` (Step 5.2), where a
-    missing/misnamed binary would otherwise only surface as an opaque uvx
-    failure well into the installation.
+    uv/uvx/python. RepositoryInstaller no longer actually uses these
+    binaries itself (see its class docstring) -- validated here purely for
+    interface compatibility with the shell script, which required them
+    upfront before running anything.
     """
     if shutil.which(binary, path=get_system_path()) is None:
         raise ConfigurationError(
@@ -73,7 +74,7 @@ def new_repository(
     ] = DEFAULT_TEMPLATE_VERSION,
     uv: Annotated[str, typer.Option("--uv", help="uv binary to use")] = DEFAULT_UV,
     uvx: Annotated[str, typer.Option("--uvx", help="uvx binary to use")] = DEFAULT_UVX,
-    config: Annotated[  # noqa: ARG001 -- forwarded to RepositoryInstaller once Step 5.2 implements it
+    config: Annotated[
         Path | None,
         typer.Option(
             "--config",
@@ -87,10 +88,9 @@ def new_repository(
 ) -> None:
     """Create a new repository from a copier template.
 
-    See ``services.repository_installer.RepositoryInstaller`` (not yet
-    implemented -- see ``implementation-steps.md``'s Step 5.2) for the
-    actual scaffolding steps: running copier, generating SSL certificates,
-    setting up Docker compose symlinks, and initializing git.
+    See ``services.repository_installer.RepositoryInstaller.install`` for
+    the individual steps: running copier, generating SSL certificates,
+    cleaning up stale Docker state, and initializing git.
 
     Examples:
         $ oarepo-cli new my-repo
@@ -101,7 +101,7 @@ def new_repository(
     Exit codes:
         0: Success
         1: Invalid input (missing repository name, or uv/uvx/python binary
-           not found)
+           not found), or repository creation failed
     """
     console = ConsoleOutput()
     try:
@@ -110,12 +110,18 @@ def new_repository(
         _require_binary(uv, "--uv")
         _require_binary(uvx, "--uvx")
         _require_binary(python, "--python")
+
+        console.info(
+            f"Creating repository '{repository_name}' using template '{template}' "
+            f"with version '{version}'...\n",
+            fg=typer.colors.BRIGHT_BLUE,
+        )
+        RepositoryInstaller(console).install(
+            repository_name,
+            template=template,
+            version=version,
+            config_file=config,
+        )
     except OARepoError as e:
         console.error(f"\n✗ Repository creation failed: {e}\n", fg=typer.colors.RED)
         raise typer.Exit(1) from e
-
-    console.info(
-        f"Creating repository '{repository_name}' using template '{template}' "
-        f"with version '{version}'...\n",
-        fg=typer.colors.BRIGHT_BLUE,
-    )

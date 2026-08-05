@@ -497,20 +497,31 @@ oarepo-cli new my-repo
 ```
 
 **Options:**
-- `--python <binary>`: Python binary to use (default: `python3.14`)
+- `--python <binary>`: Python binary to use (default: `python3.14`) — validated for interface
+  compatibility with the shell script, but not otherwise used: copier runs in-process (see below)
 - `--template <url/path>`: Copier template — a GitHub URL or a local path (default: `https://github.com/oarepo/nrp-app-copier`)
 - `--version <ref>`: Template git ref, used when `--template` is a GitHub URL (default: `rdm-14`)
-- `--uv <binary>`: `uv` binary to use (default: `uv`)
-- `--uvx <binary>`: `uvx` binary to use (default: `uvx`)
+- `--uv <binary>`: `uv` binary to use (default: `uv`) — validated but not otherwise used, same as `--python`
+- `--uvx <binary>`: `uvx` binary to use (default: `uvx`) — validated but not otherwise used, same as `--python`
 - `--config <file>`: Additional copier data file, seeding answers non-interactively
 
-**Current status:** argument parsing and upfront validation only (`uv`/`uvx`/`python` must
-resolve on `PATH`, the repository name must be non-blank) — the actual scaffolding (running
-copier, generating SSL certificates, Docker compose symlinks, git init) is not implemented yet.
+**What it does:**
+1. Validates `uv`/`uvx`/`python` resolve on `PATH` and the repository name is non-blank
+2. Renders the template into `./<REPOSITORY_NAME>` via `copier.run_copy` — invoked in-process,
+   using this venv's own installed `copier` + `copier-template-extensions`, the same approach
+   [`repository model create`](#repository-model) uses, rather than shelling out to
+   `uvx --python <python_binary> --with copier-template-extensions --with pycountry copier copy ...`
+   for a fresh ephemeral environment on every call
+3. Generates a self-signed development TLS certificate/key pair (`docker/development.crt`/`.key`)
+4. Runs a best-effort `docker compose down` to clear out any stale containers from a previous
+   attempt at the same repository name
+5. Initializes a git repository with an initial commit (skipped in CI, or without git installed)
 
 **Exit codes:**
 - `0`: Success
-- `1`: Invalid input (missing repository name, or `uv`/`uvx`/`python` binary not found)
+- `1`: Invalid input (missing repository name, or `uv`/`uvx`/`python` binary not found), or
+  repository creation failed (e.g. a given `--config` file was removed after Typer's own
+  existence check but before copier ran)
 - `2`: Usage error (missing `REPOSITORY_NAME`, or `--config` file doesn't exist)
 
 ## Repository Tools
@@ -1125,7 +1136,7 @@ If you're migrating from the old bash scripts:
 | `./run.sh format` | `oarepo-cli library format` |
 | `./run.sh shell` | `oarepo-cli library shell` |
 | `./run.sh oarepo-versions` | `oarepo-cli library oarepo-versions` |
-| `./repository_installer.sh NAME` | `oarepo-cli new NAME` (argument validation only so far — see [Repository Installer](#repository-installer)) |
+| `./repository_installer.sh NAME` | `oarepo-cli new NAME` (see [Repository Installer](#repository-installer)) |
 
 **Breaking changes:**
 - `library lint` and `library format` **auto-fix by default** (use `--no-fix` for report-only)
