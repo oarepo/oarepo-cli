@@ -409,15 +409,15 @@ The recommended cleanup **improves** alignment with architectural decisions:
 
 ### High Priority (Do First)
 
-- [ ] Remove `tests/unit/test_venv_gitignore.py`
-- [ ] Remove `tests/unit/test_lint_service.py`
-- [ ] Remove `tests/integration/test_venv_workflow.py`
-- [ ] Remove `tests/integration/test_cleanup_workflow.py`
-- [ ] Reduce `tests/unit/test_venv_sync.py` to 2-3 tests
-- [ ] Reduce `tests/integration/test_library_install.py` to 2 tests
-- [ ] Reduce `tests/integration/test_library_check.py` to 2 tests
-- [ ] Reduce `tests/integration/test_library_services.py` to 7 tests
-- [ ] Remove 20 duplicate tests from `tests/integration/test_repository_misc.py`
+- [x] Remove `tests/unit/test_venv_gitignore.py` ✅ PR #160
+- [x] Remove `tests/unit/test_lint_service.py` ✅ PR #160
+- [x] Remove `tests/integration/test_venv_workflow.py` ✅ PR #160
+- [x] Remove `tests/integration/test_cleanup_workflow.py` ✅ PR #160
+- [x] Reduce `tests/unit/test_venv_sync.py` to 2-3 tests ✅ PR #160 (reduced to 3 tests)
+- [x] Reduce `tests/integration/test_library_install.py` to 2 tests ✅ PR #160
+- [x] Reduce `tests/integration/test_library_check.py` to 2 tests ✅ PR #160
+- [x] Reduce `tests/integration/test_library_services.py` to 7 tests ✅ PR #160
+- [x] Remove 20 duplicate tests from `tests/integration/test_repository_misc.py` ✅ PR #160
 
 ### Medium Priority (Do Second)
 
