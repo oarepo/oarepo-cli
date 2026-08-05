@@ -5,8 +5,10 @@
 
 from __future__ import annotations
 
+import atexit
 import contextlib
 import os
+import signal
 import time
 from pathlib import Path
 from typing import TYPE_CHECKING
@@ -23,6 +25,7 @@ class FileLock:
 
     Uses platform-appropriate locking mechanisms (fcntl on Unix, msvcrt on Windows).
     Supports context manager protocol for automatic release.
+    Registers signal handlers and atexit hooks to ensure cleanup on termination.
 
     Example:
         >>> lock = FileLock("/tmp/myapp.lock", timeout=10.0)
@@ -36,6 +39,10 @@ class FileLock:
         >>> with FileLock("/tmp/myapp.lock", timeout=10.0):
         ...     # Protected operations here
     """
+
+    # Class-level registry of all active locks for signal handler cleanup
+    _active_locks: set[FileLock] = set()
+    _signal_handlers_installed = False
 
     def __init__(
         self,
@@ -60,6 +67,41 @@ class FileLock:
         self._fd: int | None = None
         self._acquired = False
 
+        # Install signal handlers once for all locks
+        if not FileLock._signal_handlers_installed:
+            self._install_signal_handlers()
+            FileLock._signal_handlers_installed = True
+
+    @classmethod
+    def _install_signal_handlers(cls) -> None:
+        """
+        Install signal handlers to release locks on process termination.
+
+        Handles SIGTERM and SIGINT to ensure locks are cleaned up even
+        when the process is killed.
+        """
+
+        def cleanup_all_locks(signum: int, _frame: object) -> None:
+            """Release all active locks and exit."""
+            for lock in list(cls._active_locks):
+                lock.release()
+            # Re-raise the signal to allow normal termination
+            signal.signal(signum, signal.SIG_DFL)
+            os.kill(os.getpid(), signum)
+
+        # Register signal handlers
+        signal.signal(signal.SIGTERM, cleanup_all_locks)
+        signal.signal(signal.SIGINT, cleanup_all_locks)
+
+        # Also use atexit as a fallback for normal exits
+        atexit.register(cls._cleanup_all_locks_atexit)
+
+    @classmethod
+    def _cleanup_all_locks_atexit(cls) -> None:
+        """Clean up all active locks at exit (atexit handler)."""
+        for lock in list(cls._active_locks):
+            lock.release()
+
     def acquire(self) -> None:
         """
         Acquire the lock, blocking until available or timeout expires.
@@ -80,6 +122,8 @@ class FileLock:
                 # Try to acquire the lock
                 self._try_acquire()
                 self._acquired = True
+                # Register this lock for signal handler cleanup
+                FileLock._active_locks.add(self)
                 return
             except OSError:
                 # Lock is held by another process
@@ -165,6 +209,9 @@ class FileLock:
         if not self._acquired:
             return
 
+        # Unregister from active locks
+        FileLock._active_locks.discard(self)
+
         if self._fd is not None:
             try:
                 import platform
@@ -227,22 +274,59 @@ class FileLock:
             pid_str = self.lock_path.read_text().strip()
             if pid_str:
                 pid = int(pid_str)
-                # Try to send signal 0 (doesn't actually send a signal, just checks if process exists)
-                try:
-                    os.kill(pid, 0)
+                # Check if process exists using platform-appropriate method
+                if self._is_process_running(pid):
                     # Process exists, not stale
-                    return False
-                except ProcessLookupError:
-                    # Process doesn't exist, lock is stale
-                    return True
-                except PermissionError:
-                    # Process exists but we can't signal it, not stale
                     return False
         except (ValueError, OSError):
             # Can't read PID, assume stale if old enough
             pass
 
         return True
+
+    def _is_process_running(self, pid: int) -> bool:
+        """
+        Check if a process with the given PID is running.
+
+        Args:
+            pid: Process ID to check
+
+        Returns:
+            True if process is running, False otherwise
+        """
+        import platform
+
+        system = platform.system()
+
+        if system == "Windows":
+            # On Windows, use tasklist command to check if process exists
+            try:
+                import subprocess
+
+                result = subprocess.run(
+                    ["tasklist", "/FI", f"PID eq {pid}", "/NH"],
+                    capture_output=True,
+                    text=True,
+                    timeout=2.0,
+                    check=False,
+                )
+                # If the process exists, its PID will appear in the output
+                return str(pid) in result.stdout
+            except (subprocess.TimeoutExpired, FileNotFoundError):
+                # If we can't check, assume process exists (safer)
+                return True
+        else:
+            # On Unix, use os.kill with signal 0
+            try:
+                os.kill(pid, 0)
+                # Process exists
+                return True
+            except ProcessLookupError:
+                # Process doesn't exist
+                return False
+            except PermissionError:
+                # Process exists but we can't signal it
+                return True
 
     def _remove_stale_lock(self) -> None:
         """Remove a stale lock file."""

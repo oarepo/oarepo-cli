@@ -7,6 +7,8 @@ from __future__ import annotations
 
 import multiprocessing
 import os
+import signal
+import sys
 import time
 from typing import TYPE_CHECKING
 
@@ -304,3 +306,163 @@ def test_lock_custom_stale_threshold(tmp_path: Path) -> None:
     assert lock2._acquired
 
     lock2.release()
+
+
+def _signal_test_worker(
+    lock_path: str, result_queue: multiprocessing.Queue, _signal_type: int
+) -> None:
+    """Worker function that acquires a lock and waits for a signal."""
+    try:
+        lock = FileLock(lock_path)
+        lock.acquire()
+        result_queue.put(("acquired", os.getpid()))
+
+        # Wait for signal (sleep for a long time)
+        time.sleep(60)
+
+        # This should not be reached if signal is sent
+        result_queue.put(("completed", os.getpid()))
+    except Exception as e:
+        result_queue.put(("error", os.getpid(), str(e)))
+
+
+@pytest.mark.skipif(sys.platform == "win32", reason="Signal handling differs on Windows")
+def test_signal_handler_releases_lock_sigterm(tmp_path: Path) -> None:
+    """Test that SIGTERM causes lock to be released."""
+    lock_file = tmp_path / "test.lock"
+
+    # Create a queue for results
+    result_queue: multiprocessing.Queue = multiprocessing.Queue()
+
+    # Start a process that acquires the lock
+    proc = multiprocessing.Process(
+        target=_signal_test_worker,
+        args=(str(lock_file), result_queue, signal.SIGTERM),
+    )
+    proc.start()
+
+    # Wait for the process to acquire the lock
+    event_type, pid = result_queue.get(timeout=5.0)
+    assert event_type == "acquired"
+
+    # Verify lock file exists
+    assert lock_file.exists()
+
+    # Send SIGTERM to the process
+    proc.terminate()
+    proc.join(timeout=5.0)
+
+    # After the process terminates, we should be able to acquire the lock
+    # (the signal handler should have released it)
+    time.sleep(0.5)  # Give a moment for cleanup
+
+    lock2 = FileLock(lock_file, timeout=2.0)
+    lock2.acquire()
+    assert lock2._acquired
+
+    lock2.release()
+
+
+@pytest.mark.skipif(sys.platform == "win32", reason="Signal handling differs on Windows")
+def test_signal_handler_releases_lock_sigint(tmp_path: Path) -> None:
+    """Test that SIGINT causes lock to be released."""
+    lock_file = tmp_path / "test.lock"
+
+    # Create a queue for results
+    result_queue: multiprocessing.Queue = multiprocessing.Queue()
+
+    # Start a process that acquires the lock
+    proc = multiprocessing.Process(
+        target=_signal_test_worker,
+        args=(str(lock_file), result_queue, signal.SIGINT),
+    )
+    proc.start()
+
+    # Wait for the process to acquire the lock
+    event_type, pid = result_queue.get(timeout=5.0)
+    assert event_type == "acquired"
+
+    # Verify lock file exists
+    assert lock_file.exists()
+
+    # Send SIGINT to the process
+    assert proc.pid is not None
+    os.kill(proc.pid, signal.SIGINT)
+    proc.join(timeout=5.0)
+
+    # After the process terminates, we should be able to acquire the lock
+    time.sleep(0.5)  # Give a moment for cleanup
+
+    lock2 = FileLock(lock_file, timeout=2.0)
+    lock2.acquire()
+    assert lock2._acquired
+
+    lock2.release()
+
+
+def test_active_locks_registration(tmp_path: Path) -> None:
+    """Test that locks are registered and unregistered from active locks set."""
+    lock_file1 = tmp_path / "test1.lock"
+    lock_file2 = tmp_path / "test2.lock"
+
+    lock1 = FileLock(lock_file1)
+    lock2 = FileLock(lock_file2)
+
+    # Before acquiring, locks should not be in active set
+    initial_count = len(FileLock._active_locks)
+
+    lock1.acquire()
+    assert len(FileLock._active_locks) == initial_count + 1
+    assert lock1 in FileLock._active_locks
+
+    lock2.acquire()
+    assert len(FileLock._active_locks) == initial_count + 2
+    assert lock2 in FileLock._active_locks
+
+    lock1.release()
+    assert len(FileLock._active_locks) == initial_count + 1
+    assert lock1 not in FileLock._active_locks
+
+    lock2.release()
+    assert len(FileLock._active_locks) == initial_count
+    assert lock2 not in FileLock._active_locks
+
+
+def test_is_process_running_nonexistent(tmp_path: Path) -> None:
+    """Test _is_process_running with a non-existent PID."""
+    lock = FileLock(tmp_path / "test.lock")
+
+    # Use a very high PID that almost certainly doesn't exist
+    nonexistent_pid = 999999
+    assert not lock._is_process_running(nonexistent_pid)
+
+
+def test_is_process_running_current(tmp_path: Path) -> None:
+    """Test _is_process_running with the current process PID."""
+    lock = FileLock(tmp_path / "test.lock")
+
+    # Current process should be running
+    current_pid = os.getpid()
+    assert lock._is_process_running(current_pid)
+
+
+def test_multiple_locks_context_managers(tmp_path: Path) -> None:
+    """Test that multiple locks can be held using context managers."""
+    lock_file1 = tmp_path / "test1.lock"
+    lock_file2 = tmp_path / "test2.lock"
+
+    with FileLock(lock_file1) as lock1:
+        assert lock1._acquired
+        with FileLock(lock_file2) as lock2:
+            assert lock2._acquired
+            # Both locks should be active
+            assert lock1 in FileLock._active_locks
+            assert lock2 in FileLock._active_locks
+
+        # lock2 should be released
+        assert not lock2._acquired
+        assert lock2 not in FileLock._active_locks
+
+    # Both locks should be released
+    assert not lock1._acquired
+    assert lock1 not in FileLock._active_locks
