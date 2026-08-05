@@ -450,10 +450,10 @@ The recommended cleanup **improves** alignment with architectural decisions:
 
 ### Optional (Consider Later)
 
-- [ ] Merge `test_repository_installer.py` and `test_repository_installer_e2e.py`
-- [ ] Create `test_repository_shell.py` for shell/cli/invenio tests from misc.py
-- [ ] Create `test_repository_admin.py` for translations/index/reset/info from misc.py
-- [ ] Delete `test_repository_misc.py` entirely (after extracting unique tests)
+- [x] Merge `test_repository_installer.py` and `test_repository_installer_e2e.py` ✅ PR (this branch)
+- [x] Create `test_repository_shell.py` for shell/cli/invenio tests from misc.py ✅ PR (this branch)
+- [x] Create `test_repository_admin.py` for translations/index/reset/info from misc.py ✅ PR (this branch)
+- [x] Delete `test_repository_misc.py` entirely (after extracting unique tests) ✅ PR (this branch)
 
 ---
 
