@@ -111,14 +111,23 @@ class RepositoryInstaller:
         quiet_for_copier = self._console.is_quiet
         data: dict[str, Any] = _load_yaml_data(config_file) if config_file is not None else {}
         data["repository_name"] = name
-        copier.run_copy(
-            template,
-            target_dir,
-            data=data,
-            vcs_ref=version if is_github else None,
-            unsafe=True,
-            quiet=quiet_for_copier,
-        )
+        try:
+            copier.run_copy(
+                template,
+                target_dir,
+                data=data,
+                vcs_ref=version if is_github else None,
+                unsafe=True,
+                quiet=quiet_for_copier,
+            )
+        except Exception as e:
+            # copier's own exceptions are inconsistent -- some are
+            # copier.errors.CopierError subclasses, others (e.g. an invalid
+            # local template path) are bare ValueErrors -- so every failure
+            # from this call is normalized into our own exception hierarchy
+            # here, rather than leaving callers to guess which of copier's
+            # exception types to expect.
+            raise ConfigurationError(f"Failed to render template '{template}': {e}") from e
 
         self._generate_certificates(target_dir)
         self._clean_docker_state(target_dir)
