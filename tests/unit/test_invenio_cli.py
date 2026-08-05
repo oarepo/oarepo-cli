@@ -12,6 +12,7 @@ import pytest
 
 from oarepo_cli.core.context import ProjectContext
 from oarepo_cli.services import invenio_cli
+from oarepo_cli.services.process import ProcessOutputMode
 
 
 @pytest.fixture
@@ -84,7 +85,7 @@ def test_run_invenio_cli_passes_options_correctly(
     call_args = mock_run.call_args
     assert call_args is not None
     kwargs = call_args[1]
-    assert kwargs["interactive"] is False  # quiet=True -> interactive=False
+    assert kwargs["output_mode"] is ProcessOutputMode.CAPTURE  # quiet=True -> CAPTURE
     assert kwargs["check"] is False
     # Custom env is merged on top of the UV_PRERELEASE default, not replacing it
     assert kwargs["env"] == {"UV_PRERELEASE": "allow", "FOO": "bar"}
