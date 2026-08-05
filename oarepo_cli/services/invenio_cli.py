@@ -48,6 +48,7 @@ if TYPE_CHECKING:
     from oarepo_cli.core.context import ProjectContext
 
 from oarepo_cli.services import process
+from oarepo_cli.services.process import ProcessOutputMode
 
 
 def _default_prerelease_env() -> dict[str, str]:
@@ -123,7 +124,7 @@ def run_invenio_cli(
         _build_command(args),
         cwd=context.root_directory,
         check=check,
-        interactive=not quiet,
+        output_mode=ProcessOutputMode.INTERACTIVE if not quiet else ProcessOutputMode.CAPTURE,
         env=run_env,
     )
 

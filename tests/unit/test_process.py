@@ -139,13 +139,17 @@ def test_stream_allows_overriding_pythonunbuffered() -> None:
 
 
 def test_capture_output_false_returns_empty_strings() -> None:
-    result = process.run(["echo", "hidden"], capture_output=False, check=False)
+    result = process.run(
+        ["echo", "hidden"], output_mode=process.ProcessOutputMode.INTERACTIVE, check=False
+    )
     assert result.stdout == ""
     assert result.stderr == ""
 
 
 def test_forward_stdout_parameter_is_accepted() -> None:
-    result = process.run(["echo", "test"], forward_stdout=True, check=False)
+    result = process.run(
+        ["echo", "test"], output_mode=process.ProcessOutputMode.FORWARD, check=False
+    )
     assert result.return_code == 0
 
 

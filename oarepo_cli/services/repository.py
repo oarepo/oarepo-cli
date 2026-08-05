@@ -13,6 +13,7 @@ from typing import TYPE_CHECKING, NoReturn
 
 from oarepo_cli.core.platform import get_platform_detector
 from oarepo_cli.services import invenio_cli, process, translations
+from oarepo_cli.services.process import ProcessOutputMode
 from oarepo_cli.services.venv import VenvRequirements, VirtualEnvironmentManager
 from oarepo_cli.ui import ConsoleOutput
 
@@ -345,7 +346,11 @@ def upgrade_repository(
 
     if clean_cache:
         console.info("→ Cleaning uv cache...\n")
-        process.run(["uv", "cache", "clean", "--force"], check=True, interactive=not quiet)
+        process.run(
+            ["uv", "cache", "clean", "--force"],
+            check=True,
+            output_mode=ProcessOutputMode.INTERACTIVE if not quiet else ProcessOutputMode.CAPTURE,
+        )
 
     console.info("→ Reinstalling repository...\n")
     install_repository(context, quiet=quiet)
@@ -461,7 +466,7 @@ def _run_invenio(context: ProjectContext, args: Sequence[str], *, quiet: bool = 
         [str(get_invenio_binary(context)), *args],
         cwd=context.root_directory,
         check=True,
-        interactive=not quiet,
+        output_mode=ProcessOutputMode.INTERACTIVE if not quiet else ProcessOutputMode.CAPTURE,
     )
 
 
@@ -538,7 +543,11 @@ def reset_repository(context: ProjectContext, *, quiet: bool = False) -> None:
         invenio_private.unlink()
 
     console.info("→ Cleaning uv cache...\n")
-    process.run(["uv", "cache", "clean", "--force"], check=True, interactive=not quiet)
+    process.run(
+        ["uv", "cache", "clean", "--force"],
+        check=True,
+        output_mode=ProcessOutputMode.INTERACTIVE if not quiet else ProcessOutputMode.CAPTURE,
+    )
 
     console.info("→ Reinstalling repository...\n")
     install_repository(context, quiet=quiet)
@@ -634,14 +643,13 @@ def run_tests(
             ["uv", "pip", "install", "--python", str(venv_python), "pytest"],
             cwd=context.root_directory,
             check=True,
-            interactive=not quiet,
+            output_mode=ProcessOutputMode.INTERACTIVE if not quiet else ProcessOutputMode.CAPTURE,
         )
 
     if coverage:
         check_cov = process.run(
             [str(venv_python), "-c", "import pytest_cov"],
             check=False,
-            capture_output=True,
         )
         if not check_cov.success:
             console.info("→ Installing pytest-cov...\n")
@@ -649,7 +657,9 @@ def run_tests(
                 ["uv", "pip", "install", "--python", str(venv_python), "pytest-cov"],
                 cwd=context.root_directory,
                 check=True,
-                interactive=not quiet,
+                output_mode=ProcessOutputMode.INTERACTIVE
+                if not quiet
+                else ProcessOutputMode.CAPTURE,
             )
 
     cmd = [str(pytest_bin)]
@@ -673,7 +683,6 @@ def get_python_version(context: ProjectContext) -> str:
     result = process.run(
         [str(context.python_binary), "--version"],
         check=False,
-        capture_output=True,
     )
     return (result.stdout or result.stderr).strip()
 

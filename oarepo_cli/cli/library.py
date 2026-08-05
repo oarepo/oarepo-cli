@@ -24,6 +24,7 @@ from oarepo_cli.core.errors import OARepoError
 from oarepo_cli.core.platform import get_platform_detector
 from oarepo_cli.services import process
 from oarepo_cli.services.license_headers import add_license_headers
+from oarepo_cli.services.process import ProcessOutputMode
 from oarepo_cli.services.pyproject_reader import PyProjectReader
 from oarepo_cli.services.services_lifecycle import ServicesLifecycleManager
 from oarepo_cli.services.test_orchestrator import TestOrchestrator
@@ -401,7 +402,11 @@ def _library_upgrade_impl(
     console.info("🧹 Cleaning uv cache...", fg=typer.colors.CYAN)
 
     try:
-        process.run(["uv", "cache", "clean"], check=True, interactive=not quiet)
+        process.run(
+            ["uv", "cache", "clean"],
+            check=True,
+            output_mode=ProcessOutputMode.INTERACTIVE if not quiet else ProcessOutputMode.CAPTURE,
+        )
         console.info("  ✓ Cache cleaned", fg=typer.colors.GREEN)
     # Best-effort step: keep going even on a non-OARepoError failure.
     except Exception as e:

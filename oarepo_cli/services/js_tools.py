@@ -14,6 +14,7 @@ if TYPE_CHECKING:
 
 from oarepo_cli.configuration import resources
 from oarepo_cli.services import process
+from oarepo_cli.services.process import ProcessOutputMode
 
 
 def run_jslint(context: ProjectContext, *, quiet: bool = False) -> process.ProcessResult:
@@ -63,7 +64,7 @@ def run_jslint(context: ProjectContext, *, quiet: bool = False) -> process.Proce
             ["pnpm", "add", "-D", "@inveniosoftware/eslint-config-invenio@2"],
             cwd=root,
             check=False,
-            interactive=not quiet,
+            output_mode=ProcessOutputMode.INTERACTIVE if not quiet else ProcessOutputMode.CAPTURE,
         )
         if not result.success:
             return result
@@ -77,7 +78,7 @@ def run_jslint(context: ProjectContext, *, quiet: bool = False) -> process.Proce
             ["pnpm", "install"],
             cwd=root,
             check=False,
-            interactive=not quiet,
+            output_mode=ProcessOutputMode.INTERACTIVE if not quiet else ProcessOutputMode.CAPTURE,
         )
         if not result.success:
             return result
@@ -99,7 +100,7 @@ def run_jslint(context: ProjectContext, *, quiet: bool = False) -> process.Proce
         [str(eslint_bin), "--ext", ".js,.jsx", "--fix", *dir_names],
         cwd=root,
         check=False,
-        interactive=not quiet,
+        output_mode=ProcessOutputMode.INTERACTIVE if not quiet else ProcessOutputMode.CAPTURE,
     )
     if not result.success:
         return result
@@ -122,7 +123,7 @@ def run_jslint(context: ProjectContext, *, quiet: bool = False) -> process.Proce
         [str(prettier_bin), prettier_flag, *prettier_patterns],
         cwd=root,
         check=False,
-        interactive=not quiet,
+        output_mode=ProcessOutputMode.INTERACTIVE if not quiet else ProcessOutputMode.CAPTURE,
     )
 
 

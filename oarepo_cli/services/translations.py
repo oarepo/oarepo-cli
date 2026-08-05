@@ -13,6 +13,7 @@ if TYPE_CHECKING:
     from oarepo_cli.core.context import ProjectContext
 
 from oarepo_cli.services import process
+from oarepo_cli.services.process import ProcessOutputMode
 
 
 def _tool_path(name: str) -> str:
@@ -53,7 +54,7 @@ def run_translations(
         [make_translations, *extra_args],
         cwd=context.root_directory,
         check=False,
-        interactive=not quiet,
+        output_mode=ProcessOutputMode.INTERACTIVE if not quiet else ProcessOutputMode.CAPTURE,
     )
 
 
@@ -82,7 +83,6 @@ def copy_translations(
         ["uv", "run", "--no-sync", "python", "-c", "import site; print(site.getsitepackages()[0])"],
         cwd=context.root_directory,
         check=True,
-        interactive=False,
     )
     site_packages = Path(result.stdout.strip())
 

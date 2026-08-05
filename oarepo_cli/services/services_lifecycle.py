@@ -77,7 +77,7 @@ class ServicesLifecycleManager:
             cmd.append("--quiet")
 
         # Run and capture output
-        result = process.run(cmd, cwd=self._project_root, check=True, capture_output=True)
+        result = process.run(cmd, cwd=self._project_root, check=True)
 
         # Write output to .env-services file
         self._env_file.write_text(result.stdout)
@@ -133,7 +133,7 @@ class ServicesLifecycleManager:
         if self._quiet:
             cmd.append("--quiet")
 
-        process.run(cmd, cwd=self._project_root, check=True, capture_output=True)
+        process.run(cmd, cwd=self._project_root, check=True)
 
         # Remove .env-services file if it exists
         if self._env_file.exists():

@@ -179,7 +179,6 @@ def test_run_strips_venv_by_default(monkeypatch: pytest.MonkeyPatch) -> None:
     # Run a simple command that echoes an env var
     result = process.run(
         ["python3", "-c", "import os; print(os.environ.get('VIRTUAL_ENV', 'NOT_SET'))"],
-        capture_output=True,
         check=True,
     )
 
@@ -193,7 +192,6 @@ def test_run_can_preserve_venv(monkeypatch: pytest.MonkeyPatch) -> None:
 
     result = process.run(
         ["python3", "-c", "import os; print(os.environ.get('VIRTUAL_ENV', 'NOT_SET'))"],
-        capture_output=True,
         check=True,
         strip_venv=False,
         env={},  # Need to pass env dict to get environment

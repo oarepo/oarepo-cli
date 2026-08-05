@@ -12,6 +12,7 @@ if TYPE_CHECKING:
     from oarepo_cli.core.context import ProjectContext
 
 from oarepo_cli.services import process
+from oarepo_cli.services.process import ProcessOutputMode
 from oarepo_cli.services.services_lifecycle import ServicesLifecycleManager
 from oarepo_cli.services.venv import VenvRequirements, VirtualEnvironmentManager
 
@@ -134,7 +135,7 @@ class TestOrchestrator:
                 cwd=self._context.root_directory,
                 env=service_env_vars if service_env_vars else None,
                 check=False,
-                interactive=True,  # Real-time output for tests
+                output_mode=ProcessOutputMode.INTERACTIVE,
             )
 
             return result
@@ -184,7 +185,6 @@ class TestOrchestrator:
                 install_cmd,
                 cwd=self._context.root_directory,
                 check=True,
-                capture_output=True,
             )
 
         # Install pytest-cov if coverage is enabled and not already installed
@@ -195,7 +195,6 @@ class TestOrchestrator:
                 check_cov_cmd,
                 cwd=self._context.root_directory,
                 check=False,
-                capture_output=True,
             )
 
             if result.return_code != 0:
@@ -205,7 +204,6 @@ class TestOrchestrator:
                     install_cov_cmd,
                     cwd=self._context.root_directory,
                     check=True,
-                    capture_output=True,
                 )
 
     def _build_pytest_command(self, pytest_args: list[str], use_coverage: bool) -> list[str]:
