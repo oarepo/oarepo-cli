@@ -3,24 +3,28 @@
 
 """Unit tests for the top-level `new` command (`cli/installer.py`).
 
-Covers argument parsing/defaults and the upfront validation ported from
+Covers argument parsing/defaults, the upfront validation ported from
 `repository_installer.sh`'s `parse_arguments()` (uv/uvx/python binaries
-must resolve on PATH, repository name must be non-blank) -- the actual
-scaffolding (Step 5.2's `RepositoryInstaller`, not implemented yet) isn't
-exercised here.
+must resolve on PATH, repository name must be non-blank), and delegation
+to `RepositoryInstaller` -- mocked here the same way
+test_repository_model.py mocks `ModelManager` for `repository model
+create`, since the actual scaffolding is already covered against a real
+local template by tests/integration/test_repository_installer.py.
 """
 
 from __future__ import annotations
 
+from pathlib import Path
 from typing import TYPE_CHECKING
 
 import pytest
 from typer.testing import CliRunner
 
 from oarepo_cli.cli.main import app
+from oarepo_cli.core.errors import ConfigurationError
 
 if TYPE_CHECKING:
-    from pathlib import Path
+    from oarepo_cli.ui import ConsoleOutput
 
 runner = CliRunner()
 
@@ -34,20 +38,63 @@ def _all_binaries_present(monkeypatch: pytest.MonkeyPatch) -> None:
     )
 
 
-def test_new_uses_defaults() -> None:
-    """Only REPOSITORY_NAME given: python/template/version/uv/uvx all take their defaults."""
+def _fake_repository_installer(calls: list[dict[str, object]]) -> type:
+    class FakeRepositoryInstaller:
+        def __init__(self, console: ConsoleOutput) -> None:
+            calls.append({"console": console})
+
+        def install(
+            self,
+            name: str,
+            *,
+            template: str,
+            version: str,
+            config_file: Path | None = None,
+        ) -> Path:
+            calls.append(
+                {
+                    "method": "install",
+                    "name": name,
+                    "template": template,
+                    "version": version,
+                    "config_file": config_file,
+                }
+            )
+            return Path(name)
+
+    return FakeRepositoryInstaller
+
+
+def test_new_uses_defaults(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Only REPOSITORY_NAME given: python/template/version/uv/uvx all take their defaults,
+    and RepositoryInstaller.install() is called with them."""
+    calls: list[dict[str, object]] = []
+    monkeypatch.setattr(
+        "oarepo_cli.cli.installer.RepositoryInstaller", _fake_repository_installer(calls)
+    )
+
     result = runner.invoke(app, ["new", "my-repo"])
 
     assert result.exit_code == 0, result.output
     assert "my-repo" in result.output
-    assert "https://github.com/oarepo/nrp-app-copier" in result.output
-    assert "rdm-14" in result.output
+    assert calls[1] == {
+        "method": "install",
+        "name": "my-repo",
+        "template": "https://github.com/oarepo/nrp-app-copier",
+        "version": "rdm-14",
+        "config_file": None,
+    }
 
 
-def test_new_passes_all_options(tmp_path: Path) -> None:
-    """Every option overrides its default and is reflected in the confirmation message."""
+def test_new_passes_all_options(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """Every option overrides its default and is forwarded to RepositoryInstaller.install()."""
     config_file = tmp_path / "answers.yaml"
     config_file.write_text("repository_name: my-repo\n")
+
+    calls: list[dict[str, object]] = []
+    monkeypatch.setattr(
+        "oarepo_cli.cli.installer.RepositoryInstaller", _fake_repository_installer(calls)
+    )
 
     result = runner.invoke(
         app,
@@ -70,8 +117,42 @@ def test_new_passes_all_options(tmp_path: Path) -> None:
     )
 
     assert result.exit_code == 0, result.output
-    assert "../local-template" in result.output
-    assert "rdm-13" in result.output
+    assert calls[1] == {
+        "method": "install",
+        "name": "my-repo",
+        "template": "../local-template",
+        "version": "rdm-13",
+        "config_file": config_file,
+    }
+
+
+def test_new_reports_installer_error_and_exits_1(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A ConfigurationError raised by RepositoryInstaller is reported cleanly, exit code 1."""
+    config_file = tmp_path / "answers.yaml"
+    config_file.write_text("repository_name: my-repo\n")
+
+    class RaisingRepositoryInstaller:
+        def __init__(self, console: ConsoleOutput) -> None:  # noqa: ARG002
+            pass
+
+        def install(
+            self,
+            name: str,  # noqa: ARG002
+            *,
+            template: str,  # noqa: ARG002
+            version: str,  # noqa: ARG002
+            config_file: Path | None = None,
+        ) -> Path:
+            raise ConfigurationError(f"Missing repository config file: {config_file}")
+
+    monkeypatch.setattr("oarepo_cli.cli.installer.RepositoryInstaller", RaisingRepositoryInstaller)
+
+    result = runner.invoke(app, ["new", "my-repo", "--config", str(config_file)])
+
+    assert result.exit_code == 1
+    assert "Repository creation failed" in result.output
 
 
 def test_new_requires_repository_name() -> None:
