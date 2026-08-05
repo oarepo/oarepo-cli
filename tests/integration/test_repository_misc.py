@@ -270,7 +270,7 @@ def test_lint_delegates_to_lint_commands_run_lint(
     mock_context: Mock, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     """`repository lint` delegates to the shared lint_commands.run_lint(), passing
-    through --fix/--quiet -- the same function `library lint` calls (Step 4.18)."""
+    through --fix/--quiet -- the same function `library lint` calls."""
     calls: list[dict[str, object]] = []
     monkeypatch.setattr(
         "oarepo_cli.cli.repository.lint_commands.run_lint",
@@ -368,7 +368,7 @@ def test_jslint_delegates_to_js_commands_run_jslint_command(
     mock_context: Mock, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     """`repository jslint` delegates to the shared js_commands.run_jslint_command(), the
-    same function `library jslint` calls (Step 4.19)."""
+    same function `library jslint` calls."""
     calls: list[dict[str, object]] = []
     monkeypatch.setattr(
         "oarepo_cli.cli.repository.js_commands.run_jslint_command",
@@ -752,10 +752,10 @@ def test_index_rebuild_does_not_swallow_non_oareporerror_exceptions(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """A non-OARepoError raised by rebuild_index propagates instead of being turned
-    into a clean "exit 1" -- regression test locking in repository.py's existing,
-    narrow except OARepoError (simplified from except (OARepoError,
-    ProcessExecutionError) in Step 4.12, since ProcessExecutionError already
-    subclasses OARepoError)."""
+    into a clean "exit 1": repository.py's command handler only catches
+    `except OARepoError` (ProcessExecutionError already subclasses it, so a
+    separate except clause for it would be redundant), not a blanket
+    `except Exception`, so unexpected bugs surface as real tracebacks."""
     monkeypatch.setattr(
         "oarepo_cli.cli.repository.repository.rebuild_index",
         Mock(side_effect=ValueError("boom")),

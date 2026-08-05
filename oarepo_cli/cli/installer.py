@@ -40,9 +40,9 @@ def _require_binary(binary: str, option: str) -> None:
     """Raise ConfigurationError if `binary` cannot be resolved on PATH.
 
     Mirrors repository_installer.sh's `command -v "${binary}"` checks for
-    uv/uvx/python. RepositoryInstaller no longer actually uses these
-    binaries itself (see its class docstring) -- validated here purely for
-    interface compatibility with the shell script, which required them
+    uv/uvx/python. RepositoryInstaller doesn't actually use these binaries
+    itself (see its class docstring) -- validated here purely for
+    interface compatibility with the shell script, which requires them
     upfront before running anything.
     """
     if shutil.which(binary, path=get_system_path()) is None:

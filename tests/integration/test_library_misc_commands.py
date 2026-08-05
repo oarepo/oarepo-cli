@@ -218,8 +218,8 @@ def test_library_shell_applies_same_env_defaults_as_blocking_calls(
     runner: CliRunner, mock_library_context: Mock, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     """library shell's exec'd environment gets the same OAREPO_ENV_DEFAULTS/venv-stripping
-    treatment any process.run() call gets -- regression test: previously library_shell
-    built its env from bare os.environ, silently missing both."""
+    treatment any process.run() call gets, rather than being built from bare
+    os.environ, which would silently miss both."""
     monkeypatch.setenv("VIRTUAL_ENV", "/oarepo-cli/own/venv")
     monkeypatch.delenv("INVENIO_APP_THEME", raising=False)
     execve_calls = []
@@ -240,8 +240,8 @@ def test_library_invenio_applies_same_env_defaults_as_blocking_calls(
     runner: CliRunner, mock_library_context: Mock, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     """library invenio's exec'd environment gets the same OAREPO_ENV_DEFAULTS/venv-stripping
-    treatment any process.run() call gets -- regression test: previously library_invenio
-    built its env from bare os.environ, silently missing both."""
+    treatment any process.run() call gets, rather than being built from bare
+    os.environ, which would silently miss both."""
     invenio_path = mock_library_context.venv_path / "bin" / "invenio"
     invenio_path.parent.mkdir(parents=True)
     invenio_path.touch()

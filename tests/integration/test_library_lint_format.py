@@ -50,8 +50,7 @@ def test_lint_passes_on_clean_code(
     assert result.exit_code == 0
     assert (lint_project / ".ruff.toml").exists()
     assert (lint_project / "ty.toml").exists()
-    # ty replaced mypy/pyright entirely (Step 3.9.1) - no .mypy.ini should
-    # ever get generated anymore.
+    # Type checking uses ty alone, not mypy/pyright, so no .mypy.ini is ever generated.
     assert not (lint_project / ".mypy.ini").exists()
 
 
@@ -59,10 +58,11 @@ def test_lint_does_not_swallow_non_oareporerror_exceptions(
     runner: CliRunner, lint_project: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     """A non-OARepoError raised by LintRunner propagates instead of being turned into a
-    clean "exit 1" -- regression test for narrowing library.py's except clauses from
-    the previous blanket `except Exception` to `except OARepoError` (Step 4.12). The
-    shared lint/format/check command body now lives in cli/lint_commands.py (Step
-    4.18), reused by both `library lint` and `repository lint`."""
+    clean "exit 1": library.py's command handlers only catch `except OARepoError`, not
+    a blanket `except Exception`, so unexpected bugs surface as real tracebacks rather
+    than being silently reported as ordinary command failures. The shared lint/format/
+    check command body lives in cli/lint_commands.py, reused by both `library lint`
+    and `repository lint`."""
     monkeypatch.chdir(lint_project)
 
     def _raise_value_error(_self: object, **_kwargs: object) -> None:
@@ -198,10 +198,9 @@ def test_lint_fails_on_type_error(
 ) -> None:
     """Test that 'library lint' exits non-zero when ty finds a real type error.
 
-    Exercises the ty check step specifically (Step 3.9.1's mypy/pyright ->
-    ty migration): the return type doesn't match the annotation, which
-    ruff/license/future-annotations checks don't catch, only a type checker
-    does.
+    Exercises the ty check step specifically: the return type doesn't match
+    the annotation, which ruff/license/future-annotations checks don't
+    catch, only a type checker does.
     """
     monkeypatch.chdir(lint_project)
 

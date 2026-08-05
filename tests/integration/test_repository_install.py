@@ -7,8 +7,7 @@ Unlike the library integration tests, a full repository install pulls in
 invenio-app-rdm and friends, so it is slow (several minutes). The
 ``installed_repo`` fixture below runs it exactly once per test session and
 every test in this module asserts on a distinct side effect of that single
-run, matching the checklist in docs/architecture/implementation-steps.md's
-Step 4.1: venv synced, translations copied, instance path created,
+run: venv synced, translations copied, instance path created,
 ``.invenio.private`` configured, and the run succeeding end-to-end.
 
 See tests/conftest.py:testrepo_project for how the fixture repository

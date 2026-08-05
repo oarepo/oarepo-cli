@@ -7,8 +7,8 @@ A full real jstest run needs an installed venv plus node/npm/webpack --
 too heavy for this suite, and not exercised for `library jstest` either
 (see test_library_misc_commands.py, which only covers --help there). The
 underlying services.js_tools.run_jslint()/run_jstest() and the shared
-cli/js_commands.py wiring are reused verbatim from `library` (Step 4.19),
-not duplicated, so this mirrors that file's own coverage level.
+cli/js_commands.py wiring are reused verbatim from `library`, not
+duplicated, so this mirrors that file's own coverage level.
 """
 
 from __future__ import annotations

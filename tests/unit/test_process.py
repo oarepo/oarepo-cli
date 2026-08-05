@@ -125,7 +125,7 @@ def test_capture_output_false_returns_empty_strings() -> None:
     assert result.stderr == ""
 
 
-def test_forward_stdout_parameter_is_accepted() -> None:
+def test_forward_output_mode_is_accepted() -> None:
     result = process.run(
         ["echo", "test"], output_mode=process.ProcessOutputMode.FORWARD, check=False
     )

@@ -28,7 +28,8 @@ class VersionInfo:
     Attributes:
         oarepo_versions: List of OARepo major versions required (e.g., [13, 14])
         python_versions: List of compatible Python versions sorted descending (e.g., ["3.14", "3.13", "3.12"])
-        node_versions: List of Node.js major versions required (currently empty placeholder)
+        node_versions: List of Node.js major versions required (always empty --
+            Node.js version detection isn't implemented)
     """
 
     oarepo_versions: list[int]
@@ -94,7 +95,7 @@ class VersionResolver:
         return VersionInfo(
             oarepo_versions=data.oarepo_versions,
             python_versions=available_versions,
-            node_versions=[],  # Node.js version detection not yet implemented
+            node_versions=[],  # Node.js version detection isn't implemented
         )
 
     def find_available_python(self, versions: list[str]) -> str:

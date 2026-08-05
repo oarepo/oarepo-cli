@@ -175,8 +175,8 @@ def test_run_no_celery_applies_same_env_defaults_as_blocking_calls(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """--no-celery's exec'd environment gets the same OAREPO_ENV_DEFAULTS/venv-stripping
-    treatment any process.run() call gets -- regression test: previously
-    _exec_bare_invenio built its env from bare os.environ, silently missing both."""
+    treatment any process.run() call gets, rather than being built from bare
+    os.environ, which would silently miss both."""
     monkeypatch.setenv("VIRTUAL_ENV", "/oarepo-cli/own/venv")
     monkeypatch.delenv("INVENIO_APP_THEME", raising=False)
     context = make_context(repo_root)

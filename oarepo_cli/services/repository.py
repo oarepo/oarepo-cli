@@ -116,9 +116,9 @@ def configure_local_ports(context: ProjectContext, *, quiet: bool = False) -> No
 def get_instance_path(context: ProjectContext) -> Path:
     """Get the Invenio instance path without booting the Flask app.
 
-    Historically this ran ``invenio shell -c "print(app.instance_path)"`` to
-    ask Invenio directly, but spinning up the full application just to read
-    one path is slow. Invenio's own default instance path is
+    Asking Invenio directly (``invenio shell -c "print(app.instance_path)"``)
+    would mean spinning up the full application just to read one path, which
+    is slow. Invenio's own default instance path is
     ``sys.prefix/var/instance``, which for a project's venv is
     ``<venv>/var/instance``; ``INVENIO_INSTANCE_PATH``, when set, overrides
     it. Replicating that resolution here avoids the subprocess entirely. See
@@ -612,10 +612,10 @@ def run_tests(
     Also doesn't assume a single importable package name for ``--cov``
     like ``TestOrchestrator`` does (derived from ``[project].name``, correct
     for a library's one src/-or-package-dir layout): a repository's
-    ``code_directories`` are typically several top-level module directories
-    (see Step 4.15's ``[tool.uv.build-backend]`` support), each already a
-    real importable package name, so every one of them (except ``tests/``)
-    is passed to ``--cov`` instead.
+    ``context.code_directories`` (resolved from ``[tool.uv.build-backend]``
+    when declared) are typically several top-level module directories, each
+    already a real importable package name, so every one of them (except
+    ``tests/``) is passed to ``--cov`` instead.
 
     Unlike a library (which either declares a ``tests`` extra itself or
     already depends on it transitively), a fresh repository has no such

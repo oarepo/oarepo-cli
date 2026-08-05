@@ -74,10 +74,9 @@ def _invenio_cli_path() -> str:
     purely orchestrates the target project via subprocesses/docker -- it
     doesn't need to run under the target project's own interpreter -- so
     it's resolved next to the running interpreter rather than fetched on
-    demand via ``uvx`` from a hardcoded git ref (``repository_runner.sh``'s
-    ``run_invenio_cli``, marked there as "temporary implementation until
-    release" -- that release has since happened). Mirrors
-    ``services.lint._tool_path``'s identical rationale for ruff/ty.
+    demand via ``uvx`` from a git ref, unlike ``repository_runner.sh``'s
+    ``run_invenio_cli``. Mirrors ``services.lint._tool_path``'s identical
+    rationale for ruff/ty.
 
     Returns:
         Absolute path to the binary if found next to the current

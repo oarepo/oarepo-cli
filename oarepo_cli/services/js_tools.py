@@ -153,9 +153,9 @@ def run_jstest(
     docker-services-cli via ``ServicesLifecycleManager``; ``repository``:
     ``invenio-cli services start``, matching ``repository run``/``shell``/
     ``test`` -- see those for why raw docker-services-cli doesn't apply to
-    a repository), this function itself no longer starts anything: the
-    caller starts services beforehand and passes in whatever connection env
-    vars (if any) the subprocess needs.
+    a repository), this function itself doesn't start anything: the caller
+    starts services beforehand and passes in whatever connection env vars
+    (if any) the subprocess needs.
 
     Args:
         context: Project context with paths and configuration
@@ -178,12 +178,13 @@ def run_jstest(
     extra_args = extra_args or []
 
     if setup:
-        # For now, delegate setup to the bash script's logic or implement it later
-        # This is a complex operation involving webpack entry discovery and Jest config generation
+        # Setting up Jest config involves webpack entry-point discovery and
+        # config generation -- not ported from library_runner.sh yet, so
+        # this delegates to it instead of duplicating that logic here.
         return process.ProcessResult(
             return_code=1,
             stdout="",
-            stderr="jstest setup not yet implemented - use library_runner.sh for now",
+            stderr="jstest setup not implemented - use library_runner.sh for this",
             command=[],
             cwd=context.root_directory,
             duration_ms=0,

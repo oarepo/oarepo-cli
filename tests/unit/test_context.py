@@ -5,13 +5,14 @@
 
 from __future__ import annotations
 
+import shutil
 from pathlib import Path
 
 import pytest
 
 from oarepo_cli.core.config import CliConfig, VenvConfig
 from oarepo_cli.core.context import ContextBuilder, discover_context, find_pyproject_toml
-from oarepo_cli.core.errors import ConfigurationError
+from oarepo_cli.core.errors import ConfigurationError, VersionMismatchError
 
 
 def test_context_discovery_from_valid_project(tmp_path: Path) -> None:
@@ -308,8 +309,6 @@ venv = { path = "/custom/venv" }
     )
 
     # Use an existing Python binary
-    import shutil
-
     existing_python = Path(shutil.which("python3") or "python")
 
     custom_config = CliConfig(venv=VenvConfig(path=Path("/config/venv")))
@@ -330,9 +329,10 @@ venv = { path = "/custom/venv" }
     assert context.oarepo_version == 13
 
 
-def test_validation_fails_for_incompatible_versions() -> None:
-    """Test validation fails when versions are incompatible (placeholder test)."""
-    (tmp_path := Path("/tmp")).mkdir(exist_ok=True)
+def test_validation_fails_for_incompatible_versions(tmp_path: Path) -> None:
+    """ContextBuilder.validate() raises VersionMismatchError when the resolved
+    Python binary's version isn't in OAREPO_PYTHON_COMPATIBILITY for the
+    project's OARepo version (only "3.14" is compatible with OARepo 14)."""
     (tmp_path / "pyproject.toml").write_text(
         """
 [project]
@@ -341,17 +341,18 @@ requires-python = ">=3.12,<3.15"
 dependencies = ["oarepo>=14.0.0,<15.0.0"]
 """
     )
+    incompatible_python = Path(shutil.which("python3") or "/usr/bin/python3")
 
-    # Currently validate_compatibility is a placeholder, so this should pass
-    context = ContextBuilder().from_directory(tmp_path).validate()
-    assert context.oarepo_version == 14
+    with pytest.raises(VersionMismatchError):
+        ContextBuilder().from_directory(tmp_path).with_python_override(
+            incompatible_python
+        ).validate()
 
 
-def test_context_is_immutable() -> None:
+def test_context_is_immutable(tmp_path: Path) -> None:
     """Test that ProjectContext is frozen (immutable)."""
     from dataclasses import FrozenInstanceError
 
-    (tmp_path := Path("/tmp")).mkdir(exist_ok=True)
     (tmp_path / "pyproject.toml").write_text(
         """
 [project]
@@ -474,13 +475,13 @@ def test_python_autodetect_ignores_active_venv(
 ) -> None:
     """Auto-detecting the Python binary must exclude the currently active venv.
 
-    Regression test: running oarepo-cli from inside a project with its own
-    venv activated (VIRTUAL_ENV/PATH pointing at that project's own .venv)
-    previously resolved python_binary to that venv's own interpreter. That's
-    harmless for a plain `install` on an existing venv (uv sync just reuses
-    it), but `repository upgrade` removes the venv *before* reinstalling --
-    so recreating it with a python_binary that lived inside the very venv
-    just deleted fails with "No interpreter found at path ...".
+    Running oarepo-cli from inside a project with its own venv activated
+    (VIRTUAL_ENV/PATH pointing at that project's own .venv) must not resolve
+    python_binary to that venv's own interpreter. That would be harmless for
+    a plain `install` on an existing venv (uv sync just reuses it), but
+    `repository upgrade` removes the venv *before* reinstalling -- so
+    recreating it with a python_binary that lived inside the very venv just
+    deleted would fail with "No interpreter found at path ...".
     """
     (tmp_path / "pyproject.toml").write_text(
         """

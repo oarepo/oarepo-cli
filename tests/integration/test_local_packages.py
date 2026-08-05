@@ -9,7 +9,7 @@ there's no slow external tool (uv, copier, invenio-cli) to run for real
 here, so these tests exercise the real tomlkit read/modify/write path
 against real tmp_path files and mock out upgrade_repository (a venv-wipe +
 reinstall cycle -- with the uv cache clean step skipped here via
-clean_cache=False, see Step 4.6.1 -- already covered end to end by
+clean_cache=False, already covered end to end by
 test_repository_upgrade.py), per AGENTS.md's guidance to fake slow external
 tools rather than re-run them at this layer.
 """
