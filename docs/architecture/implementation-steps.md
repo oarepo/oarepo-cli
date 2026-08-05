@@ -1988,15 +1988,22 @@ reused; `services.repository.run_tests()` was added instead, and
 ### Step 5.3: Integration Tests for Installer
 **Goal**: End-to-end installer tests.
 
-- [ ] Test full installation flow
-- [ ] Test template variations (GitHub vs local)
-- [ ] Test error handling (invalid template, missing python)
+- [x] Test full installation flow
+- [x] Test template variations (GitHub vs local)
+- [x] Test error handling (invalid template, missing python) -- also fixed a
+      bug found while writing this: `copier.run_copy` raises inconsistent
+      exception types (some `copier.errors.CopierError` subclasses, others
+      bare `ValueError`s), which weren't caught by `cli.installer`'s
+      `except OARepoError`, producing an uncaught traceback for e.g. an
+      invalid `--template` instead of the usual clean error message.
+      `RepositoryInstaller.install()` now normalizes any exception from
+      `copier.run_copy` into `ConfigurationError`.
 
 **Tests** (`tests/integration/test_repository_installer_e2e.py`):
-- [ ] Test successful installation
-- [ ] Test certificate files exist
-- [ ] Test docker compose file present
-- [ ] Test git repo initialized
+- [x] Test successful installation
+- [x] Test certificate files exist
+- [x] Test docker compose file present
+- [x] Test git repo initialized
 
 ---
 
