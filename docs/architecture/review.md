@@ -50,22 +50,7 @@ All previous high-priority issues have been addressed. See git history for detai
 
 ## 3. Medium Priority Issues
 
-### 3.2 Potential Race Condition in Lock Cleanup
-
-**Location:** `utils/locks.py`
-**Severity:** Medium (Correctness)
-
-**Issue:**
-File-based locking implementation hasn't been deeply reviewed. Common pitfalls include stale locks from killed processes and missing signal handlers.
-
-**Recommendation:**
-Verify that:
-1. Lock files include PID and are validated on acquisition
-2. Stale locks (from dead processes) are automatically cleaned up
-3. Signal handlers ensure locks are released on SIGTERM/SIGINT
-4. Lock acquisition timeout is reasonable and documented
-
-**Priority:** Medium - Worth reviewing before production use at scale.
+### All Resolved ✅
 
 
 ---
@@ -159,7 +144,7 @@ _All high-priority issues have been resolved!_ 🎉
 1. **Reduce CLI code duplication** with command execution wrapper (issue 3.1) - 4-6 hours
 
 ### Medium Term (Next Quarter)
-2. **Validate lock file implementation** for race conditions (issue 3.2) - 2-3 hours
+2. ~~**Validate lock file implementation** for race conditions (issue 3.2)~~ ✅ **RESOLVED** (PR #152)
 4. **Consider renaming forward_stdout** for clarity (issue 3.4) - 1-2 hours
 
 ### Long Term (Backlog)
@@ -176,7 +161,7 @@ _All high-priority issues have been resolved!_ 🎉
 - Clear test names that document expected behavior
 
 ### Potential Gaps
-- Lock file race conditions not explicitly tested
+- ~~Lock file race conditions not explicitly tested~~ ✅ **RESOLVED** (PR #152 - added signal handlers and comprehensive tests)
 - Process timeout behavior not covered
 - .env-services file validation edge cases
 
@@ -251,6 +236,13 @@ The remaining issues are all medium/low priority maintainability improvements th
 ## Appendix: Change Log
 
 See git history for detailed change tracking. Key milestones:
+
+### 2026-08-05
+- ✅ Lock file race conditions addressed (PR #152)
+  - Added SIGTERM/SIGINT signal handlers
+  - Added atexit handler for cleanup
+  - Cross-platform process checking (Unix/Windows)
+  - 6 new comprehensive tests added
 
 ### 2026-08-04
 - ✅ All high-priority issues resolved
