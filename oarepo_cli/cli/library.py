@@ -12,6 +12,7 @@ from typing import TYPE_CHECKING, Annotated
 
 if TYPE_CHECKING:
     from oarepo_cli.core.context import ProjectContext
+    from oarepo_cli.ui import ConsoleOutput
 
 import typer
 
@@ -152,6 +153,42 @@ def _stop_services_impl(
     services_mgr.stop_services()
 
 
+@with_context_and_console(
+    success_message="Virtual environment ready!",
+    error_prefix="Error setting up virtual environment",
+)
+def _library_venv_impl(
+    context: ProjectContext,
+    console: ConsoleOutput,
+    *,
+    force: bool = False,
+    no_editable: bool = False,
+    quiet: bool = False,
+) -> None:
+    """Implementation for library venv command.
+
+    Args:
+        context: Project context (injected by decorator)
+        console: Console output handler (injected by decorator)
+        force: Recreate venv from scratch
+        no_editable: Build wheel instead of editable install
+        quiet: Suppress command output
+    """
+    # Build requirements from context
+    requirements = VenvRequirements(
+        python_binary=str(context.python_binary),
+        oarepo_version=context.oarepo_version,
+        extras=[],  # Will be determined from pyproject.toml by VirtualEnvironmentManager
+        editable=not no_editable,
+    )
+
+    # Create/verify venv
+    venv_mgr = VirtualEnvironmentManager(config=context.config, project_root=context.root_directory)
+    venv_path = venv_mgr.ensure_venv(requirements, force=force, quiet=quiet)
+
+    console.info(f"  Path: {venv_path}", fg=typer.colors.GREEN)
+
+
 @library_app.command("venv")
 def library_venv(
     force: Annotated[
@@ -175,26 +212,7 @@ def library_venv(
     the OAREPO_VENV_PATH environment variable or [tool.oarepo-cli.venv.path]
     in pyproject.toml.
     """
-    # Discover project context
-    context = discover_context()
-
-    # Create console output handler
-    console = ConsoleOutput(quiet=quiet)
-
-    # Build requirements from context
-    requirements = VenvRequirements(
-        python_binary=str(context.python_binary),
-        oarepo_version=context.oarepo_version,
-        extras=[],  # Will be determined from pyproject.toml by VirtualEnvironmentManager
-        editable=not no_editable,
-    )
-
-    # Create/verify venv
-    venv_mgr = VirtualEnvironmentManager(config=context.config, project_root=context.root_directory)
-    venv_path = venv_mgr.ensure_venv(requirements, force=force, quiet=quiet)
-
-    console.success("✨ ✓ Virtual environment ready!", fg=typer.colors.BRIGHT_GREEN, bold=True)
-    console.info(f"  Path: {venv_path}", fg=typer.colors.GREEN)
+    _library_venv_impl(force=force, no_editable=no_editable, quiet=quiet)
 
 
 @library_app.command("install")
@@ -224,31 +242,24 @@ def library_install(
     library_venv(force=force, no_editable=no_editable, quiet=quiet)
 
 
-@library_app.command("clean")
-def library_clean(
-    quiet: Annotated[bool, typer.Option("--quiet", "-q", help="Suppress command output")] = False,
+@with_context_and_console(
+    start_message="Cleaning environment...",
+    error_prefix="Error cleaning environment",
+    console_quiet_from_args=True,
+)
+def _library_clean_impl(
+    context: ProjectContext,
+    console: ConsoleOutput,
+    *,
+    quiet: bool = False,
 ) -> None:
-    """Clean up development environment.
+    """Implementation for library clean command.
 
-    This command:
-    1. Stops running services (if any)
-    2. Removes the virtual environment directory and uv.lock file
-    3. Removes the .env-services file
-
-    Use this when you want to completely remove your development environment,
-    for example before deleting the project or when you want a fresh start.
-
-    This command is idempotent - it will not fail if the environment is
-    already clean.
+    Args:
+        context: Project context (injected by decorator)
+        console: Console output handler (injected by decorator)
+        quiet: Suppress command output
     """
-    # Discover project context
-    context = discover_context()
-
-    # Create console output handler
-    console = ConsoleOutput(quiet=quiet)
-
-    console.info("🧹 Cleaning environment...", fg=typer.colors.BRIGHT_BLUE, bold=True)
-
     items_removed = []
 
     # Stop services if running
@@ -256,7 +267,7 @@ def library_clean(
         config=context.config, project_root=context.root_directory, quiet=quiet
     )
     if services_mgr.are_services_running():
-        console.info("🛑 Stopping services...", fg=typer.colors.CYAN)
+        console.info("🛁 Stopping services...", fg=typer.colors.CYAN)
         try:
             services_mgr.stop_services()
             console.info("  ✓ Services stopped", fg=typer.colors.GREEN)
@@ -333,35 +344,49 @@ def library_clean(
         )
 
 
-@library_app.command("upgrade")
-def library_upgrade(
+@library_app.command("clean")
+def library_clean(
     quiet: Annotated[bool, typer.Option("--quiet", "-q", help="Suppress command output")] = False,
 ) -> None:
-    """Clean cache and recreate virtual environment from scratch.
+    """Clean up development environment.
 
     This command:
     1. Stops running services (if any)
-    2. Removes the existing virtual environment (if present)
-    3. Cleans the uv cache to ensure fresh package downloads
-    4. Recreates the virtual environment with all dependencies
+    2. Removes the virtual environment directory and uv.lock file
+    3. Removes the .env-services file
 
-    Use this when you need to completely refresh your development environment,
-    for example after updating OARepo or when dependencies become corrupted.
+    Use this when you want to completely remove your development environment,
+    for example before deleting the project or when you want a fresh start.
+
+    This command is idempotent - it will not fail if the environment is
+    already clean.
     """
-    # Discover project context
-    context = discover_context()
+    _library_clean_impl(quiet=quiet)
 
-    # Create console output handler
-    console = ConsoleOutput(quiet=quiet)
 
-    console.info("🔄 Upgrading environment...", fg=typer.colors.BRIGHT_BLUE, bold=True)
+@with_context_and_console(
+    success_message="Upgrade complete!",
+    error_prefix="Error during upgrade",
+)
+def _library_upgrade_impl(
+    context: ProjectContext,
+    console: ConsoleOutput,
+    *,
+    quiet: bool = False,
+) -> None:
+    """Implementation for library upgrade command.
 
+    Args:
+        context: Project context (injected by decorator)
+        console: Console output handler (injected by decorator)
+        quiet: Suppress command output
+    """
     # Stop services if running
     services_mgr = ServicesLifecycleManager(
         config=context.config, project_root=context.root_directory, quiet=quiet
     )
     if services_mgr.are_services_running():
-        console.info("🛑 Stopping services...", fg=typer.colors.CYAN)
+        console.info("🛁 Stopping services...", fg=typer.colors.CYAN)
         try:
             services_mgr.stop_services()
             console.info("  ✓ Services stopped", fg=typer.colors.GREEN)
@@ -397,8 +422,25 @@ def library_upgrade(
     venv_mgr = VirtualEnvironmentManager(config=context.config, project_root=context.root_directory)
     venv_path = venv_mgr.ensure_venv(requirements, force=True, quiet=quiet)
 
-    console.success("✨ ✓ Upgrade completed successfully!", fg=typer.colors.BRIGHT_GREEN, bold=True)
     console.info(f"  Virtual environment ready at {venv_path}", fg=typer.colors.GREEN)
+
+
+@library_app.command("upgrade")
+def library_upgrade(
+    quiet: Annotated[bool, typer.Option("--quiet", "-q", help="Suppress command output")] = False,
+) -> None:
+    """Clean cache and recreate virtual environment from scratch.
+
+    This command:
+    1. Stops running services (if any)
+    2. Removes the existing virtual environment (if present)
+    3. Cleans the uv cache to ensure fresh package downloads
+    4. Recreates the virtual environment with all dependencies
+
+    Use this when you need to completely refresh your development environment,
+    for example after updating OARepo or when dependencies become corrupted.
+    """
+    _library_upgrade_impl(quiet=quiet)
 
 
 @library_app.command("start")
@@ -461,11 +503,60 @@ def services_stop(
     _stop_services_impl(quiet=quiet)
 
 
+@with_context_and_console(
+    success_message=None,  # Custom success/error handling in impl
+    error_prefix="Error running tests",
+)
+def _library_test_impl(
+    context: ProjectContext,
+    console: ConsoleOutput,
+    *,
+    pytest_args: list[str],
+    skip_services: bool = False,
+    with_coverage: bool = False,
+    quiet: bool = False,
+) -> None:
+    """Implementation for library test command.
+
+    Args:
+        context: Project context (injected by decorator)
+        console: Console output handler (injected by decorator)
+        pytest_args: Additional arguments to pass to pytest
+        skip_services: Skip starting/stopping Docker services
+        with_coverage: Enable coverage reporting
+        quiet: Suppress service start/stop messages
+    """
+    # Create orchestrator and run tests
+    orchestrator = TestOrchestrator(context=context, quiet=quiet)
+
+    result = orchestrator.run_tests(
+        pytest_args=pytest_args,
+        coverage=with_coverage,
+        skip_services=skip_services,
+    )
+
+    # Display result
+    if result.success:
+        console.success(
+            "✨ ✓ All tests passed!",
+            fg=typer.colors.BRIGHT_GREEN,
+            bold=True,
+        )
+    else:
+        console.error(
+            "❌ Tests failed!",
+            fg=typer.colors.BRIGHT_RED,
+            bold=True,
+        )
+
+    # Exit with pytest's exit code
+    raise typer.Exit(code=result.return_code)
+
+
 @library_app.command(
     "test",
     context_settings={
         "allow_extra_args": True,
-        "allow_interspersed_args": True,
         "ignore_unknown_options": True,
     },
 )
@@ -513,51 +604,12 @@ def library_test(
     # Get extra args from context
     pytest_args = ctx.args if ctx.args else []
 
-    # Discover project context
-    context = discover_context()
-
-    # Create console output handler
-    console = ConsoleOutput(quiet=quiet)
-
-    console.info("🧪 Running tests...", fg=typer.colors.BRIGHT_BLUE, bold=True)
-
-    # Create orchestrator and run tests
-    orchestrator = TestOrchestrator(context=context, quiet=quiet)
-
-    try:
-        result = orchestrator.run_tests(
-            pytest_args=pytest_args,
-            coverage=with_coverage,
-            skip_services=skip_services,
-        )
-
-        # Display result
-        if result.success:
-            console.success(
-                "✨ ✓ All tests passed!",
-                fg=typer.colors.BRIGHT_GREEN,
-                bold=True,
-            )
-        else:
-            console.error(
-                "❌ Tests failed!",
-                fg=typer.colors.BRIGHT_RED,
-                bold=True,
-            )
-
-        # Exit with pytest's exit code
-        raise typer.Exit(code=result.return_code)
-
-    except OARepoError as e:
-        # Catch any orchestration errors (not pytest failures, which are reported
-        # above via result.return_code) -- typer.Exit itself is never caught here
-        # since it isn't an OARepoError, so it always propagates untouched.
-        console.error(
-            f"❌ Error running tests: {e}",
-            fg=typer.colors.BRIGHT_RED,
-            bold=True,
-        )
-        raise typer.Exit(code=1) from e
+    _library_test_impl(
+        pytest_args=pytest_args,
+        skip_services=skip_services,
+        with_coverage=with_coverage,
+        quiet=quiet,
+    )
 
 
 @library_app.command("shell")
@@ -893,11 +945,39 @@ def library_check(
     lint_commands.run_check(context, quiet=quiet)
 
 
+@with_context_and_console(
+    success_message=None,  # Custom success/error handling in impl
+    error_prefix="Error running translations",
+)
+def _library_translations_impl(
+    context: ProjectContext,
+    console: ConsoleOutput,
+    *,
+    extra_args: list[str],
+    quiet: bool = False,
+) -> None:
+    """Implementation for library translations command.
+
+    Args:
+        context: Project context (injected by decorator)
+        console: Console output handler (injected by decorator)
+        extra_args: Additional arguments to pass to make-translations
+        quiet: Suppress command output
+    """
+    result = run_translations(context, extra_args=extra_args, quiet=quiet)
+
+    if result.success:
+        console.success("✨ ✓ Translations complete!", fg=typer.colors.BRIGHT_GREEN, bold=True)
+    else:
+        console.error("❌ Translations failed!", fg=typer.colors.BRIGHT_RED, bold=True)
+
+    raise typer.Exit(code=result.return_code)
+
+
 @library_app.command(
     "translations",
     context_settings={
         "allow_extra_args": True,
-        "allow_interspersed_args": True,
         "ignore_unknown_options": True,
     },
 )
@@ -919,21 +999,34 @@ def library_translations(
     """
     extra_args = ctx.args if ctx.args else []
 
-    context = discover_context()
-    console = ConsoleOutput(quiet=quiet)
+    _library_translations_impl(extra_args=extra_args, quiet=quiet)
 
-    console.info("🌍 Running translations...", fg=typer.colors.BRIGHT_BLUE, bold=True)
 
-    try:
-        result = run_translations(context, extra_args=extra_args, quiet=quiet)
-    except OARepoError as e:
-        console.error(f"❌ Error running translations: {e}", fg=typer.colors.BRIGHT_RED, bold=True)
-        raise typer.Exit(code=1) from e
+@with_context_and_console(
+    success_message=None,  # Custom success/error handling in impl
+    error_prefix="Error adding license headers",
+)
+def _library_license_headers_impl(
+    context: ProjectContext,
+    console: ConsoleOutput,
+    *,
+    organization: str | None = None,
+    quiet: bool = False,
+) -> None:
+    """Implementation for library license-headers command.
+
+    Args:
+        context: Project context (injected by decorator)
+        console: Console output handler (injected by decorator)
+        organization: Organization name for copyright
+        quiet: Suppress command output
+    """
+    result = add_license_headers(context, organization=organization, quiet=quiet)
 
     if result.success:
-        console.success("✨ ✓ Translations complete!", fg=typer.colors.BRIGHT_GREEN, bold=True)
+        console.success("✨ ✓ License headers complete!", fg=typer.colors.BRIGHT_GREEN, bold=True)
     else:
-        console.error("❌ Translations failed!", fg=typer.colors.BRIGHT_RED, bold=True)
+        console.error("❌ License headers failed!", fg=typer.colors.BRIGHT_RED, bold=True)
 
     raise typer.Exit(code=result.return_code)
 
@@ -959,25 +1052,7 @@ def library_license_headers(
         oarepo-cli library license-headers
         oarepo-cli library license-headers --organization "My Organization"
     """
-    context = discover_context()
-    console = ConsoleOutput(quiet=quiet)
-
-    console.info("📝 Adding license headers...", fg=typer.colors.BRIGHT_BLUE, bold=True)
-
-    try:
-        result = add_license_headers(context, organization=organization, quiet=quiet)
-    except OARepoError as e:
-        console.error(
-            f"❌ Error adding license headers: {e}", fg=typer.colors.BRIGHT_RED, bold=True
-        )
-        raise typer.Exit(code=1) from e
-
-    if result.success:
-        console.success("✨ ✓ License headers complete!", fg=typer.colors.BRIGHT_GREEN, bold=True)
-    else:
-        console.error("❌ License headers failed!", fg=typer.colors.BRIGHT_RED, bold=True)
-
-    raise typer.Exit(code=result.return_code)
+    _library_license_headers_impl(organization=organization, quiet=quiet)
 
 
 @library_app.command("jslint")

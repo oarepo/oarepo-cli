@@ -6,11 +6,16 @@
 from __future__ import annotations
 
 from pathlib import Path  # noqa: TCH003
-from typing import Annotated
+from typing import TYPE_CHECKING, Annotated
+
+if TYPE_CHECKING:
+    from oarepo_cli.core.context import ProjectContext
+    from oarepo_cli.ui import ConsoleOutput
 
 import typer
 
 from oarepo_cli.cli import js_commands, lint_commands
+from oarepo_cli.cli.command_wrapper import with_context_and_console
 from oarepo_cli.core.context import discover_context
 from oarepo_cli.core.errors import OARepoError
 from oarepo_cli.services import invenio_cli, repository, translations
@@ -200,7 +205,27 @@ def services_destroy(
     _run_services_subcommand(ctx, "destroy", quiet=quiet)
 
 
-@repository_app.command()
+@with_context_and_console(
+    success_message="Repository installed successfully!",
+    error_prefix="Error installing repository",
+)
+def _install_impl(
+    context: ProjectContext,
+    console: ConsoleOutput,  # noqa: ARG001
+    *,
+    quiet: bool = False,
+) -> None:
+    """Implementation for repository install command.
+
+    Args:
+        context: Project context (injected by decorator)
+        console: Console output handler (injected by decorator)
+        quiet: If True, suppress output from subprocesses (uv, invenio-cli, etc.)
+    """
+    repository.install_repository(context, quiet=quiet)
+
+
+@repository_app.command("install", context_settings=_SERVICES_CONTEXT_SETTINGS)
 def install(
     quiet: Annotated[
         bool,
@@ -223,27 +248,30 @@ def install(
         0: Installation successful
         1: Installation failed
     """
-    try:
-        context = discover_context()
-        console = ConsoleOutput(quiet=quiet)
-
-        console.info("\n→ Installing repository...\n")
-
-        repository.install_repository(context, quiet=quiet)
-
-        console.success(
-            "\n✓ Repository installed successfully!\n",
-            fg=typer.colors.BRIGHT_GREEN,
-            bold=True,
-        )
-
-    except OARepoError as e:
-        console_err = ConsoleOutput(quiet=False)  # Always show errors
-        console_err.error(f"\n✗ Installation failed: {e}\n", fg=typer.colors.RED)
-        raise typer.Exit(1) from e
+    _install_impl(quiet=quiet)
 
 
-@repository_app.command()
+@with_context_and_console(
+    success_message="Repository upgraded successfully!",
+    error_prefix="Error upgrading repository",
+)
+def _upgrade_impl(
+    context: ProjectContext,
+    console: ConsoleOutput,  # noqa: ARG001
+    *,
+    quiet: bool = False,
+) -> None:
+    """Implementation for repository upgrade command.
+
+    Args:
+        context: Project context (injected by decorator)
+        console: Console output handler (injected by decorator)
+        quiet: If True, suppress output from subprocesses (uv, invenio-cli, etc.)
+    """
+    repository.upgrade_repository(context, quiet=quiet)
+
+
+@repository_app.command("upgrade", context_settings=_SERVICES_CONTEXT_SETTINGS)
 def upgrade(
     quiet: Annotated[
         bool,
@@ -270,24 +298,31 @@ def upgrade(
         0: Upgrade successful
         1: Upgrade failed
     """
-    try:
-        context = discover_context()
-        console = ConsoleOutput(quiet=quiet)
+    _upgrade_impl(quiet=quiet)
 
-        console.info("\n→ Upgrading repository...\n")
 
-        repository.upgrade_repository(context, quiet=quiet)
+@with_context_and_console(
+    success_message="Model created successfully!",
+    error_prefix="Error creating model",
+)
+def _model_create_impl(
+    context: ProjectContext,
+    console: ConsoleOutput,
+    *,
+    name: str,
+    config_file: Path | None = None,
+    quiet: bool = False,  # noqa: ARG001
+) -> None:
+    """Implementation for repository model create command.
 
-        console.success(
-            "\n✓ Upgrade completed successfully!\n",
-            fg=typer.colors.BRIGHT_GREEN,
-            bold=True,
-        )
-
-    except OARepoError as e:
-        console_err = ConsoleOutput(quiet=False)  # Always show errors
-        console_err.error(f"\n✗ Upgrade failed: {e}\n", fg=typer.colors.RED)
-        raise typer.Exit(1) from e
+    Args:
+        context: Project context (injected by decorator)
+        console: Console output handler (injected by decorator)
+        name: Name of the model to create
+        config_file: Optional YAML file whose content seeds all answers non-interactively
+        quiet: If True, suppress output from subprocesses (copier, invenio-cli, etc.)
+    """
+    ModelManager(context, console).create_model(name, config_file=config_file)
 
 
 @model_app.command("create")
@@ -323,14 +358,7 @@ def model_create(
         0: Model created successfully
         1: Model creation failed
     """
-    try:
-        context = discover_context()
-        console = ConsoleOutput(quiet=quiet)
-        ModelManager(context, console).create_model(name, config_file=config_file)
-    except OARepoError as e:
-        console_err = ConsoleOutput(quiet=False)  # Always show errors
-        console_err.error(f"\n✗ Model creation failed: {e}\n", fg=typer.colors.RED)
-        raise typer.Exit(1) from e
+    _model_create_impl(name=name, config_file=config_file, quiet=quiet)
 
 
 @model_app.command("update")
