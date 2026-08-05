@@ -74,12 +74,6 @@ class ValidationError(OARepoError):
     exit_code: int = 14
 
 
-class LockAcquisitionError(OARepoError):
-    """Raised when lock file cannot be acquired."""
-
-    exit_code: int = 15
-
-
 class TimeoutExceeded(OARepoError):
     """Raised when a subprocess execution exceeds the timeout."""
 

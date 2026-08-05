@@ -23,9 +23,6 @@ OAREPO_PYTHON_COMPATIBILITY = {
     # 12: ["3.10", "3.11", "3.12"],
 }
 
-# Default environment variables for streaming subprocess output
-STREAM_ENV_DEFAULTS = {"PYTHONUNBUFFERED": "1"}
-
 # Default environment variables for package installation and OARepo operations
 # These match the values from the original bash scripts
 # Note: Environment variables already set take precedence (not overwritten)

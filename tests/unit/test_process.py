@@ -3,7 +3,7 @@
 
 """Tests for oarepo_cli.services.process.
 
-process.run()/stream()/get_output() are plain functions with exactly one real
+process.run()/get_output() are plain functions with exactly one real
 implementation, so they are exercised directly against real, trivial,
 always-available commands (echo, true, false, python3 -c ...) rather than
 through an injected executor or a hand-written fake.
@@ -11,6 +11,11 @@ through an injected executor or a hand-written fake.
 
 from __future__ import annotations
 
+import multiprocessing
+import os
+import signal
+import sys
+import time
 from typing import TYPE_CHECKING
 
 import pytest
@@ -112,32 +117,6 @@ def test_get_output_returns_stripped_stdout() -> None:
     assert output == "hello world"
 
 
-def test_stream_yields_lines() -> None:
-    lines = list(
-        process.stream(["python3", "-c", "print('line1'); print('line2'); print('line3')"])
-    )
-    assert "line1" in lines
-    assert "line2" in lines
-    assert "line3" in lines
-
-
-def test_stream_sets_pythonunbuffered_by_default() -> None:
-    lines = list(
-        process.stream(["python3", "-c", "import os; print(os.environ.get('PYTHONUNBUFFERED'))"])
-    )
-    assert lines == ["1"]
-
-
-def test_stream_allows_overriding_pythonunbuffered() -> None:
-    lines = list(
-        process.stream(
-            ["python3", "-c", "import os; print(os.environ.get('PYTHONUNBUFFERED'))"],
-            env={"PYTHONUNBUFFERED": "0"},
-        )
-    )
-    assert lines == ["0"]
-
-
 def test_capture_output_false_returns_empty_strings() -> None:
     result = process.run(
         ["echo", "hidden"], output_mode=process.ProcessOutputMode.INTERACTIVE, check=False
@@ -184,3 +163,72 @@ def test_utf8_encoding_handled_correctly() -> None:
 
     assert "世界" in result.stdout
     assert "🌍" in result.stdout
+
+
+def test_timeout_with_partial_output_is_decoded_to_str() -> None:
+    """Regression test for _decode_partial_output(): subprocess.TimeoutExpired's
+    partial stdout/stderr come back as raw bytes even in text mode (only a
+    successful communicate() decodes to str), so process.run() must decode
+    them itself rather than assume they're already str."""
+    with pytest.raises(TimeoutExceeded) as exc_info:
+        process.run(
+            [
+                "python3",
+                "-c",
+                "import sys, time; print('partial'); sys.stdout.flush(); time.sleep(5)",
+            ],
+            timeout=0.3,
+            check=True,
+        )
+
+    assert exc_info.value.stdout is not None
+    assert "partial" in exc_info.value.stdout
+
+
+def _sigterm_worker(child_pid_file: str) -> None:
+    """Installs the real SIGTERM handler, then runs a long-lived child via process.run().
+
+    Run in a separate process (see test below) since the handler this
+    installs raises SystemExit -- doing that in the test process itself
+    would abort the whole test run.
+    """
+    from oarepo_cli.core import signals
+
+    signals.install()
+    process.run(
+        [
+            sys.executable,
+            "-c",
+            f"import os; open({child_pid_file!r}, 'w').write(str(os.getpid())); "
+            "import time; time.sleep(30)",
+        ],
+        check=False,
+    )
+
+
+@pytest.mark.skipif(sys.platform == "win32", reason="POSIX signal semantics assumed")
+def test_sigterm_forwarded_to_child_and_worker_exits_cleanly(tmp_path: Path) -> None:
+    """A SIGTERM sent to a process that's inside process.run() is forwarded to
+    its child subprocess (which is killed, not orphaned), and the process
+    itself exits via SystemExit(143) rather than hanging or leaving a
+    traceback."""
+    child_pid_file = tmp_path / "child.pid"
+
+    worker = multiprocessing.Process(target=_sigterm_worker, args=(str(child_pid_file),))
+    worker.start()
+
+    for _ in range(50):
+        if child_pid_file.exists() and child_pid_file.read_text():
+            break
+        time.sleep(0.1)
+    else:
+        pytest.fail("child subprocess never reported its PID")
+    child_pid = int(child_pid_file.read_text())
+
+    assert worker.pid is not None
+    os.kill(worker.pid, signal.SIGTERM)
+    worker.join(timeout=10)
+
+    assert worker.exitcode == 128 + signal.SIGTERM
+    with pytest.raises(ProcessLookupError):
+        os.kill(child_pid, 0)

@@ -200,20 +200,6 @@ def test_run_can_preserve_venv(monkeypatch: pytest.MonkeyPatch) -> None:
     assert result.stdout.strip() == venv_path
 
 
-def test_stream_strips_venv_by_default(monkeypatch: pytest.MonkeyPatch) -> None:
-    """Test that stream() strips venv variables by default."""
-    monkeypatch.setenv("VIRTUAL_ENV", "/path/to/venv")
-
-    lines = list(
-        process.stream(
-            ["python3", "-c", "import os; print(os.environ.get('VIRTUAL_ENV', 'NOT_SET'))"]
-        )
-    )
-
-    assert len(lines) == 1
-    assert lines[0] == "NOT_SET"
-
-
 def test_get_output_strips_venv_by_default(monkeypatch: pytest.MonkeyPatch) -> None:
     """Test that get_output() strips venv variables by default."""
     monkeypatch.setenv("VIRTUAL_ENV", "/path/to/venv")

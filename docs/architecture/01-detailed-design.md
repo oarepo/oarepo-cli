@@ -20,7 +20,7 @@ graph TB
     end
 
     subgraph "Services Layer"
-        PROC[process.py<br/>run/stream/get_output]
+        PROC[process.py<br/>run/get_output]
         NET[network.py<br/>NetworkClient]
         VENV[venv.py<br/>VenvManager]
         VER[version_resolver.py<br/>VersionResolver]
@@ -371,23 +371,6 @@ def run(
     Raises:
         ProcessExecutionError: If check=True and returncode != 0
         TimeoutExceeded: If timeout is exceeded
-    """
-    ...
-
-
-def stream(
-    command: Sequence[str],
-    *,
-    cwd: Optional[Path] = None,
-    env: Optional[dict[str, str]] = None,
-) -> Iterator[str]:
-    """
-    Execute a command and yield output lines as they're produced.
-
-    Use for long-running commands where real-time output is needed.
-
-    Yields:
-        Lines of stdout interleaved with stderr
     """
     ...
 

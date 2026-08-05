@@ -1,7 +1,7 @@
 # SPDX-FileCopyrightText: 2026 CESNET z.s.p.o.
 # SPDX-License-Identifier: MIT
 
-"""Subprocess execution helpers: run/stream a command, or exec-replace this process."""
+"""Subprocess execution helpers: run a command, or exec-replace this process."""
 
 from __future__ import annotations
 
@@ -12,12 +12,13 @@ import time
 from dataclasses import dataclass
 from enum import Enum
 from pathlib import Path
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
-    from collections.abc import Iterator, Sequence
+    from collections.abc import Sequence
 
-from oarepo_cli.configuration.constants import OAREPO_ENV_DEFAULTS, STREAM_ENV_DEFAULTS
+from oarepo_cli.configuration.constants import OAREPO_ENV_DEFAULTS
+from oarepo_cli.core import signals
 
 # Environment variables that should be stripped when running subprocesses
 # to prevent oarepo-cli's own venv from leaking into project venvs
@@ -146,17 +147,17 @@ def build_subprocess_env(
     """Build a full environment dict for a subprocess or ``os.execve``/``os.execvpe`` call.
 
     The single source of truth for env-var handling shared by every
-    command-execution path in this codebase: :func:`run`, :func:`stream`,
-    and every exec-based passthrough (``services.invenio_cli.exec_invenio_cli``,
+    command-execution path in this codebase: :func:`run` and every
+    exec-based passthrough (``services.invenio_cli.exec_invenio_cli``,
     ``services.server.ServerRunner._exec_bare_invenio``,
     ``services.repository.exec_invenio``/``exec_shell``, ``cli.library``'s
     ``library_shell``/``library_invenio``, ``services.js_tools.run_jstest``'s
     real test-run path). Previously duplicated -- with subtly different
     behavior each time -- inline in :func:`run` (via the old, private
-    ``_merge_env``), a second time in :func:`stream`, and not at all in any
-    of the exec-based functions (which just did
-    ``{**os.environ, <manual overrides>}`` directly, silently missing both
-    the venv-stripping and the OAREPO_ENV_DEFAULTS every blocking call got).
+    ``_merge_env``), and not at all in any of the exec-based functions
+    (which just did ``{**os.environ, <manual overrides>}`` directly,
+    silently missing both the venv-stripping and the OAREPO_ENV_DEFAULTS
+    every blocking call got).
 
     Args:
         env: Custom environment variables, applied last (override everything else)
@@ -187,6 +188,66 @@ def build_subprocess_env(
     return run_env
 
 
+def _decode_partial_output(data: str | bytes | None) -> str | None:
+    """Decode the partial stdout/stderr a ``subprocess.TimeoutExpired`` carries.
+
+    It's raw ``bytes`` even when the ``Popen`` was created with
+    ``text=True`` (only a *successful* ``communicate()`` decodes to
+    ``str`` -- see ``_run_subprocess``), so this has to handle both.
+    """
+    if data is None:
+        return None
+    if isinstance(data, bytes):
+        return data.decode("utf-8", errors="replace")
+    return data
+
+
+def _run_subprocess(
+    command: Sequence[str],
+    *,
+    cwd: Path | None,
+    env: dict[str, str],
+    capture: bool,
+    timeout: float | None,
+) -> tuple[int, str, str]:
+    """Run ``command`` via ``Popen``, registering it so a SIGTERM can be forwarded to it.
+
+    Mirrors ``subprocess.run()``'s own semantics exactly (kills the child on
+    ``KeyboardInterrupt``/``TimeoutExpired``/any other exception raised
+    while waiting for it) but keeps a reference to the ``Popen`` object so
+    ``core.signals`` can forward a SIGTERM to it -- something
+    ``subprocess.run()`` itself doesn't expose a hook for.
+
+    Raises:
+        subprocess.TimeoutExpired: If the command doesn't finish within ``timeout``
+    """
+    popen_kwargs: dict[str, Any] = {"cwd": cwd, "env": env}
+    if capture:
+        popen_kwargs.update(
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
+            encoding="utf-8",
+            errors="replace",
+        )
+
+    with subprocess.Popen(command, **popen_kwargs) as proc:
+        signals.register_active_process(proc)
+        try:
+            stdout, stderr = proc.communicate(timeout=timeout)
+        except subprocess.TimeoutExpired:
+            proc.kill()
+            proc.wait()
+            raise
+        except BaseException:
+            proc.kill()
+            raise
+        finally:
+            signals.unregister_active_process()
+
+    return proc.returncode, stdout or "", stderr or ""
+
+
 def run(
     command: Sequence[str],
     *,
@@ -198,6 +259,11 @@ def run(
     strip_venv: bool = True,
 ) -> ProcessResult:
     """Execute a command and wait for completion. Never uses shell=True.
+
+    A SIGTERM received while this is running is forwarded to the child
+    (see ``core.signals``) and waited for -- not force-killed after a
+    timeout, since some commands this is used for (``uv sync``, docker
+    image pulls, ``copier`` template rendering) can legitimately run long.
 
     Args:
         command: List of command arguments (never a shell string)
@@ -220,156 +286,53 @@ def run(
 
     run_env = build_subprocess_env(env, strip_venv=strip_venv)
     start_time = time.time()
+    capture = output_mode != ProcessOutputMode.INTERACTIVE
 
-    # Interactive mode: inherit stdout/stderr for real-time output
-    if output_mode == ProcessOutputMode.INTERACTIVE:
-        try:
-            result = subprocess.run(
-                command,
-                cwd=cwd,
-                env=run_env,
-                timeout=timeout,
-            )
-
-            duration_ms = int((time.time() - start_time) * 1000)
-
-            process_result = ProcessResult(
-                return_code=result.returncode,
-                stdout="",
-                stderr="",
-                command=command,
-                cwd=cwd or Path.cwd(),
-                duration_ms=duration_ms,
-            )
-
-            if check and result.returncode != 0:
-                raise ProcessExecutionError(
-                    message=f"Command failed with exit code {result.returncode}",
-                    command=list(command),
-                    returncode=result.returncode,
-                    stdout=None,
-                    stderr=None,
-                )
-
-            return process_result
-
-        except subprocess.TimeoutExpired as exc:
-            raise TimeoutExceeded(
-                command=list(command),
-                timeout=timeout,
-                stdout=None,
-                stderr=None,
-            ) from exc
-
-    # Capture or Forward mode: capture output
     try:
-        result = subprocess.run(
-            command,
-            cwd=cwd,
-            env=run_env,
-            capture_output=True,
-            text=True,
-            encoding="utf-8",
-            errors="replace",
-            timeout=timeout,
+        returncode, stdout, stderr = _run_subprocess(
+            command, cwd=cwd, env=run_env, capture=capture, timeout=timeout
         )
-
-        duration_ms = int((time.time() - start_time) * 1000)
-
-        process_result = ProcessResult(
-            return_code=result.returncode,
-            stdout=result.stdout,
-            stderr=result.stderr,
-            command=command,
-            cwd=cwd or Path.cwd(),
-            duration_ms=duration_ms,
-        )
-
-        # Forward mode: also display the captured output
-        if output_mode == ProcessOutputMode.FORWARD:
-            if result.stdout:
-                print(result.stdout, end="")
-            if result.stderr:
-                print(result.stderr, end="", file=sys.stderr)
-
-        if check and result.returncode != 0:
-            raise ProcessExecutionError(
-                message=f"Command failed with exit code {result.returncode}",
-                command=list(command),
-                returncode=result.returncode,
-                stdout=result.stdout,
-                stderr=result.stderr,
-            )
-
-        return process_result
-
     except subprocess.TimeoutExpired as exc:
-        stdout = ""
-        stderr = ""
-        if exc.stdout is not None:
-            stdout = exc.stdout.decode("utf-8", errors="replace")
-        if exc.stderr is not None:
-            stderr = exc.stderr.decode("utf-8", errors="replace")
-
+        # Whatever partial output was captured before the timeout comes back
+        # as raw bytes on exc.stdout/exc.stderr -- even in text mode, since
+        # Popen only decodes to str for a *successful* communicate() (see
+        # Popen._communicate()'s internal buffering); it isn't str already,
+        # unlike everywhere else in this module.
         raise TimeoutExceeded(
             command=list(command),
             timeout=timeout,
-            stdout=stdout,
-            stderr=stderr,
+            stdout=_decode_partial_output(exc.stdout),
+            stderr=_decode_partial_output(exc.stderr),
         ) from exc
 
+    duration_ms = int((time.time() - start_time) * 1000)
 
-def stream(
-    command: Sequence[str],
-    *,
-    cwd: Path | None = None,
-    env: dict[str, str] | None = None,
-    strip_venv: bool = True,
-) -> Iterator[str]:
-    """Execute a command and yield output lines as they're produced.
-
-    Use for long-running commands where real-time output is needed.
-
-    Sets PYTHONUNBUFFERED=1 by default: stdout isn't a TTY here (it's a pipe),
-    so a Python child (e.g. `invenio run`) would otherwise block-buffer its
-    output and defeat real-time streaming. Pass PYTHONUNBUFFERED explicitly in
-    `env` to override. This has no effect on non-Python commands.
-
-    Args:
-        command: List of command arguments
-        cwd: Working directory for the command
-        env: Environment variables (merged with parent, PYTHONUNBUFFERED=1 default)
-        strip_venv: Strip VIRTUAL_ENV and related variables (default: True)
-
-    Yields:
-        Lines of stdout interleaved with stderr
-    """
-    run_env = build_subprocess_env(strip_venv=strip_venv)
-
-    # Add streaming defaults, then apply custom environment on top (same
-    # precedence as before: custom env overrides everything, including
-    # STREAM_ENV_DEFAULTS)
-    run_env.update(STREAM_ENV_DEFAULTS)
-    if env is not None:
-        run_env.update(env)
-
-    process = subprocess.Popen(
-        command,
-        cwd=cwd,
-        env=run_env,
-        stdout=subprocess.PIPE,
-        stderr=subprocess.STDOUT,
-        text=True,
-        encoding="utf-8",
-        errors="replace",
-        bufsize=1,
+    process_result = ProcessResult(
+        return_code=returncode,
+        stdout=stdout,
+        stderr=stderr,
+        command=command,
+        cwd=cwd or Path.cwd(),
+        duration_ms=duration_ms,
     )
 
-    if process.stdout is not None:
-        for line in process.stdout:
-            yield line.rstrip("\n")
+    # Forward mode: also display the captured output
+    if output_mode == ProcessOutputMode.FORWARD:
+        if stdout:
+            print(stdout, end="")
+        if stderr:
+            print(stderr, end="", file=sys.stderr)
 
-    process.wait()
+    if check and returncode != 0:
+        raise ProcessExecutionError(
+            message=f"Command failed with exit code {returncode}",
+            command=list(command),
+            returncode=returncode,
+            stdout=stdout if capture else None,
+            stderr=stderr if capture else None,
+        )
+
+    return process_result
 
 
 def get_output(

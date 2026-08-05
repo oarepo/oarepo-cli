@@ -305,18 +305,13 @@ def test_timeout_raises_exception():
 
 def test_get_output_returns_stripped_stdout():
     assert process.get_output(["echo", "hello world"]) == "hello world"
-
-
-def test_stream_yields_lines():
-    lines = list(process.stream(["python3", "-c", "print('line1'); print('line2')"]))
-    assert lines == ["line1", "line2"]
 ```
 
 ### Faking Subprocess Calls with `pytest-subprocess`
 
 Services that shell out to slow, optional, side-effecting external tools (`uv`, `docker-services-cli`, `copier`, `invenio-cli`) — `VirtualEnvironmentManager`, `ServicesLifecycleManager`, `TestOrchestrator`, and friends — are exercised for real in §5 (Integration Tests) against the `tests/testlib/` fixture project, not through a faked OS boundary. That's a deliberate choice: a hand-registered fake has no independent behavior of its own to verify against, so a suite built entirely on fakes can pass while the real tool integration is broken — which is exactly what happened once in this codebase (a `VirtualEnvironmentManager` test suite built on faked `uv` calls didn't catch a `cwd`-dependent path bug that only surfaced against the real tool).
 
-[`pytest-subprocess`](https://pytest-subprocess.readthedocs.io/)'s `fake_process` fixture — which patches `subprocess.Popen` (and everything built on it, including our own `process.run()`/`stream()`/`get_output()`) for the duration of a test — remains available as a dev dependency for the rare unit-level test that needs to simulate a specific absent or failing binary (e.g. `VersionResolver.find_available_python()` faking `which python3.14`, §3 above) without depending on what happens to be installed on the machine running the tests.
+[`pytest-subprocess`](https://pytest-subprocess.readthedocs.io/)'s `fake_process` fixture — which patches `subprocess.Popen` (and everything built on it, including our own `process.run()`/`get_output()`) for the duration of a test — remains available as a dev dependency for the rare unit-level test that needs to simulate a specific absent or failing binary (e.g. `VersionResolver.find_available_python()` faking `which python3.14`, §3 above) without depending on what happens to be installed on the machine running the tests.
 
 ---
 

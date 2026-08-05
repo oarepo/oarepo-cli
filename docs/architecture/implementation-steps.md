@@ -65,7 +65,7 @@ Per-phase deliverable. Steps within a phase can often be parallelized; see each 
 **Goal**: Establish exception hierarchy and error handling patterns.
 
 - [x] Define `core/errors.py` with base `OARepoError` class
-- [x] Create specific exceptions: `ConfigurationError`, `VersionMismatchError`, `ProcessExecutionError`, `FileNotFoundError`, `ValidationError`, `LockAcquisitionError`
+- [x] Create specific exceptions: `ConfigurationError`, `VersionMismatchError`, `ProcessExecutionError`, `FileNotFoundError`, `ValidationError` (`LockAcquisitionError` was added later alongside `utils/locks.py`'s `FileLock`, then removed in Step 6.1 along with it)
 - [x] Implement exit code constants for each exception type
 - [x] Add `ProcessExecutionError` with command, returncode, stdout, stderr attributes
 - [x] Create utility function `safe_run()` that wraps process execution with consistent error handling
@@ -266,26 +266,46 @@ For unit-level tests, call `run()`/`stream()`/`get_output()` directly against re
 
 ---
 
-### Step 2.3: Lock File Concurrency Control
+### Step 2.3: Lock File Concurrency Control -- removed in Step 6.1
 **Goal**: Prevent concurrent executions from corrupting state.
 
-- [x] Implement `utils/locks.py` with `FileLock` class
-- [x] Acquire lock with timeout
-- [x] Release lock (idempotent)
-- [x] Handle stale locks
-- [x] Context manager support
+`utils/locks.py`'s `FileLock` class was implemented here (acquire with
+timeout, idempotent release, stale-lock detection, context manager
+support) but never actually wired into any real command -- no
+venv-creation or repository-install call site ever constructed one, so it
+protected nothing. A later fix (originally under this same step, then
+folded into a lock-specific "add signal handlers" change) installed
+process-wide `SIGINT`/`SIGTERM` handlers as a side effect of constructing
+a `FileLock`, intended to release held locks on termination. Because
+nothing ever held one, that code path was never exercised in production
+-- but had it been, it would have been actively harmful: it replaced
+Python's default `SIGINT` disposition globally, which would have
+bypassed both `cli.main`'s own `except KeyboardInterrupt` handling *and*
+`subprocess.run()`'s own built-in "kill my child on `KeyboardInterrupt`"
+behavior (raw `os.kill(self, signum)` after resetting to `SIG_DFL` doesn't
+raise a Python exception, so no `finally`/`except` gets a chance to run).
+
+Removed entirely in Step 6.1 (`FileLock`, `LockAcquisitionError`,
+`tests/unit/test_locks.py`) rather than left as unused, broken-by-design
+infrastructure. The concurrency-adjacent risk this was meant to address
+is already covered without any locking:
+`services.venv.VirtualEnvironmentManager.ensure_venv()` detects a
+half-created venv on the *next* run (`_is_valid_venv()`) and rebuilds it,
+so a crashed/interrupted run self-heals instead of needing to be
+prevented in the first place. See Step 6.1 for the actual signal-handling
+work that replaced this.
+
+- [x] ~~Implement `utils/locks.py` with `FileLock` class~~ removed, see above
+- [x] ~~Acquire lock with timeout~~
+- [x] ~~Release lock (idempotent)~~
+- [x] ~~Handle stale locks~~
+- [x] ~~Context manager support~~
 
 **Deliverables**:
-- File-based locking mechanism
-- Concurrent execution protection
+- ~~File-based locking mechanism~~ removed
+- ~~Concurrent execution protection~~ see `ensure_venv()`'s self-healing instead
 
-**Tests** (`tests/unit/test_locks.py`):
-- [x] Test lock acquisition
-- [x] Test lock release
-- [x] Test concurrent acquisition fails
-- [x] Test timeout raises `LockAcquisitionError`
-- [x] Test stale lock recovery
-- [x] Test idempotent release
+**Tests**: ~~`tests/unit/test_locks.py`~~ removed along with `FileLock`
 
 ---
 
@@ -2012,15 +2032,74 @@ reused; `services.repository.run_tests()` was added instead, and
 ### Step 6.1: Signal Handling Enhancement
 **Goal**: Robust signal handling for long-running processes.
 
-- [ ] Enhance `core/signals.py` with comprehensive handler
-- [ ] Forward signals to child processes
-- [ ] Graceful shutdown with timeouts
-- [ ] Cleanup on unexpected termination
+Deliberately **no timeout-based force-kill anywhere** (dropped from this
+step's original scope): commands this CLI shells out to (`uv sync`,
+docker image pulls, `copier` template rendering) can legitimately run for
+a long time, and a fixed grace period would kill a healthy operation just
+as often as a stuck one. Where a child needs to be signaled, this always
+waits for it to actually exit, however long that takes.
 
-**Tests** (`tests/fault_tolerance/test_signal_handling.py`):
-- [ ] Test SIGINT forwarded to children
-- [ ] Test graceful shutdown completes
-- [ ] Test timeout forces kill
+Most "long-running" commands (`repository run`/`shell`/`test`/`cli`/
+`invenio`, `library shell`/`invenio`) never needed signal forwarding in
+the first place: they replace the oarepo-cli process itself via
+`os.execve`/`os.execvpe`, so the terminal/OS signal goes directly to the
+real target program (invenio-cli, pytest, bash) under the same PID --
+nothing to forward. The remaining gap was blocking `services.process.run()`
+calls (`install`/`upgrade`/`services setup`/`lint`/`new`'s copier+openssl+git
+steps, etc.):
+- `SIGINT` from an interactive terminal already reaches the child too
+  (delivered to the whole foreground process group), and CPython's own
+  `subprocess.run()` already kills its child on the resulting
+  `KeyboardInterrupt` -- confirmed straight from the stdlib source, whose
+  bare `except:` clause is literally commented "Including
+  KeyboardInterrupt, communicate handled that". No new code needed here,
+  provided nothing intercepts `SIGINT` first (see Step 2.3's removed
+  `FileLock` handler, which did exactly that).
+- `SIGTERM` sent to just the oarepo-cli process (not the whole process
+  group -- `kill <pid>`, CI cancellation, container/systemd stop) was the
+  one real gap: Python's default disposition for it is immediate
+  termination, no exception raised, no cleanup at all, and nothing
+  forwarded it to an active child.
+
+- [x] Add `core/signals.py`: one `SIGTERM` handler, installed once at CLI
+      startup (`cli.main.cli_main()`), forwarding to whatever child
+      subprocess is currently registered (via `services.process.run()`,
+      which now uses `subprocess.Popen` directly instead of
+      `subprocess.run()` so it has a reference to register/unregister --
+      the only way to give a central handler something to signal, since
+      `subprocess.run()` doesn't expose its internal `Popen`), then
+      waiting for it to exit and raising `SystemExit(143)`
+- [x] Deliberately did **not** add a custom `SIGINT` handler -- see above;
+      installing one would only bypass the already-correct default
+      behavior, exactly like Step 2.3's removed `FileLock` handler did
+- [x] Cleanup on unexpected termination: no forced cleanup step needed --
+      `services.process.run()`'s child is always killed on any exception
+      (mirroring `subprocess.run()`), and `SIGTERM`'s handler waits for
+      that same cleanup before this process exits
+- [x] Preserved (and gave its own regression test to) a detail easy to get
+      wrong when rewriting `run()`'s `TimeoutExpired` handling: partial
+      stdout/stderr on `subprocess.TimeoutExpired` come back as raw
+      `bytes`, *not* `str`, even when `Popen`/`subprocess.run()` was
+      created with `text=True` -- only a successful `communicate()`
+      decodes to `str`; a `TimeoutExpired` mid-read doesn't. The original
+      code's `.decode("utf-8")` calls were correct; an early draft of this
+      rewrite assumed they were an unrelated latent bug and dropped them,
+      which `test_timeout_with_partial_output_does_not_crash` (added here)
+      immediately caught
+- [x] Removed Step 2.3's `FileLock`/`LockAcquisitionError` and the unused
+      `services.process.stream()` (never called from any real command;
+      its own interrupt handling was equally absent) rather than leave
+      either as dead code
+
+**Tests**:
+- [x] `tests/unit/test_signals.py` -- `register_active_process()`/
+      `unregister_active_process()`, `_forward_sigterm()` forwards and
+      waits, `install()` is idempotent
+- [x] `tests/unit/test_process.py` -- `SIGTERM` mid-`run()` forwards to
+      the child and both exit; the child is still killed on
+      `KeyboardInterrupt`/timeout (regression coverage for the
+      `_run_subprocess` rewrite)
+- [x] No timeout-forces-kill test -- deliberately out of scope, see above
 
 ---
 
