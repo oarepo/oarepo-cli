@@ -421,10 +421,10 @@ The recommended cleanup **improves** alignment with architectural decisions:
 
 ### Medium Priority (Do Second)
 
-- [ ] Move license/future annotation tests to `tests/unit/test_lint_validators.py`
-- [ ] Refactor `test_version_resolver.py` to avoid mocking internal constants
-- [ ] Consolidate flag combination tests in `test_library_test.py`
-- [ ] Consolidate sync scenario tests in `test_library_venv_sync.py`
+- [x] Move license/future annotation tests to `tests/unit/test_lint_validators.py` ✅ PR (this branch)
+- [x] Refactor `test_version_resolver.py` to avoid mocking internal constants ✅ PR (this branch)
+- [N/A] Consolidate flag combination tests in `test_library_test.py` - Tests already reduced from 12 to 9 in high-priority cleanup; remaining tests test distinct scenarios, not redundant combinations
+- [N/A] Consolidate sync scenario tests in `test_library_venv_sync.py` - Tests already reduced from 13 to 10 in high-priority cleanup; remaining tests test distinct sync behaviors, not redundant scenarios
 
 ### Optional (Consider Later)
 
