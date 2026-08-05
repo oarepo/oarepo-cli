@@ -8,11 +8,15 @@ from __future__ import annotations
 import json
 import os
 import traceback
-from typing import Annotated
+from typing import TYPE_CHECKING, Annotated
+
+if TYPE_CHECKING:
+    from oarepo_cli.core.context import ProjectContext
 
 import typer
 
 from oarepo_cli.cli import js_commands, lint_commands
+from oarepo_cli.cli.command_wrapper import with_context_and_console
 from oarepo_cli.configuration.constants import ENV_SERVICES_FILE
 from oarepo_cli.core.context import discover_context, find_pyproject_toml
 from oarepo_cli.core.errors import OARepoError
@@ -55,42 +59,41 @@ def services_callback() -> None:
     """Services command group."""
 
 
-def _start_services_impl(*, quiet: bool = False) -> None:
+@with_context_and_console(
+    start_message="Starting services...",
+    error_prefix="Error starting services",
+)
+def _start_services_impl(
+    context: ProjectContext,
+    console: ConsoleOutput,
+    *,
+    quiet: bool = False,
+) -> None:
     """Shared implementation for starting services.
 
     Args:
+        context: Project context (injected by decorator)
+        console: Console output handler (injected by decorator)
         quiet: If True, suppress console output and pass --quiet to docker-services-cli
     """
-    # Discover project context
-    context = discover_context()
-
-    # Create console with the provided quiet flag
-    console = ConsoleOutput(quiet=quiet)
-
-    console.info("🚀 Starting services...", fg=typer.colors.BRIGHT_BLUE, bold=True)
-
     # Start services using ServicesLifecycleManager
     services_mgr = ServicesLifecycleManager(
         config=context.config, project_root=context.root_directory, quiet=quiet
     )
 
-    try:
-        env_vars = services_mgr.start_services()
+    env_vars = services_mgr.start_services()
 
-        if not env_vars:
-            # Services were skipped (SKIP_SERVICES=1)
-            console.info("✓ Services skipped", fg=typer.colors.YELLOW)
-        else:
-            console.success(
-                "✨ ✓ Services started successfully!", fg=typer.colors.BRIGHT_GREEN, bold=True
-            )
-            console.info(
-                f"  Environment variables written to {context.root_directory / ENV_SERVICES_FILE}",
-                fg=typer.colors.GREEN,
-            )
-    except OARepoError as e:
-        console.error(f"❌ Error starting services: {e}", fg=typer.colors.BRIGHT_RED, bold=True)
-        raise typer.Exit(code=1) from e
+    if not env_vars:
+        # Services were skipped (SKIP_SERVICES=1)
+        console.info("✓ Services skipped", fg=typer.colors.YELLOW)
+    else:
+        console.success(
+            "✨ ✓ Services started successfully!", fg=typer.colors.BRIGHT_GREEN, bold=True
+        )
+        console.info(
+            f"  Environment variables written to {context.root_directory / ENV_SERVICES_FILE}",
+            fg=typer.colors.GREEN,
+        )
 
 
 def _start_services_if_needed_impl(*, quiet: bool = False) -> dict[str, str]:
@@ -120,37 +123,33 @@ def _start_services_if_needed_impl(*, quiet: bool = False) -> dict[str, str]:
     return services_mgr.load_service_env()
 
 
-def _stop_services_impl(*, quiet: bool = False) -> None:
+@with_context_and_console(
+    start_message="Stopping services...",
+    success_message="Services stopped successfully!",
+    error_prefix="Error stopping services",
+)
+def _stop_services_impl(
+    context: ProjectContext,
+    console: ConsoleOutput,
+    *,
+    quiet: bool = False,
+) -> None:
     """Shared implementation for stopping services.
 
     Args:
+        context: Project context (injected by decorator)
+        console: Console output handler (injected by decorator)
         quiet: If True, suppress console output and pass --quiet to docker-services-cli
     """
-    # Discover project context
-    context = discover_context()
-
-    # Create console with the provided quiet flag
-    console = ConsoleOutput(quiet=quiet)
-
     if not (context.root_directory / ENV_SERVICES_FILE).exists():
         console.info("✓ No services running", fg=typer.colors.YELLOW)
         return
-
-    console.info("🛑 Stopping services...", fg=typer.colors.BRIGHT_BLUE, bold=True)
 
     # Stop services using ServicesLifecycleManager
     services_mgr = ServicesLifecycleManager(
         config=context.config, project_root=context.root_directory, quiet=quiet
     )
-
-    try:
-        services_mgr.stop_services()
-        console.success(
-            "✨ ✓ Services stopped successfully!", fg=typer.colors.BRIGHT_GREEN, bold=True
-        )
-    except OARepoError as e:
-        console.error(f"❌ Error stopping services: {e}", fg=typer.colors.BRIGHT_RED, bold=True)
-        raise typer.Exit(code=1) from e
+    services_mgr.stop_services()
 
 
 @library_app.command("venv")
