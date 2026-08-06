@@ -8,19 +8,19 @@ from __future__ import annotations
 import contextlib
 import os
 import shutil
-import subprocess
 import tempfile
 from pathlib import Path
 from typing import TYPE_CHECKING
 
 import pytest
+from typer.testing import CliRunner
 
 if TYPE_CHECKING:
     from collections.abc import Callable, Iterator
 
+from oarepo_cli.cli.main import app
 from oarepo_cli.core.config import CliConfig, ServicesConfig, TestingConfig
 from oarepo_cli.core.context import ProjectContext
-from oarepo_cli.core.platform import get_platform_detector
 from oarepo_cli.services.services_lifecycle import ServicesLifecycleManager
 
 # Rich/Click's help-text renderer falls back to os.get_terminal_size() on the
@@ -140,13 +140,6 @@ def _remove_pycache_directories(project_path: Path) -> None:
         shutil.rmtree(pycache)
 
 
-# https://raw.githubusercontent.com/oarepo/oarepo/refs/heads/main/tools/repository_installer.sh
-# creates a real repository from the nrp-app-copier template, as documented at
-# https://nrp-cz.github.io/docs/installation/create_instance
-REPOSITORY_INSTALLER_URL = (
-    "https://raw.githubusercontent.com/oarepo/oarepo/refs/heads/main/tools/repository_installer.sh"
-)
-
 REPOSITORY_CONFIG_YAML = """\
 repository_human_name: Test Repository
 repository_description: Integration test repository for oarepo-cli
@@ -211,13 +204,14 @@ def testrepo_project() -> Path:
     Unlike ``testlib_project`` (a small, hand-written fixture committed to
     the repo), a real repository is too large and heavyweight (its own
     nested git repo, generated docker/i18n/UI assets) to commit. Instead
-    it's created on demand, once, via the real installer described at
-    https://nrp-cz.github.io/docs/installation/create_instance -- the same
-    ``repository_installer.sh`` a user would run, driving the
-    ``nrp-app-copier`` template through ``copier``. If ``tests/testrepo``
-    already exists (from a previous run), creation is skipped entirely and
-    the cached scaffold is reused, since generation itself is slow
-    (network + copier) even before ``repository install`` runs anything.
+    it's created on demand, once, via ``oarepo-cli new`` itself -- the same
+    scaffolding operation (``nrp-app-copier`` template through ``copier``)
+    a user would run, exercised in-process through ``CliRunner`` rather
+    than downloading and shelling out to ``repository_installer.sh``. If
+    ``tests/testrepo`` already exists (from a previous run), creation is
+    skipped entirely and the cached scaffold is reused, since generation
+    itself is slow (network + copier) even before ``repository install``
+    runs anything.
     """
     root = Path(__file__).parent / "testrepo"
     if (root / "pyproject.toml").exists():
@@ -226,34 +220,23 @@ def testrepo_project() -> Path:
     root.parent.mkdir(parents=True, exist_ok=True)
 
     with tempfile.TemporaryDirectory() as tmp:
-        tmp_path = Path(tmp)
-        installer = tmp_path / "repository_installer.sh"
-        subprocess.run(  # noqa: S603 - just a test, not a security issue
-            ["curl", "-fsSL", "-o", str(installer), REPOSITORY_INSTALLER_URL],  # noqa: S607 - curl is trusted
-            check=True,
-        )
-        installer.chmod(0o755)
-
-        config_file = tmp_path / "repo_config.yaml"
+        config_file = Path(tmp) / "repo_config.yaml"
         config_file.write_text(REPOSITORY_CONFIG_YAML)
 
-        # macOS ships bash 3.2 as /bin/bash (frozen for licensing reasons),
-        # which mishandles the script's `"${@}"` expansion under `set -u`
-        # when called with zero arguments. Same issue and fix as
-        # PlatformDetector.get_default_shell().
-        subprocess.run(  # noqa: S603 - just a test, not a security issue to run the program
-            [
-                get_platform_detector().get_default_shell(),
-                str(installer),
-                "--python",
-                "python3.14",
-                "--config",
-                str(config_file),
-                root.name,
-            ],
-            cwd=root.parent,
-            check=True,
-        )
+        cwd = Path.cwd()
+        os.chdir(root.parent)
+        try:
+            result = CliRunner().invoke(
+                app,
+                ["new", "--config", str(config_file), root.name],
+                catch_exceptions=False,
+            )
+        finally:
+            os.chdir(cwd)
+
+    if result.exit_code != 0:
+        msg = f"Failed to create testrepo fixture via 'oarepo-cli new':\n{result.output}"
+        raise RuntimeError(msg)
 
     return root
 
