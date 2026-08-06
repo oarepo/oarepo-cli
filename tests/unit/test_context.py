@@ -371,8 +371,11 @@ dependencies = ["oarepo>=14.0.0,<15.0.0"]
 
     context = ContextBuilder().from_directory(tmp_path).validate()
 
+    # Verify immutability at runtime by casting to object first
+    # This bypasses static analysis while testing actual runtime behavior
+    ctx_obj: object = context
     with pytest.raises(FrozenInstanceError):
-        context.oarepo_version = 15
+        setattr(ctx_obj, "oarepo_version", 15)  # noqa: B010
 
 
 def test_discover_context_convenience_function(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:

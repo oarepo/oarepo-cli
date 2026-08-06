@@ -75,9 +75,8 @@ def test_repository_lint_fails_on_type_error_in_second_module(
 
     second_module = lint_project_multi_module / "i18n" / "__init__.py"
     second_module.write_text(
-        "# Copyright (c) 2026 Example Org.\n"
-        "#\n"
-        "# This file is a part of cleanrepo.\n"
+        "# SPDX-FileCopyrightText: 2026 Example Org.\n"
+        "# SPDX-License-Identifier: MIT\n"
         '"""Sample module with a real type error."""\n'
         "\n"
         "from __future__ import annotations\n"
@@ -101,9 +100,8 @@ def test_repository_format_fixes_issues(
 
     module = lint_project_multi_module / "common" / "__init__.py"
     module.write_text(
-        "# Copyright (c) 2026 Example Org.\n"
-        "#\n"
-        "# This file is a part of cleanrepo.\n"
+        "# SPDX-FileCopyrightText: 2026 Example Org.\n"
+        "# SPDX-License-Identifier: MIT\n"
         '"""Sample module."""\n'
         "\n"
         "from __future__ import annotations\n"

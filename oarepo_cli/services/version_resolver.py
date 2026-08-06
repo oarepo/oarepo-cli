@@ -213,12 +213,7 @@ class VersionResolver:
         specifier = SpecifierSet(constraint)
 
         # Filter known versions against the specifier
-        versions = []
-        for ver in KNOWN_PYTHON_VERSIONS:
-            if Version(ver) in specifier:
-                versions.append(ver)
-
-        return versions
+        return [ver for ver in KNOWN_PYTHON_VERSIONS if Version(ver) in specifier]
 
     def _find_available_python(self, versions: list[str]) -> list[str]:
         """Find which Python versions from the list are available on the system.

@@ -136,4 +136,4 @@ class ServerRunner:
             *extra_args,
         ]
         env = process.build_subprocess_env({**site_env, "FLASK_DEBUG": "1", "PYTHONWARNINGS": "ignore"})
-        os.execve(str(invenio_path), argv, env)
+        os.execve(str(invenio_path), argv, env)  # noqa S606 no shell is ok here, replacing the process

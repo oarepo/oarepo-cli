@@ -26,7 +26,7 @@ from oarepo_cli.core.errors import ConfigurationError
 from oarepo_cli.services import process
 
 if TYPE_CHECKING:
-    from collections.abc import Sequence
+    from collections.abc import Callable, Sequence
 
 SUBCOMMANDS = ["setup", "start", "stop", "destroy"]
 

@@ -7,11 +7,12 @@ from __future__ import annotations
 
 import pathlib  # noqa: TC003
 import re
-from datetime import datetime
+from datetime import UTC, datetime
 from enum import Enum
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
+    from collections.abc import Callable
     from pathlib import Path
 
     from oarepo_cli.core.context import ProjectContext
@@ -98,6 +99,31 @@ def _extract_copyright_info(content: str, comment_style: CommentStyle) -> tuple[
     return None, None
 
 
+def _get_copyright_comment_checker(comment_style: CommentStyle) -> Callable[[str], bool]:
+    """Return the appropriate comment check function based on the comment style."""
+
+    def is_hash_comment(s: str) -> bool:
+        """Return True if `s` starts a `#`-style comment line."""
+        return s.startswith("#")
+
+    def is_slash_comment(s: str) -> bool:
+        """Return True if `s` starts a `//`-style comment line."""
+        return s.startswith("//")
+
+    def is_jinja_comment(s: str) -> bool:
+        """Return True if `s` starts a `{#`-style Jinja comment line."""
+        return s.startswith("{#")
+
+    if comment_style == CommentStyle.HASH:
+        is_comment = is_hash_comment
+    elif comment_style == CommentStyle.SLASH:
+        is_comment = is_slash_comment
+    else:  # JINJA
+        is_comment = is_jinja_comment
+
+    return is_comment
+
+
 def _remove_old_copyright_block(content: str, comment_style: CommentStyle) -> str:
     """Remove old-style copyright header block from content.
 
@@ -123,25 +149,7 @@ def _remove_old_copyright_block(content: str, comment_style: CommentStyle) -> st
     if comment_style == CommentStyle.JINJA and start_idx < len(lines) and lines[start_idx].strip().startswith("<!"):
         start_idx += 1
 
-    # Determine comment check function based on style
-    def is_hash_comment(s: str) -> bool:
-        """Return True if `s` starts a `#`-style comment line."""
-        return s.startswith("#")
-
-    def is_slash_comment(s: str) -> bool:
-        """Return True if `s` starts a `//`-style comment line."""
-        return s.startswith("//")
-
-    def is_jinja_comment(s: str) -> bool:
-        """Return True if `s` starts a `{#`-style Jinja comment line."""
-        return s.startswith("{#")
-
-    if comment_style == CommentStyle.HASH:
-        is_comment = is_hash_comment
-    elif comment_style == CommentStyle.SLASH:
-        is_comment = is_slash_comment
-    else:  # JINJA
-        is_comment = is_jinja_comment
+    is_comment = _get_copyright_comment_checker(comment_style)
 
     # Find the end of the copyright block
     in_copyright_block = False
@@ -291,7 +299,7 @@ def add_license_headers(
     code_directories = context.code_directories
 
     organization = organization or "CESNET z.s.p.o."
-    current_year = datetime.now().year
+    current_year = datetime.now(UTC).year
 
     files_processed = 0
 

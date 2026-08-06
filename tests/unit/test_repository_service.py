@@ -46,7 +46,7 @@ export INVENIO_UI_PORT=5000
     context.root_directory = tmp_path
 
     # Run function
-    repository.configure_local_ports(context, quiet=True)
+    repository.configure_local_ports(context)
 
     # Verify result
     content = invenio_private.read_text()
@@ -74,7 +74,7 @@ def test_configure_local_ports_handles_missing_variables(tmp_path: Path) -> None
     context.root_directory = tmp_path
 
     # Should not raise, but should skip update
-    repository.configure_local_ports(context, quiet=True)
+    repository.configure_local_ports(context)
 
     # Content should be unchanged (except no port variables added)
     content = invenio_private.read_text()
@@ -87,13 +87,13 @@ def test_configure_local_ports_raises_on_missing_files(tmp_path: Path) -> None:
     context.root_directory = tmp_path
 
     with pytest.raises(FileNotFoundError, match=r"\.invenio\.private"):
-        repository.configure_local_ports(context, quiet=True)
+        repository.configure_local_ports(context)
 
     # Create .invenio.private but not variables
     (tmp_path / ".invenio.private").write_text("")
 
     with pytest.raises(FileNotFoundError, match="variables"):
-        repository.configure_local_ports(context, quiet=True)
+        repository.configure_local_ports(context)
 
 
 def test_get_instance_path_defaults_to_venv_var_instance(mock_context: Mock, monkeypatch: pytest.MonkeyPatch) -> None:

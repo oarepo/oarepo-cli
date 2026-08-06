@@ -235,23 +235,13 @@ def library_install(
     error_prefix="Error cleaning environment",
     console_quiet_from_args=True,
 )
-def _library_clean_impl(
+def _stop_services_if_running(
     context: ProjectContext,
     console: ConsoleOutput,
-    *,
-    quiet: bool = False,
+    items_removed: list[str],
+    quiet: bool,
 ) -> None:
-    """Implement library clean command.
-
-    Args:
-        context: Project context (injected by decorator)
-        console: Console output handler (injected by decorator)
-        quiet: Suppress command output
-
-    """
-    items_removed = []
-
-    # Stop services if running
+    """Stop services if running and record in items_removed."""
     services_mgr = ServicesLifecycleManager(config=context.config, project_root=context.root_directory, quiet=quiet)
     if services_mgr.are_services_running():
         console.info("🛁 Stopping services...", fg=typer.colors.CYAN)
@@ -271,7 +261,13 @@ def _library_clean_impl(
             fg=typer.colors.CYAN,
         )
 
-    # Remove .env-services file
+
+def _remove_env_services_file(
+    context: ProjectContext,
+    console: ConsoleOutput,
+    items_removed: list[str],
+) -> None:
+    """Remove .env-services file if it exists and record in items_removed."""
     env_services_file = context.root_directory / ENV_SERVICES_FILE
     if env_services_file.exists():
         console.info(f"🗑️  Removing {ENV_SERVICES_FILE} file...", fg=typer.colors.CYAN)
@@ -291,35 +287,44 @@ def _library_clean_impl(
             fg=typer.colors.CYAN,
         )
 
-    # Remove venv directory and uv.lock using VirtualEnvironmentManager
+
+def _remove_venv_and_lock(
+    context: ProjectContext,
+    console: ConsoleOutput,
+    items_removed: list[str],
+) -> None:
+    """Remove venv directory and uv.lock if they exist and record in items_removed."""
     venv_existed = context.venv_path.exists()
     lock_file = context.root_directory / "uv.lock"
     lock_existed = lock_file.exists()
 
-    if venv_existed or lock_existed:
-        console.info(f"🗑️  Removing virtual environment at {context.venv_path}...", fg=typer.colors.CYAN)
-        try:
-            venv_mgr = VirtualEnvironmentManager(config=context.config, project_root=context.root_directory)
-            venv_mgr.cleanup()
-            if venv_existed:
-                console.info("  ✓ Virtual environment removed", fg=typer.colors.GREEN)
-                items_removed.append("venv")
-            if lock_existed:
-                console.info("  ✓ uv.lock file removed", fg=typer.colors.GREEN)
-                items_removed.append("uv.lock")
-        # Best-effort cleanup step: keep going even on a non-OARepoError failure.
-        except Exception as e:  # noqa: BLE001
-            console.warning(
-                f"  ⚠ Warning: Failed to remove venv/uv.lock: {e}",
-                fg=typer.colors.YELLOW,
-            )
-    else:
+    if not (venv_existed or lock_existed):
         console.info(
             f"  ℹ No virtual environment found at {context.venv_path}",  # noqa: RUF001 icon
             fg=typer.colors.CYAN,
         )
+        return
 
-    # Display summary
+    console.info(f"🗑️  Removing virtual environment at {context.venv_path}...", fg=typer.colors.CYAN)
+    try:
+        venv_mgr = VirtualEnvironmentManager(config=context.config, project_root=context.root_directory)
+        venv_mgr.cleanup()
+        if venv_existed:
+            console.info("  ✓ Virtual environment removed", fg=typer.colors.GREEN)
+            items_removed.append("venv")
+        if lock_existed:
+            console.info("  ✓ uv.lock file removed", fg=typer.colors.GREEN)
+            items_removed.append("uv.lock")
+    # Best-effort cleanup step: keep going even on a non-OARepoError failure.
+    except Exception as e:  # noqa: BLE001
+        console.warning(
+            f"  ⚠ Warning: Failed to remove venv/uv.lock: {e}",
+            fg=typer.colors.YELLOW,
+        )
+
+
+def _display_cleanup_summary(console: ConsoleOutput, items_removed: list[str]) -> None:
+    """Display summary of cleanup operation."""
     if items_removed:
         console.success(
             f"✨ ✓ Cleanup completed! Removed: {', '.join(items_removed)}",
@@ -332,6 +337,33 @@ def _library_clean_impl(
             fg=typer.colors.BRIGHT_GREEN,
             bold=True,
         )
+
+
+@with_context_and_console(
+    success_message="Cleanup complete!",
+    error_prefix="Error cleaning environment",
+    console_quiet_from_args=True,
+)
+def _library_clean_impl(
+    context: ProjectContext,
+    console: ConsoleOutput,
+    *,
+    quiet: bool = False,
+) -> None:
+    """Implement library clean command.
+
+    Args:
+        context: Project context (injected by decorator)
+        console: Console output handler (injected by decorator)
+        quiet: Suppress command output
+
+    """
+    items_removed: list[str] = []
+
+    _stop_services_if_running(context, console, items_removed, quiet)
+    _remove_env_services_file(context, console, items_removed)
+    _remove_venv_and_lock(context, console, items_removed)
+    _display_cleanup_summary(console, items_removed)
 
 
 @library_app.command("clean")
@@ -699,7 +731,7 @@ def library_shell(
     # Use os.execve to replace current process (like the old shell script did)
     try:
         bash_path = platform.get_default_shell()
-        os.execve(bash_path, ["bash"], shell_env)
+        os.execve(bash_path, ["bash"], shell_env)  # noqa S606 no shell is ok here, replacing the process
     except OSError as e:
         console.error(
             f"❌ Failed to start shell: {e}",
@@ -823,7 +855,7 @@ def library_invenio(
     # Execute invenio with the prepared environment
     # Use os.execve to replace current process (preserves exit codes)
     try:
-        os.execve(str(invenio_path), ["invenio", *invenio_args], cmd_env)
+        os.execve(str(invenio_path), ["invenio", *invenio_args], cmd_env)  # noqa S606 no shell is ok here, replacing the process
     except OSError as e:
         console.error(
             f"❌ Failed to run invenio: {e}",

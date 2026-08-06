@@ -175,4 +175,4 @@ def exec_invenio_cli(
 
     os.chdir(context.root_directory)
     binary = _invenio_cli_path()
-    os.execvpe(binary, [binary, *args], run_env)
+    os.execvpe(binary, [binary, *args], run_env)  # noqa S606 no shell is ok here, replacing the process

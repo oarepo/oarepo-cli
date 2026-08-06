@@ -871,8 +871,8 @@ def test_command(
     no_services: Annotated[
         bool,
         typer.Option("--no-services", help="Don't start Docker services first"),
-    ] = False,
-    with_coverage: Annotated[bool, typer.Option("--with-coverage", help="Enable coverage reporting")] = False,
+    ],
+    with_coverage: Annotated[bool, typer.Option("--with-coverage", help="Enable coverage reporting")],
     quiet: Annotated[
         bool,
         typer.Option(
@@ -880,7 +880,7 @@ def test_command(
             "-q",
             help="Suppress output from starting Docker services",
         ),
-    ] = False,
+    ],
 ) -> None:
     """Run the repository's test suite using pytest.
 

@@ -67,7 +67,7 @@ class ProcessExecutionError(OARepoError):
         return "\n".join(parts)
 
 
-class FileNotFoundError(OARepoError):
+class FileNotFoundExitCodeError(OARepoError):
     """Raised when a required file or directory is not found."""
 
     exit_code: int = 13

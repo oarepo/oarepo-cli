@@ -14,9 +14,8 @@ if TYPE_CHECKING:
     from pathlib import Path
 
 CLEAN_MODULE = """\
-# Copyright (c) 2026 Example Org.
-#
-# This file is a part of cleanlib.
+# SPDX-FileCopyrightText: 2026 Example Org.
+# SPDX-License-Identifier: MIT
 
 \"\"\"Sample clean module.\"\"\"
 

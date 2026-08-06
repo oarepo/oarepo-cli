@@ -65,6 +65,9 @@ def run_lint(context: ProjectContext, *, fix: bool, quiet: bool) -> NoReturn:
         console.success("✨ ✓ Linting passed!", fg=typer.colors.BRIGHT_GREEN, bold=True)
     else:
         console.error("❌ Linting failed!", fg=typer.colors.BRIGHT_RED, bold=True)
+        # Print detailed error information
+        if result.stderr:
+            console.error(result.stderr, fg=typer.colors.BRIGHT_RED)
 
     raise typer.Exit(code=result.return_code)
 
@@ -86,6 +89,9 @@ def run_format(context: ProjectContext, *, fix: bool, extra_args: Sequence[str],
         console.success("✨ ✓ Formatting complete!", fg=typer.colors.BRIGHT_GREEN, bold=True)
     else:
         console.error("❌ Formatting failed!", fg=typer.colors.BRIGHT_RED, bold=True)
+        # Print detailed error information
+        if result.stderr:
+            console.error(result.stderr, fg=typer.colors.BRIGHT_RED)
 
     raise typer.Exit(code=result.return_code)
 
@@ -110,5 +116,8 @@ def run_check(context: ProjectContext, *, quiet: bool) -> NoReturn:
         console.success("✨ ✓ Check passed!", fg=typer.colors.BRIGHT_GREEN, bold=True)
     else:
         console.error("❌ Check failed!", fg=typer.colors.BRIGHT_RED, bold=True)
+        # Print detailed error information
+        if result.stderr:
+            console.error(result.stderr, fg=typer.colors.BRIGHT_RED)
 
     raise typer.Exit(code=result.return_code)

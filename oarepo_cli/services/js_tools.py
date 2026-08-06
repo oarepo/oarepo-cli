@@ -10,6 +10,8 @@ import os
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
+    from pathlib import Path
+
     from oarepo_cli.core.context import ProjectContext
 
 from oarepo_cli.configuration import resources
@@ -42,8 +44,6 @@ def run_jslint(context: ProjectContext, *, quiet: bool = False) -> process.Proce
     # Check if package.json exists
     package_json_path = root / "package.json"
     if not package_json_path.exists():
-        if not quiet:
-            pass
         return process.ProcessResult(
             return_code=0,
             stdout="No package.json found",
@@ -53,48 +53,17 @@ def run_jslint(context: ProjectContext, *, quiet: bool = False) -> process.Proce
             duration_ms=0,
         )
 
-    # Check if @inveniosoftware/eslint-config-invenio is in devDependencies
-    with package_json_path.open() as f:
-        package_data = json.load(f)
-
-    dev_deps = package_data.get("devDependencies", {})
-    if "@inveniosoftware/eslint-config-invenio" not in dev_deps:
-        if not quiet:
-            pass
-        result = process.run(
-            ["pnpm", "add", "-D", "@inveniosoftware/eslint-config-invenio@2"],
-            cwd=root,
-            check=False,
-            output_mode=ProcessOutputMode.INTERACTIVE if not quiet else ProcessOutputMode.CAPTURE,
-        )
-        if not result.success:
-            return result
-
-    # Check if eslint binary exists
-    eslint_bin = root / "node_modules" / ".bin" / "eslint"
-    if not eslint_bin.exists():
-        if not quiet:
-            pass
-        result = process.run(
-            ["pnpm", "install"],
-            cwd=root,
-            check=False,
-            output_mode=ProcessOutputMode.INTERACTIVE if not quiet else ProcessOutputMode.CAPTURE,
-        )
-        if not result.success:
-            return result
+    # Install ESLint dependency if needed
+    result = _ensure_eslint_dependency(package_json_path, root, quiet)
+    if not result.success:
+        return result
 
     # Write ESLint config
-    if not quiet:
-        pass
     eslintrc = root / ".eslintrc.yaml"
     eslintrc.write_text(resources.read_text("eslintrc.yaml.tmpl"))
 
     # Run eslint with --fix
-    if not quiet:
-        pass
-
-    # Pass directory names as relative paths (matching bash script behavior)
+    eslint_bin = root / "node_modules" / ".bin" / "eslint"
     dir_names = [str(d.relative_to(root)) for d in code_directories]
 
     result = process.run(
@@ -107,9 +76,69 @@ def run_jslint(context: ProjectContext, *, quiet: bool = False) -> process.Proce
         return result
 
     # Run prettier
-    if not quiet:
-        pass
+    return _run_prettier(root, code_directories, quiet)
 
+
+def _ensure_eslint_dependency(package_json_path: Path, root: Path, quiet: bool) -> process.ProcessResult:
+    """Ensure ESLint dependency is installed.
+
+    Args:
+        package_json_path: Path to package.json
+        root: Project root directory
+        quiet: If True, suppress output
+
+    Returns:
+        ProcessResult from installation commands
+
+    """
+    with package_json_path.open() as f:
+        package_data = json.load(f)
+
+    dev_deps = package_data.get("devDependencies", {})
+    if "@inveniosoftware/eslint-config-invenio" not in dev_deps:
+        result = process.run(
+            ["pnpm", "add", "-D", "@inveniosoftware/eslint-config-invenio@2"],
+            cwd=root,
+            check=False,
+            output_mode=ProcessOutputMode.INTERACTIVE if not quiet else ProcessOutputMode.CAPTURE,
+        )
+        if not result.success:
+            return result
+
+    # Check if eslint binary exists
+    eslint_bin = root / "node_modules" / ".bin" / "eslint"
+    if not eslint_bin.exists():
+        result = process.run(
+            ["pnpm", "install"],
+            cwd=root,
+            check=False,
+            output_mode=ProcessOutputMode.INTERACTIVE if not quiet else ProcessOutputMode.CAPTURE,
+        )
+        if not result.success:
+            return result
+
+    return process.ProcessResult(
+        return_code=0,
+        stdout="",
+        stderr="",
+        command=[],
+        cwd=root,
+        duration_ms=0,
+    )
+
+
+def _run_prettier(root: Path, code_directories: list[Path], quiet: bool) -> process.ProcessResult:
+    """Run Prettier on JavaScript files.
+
+    Args:
+        root: Project root directory
+        code_directories: List of directories to lint
+        quiet: If True, suppress output
+
+    Returns:
+        ProcessResult from prettier command
+
+    """
     # Check if we're in CI
     is_ci = os.environ.get("CI", "false").lower() == "true"
     prettier_flag = "--check" if is_ci else "--write"
@@ -216,5 +245,5 @@ def run_jstest(
     cmd = [str(invenio_path), "webpack", "run", "test", *extra_args]
 
     os.chdir(context.root_directory)
-    os.execve(str(invenio_path), cmd, cmd_env)
+    os.execve(str(invenio_path), cmd, cmd_env)  # noqa S606 no shell is ok here, replacing the process
     return None

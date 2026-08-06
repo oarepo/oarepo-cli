@@ -23,7 +23,7 @@ if TYPE_CHECKING:
     from oarepo_cli.core.context import ProjectContext
 
 
-def configure_local_ports(context: ProjectContext, *, quiet: bool = False) -> None:
+def configure_local_ports(context: ProjectContext) -> None:
     """Configure local service ports in .invenio.private file.
 
     Mirrors ``repository_runner.sh``'s port configuration step in install_repository:
@@ -31,7 +31,6 @@ def configure_local_ports(context: ProjectContext, *, quiet: bool = False) -> No
 
     Args:
         context: Project context with paths and configuration
-        quiet: If True, suppress status messages
 
     Raises:
         FileNotFoundError: If .invenio.private or variables file doesn't exist
@@ -49,7 +48,26 @@ def configure_local_ports(context: ProjectContext, *, quiet: bool = False) -> No
         msg = f"variables file not found at {variables_file}"
         raise FileNotFoundError(msg)
 
-    # Read port values from variables file
+    # Read port mappings from variables file
+    ports = _extract_port_variables(variables_file)
+
+    if not ports:
+        return
+
+    # Update .invenio.private with new port values
+    _update_invenio_private(invenio_private, ports)
+
+
+def _extract_port_variables(variables_file: Path) -> dict[str, str]:
+    """Extract port variable mappings from the variables file.
+
+    Args:
+        variables_file: Path to the variables file
+
+    Returns:
+        Dictionary mapping port keys to their values
+
+    """
     variables_content = variables_file.read_text()
     port_vars = {
         "search_port": "INVENIO_OPENSEARCH_PORT",
@@ -69,15 +87,17 @@ def configure_local_ports(context: ProjectContext, *, quiet: bool = False) -> No
         if match:
             ports[key] = match.group(1).strip("\"'")
 
-    if not ports:
-        if not quiet:
-            pass
+    return ports
 
-        return
 
-    if not quiet:
-        pass
+def _update_invenio_private(invenio_private: Path, ports: dict[str, str]) -> None:
+    """Update .invenio.private file with new port values.
 
+    Args:
+        invenio_private: Path to the .invenio.private file
+        ports: Dictionary of port names to values
+
+    """
     # Read existing .invenio.private and remove old port entries
     content = invenio_private.read_text()
     lines = content.splitlines()
@@ -98,9 +118,6 @@ def configure_local_ports(context: ProjectContext, *, quiet: bool = False) -> No
         # Add new port values
         for key, value in ports.items():
             f.write(f"{key} = {value}\n")
-
-    if not quiet:
-        pass
 
 
 def get_instance_path(context: ProjectContext) -> Path:
@@ -252,7 +269,7 @@ def install_repository(context: ProjectContext, *, quiet: bool = False) -> None:
     # Step 6: Configure local service ports
     console.info("→ Configuring service ports\n")
 
-    configure_local_ports(context, quiet=quiet)
+    configure_local_ports(context)
 
     # Step 7: Compile backend translations
     # First, ensure translations directory structure exists (bootstrap if needed)
@@ -370,7 +387,7 @@ def exec_invenio(context: ProjectContext, args: Sequence[str]) -> NoReturn:
     # call gets -- there's no other subprocess env-merging safety net once
     # this replaces the current process.
     env = process.build_subprocess_env({"PYTHONWARNINGS": "ignore"})
-    os.execve(str(binary), [str(binary), *args], env)
+    os.execve(str(binary), [str(binary), *args], env)  # noqa S606 no shell is ok here, replacing the process
 
 
 def exec_shell(context: ProjectContext) -> NoReturn:
@@ -430,7 +447,7 @@ def exec_shell(context: ProjectContext) -> NoReturn:
 
     os.chdir(context.root_directory)
     bash_path = platform.get_default_shell()
-    os.execve(bash_path, ["bash"], shell_env)
+    os.execve(bash_path, ["bash"], shell_env)  # noqa S606 no shell is ok here, replacing the process
 
 
 def _run_invenio(context: ProjectContext, args: Sequence[str], *, quiet: bool = False) -> None:
@@ -650,7 +667,7 @@ def run_tests(
 
     os.chdir(context.root_directory)
     env = process.build_subprocess_env()
-    os.execve(str(pytest_bin), cmd, env)
+    os.execve(str(pytest_bin), cmd, env)  # noqa S606 no shell is ok here, replacing the process
 
 
 def get_python_version(context: ProjectContext) -> str:

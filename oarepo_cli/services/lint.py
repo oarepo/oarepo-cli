@@ -57,7 +57,7 @@ def check_license_headers(directories: list[Path]) -> list[Path]:
     """Find Python files missing a license header.
 
     Mirrors ``library_runner.sh``'s ``check_license_headers``: a file passes
-    if it contains "Copyright (c)" (case-insensitive) anywhere in its text.
+    if it contains "SPDX-License-Identifier" (case-insensitive) anywhere in its text.
 
     Args:
         directories: Directories to search for Python files
@@ -69,7 +69,7 @@ def check_license_headers(directories: list[Path]) -> list[Path]:
     missing = []
     for file in _iter_python_files(directories):
         content = file.read_text(encoding="utf-8", errors="replace")
-        if "copyright (c)" not in content.lower():
+        if "spdx-license-identifier" not in content.lower():
             missing.append(file)
     return missing
 

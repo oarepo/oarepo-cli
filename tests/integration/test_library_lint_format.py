@@ -86,9 +86,8 @@ def test_lint_fixes_autofixable_violation_by_default(
     # convention), so --fix wouldn't apply it there.
     module = lint_project / "src" / "cleanlib" / "extra.py"
     dirty = (
-        "# Copyright (c) 2026 Example Org.\n"
-        "#\n"
-        "# This file is a part of cleanlib.\n\n"
+        "# SPDX-FileCopyrightText: 2026 Example Org.\n"
+        "# SPDX-License-Identifier: MIT\n\n"
         '"""Extra module."""\n\n'
         "from __future__ import annotations\n\n"
         "import os\n\n\n"
@@ -116,9 +115,8 @@ def test_lint_fixes_formatting_issues_by_default(
     # just formatting that ruff format would fix.
     module = lint_project / "src" / "cleanlib" / "__init__.py"
     dirty = (
-        "# Copyright (c) 2026 Example Org.\n"
-        "#\n"
-        "# This file is a part of cleanlib.\n\n"
+        "# SPDX-FileCopyrightText: 2026 Example Org.\n"
+        "# SPDX-License-Identifier: MIT\n\n"
         '"""Sample clean module."""\n\n'
         "from __future__ import annotations\n\n\n"
         "def greet(  ) ->str:\n"
@@ -180,7 +178,8 @@ def test_lint_fails_when_future_annotations_missing(
 
     module = lint_project / "src" / "cleanlib" / "__init__.py"
     module.write_text(
-        "# Copyright (c) 2026 Example Org.\n\n"
+        "# SPDX-FileCopyrightText: 2026 Example Org.\n"
+        "# SPDX-License-Identifier: MIT\n\n"
         '"""Sample clean module."""\n\n\n'
         "def greet() -> str:\n"
         '    """Return a greeting message."""\n'
@@ -203,9 +202,8 @@ def test_lint_fails_on_type_error(runner: CliRunner, lint_project: Path, monkeyp
 
     module = lint_project / "src" / "cleanlib" / "__init__.py"
     module.write_text(
-        "# Copyright (c) 2026 Example Org.\n"
-        "#\n"
-        "# This file is a part of cleanlib.\n\n"
+        "# SPDX-FileCopyrightText: 2026 Example Org.\n"
+        "# SPDX-License-Identifier: MIT\n\n"
         '"""Sample clean module."""\n\n'
         "from __future__ import annotations\n\n\n"
         "def greet() -> int:\n"
@@ -227,9 +225,8 @@ def test_format_fixes_issues(runner: CliRunner, lint_project: Path, monkeypatch:
     # so this isolates the formatting behavior under test.
     module = lint_project / "src" / "cleanlib" / "__init__.py"
     dirty = (
-        "# Copyright (c) 2026 Example Org.\n"
-        "#\n"
-        "# This file is a part of cleanlib.\n\n"
+        "# SPDX-FileCopyrightText: 2026 Example Org.\n"
+        "# SPDX-License-Identifier: MIT\n\n"
         '"""Sample clean module."""\n\n'
         "from __future__ import annotations\n\n\n"
         "def greet(  ) ->str:\n"
@@ -261,9 +258,8 @@ def test_format_no_fix_previews_without_modifying(
 
     module = lint_project / "src" / "cleanlib" / "__init__.py"
     dirty = (
-        "# Copyright (c) 2026 Example Org.\n"
-        "#\n"
-        "# This file is a part of cleanlib.\n\n"
+        "# SPDX-FileCopyrightText: 2026 Example Org.\n"
+        "# SPDX-License-Identifier: MIT\n\n"
         '"""Sample clean module."""\n\n'
         "from __future__ import annotations\n\n\n"
         "def greet(  ) ->str:\n"
@@ -306,9 +302,8 @@ def test_format_passes_through_extra_args_to_ruff(
     monkeypatch.chdir(lint_project)
 
     dirty = (
-        "# Copyright (c) 2026 Example Org.\n"
-        "#\n"
-        "# This file is a part of cleanlib.\n\n"
+        "# SPDX-FileCopyrightText: 2026 Example Org.\n"
+        "# SPDX-License-Identifier: MIT\n\n"
         '"""{docstring}"""\n\n'
         "from __future__ import annotations\n\n\n"
         "def {func}(  ) ->str:\n"
