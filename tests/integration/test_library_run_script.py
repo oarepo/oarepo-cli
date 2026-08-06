@@ -24,7 +24,7 @@ def test_library_run_script_has_correct_shebang():
     assert first_line == "#!/usr/bin/env bash", f"Invalid shebang: {first_line}"
 
 
-def test_library_run_script_syntax():
+def test_library_run_script_syntax() -> None:
     """Verify the script has valid bash syntax (if bash is available)."""
     script_path = Path(__file__).parent.parent.parent / "scripts" / "library_run.sh"
 
@@ -33,6 +33,7 @@ def test_library_run_script_syntax():
         ["bash", "-n", str(script_path)],  # noqa: S607 bash is ok
         capture_output=True,
         text=True,
+        check=False,  # asserted later
     )
 
     assert result.returncode == 0, f"Bash syntax error:\n{result.stderr}"

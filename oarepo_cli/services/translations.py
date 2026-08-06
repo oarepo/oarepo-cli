@@ -91,7 +91,7 @@ def copy_translations(
 
     # Determine source directory
     if collected_translations_dir is None:
-        # Default: oarepo/collected_translations in site-packages
+        # Default is the "oarepo/collected_translations" in site-packages
         src = site_packages / "oarepo" / "collected_translations"
     else:
         src = Path(collected_translations_dir)

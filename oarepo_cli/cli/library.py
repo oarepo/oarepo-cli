@@ -266,7 +266,10 @@ def _library_clean_impl(
                 fg=typer.colors.YELLOW,
             )
     else:
-        console.info("  ℹ No services running", fg=typer.colors.CYAN)
+        console.info(
+            "  ℹ No services running",  # noqa: RUF001 icon
+            fg=typer.colors.CYAN,
+        )
 
     # Remove .env-services file
     env_services_file = context.root_directory / ENV_SERVICES_FILE
@@ -283,7 +286,10 @@ def _library_clean_impl(
                 fg=typer.colors.YELLOW,
             )
     else:
-        console.info(f"  ℹ No {ENV_SERVICES_FILE} file found", fg=typer.colors.CYAN)
+        console.info(
+            f"  ℹ No {ENV_SERVICES_FILE} file found",  # noqa: RUF001 icon
+            fg=typer.colors.CYAN,
+        )
 
     # Remove venv directory and uv.lock using VirtualEnvironmentManager
     venv_existed = context.venv_path.exists()
@@ -308,7 +314,10 @@ def _library_clean_impl(
                 fg=typer.colors.YELLOW,
             )
     else:
-        console.info(f"  ℹ No virtual environment found at {context.venv_path}", fg=typer.colors.CYAN)
+        console.info(
+            f"  ℹ No virtual environment found at {context.venv_path}",  # noqa: RUF001 icon
+            fg=typer.colors.CYAN,
+        )
 
     # Display summary
     if items_removed:
@@ -483,7 +492,7 @@ def services_stop(
     success_message=None,  # Custom success/error handling in impl
     error_prefix="Error running tests",
 )
-def _library_test_impl(
+def _library_test_impl(  # noqa: PLR0913 too many arguments ok for commandline client
     context: ProjectContext,
     console: ConsoleOutput,
     *,

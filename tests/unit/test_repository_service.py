@@ -86,7 +86,7 @@ def test_configure_local_ports_raises_on_missing_files(tmp_path: Path) -> None:
     context = Mock(spec=ProjectContext)
     context.root_directory = tmp_path
 
-    with pytest.raises(FileNotFoundError, match=".invenio.private"):
+    with pytest.raises(FileNotFoundError, match=r"\.invenio\.private"):
         repository.configure_local_ports(context, quiet=True)
 
     # Create .invenio.private but not variables

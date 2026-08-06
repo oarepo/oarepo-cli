@@ -182,8 +182,8 @@ class ServicesLifecycleManager:
         """
         env_vars = {}
 
-        for line in content.strip().split("\n"):
-            line = line.strip()
+        for raw_line in content.strip().split("\n"):
+            line = raw_line.strip()
             if not line or line.startswith("#"):
                 continue
 

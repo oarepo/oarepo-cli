@@ -372,7 +372,7 @@ dependencies = ["oarepo>=14.0.0,<15.0.0"]
     context = ContextBuilder().from_directory(tmp_path).validate()
 
     with pytest.raises(FrozenInstanceError):
-        context.oarepo_version = 15  # type: ignore
+        context.oarepo_version = 15
 
 
 def test_discover_context_convenience_function(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:

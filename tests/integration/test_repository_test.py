@@ -72,7 +72,10 @@ context = ProjectContext(
 run_tests(context, quiet=True)
 """
     return subprocess.run(  # noqa: S603
-        [sys.executable, "-c", driver], capture_output=True, text=True
+        [sys.executable, "-c", driver],
+        capture_output=True,
+        text=True,
+        check=False,  # asserted later
     )
 
 

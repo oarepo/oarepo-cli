@@ -146,10 +146,10 @@ class CliConfig:
 
         """
         return cls(
-            build=BuildConfig(editable=_get_bool("OAREPO_BUILD_EDITABLE", True)),
+            build=BuildConfig(editable=_get_bool("OAREPO_BUILD_EDITABLE", default=True)),
             test=TestingConfig(
-                coverage=_get_bool("OAREPO_TEST_COVERAGE", False),
-                skip_services=_get_bool("OAREPO_TEST_SKIP_SERVICES", False),
+                coverage=_get_bool("OAREPO_TEST_COVERAGE", default=False),
+                skip_services=_get_bool("OAREPO_TEST_SKIP_SERVICES", default=False),
             ),
             venv=VenvConfig(path=Path(_get_str("OAREPO_VENV_PATH", VENV_DIR))),
             python=PythonConfig(binary=_get_str("OAREPO_PYTHON_BINARY", "") or None),
@@ -157,7 +157,7 @@ class CliConfig:
                 version=_get_int("OAREPO_VERSION", 0) or None,
             ),
             services=ServicesConfig(
-                skip=_get_bool("OAREPO_SERVICES_SKIP", False),
+                skip=_get_bool("OAREPO_SERVICES_SKIP", default=False),
                 db=_get_str("OAREPO_SERVICES_DB", ServiceType.POSTGRESQL),
                 search=_get_str("OAREPO_SERVICES_SEARCH", ServiceType.OPENSEARCH),
                 mq=_get_str("OAREPO_SERVICES_MQ", ServiceType.RABBITMQ),

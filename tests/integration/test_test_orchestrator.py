@@ -92,6 +92,7 @@ def test_returns_failure_status_on_test_failure(
         [str(test_context.venv_path / "bin" / "pip"), "install", "pytest"],
         capture_output=True,
         text=True,
+        check=False,  # asserted later
     )
     if result.returncode != 0:
         failure_reason = f"Failed to install pytest: {result.stderr}"

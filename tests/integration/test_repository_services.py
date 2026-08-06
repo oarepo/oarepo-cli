@@ -39,8 +39,15 @@ def mock_context(monkeypatch: pytest.MonkeyPatch) -> Mock:
     return context
 
 
-def _fake_run_invenio_cli(calls: list[dict[str, object]], return_code: int = 0):
-    def fake(context, args: Sequence[str], *, quiet: bool = False, check: bool = True, _env=None):
+def _fake_run_invenio_cli(calls: list[dict[str, object]], return_code: int = 0) -> Callable[..., process.ProcessResult]:
+    def fake(
+        context: object,
+        args: Sequence[str],
+        *,
+        quiet: bool = False,
+        check: bool = True,
+        _env: dict[str, str] | None = None,
+    ) -> process.ProcessResult:
         calls.append({"context": context, "args": list(args), "quiet": quiet, "check": check})
         return process.ProcessResult(
             return_code=return_code,

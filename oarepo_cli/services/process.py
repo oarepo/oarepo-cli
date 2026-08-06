@@ -224,7 +224,7 @@ def _run_subprocess(
     return proc.returncode, stdout or "", stderr or ""
 
 
-def run(
+def run(  # noqa: PLR0913 too many arguments ok here
     command: Sequence[str],
     *,
     cwd: Path | None = None,

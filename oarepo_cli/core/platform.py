@@ -130,7 +130,7 @@ class PlatformDetector:
         }
 
 
-# Global instance for convenience
+# Singleton instance for platform detection
 _detector: PlatformDetector | None = None
 
 
@@ -141,7 +141,7 @@ def get_platform_detector() -> PlatformDetector:
         The singleton PlatformDetector instance.
 
     """
-    global _detector
+    global _detector  # noqa: PLW0603 singleton
     if _detector is None:
         _detector = PlatformDetector()
     return _detector

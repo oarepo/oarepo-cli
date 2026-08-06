@@ -130,7 +130,7 @@ def test_add_package_missing_pyproject_raises(
     manager = LocalPackageManager(context, ConsoleOutput(quiet=True))
     original_content = context.pyproject_path.read_text()
 
-    with pytest.raises(ConfigurationError, match="No pyproject.toml in"):
+    with pytest.raises(ConfigurationError, match=r"No pyproject\.toml in"):
         manager.add_package(tmp_path / "does-not-exist")
 
     assert context.pyproject_path.read_text() == original_content

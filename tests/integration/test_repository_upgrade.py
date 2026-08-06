@@ -74,7 +74,7 @@ def test_upgrade_cleans_uv_cache_with_force(
 
     calls: list[list[str]] = []
 
-    def spy_run(cmd, **_kwargs):
+    def spy_run(cmd: list[str], **_kwargs: object) -> process.ProcessResult:
         calls.append(list(cmd))
         return process.ProcessResult(
             return_code=0, stdout="", stderr="", command=cmd, cwd=clean_testrepo, duration_ms=0

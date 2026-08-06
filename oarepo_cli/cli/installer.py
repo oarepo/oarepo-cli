@@ -51,7 +51,7 @@ def _require_binary(binary: str, option: str) -> None:
         )
 
 
-def new_repository(
+def new_repository(  # noqa: PLR0913,PLR0917 too many arguments ok for commandline client
     repository_name: Annotated[
         str,
         typer.Argument(help="Name of the repository to create (also the target directory)"),
