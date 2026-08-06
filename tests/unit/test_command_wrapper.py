@@ -181,7 +181,7 @@ def test_with_context_and_console_preserves_function_metadata():
         """Execute the command."""
 
     assert my_command.__name__ == "my_command"
-    assert my_command.__doc__ == "This is my command."
+    assert my_command.__doc__ == "Execute the command."
 
 
 def test_with_context_only_preserves_function_metadata():

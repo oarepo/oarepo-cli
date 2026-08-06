@@ -19,6 +19,9 @@ dependencies = [
     # invoked via `uvx`) so they run without a per-call resolve/download.
     "ruff>=0.9.0",
     "ty>=0.0.65",
+    # .gitignore pattern parsing for lint's gitignore-aware file discovery
+    # (oarepo_cli.services.lint)
+    "pathspec>=0.12.0",
     # Tools for library commands
     "oarepo-tools",  # make-translations command
     # Model manager (services/models.py): run copier in-process from this

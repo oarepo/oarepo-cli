@@ -5,18 +5,18 @@
 
 from __future__ import annotations
 
+from pathlib import Path
 from typing import TYPE_CHECKING
 
 import pytest
 from packaging.version import Version
 
 from oarepo_cli.core.errors import VersionMismatchError
+from oarepo_cli.services.process import ProcessResult
 from oarepo_cli.services.pyproject_reader import PyProjectReader
 from oarepo_cli.services.version_resolver import VersionResolver
 
 if TYPE_CHECKING:
-    from pathlib import Path
-
     from pytest_mock import MockerFixture
 
 
@@ -124,6 +124,68 @@ def test_fallback_to_lower_version_if_highest_unavailable(mocker: MockerFixture)
     result = resolver.find_available_python(["3.14", "3.13", "3.12"])
 
     assert result == "3.12"
+
+
+def test_python_available_via_uv_fallback(mocker: MockerFixture) -> None:
+    """Test _is_python_available falls back to uv's own interpreter registry.
+
+    Reproduces a fresh CI runner: `uv venv` already auto-downloaded a
+    matching interpreter, but it was never exposed as a `pythonX.Y` binary
+    on PATH.
+    """
+    resolver = VersionResolver()
+
+    def mock_which(name: str, **_kwargs: object) -> str | None:
+        return "/usr/bin/uv" if name == "uv" else None
+
+    mocker.patch("oarepo_cli.services.version_resolver.shutil.which", side_effect=mock_which)
+    mocker.patch(
+        "oarepo_cli.services.version_resolver.process.run",
+        return_value=ProcessResult(
+            return_code=0,
+            stdout='[{"key": "cpython-3.14.7-linux-x86_64-gnu"}]',
+            stderr="",
+            command=["uv", "python", "list"],
+            cwd=Path(),
+            duration_ms=0,
+        ),
+    )
+
+    assert resolver._is_python_available("3.14") is True  # noqa: SLF001
+
+
+def test_python_unavailable_when_uv_reports_nothing_installed(mocker: MockerFixture) -> None:
+    """Test _is_python_available returns False when uv has no matching interpreter either."""
+    resolver = VersionResolver()
+
+    def mock_which(name: str, **_kwargs: object) -> str | None:
+        return "/usr/bin/uv" if name == "uv" else None
+
+    mocker.patch("oarepo_cli.services.version_resolver.shutil.which", side_effect=mock_which)
+    mocker.patch(
+        "oarepo_cli.services.version_resolver.process.run",
+        return_value=ProcessResult(
+            return_code=0,
+            stdout="[]",
+            stderr="",
+            command=["uv", "python", "list"],
+            cwd=Path(),
+            duration_ms=0,
+        ),
+    )
+
+    assert resolver._is_python_available("3.14") is False  # noqa: SLF001
+
+
+def test_python_unavailable_when_uv_itself_missing(mocker: MockerFixture) -> None:
+    """Test _is_python_available skips the uv fallback entirely when uv isn't on PATH."""
+    resolver = VersionResolver()
+
+    mocker.patch("oarepo_cli.services.version_resolver.shutil.which", return_value=None)
+    run_mock = mocker.patch("oarepo_cli.services.version_resolver.process.run")
+
+    assert resolver._is_python_available("3.14") is False  # noqa: SLF001
+    run_mock.assert_not_called()
 
 
 def test_version_mismatch_error_when_no_compatible_version(mocker: MockerFixture) -> None:

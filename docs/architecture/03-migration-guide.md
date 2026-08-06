@@ -49,7 +49,7 @@ oarepo-cli library test
 |-------------|-------------|-------|
 | `./run.sh venv` | `oarepo-cli library venv` | Identical behavior |
 | `./run.sh venv --force` | `oarepo-cli library venv --force` | Same flag |
-| `./run.sh venv --no-editable` | `oarepo-cli library venv --no-editable` | Same flag |
+| `./run.sh venv --no-editable` | `oarepo-cli library venv --no-editable` | Same flag; `oarepo-cli library --no-editable venv` (old bash-CLI position, before the subcommand) also works |
 | `./run.sh upgrade` | `oarepo-cli library upgrade` | Identical behavior |
 | `./run.sh start` | `oarepo-cli library start` | Identical behavior |
 | `./run.sh stop` | `oarepo-cli library stop` | Identical behavior |
