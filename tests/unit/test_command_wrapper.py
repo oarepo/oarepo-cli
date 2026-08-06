@@ -56,8 +56,8 @@ def test_with_context_and_console_with_messages(tmp_path):
         success_message="Test completed!",
     )
     def test_command(
-        context: ProjectContext,  # noqa: ARG001
-        console: ConsoleOutput,  # noqa: ARG001
+        context: ProjectContext,
+        console: ConsoleOutput,
     ):
         return "done"
 
@@ -86,8 +86,8 @@ def test_with_context_and_console_error_handling():
 
     @with_context_and_console(error_prefix="Test error")
     def test_command(
-        context: ProjectContext,  # noqa: ARG001
-        console: ConsoleOutput,  # noqa: ARG001
+        context: ProjectContext,
+        console: ConsoleOutput,
     ):
         raise OARepoError("Something went wrong")
 
@@ -115,8 +115,8 @@ def test_with_context_and_console_no_messages():
 
     @with_context_and_console()
     def test_command(
-        context: ProjectContext,  # noqa: ARG001
-        console: ConsoleOutput,  # noqa: ARG001
+        context: ProjectContext,
+        console: ConsoleOutput,
     ):
         return "result"
 
@@ -161,7 +161,7 @@ def test_with_context_only_preserves_errors():
     """Test that with_context_only doesn't catch exceptions."""
 
     @with_context_only
-    def test_command(context: ProjectContext):  # noqa: ARG001
+    def test_command(context: ProjectContext):
         raise ValueError("Some error")
 
     with patch("oarepo_cli.cli.command_wrapper.discover_context") as mock_discover:
@@ -179,7 +179,6 @@ def test_with_context_and_console_preserves_function_metadata():
     @with_context_and_console()
     def my_command(context: ProjectContext, console: ConsoleOutput):
         """This is my command."""
-        pass
 
     assert my_command.__name__ == "my_command"
     assert my_command.__doc__ == "This is my command."
@@ -191,7 +190,6 @@ def test_with_context_only_preserves_function_metadata():
     @with_context_only
     def another_command(context: ProjectContext):
         """Another command."""
-        pass
 
     assert another_command.__name__ == "another_command"
     assert another_command.__doc__ == "Another command."

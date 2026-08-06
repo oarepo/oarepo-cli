@@ -375,9 +375,7 @@ def test_venv_creation_workflow_real_tools(
     config = CliConfig(venv=VenvConfig(path=testlib_venv_path))
     manager = VirtualEnvironmentManager(config, project_root=clean_testlib)
 
-    result = manager.ensure_venv(
-        VenvRequirements(python_binary="python3.14", oarepo_version=14, editable=True)
-    )
+    result = manager.ensure_venv(VenvRequirements(python_binary="python3.14", oarepo_version=14, editable=True))
 
     assert result == testlib_venv_path
     assert (result / "bin" / "python").exists()

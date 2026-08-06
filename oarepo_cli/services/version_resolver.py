@@ -30,6 +30,7 @@ class VersionInfo:
         python_versions: List of compatible Python versions sorted descending (e.g., ["3.14", "3.13", "3.12"])
         node_versions: List of Node.js major versions required (always empty --
             Node.js version detection isn't implemented)
+
     """
 
     oarepo_versions: list[int]
@@ -62,6 +63,7 @@ class VersionResolver:
         Args:
             pyproject_reader: Optional PyProjectReader instance. If not provided,
                 a new instance is created.
+
         """
         self._pyproject_reader = pyproject_reader or PyProjectReader()
 
@@ -77,6 +79,7 @@ class VersionResolver:
         Raises:
             ConfigurationError: If pyproject.toml cannot be read
             VersionMismatchError: If no compatible Python version is found
+
         """
         data = self._pyproject_reader.read(pyproject_path)
 
@@ -109,6 +112,7 @@ class VersionResolver:
 
         Raises:
             VersionMismatchError: If no version from the list is available
+
         """
         for version in versions:
             if self._is_python_available(version):
@@ -128,6 +132,7 @@ class VersionResolver:
 
         Returns:
             True if the combination is compatible, False otherwise
+
         """
         try:
             self.validate_compatibility(python, oarepo)
@@ -144,6 +149,7 @@ class VersionResolver:
 
         Raises:
             VersionMismatchError: If the combination is incompatible
+
         """
         if oarepo not in OAREPO_PYTHON_COMPATIBILITY:
             # Unknown OARepo version - we don't have compatibility data
@@ -174,9 +180,10 @@ class VersionResolver:
 
         Returns:
             Version string extracted from input
+
         """
         # Get the binary name without path
-        binary_name = python.split("/")[-1]
+        binary_name = python.rsplit("/", maxsplit=1)[-1]
 
         # If it doesn't start with "python", assume it's already a version
         if not binary_name.startswith("python"):
@@ -184,7 +191,7 @@ class VersionResolver:
 
         # Remove "python" prefix
         version_str = binary_name[6:]  # Remove "python" (6 chars)
-        return version_str if version_str else "3"  # Default to "3" if just "python"
+        return version_str or "3"  # Default to "3" if just "python"
 
     def _parse_requires_python(self, constraint: str) -> list[str]:
         """Parse a requires-python constraint into a list of discrete versions.
@@ -201,6 +208,7 @@ class VersionResolver:
 
         Returns:
             Sorted list of Python version strings matching the constraint
+
         """
         specifier = SpecifierSet(constraint)
 
@@ -220,6 +228,7 @@ class VersionResolver:
 
         Returns:
             List of available versions (may be empty if none found)
+
         """
         return [ver for ver in versions if self._is_python_available(ver)]
 
@@ -236,6 +245,7 @@ class VersionResolver:
 
         Returns:
             True if the Python binary is found in PATH (excluding any active venv)
+
         """
         major, minor = version.split(".")
 
@@ -251,6 +261,4 @@ class VersionResolver:
         # would be reported "available" even when nothing about to (re)create
         # that venv could actually use it.
         system_path = get_system_path()
-        return any(
-            shutil.which(candidate, path=system_path) is not None for candidate in candidates
-        )
+        return any(shutil.which(candidate, path=system_path) is not None for candidate in candidates)

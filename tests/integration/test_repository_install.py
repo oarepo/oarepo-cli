@@ -31,9 +31,7 @@ if TYPE_CHECKING:
 
 
 @pytest.fixture(scope="module")
-def installed_repo(
-    testrepo_project: Path, reset_testrepo_state_fn: Callable[[Path], None]
-) -> Iterator[Path]:
+def installed_repo(testrepo_project: Path, reset_testrepo_state_fn: Callable[[Path], None]) -> Iterator[Path]:
     """Run a real `oarepo-cli repository install` once, shared by this module's tests.
 
     Uses ``reset_testrepo_state_fn`` (session-scoped) rather than the

@@ -24,6 +24,7 @@ See Also:
 - services/js_tools.py: Actual implementation of JS linting/testing
 - cli/library.py: library_jslint(), library_jstest() command registrations
 - cli/repository.py: repository_jslint(), repository_jstest() registrations
+
 """
 
 from __future__ import annotations
@@ -54,9 +55,7 @@ def run_jslint_command(context: ProjectContext, *, quiet: bool) -> NoReturn:
         raise typer.Exit(code=1) from e
 
     if result.success:
-        console.success(
-            "✨ ✓ JavaScript linting complete!", fg=typer.colors.BRIGHT_GREEN, bold=True
-        )
+        console.success("✨ ✓ JavaScript linting complete!", fg=typer.colors.BRIGHT_GREEN, bold=True)
     else:
         console.error("❌ JavaScript linting failed!", fg=typer.colors.BRIGHT_RED, bold=True)
 

@@ -35,14 +35,14 @@ def _get_comment_style(file_path: Path) -> CommentStyle:
 
     Returns:
         CommentStyle enum value
+
     """
     suffix = file_path.suffix.lower()
     if suffix in (".js", ".jsx"):
         return CommentStyle.SLASH
-    elif suffix in (".html", ".jinja", ".jinja2", ".j2"):
+    if suffix in (".html", ".jinja", ".jinja2", ".j2"):
         return CommentStyle.JINJA
-    else:
-        return CommentStyle.HASH
+    return CommentStyle.HASH
 
 
 def _has_spdx_header(content: str) -> bool:
@@ -53,6 +53,7 @@ def _has_spdx_header(content: str) -> bool:
 
     Returns:
         True if file has SPDX-FileCopyrightText and SPDX-License-Identifier
+
     """
     lines = content.splitlines()
     # Check first 10 lines for SPDX headers (more for Jinja with DOCTYPE)
@@ -60,9 +61,7 @@ def _has_spdx_header(content: str) -> bool:
     return "spdx-filecopyrighttext" in first_lines and "spdx-license-identifier" in first_lines
 
 
-def _extract_copyright_info(
-    content: str, comment_style: CommentStyle
-) -> tuple[str | None, str | None]:
+def _extract_copyright_info(content: str, comment_style: CommentStyle) -> tuple[str | None, str | None]:
     """Extract year range and organization from old-style copyright header.
 
     Args:
@@ -71,6 +70,7 @@ def _extract_copyright_info(
 
     Returns:
         Tuple of (year_string, organization) or (None, None) if not found
+
     """
     # Build pattern based on comment style
     if comment_style == CommentStyle.HASH:
@@ -110,6 +110,7 @@ def _remove_old_copyright_block(content: str, comment_style: CommentStyle) -> st
 
     Returns:
         Content with old copyright block removed
+
     """
     lines = content.splitlines(keepends=True)
     start_idx = 0
@@ -119,11 +120,7 @@ def _remove_old_copyright_block(content: str, comment_style: CommentStyle) -> st
         start_idx = 1
 
     # For Jinja templates, also skip DOCTYPE if present
-    if (
-        comment_style == CommentStyle.JINJA
-        and start_idx < len(lines)
-        and lines[start_idx].strip().startswith("<!")
-    ):
+    if comment_style == CommentStyle.JINJA and start_idx < len(lines) and lines[start_idx].strip().startswith("<!"):
         start_idx += 1
 
     # Determine comment check function based on style
@@ -162,28 +159,22 @@ def _remove_old_copyright_block(content: str, comment_style: CommentStyle) -> st
 
         # If we're in a copyright block, continue as long as we see comments or blank lines
         if in_copyright_block:
-            if (
-                is_comment(stripped)
-                or stripped == ""
-                or (comment_style == CommentStyle.JINJA and "#}" in stripped)
-            ):
+            if is_comment(stripped) or stripped == "" or (comment_style == CommentStyle.JINJA and "#}" in stripped):
                 end_idx = i + 1
             else:
                 # Found a non-comment, non-blank line - end of block
                 break
-        else:
-            # Haven't found a copyright block yet, and this isn't it
-            if not is_comment(stripped) and stripped != "":
-                # No copyright block found
-                break
+        # Haven't found a copyright block yet, and this isn't it
+        elif not is_comment(stripped) and stripped != "":
+            # No copyright block found
+            break
 
     # If we found a copyright block, remove it
     if in_copyright_block:
         # Keep shebang/DOCTYPE, remove copyright block, keep the rest
         if start_idx > 0:
             return "".join(lines[:start_idx]) + "".join(lines[end_idx:])
-        else:
-            return "".join(lines[end_idx:])
+        return "".join(lines[end_idx:])
 
     return content
 
@@ -198,23 +189,15 @@ def _build_spdx_header(year: str, organization: str, comment_style: CommentStyle
 
     Returns:
         Formatted SPDX header string
+
     """
     if comment_style == CommentStyle.HASH:
-        return (
-            f"# SPDX-FileCopyrightText: {year} {organization}\n# SPDX-License-Identifier: MIT\n\n"
-        )
-    elif comment_style == CommentStyle.SLASH:
-        return (
-            f"// SPDX-FileCopyrightText: {year} {organization}\n// SPDX-License-Identifier: MIT\n\n"
-        )
-    else:  # JINJA
-        # Single multi-line comment to avoid extra blank lines when rendered
-        return (
-            f"{{#\n"
-            f"SPDX-FileCopyrightText: {year} {organization}\n"
-            f"SPDX-License-Identifier: MIT\n"
-            "#}\n"
-        )
+        return f"# SPDX-FileCopyrightText: {year} {organization}\n# SPDX-License-Identifier: MIT\n\n"
+    if comment_style == CommentStyle.SLASH:
+        return f"// SPDX-FileCopyrightText: {year} {organization}\n// SPDX-License-Identifier: MIT\n\n"
+    # JINJA
+    # Single multi-line comment to avoid extra blank lines when rendered
+    return f"{{#\nSPDX-FileCopyrightText: {year} {organization}\nSPDX-License-Identifier: MIT\n#}}\n"
 
 
 def _add_spdx_header(file_path: Path, organization: str, current_year: int) -> None:
@@ -227,6 +210,7 @@ def _add_spdx_header(file_path: Path, organization: str, current_year: int) -> N
         file_path: Path to the file
         organization: Organization name for copyright (fallback if not in file)
         current_year: Current year for copyright (fallback if not in file)
+
     """
     comment_style = _get_comment_style(file_path)
     content = file_path.read_text(encoding="utf-8")
@@ -235,8 +219,8 @@ def _add_spdx_header(file_path: Path, organization: str, current_year: int) -> N
     year_string, extracted_org = _extract_copyright_info(content, comment_style)
 
     # Use extracted info if available, otherwise use defaults
-    final_year = year_string if year_string else str(current_year)
-    final_org = extracted_org if extracted_org else organization
+    final_year = year_string or str(current_year)
+    final_org = extracted_org or organization
 
     # Remove old copyright block
     content = _remove_old_copyright_block(content, comment_style)
@@ -273,6 +257,7 @@ def _iter_target_files(directories: list[Path]) -> list[Path]:
 
     Returns:
         Sorted list of file paths
+
     """
     files: list[pathlib.Path] = []
     extensions = (".py", ".js", ".jsx", ".html", ".jinja", ".jinja2", ".j2")
@@ -300,6 +285,7 @@ def add_license_headers(
 
     Returns:
         ProcessResult indicating success or failure
+
     """
     root = context.root_directory
     code_directories = context.code_directories

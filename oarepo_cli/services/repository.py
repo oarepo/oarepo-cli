@@ -36,6 +36,7 @@ def configure_local_ports(context: ProjectContext, *, quiet: bool = False) -> No
     Raises:
         FileNotFoundError: If .invenio.private or variables file doesn't exist
         IOError: If reading/writing files fails
+
     """
     invenio_private = context.root_directory / ".invenio.private"
     variables_file = context.root_directory / "variables"
@@ -129,6 +130,7 @@ def get_instance_path(context: ProjectContext) -> Path:
 
     Returns:
         Path to the Invenio instance directory
+
     """
     instance_path = os.environ.get("INVENIO_INSTANCE_PATH")
     if instance_path:
@@ -153,6 +155,7 @@ def ensure_instance_structure(
         context: Project context with paths and configuration
         instance_path: Path to the instance directory
         quiet: If True, suppress status messages
+
     """
     if not quiet:
         import sys
@@ -228,6 +231,7 @@ def install_repository(context: ProjectContext, *, quiet: bool = False) -> None:
     Raises:
         ProcessExecutionError: If a required step (uv sync, invenio-cli
             install) fails
+
     """
     console = ConsoleOutput(quiet=quiet)
 
@@ -303,9 +307,7 @@ def install_repository(context: ProjectContext, *, quiet: bool = False) -> None:
         console.warning("⚠️  Warning: invenio-cli failed to compile backend translations!")
 
 
-def upgrade_repository(
-    context: ProjectContext, *, quiet: bool = False, clean_cache: bool = True
-) -> None:
+def upgrade_repository(context: ProjectContext, *, quiet: bool = False, clean_cache: bool = True) -> None:
     """Upgrade repository: clean venv (and, by default, cache) and reinstall from scratch.
 
     Mirrors ``repository_runner.sh``'s ``upgrade_repository`` function:
@@ -334,6 +336,7 @@ def upgrade_repository(
     Raises:
         ProcessExecutionError: If ``uv cache clean`` or ``install_repository``
             fails
+
     """
     console = ConsoleOutput(quiet=quiet)
 
@@ -384,6 +387,7 @@ def exec_invenio(context: ProjectContext, args: Sequence[str]) -> NoReturn:
     Raises:
         OSError: If the invenio binary can't be exec'd (not found, not
             executable, ...)
+
     """
     os.chdir(context.root_directory)
     binary = get_invenio_binary(context)
@@ -418,6 +422,7 @@ def exec_shell(context: ProjectContext) -> NoReturn:
 
     Raises:
         OSError: If the shell can't be exec'd (not found, not executable, ...)
+
     """
     platform = get_platform_detector()
     bin_dir = platform.get_venv_bin_dir()
@@ -482,6 +487,7 @@ def rebuild_index(context: ProjectContext, *, quiet: bool = False) -> None:
 
     Raises:
         ProcessExecutionError: If any of the ``invenio`` subcommands fail
+
     """
     console = ConsoleOutput(quiet=quiet)
 
@@ -499,9 +505,7 @@ def rebuild_index(context: ProjectContext, *, quiet: bool = False) -> None:
     _run_invenio(context, ["rdm", "rebuild-all-indices"], quiet=quiet)
 
     console.success("✓ Search index was destroyed and re-created\n")
-    console.info(
-        "Please run the server with workers (oarepo-cli repository run) to complete the indexing.\n"
-    )
+    console.info("Please run the server with workers (oarepo-cli repository run) to complete the indexing.\n")
 
 
 def reset_repository(context: ProjectContext, *, quiet: bool = False) -> None:
@@ -521,6 +525,7 @@ def reset_repository(context: ProjectContext, *, quiet: bool = False) -> None:
     Raises:
         ProcessExecutionError: If reinstalling, setting up services, or
             seeding the demo admin/user fails
+
     """
     console = ConsoleOutput(quiet=quiet)
 
@@ -631,6 +636,7 @@ def run_tests(
     Raises:
         ProcessExecutionError: If installing pytest/pytest-cov fails
         OSError: If pytest can't be exec'd (not found, not executable, ...)
+
     """
     console = ConsoleOutput(quiet=quiet)
     bin_dir = get_platform_detector().get_venv_bin_dir()
@@ -657,9 +663,7 @@ def run_tests(
                 ["uv", "pip", "install", "--python", str(venv_python), "pytest-cov"],
                 cwd=context.root_directory,
                 check=True,
-                output_mode=ProcessOutputMode.INTERACTIVE
-                if not quiet
-                else ProcessOutputMode.CAPTURE,
+                output_mode=ProcessOutputMode.INTERACTIVE if not quiet else ProcessOutputMode.CAPTURE,
             )
 
     cmd = [str(pytest_bin)]
@@ -716,9 +720,7 @@ def list_repository_models(context: ProjectContext) -> list[ModelInfo]:
             continue
         if not (entry / ".copier-answers.yml").exists() or not (entry / "model.py").exists():
             continue
-        models.append(
-            ModelInfo(name=entry.name, version=_extract_model_version(entry / "model.py"))
-        )
+        models.append(ModelInfo(name=entry.name, version=_extract_model_version(entry / "model.py")))
     return models
 
 
@@ -730,6 +732,7 @@ def _extract_model_version(model_py: Path) -> str:
 
     Returns:
         The version string if found, otherwise "unknown"
+
     """
     for line in model_py.read_text().splitlines():
         match = _MODEL_VERSION_PATTERN.search(line)

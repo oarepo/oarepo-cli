@@ -29,6 +29,7 @@ See Also:
 - services/lint.py: LintRunner implementation with ruff/ty subprocess execution
 - cli/library.py: library_lint(), library_format(), library_check() registrations
 - cli/repository.py: repository_lint(), repository_format(), repository_check()
+
 """
 
 from __future__ import annotations
@@ -48,7 +49,7 @@ if TYPE_CHECKING:
 
 
 def run_lint(context: ProjectContext, *, fix: bool, quiet: bool) -> NoReturn:
-    """Run ``LintRunner.run_lint()`` and exit with its result, for `library`/`repository lint`."""
+    """Run linters and exit with result code."""
     console = ConsoleOutput(quiet=quiet)
     console.info("🔍 Running linters...", fg=typer.colors.BRIGHT_BLUE, bold=True)
 
@@ -68,10 +69,8 @@ def run_lint(context: ProjectContext, *, fix: bool, quiet: bool) -> NoReturn:
     raise typer.Exit(code=result.return_code)
 
 
-def run_format(
-    context: ProjectContext, *, fix: bool, extra_args: Sequence[str], quiet: bool
-) -> NoReturn:
-    """Run ``LintRunner.run_format()`` and exit with its result, for `library`/`repository format`."""
+def run_format(context: ProjectContext, *, fix: bool, extra_args: Sequence[str], quiet: bool) -> NoReturn:
+    """Format code and exit with result code."""
     console = ConsoleOutput(quiet=quiet)
     console.info("🎨 Formatting code...", fg=typer.colors.BRIGHT_BLUE, bold=True)
 
@@ -92,8 +91,10 @@ def run_format(
 
 
 def run_check(context: ProjectContext, *, quiet: bool) -> NoReturn:
-    """Run ``LintRunner.run_lint(fix=False)`` and exit with its result, for
-    `library`/`repository check`."""
+    """Run checks in read-only mode and exit.
+
+    Uses ``LintRunner.run_lint(fix=False)`` for `library`/`repository check`.
+    """
     console = ConsoleOutput(quiet=quiet)
     console.info("🔎 Checking...", fg=typer.colors.BRIGHT_BLUE, bold=True)
 

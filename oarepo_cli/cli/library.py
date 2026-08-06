@@ -77,11 +77,10 @@ def _start_services_impl(
         context: Project context (injected by decorator)
         console: Console output handler (injected by decorator)
         quiet: If True, suppress console output and pass --quiet to docker-services-cli
+
     """
     # Start services using ServicesLifecycleManager
-    services_mgr = ServicesLifecycleManager(
-        config=context.config, project_root=context.root_directory, quiet=quiet
-    )
+    services_mgr = ServicesLifecycleManager(config=context.config, project_root=context.root_directory, quiet=quiet)
 
     env_vars = services_mgr.start_services()
 
@@ -89,9 +88,7 @@ def _start_services_impl(
         # Services were skipped (SKIP_SERVICES=1)
         console.info("✓ Services skipped", fg=typer.colors.YELLOW)
     else:
-        console.success(
-            "✨ ✓ Services started successfully!", fg=typer.colors.BRIGHT_GREEN, bold=True
-        )
+        console.success("✨ ✓ Services started successfully!", fg=typer.colors.BRIGHT_GREEN, bold=True)
         console.info(
             f"  Environment variables written to {context.root_directory / ENV_SERVICES_FILE}",
             fg=typer.colors.GREEN,
@@ -112,11 +109,10 @@ def _start_services_if_needed_impl(*, quiet: bool = False) -> dict[str, str]:
 
     Returns:
         Dictionary of environment variables for connecting to services
+
     """
     context = discover_context()
-    services_mgr = ServicesLifecycleManager(
-        config=context.config, project_root=context.root_directory, quiet=quiet
-    )
+    services_mgr = ServicesLifecycleManager(config=context.config, project_root=context.root_directory, quiet=quiet)
 
     if services_mgr.are_services_running():
         return services_mgr.load_service_env()
@@ -142,15 +138,14 @@ def _stop_services_impl(
         context: Project context (injected by decorator)
         console: Console output handler (injected by decorator)
         quiet: If True, suppress console output and pass --quiet to docker-services-cli
+
     """
     if not (context.root_directory / ENV_SERVICES_FILE).exists():
         console.info("✓ No services running", fg=typer.colors.YELLOW)
         return
 
     # Stop services using ServicesLifecycleManager
-    services_mgr = ServicesLifecycleManager(
-        config=context.config, project_root=context.root_directory, quiet=quiet
-    )
+    services_mgr = ServicesLifecycleManager(config=context.config, project_root=context.root_directory, quiet=quiet)
     services_mgr.stop_services()
 
 
@@ -166,7 +161,7 @@ def _library_venv_impl(
     no_editable: bool = False,
     quiet: bool = False,
 ) -> None:
-    """Implementation for library venv command.
+    """Implement library venv command.
 
     Args:
         context: Project context (injected by decorator)
@@ -174,6 +169,7 @@ def _library_venv_impl(
         force: Recreate venv from scratch
         no_editable: Build wheel instead of editable install
         quiet: Suppress command output
+
     """
     # Build requirements from context
     requirements = VenvRequirements(
@@ -192,12 +188,8 @@ def _library_venv_impl(
 
 @library_app.command("venv")
 def library_venv(
-    force: Annotated[
-        bool, typer.Option("--force", "-f", help="Recreate venv from scratch")
-    ] = False,
-    no_editable: Annotated[
-        bool, typer.Option("--no-editable", help="Build wheel instead of editable install")
-    ] = False,
+    force: Annotated[bool, typer.Option("--force", "-f", help="Recreate venv from scratch")] = False,
+    no_editable: Annotated[bool, typer.Option("--no-editable", help="Build wheel instead of editable install")] = False,
     quiet: Annotated[bool, typer.Option("--quiet", "-q", help="Suppress command output")] = False,
 ) -> None:
     """Set up virtual environment with OARepo dependencies.
@@ -218,12 +210,8 @@ def library_venv(
 
 @library_app.command("install")
 def library_install(
-    force: Annotated[
-        bool, typer.Option("--force", "-f", help="Recreate venv from scratch")
-    ] = False,
-    no_editable: Annotated[
-        bool, typer.Option("--no-editable", help="Build wheel instead of editable install")
-    ] = False,
+    force: Annotated[bool, typer.Option("--force", "-f", help="Recreate venv from scratch")] = False,
+    no_editable: Annotated[bool, typer.Option("--no-editable", help="Build wheel instead of editable install")] = False,
     quiet: Annotated[bool, typer.Option("--quiet", "-q", help="Suppress command output")] = False,
 ) -> None:
     """Alias for 'venv' command - set up virtual environment with OARepo dependencies.
@@ -254,19 +242,18 @@ def _library_clean_impl(
     *,
     quiet: bool = False,
 ) -> None:
-    """Implementation for library clean command.
+    """Implement library clean command.
 
     Args:
         context: Project context (injected by decorator)
         console: Console output handler (injected by decorator)
         quiet: Suppress command output
+
     """
     items_removed = []
 
     # Stop services if running
-    services_mgr = ServicesLifecycleManager(
-        config=context.config, project_root=context.root_directory, quiet=quiet
-    )
+    services_mgr = ServicesLifecycleManager(config=context.config, project_root=context.root_directory, quiet=quiet)
     if services_mgr.are_services_running():
         console.info("🛁 Stopping services...", fg=typer.colors.CYAN)
         try:
@@ -305,13 +292,9 @@ def _library_clean_impl(
     lock_existed = lock_file.exists()
 
     if venv_existed or lock_existed:
-        console.info(
-            f"🗑️  Removing virtual environment at {context.venv_path}...", fg=typer.colors.CYAN
-        )
+        console.info(f"🗑️  Removing virtual environment at {context.venv_path}...", fg=typer.colors.CYAN)
         try:
-            venv_mgr = VirtualEnvironmentManager(
-                config=context.config, project_root=context.root_directory
-            )
+            venv_mgr = VirtualEnvironmentManager(config=context.config, project_root=context.root_directory)
             venv_mgr.cleanup()
             if venv_existed:
                 console.info("  ✓ Virtual environment removed", fg=typer.colors.GREEN)
@@ -326,9 +309,7 @@ def _library_clean_impl(
                 fg=typer.colors.YELLOW,
             )
     else:
-        console.info(
-            f"  ℹ No virtual environment found at {context.venv_path}", fg=typer.colors.CYAN
-        )
+        console.info(f"  ℹ No virtual environment found at {context.venv_path}", fg=typer.colors.CYAN)
 
     # Display summary
     if items_removed:
@@ -375,17 +356,16 @@ def _library_upgrade_impl(
     *,
     quiet: bool = False,
 ) -> None:
-    """Implementation for library upgrade command.
+    """Implement library upgrade command.
 
     Args:
         context: Project context (injected by decorator)
         console: Console output handler (injected by decorator)
         quiet: Suppress command output
+
     """
     # Stop services if running
-    services_mgr = ServicesLifecycleManager(
-        config=context.config, project_root=context.root_directory, quiet=quiet
-    )
+    services_mgr = ServicesLifecycleManager(config=context.config, project_root=context.root_directory, quiet=quiet)
     if services_mgr.are_services_running():
         console.info("🛁 Stopping services...", fg=typer.colors.CYAN)
         try:
@@ -450,9 +430,7 @@ def library_upgrade(
 
 @library_app.command("start")
 def library_start(
-    quiet: Annotated[
-        bool, typer.Option("--quiet", "-q", help="Suppress docker-services-cli output")
-    ] = False,
+    quiet: Annotated[bool, typer.Option("--quiet", "-q", help="Suppress docker-services-cli output")] = False,
 ) -> None:
     """Start Docker services for development and testing.
 
@@ -467,9 +445,7 @@ def library_start(
 
 @services_app.command("start")
 def services_start(
-    quiet: Annotated[
-        bool, typer.Option("--quiet", "-q", help="Suppress docker-services-cli output")
-    ] = False,
+    quiet: Annotated[bool, typer.Option("--quiet", "-q", help="Suppress docker-services-cli output")] = False,
 ) -> None:
     """Start Docker services for development and testing.
 
@@ -484,9 +460,7 @@ def services_start(
 
 @library_app.command("stop")
 def library_stop(
-    quiet: Annotated[
-        bool, typer.Option("--quiet", "-q", help="Suppress docker-services-cli output")
-    ] = False,
+    quiet: Annotated[bool, typer.Option("--quiet", "-q", help="Suppress docker-services-cli output")] = False,
 ) -> None:
     """Stop Docker services.
 
@@ -497,9 +471,7 @@ def library_stop(
 
 @services_app.command("stop")
 def services_stop(
-    quiet: Annotated[
-        bool, typer.Option("--quiet", "-q", help="Suppress docker-services-cli output")
-    ] = False,
+    quiet: Annotated[bool, typer.Option("--quiet", "-q", help="Suppress docker-services-cli output")] = False,
 ) -> None:
     """Stop Docker services.
 
@@ -521,7 +493,7 @@ def _library_test_impl(
     with_coverage: bool = False,
     quiet: bool = False,
 ) -> None:
-    """Implementation for library test command.
+    """Implement library test command.
 
     Args:
         context: Project context (injected by decorator)
@@ -530,6 +502,7 @@ def _library_test_impl(
         skip_services: Skip starting/stopping Docker services
         with_coverage: Enable coverage reporting
         quiet: Suppress service start/stop messages
+
     """
     # Create orchestrator and run tests
     orchestrator = TestOrchestrator(context=context, quiet=quiet)
@@ -570,9 +543,7 @@ def library_test(
     skip_services: Annotated[
         bool, typer.Option("--skip-services", help="Skip starting/stopping Docker services")
     ] = False,
-    with_coverage: Annotated[
-        bool, typer.Option("--with-coverage", help="Enable coverage reporting")
-    ] = False,
+    with_coverage: Annotated[bool, typer.Option("--with-coverage", help="Enable coverage reporting")] = False,
     quiet: Annotated[
         bool,
         typer.Option(
@@ -605,9 +576,10 @@ def library_test(
         oarepo-cli library test --quiet
         oarepo-cli library test -v tests/unit/
         oarepo-cli library test --with-coverage -x -k test_specific
+
     """
     # Get extra args from context
-    pytest_args = ctx.args if ctx.args else []
+    pytest_args = ctx.args or []
 
     _library_test_impl(
         pytest_args=pytest_args,
@@ -619,9 +591,7 @@ def library_test(
 
 @library_app.command("shell")
 def library_shell(
-    skip_services: Annotated[
-        bool, typer.Option("--skip-services", help="Skip starting Docker services")
-    ] = False,
+    skip_services: Annotated[bool, typer.Option("--skip-services", help="Skip starting Docker services")] = False,
 ) -> None:
     """Start an interactive bash shell in the project's virtual environment.
 
@@ -635,6 +605,7 @@ def library_shell(
     Examples:
         oarepo-cli library shell
         oarepo-cli library shell --skip-services
+
     """
     # Discover project context
     context = discover_context()
@@ -665,9 +636,7 @@ def library_shell(
     # Start services unless already running or explicitly skipped, and load
     # the environment variables needed to connect to them
     if skip_services:
-        services_mgr = ServicesLifecycleManager(
-            config=context.config, project_root=context.root_directory
-        )
+        services_mgr = ServicesLifecycleManager(config=context.config, project_root=context.root_directory)
         service_env = services_mgr.load_service_env()
     else:
         service_env = _start_services_if_needed_impl(quiet=False)
@@ -746,9 +715,7 @@ def library_shell(
 )
 def library_invenio(
     ctx: typer.Context,
-    skip_services: Annotated[
-        bool, typer.Option("--skip-services", help="Skip starting Docker services")
-    ] = False,
+    skip_services: Annotated[bool, typer.Option("--skip-services", help="Skip starting Docker services")] = False,
 ) -> None:
     """Run invenio commands in the project's virtual environment.
 
@@ -766,9 +733,10 @@ def library_invenio(
         oarepo-cli library invenio run
         oarepo-cli library invenio --skip-services shell
         oarepo-cli library invenio users create admin@example.com --password admin
+
     """
     # Get extra args from context (these are the invenio command args)
-    invenio_args = ctx.args if ctx.args else []
+    invenio_args = ctx.args or []
 
     if not invenio_args:
         typer.echo("Error: No invenio command provided.")
@@ -803,9 +771,7 @@ def library_invenio(
     # Start services unless already running or explicitly skipped, and load
     # the environment variables needed to connect to them
     if skip_services:
-        services_mgr = ServicesLifecycleManager(
-            config=context.config, project_root=context.root_directory
-        )
+        services_mgr = ServicesLifecycleManager(config=context.config, project_root=context.root_directory)
         service_env = services_mgr.load_service_env()
     else:
         service_env = _start_services_if_needed_impl(quiet=False)
@@ -863,9 +829,7 @@ def library_invenio(
 def library_lint(
     fix: Annotated[
         bool,
-        typer.Option(
-            "--fix/--no-fix", help="Auto-fix what ruff/ty can fix (default) vs. report only"
-        ),
+        typer.Option("--fix/--no-fix", help="Auto-fix what ruff/ty can fix (default) vs. report only"),
     ] = True,
     quiet: Annotated[bool, typer.Option("--quiet", "-q", help="Suppress command output")] = False,
 ) -> None:
@@ -922,9 +886,10 @@ def library_format(
         oarepo-cli library format src/mymodule.py
         oarepo-cli library format --diff
         oarepo-cli library format --no-fix
+
     """
     # Get extra args from context (passed through to ruff)
-    extra_args = ctx.args if ctx.args else []
+    extra_args = ctx.args or []
 
     context = discover_context()
     lint_commands.run_format(context, fix=fix, extra_args=extra_args, quiet=quiet)
@@ -961,13 +926,14 @@ def _library_translations_impl(
     extra_args: list[str],
     quiet: bool = False,
 ) -> None:
-    """Implementation for library translations command.
+    """Implement library translations command.
 
     Args:
         context: Project context (injected by decorator)
         console: Console output handler (injected by decorator)
         extra_args: Additional arguments to pass to make-translations
         quiet: Suppress command output
+
     """
     result = run_translations(context, extra_args=extra_args, quiet=quiet)
 
@@ -1001,8 +967,9 @@ def library_translations(
     Examples:
         oarepo-cli library translations
         oarepo-cli library translations --help
+
     """
-    extra_args = ctx.args if ctx.args else []
+    extra_args = ctx.args or []
 
     _library_translations_impl(extra_args=extra_args, quiet=quiet)
 
@@ -1018,13 +985,14 @@ def _library_license_headers_impl(
     organization: str | None = None,
     quiet: bool = False,
 ) -> None:
-    """Implementation for library license-headers command.
+    """Implement library license-headers command.
 
     Args:
         context: Project context (injected by decorator)
         console: Console output handler (injected by decorator)
         organization: Organization name for copyright
         quiet: Suppress command output
+
     """
     result = add_license_headers(context, organization=organization, quiet=quiet)
 
@@ -1056,6 +1024,7 @@ def library_license_headers(
     Examples:
         oarepo-cli library license-headers
         oarepo-cli library license-headers --organization "My Organization"
+
     """
     _library_license_headers_impl(organization=organization, quiet=quiet)
 
@@ -1077,6 +1046,7 @@ def library_jslint(
 
     Examples:
         oarepo-cli library jslint
+
     """
     context = discover_context()
     js_commands.run_jslint_command(context, quiet=quiet)
@@ -1092,12 +1062,8 @@ def library_jslint(
 )
 def library_jstest(
     ctx: typer.Context,
-    setup: Annotated[
-        bool, typer.Option("--setup", help="Set up Jest configuration instead of running tests")
-    ] = False,
-    skip_services: Annotated[
-        bool, typer.Option("--skip-services", help="Skip starting Docker services")
-    ] = False,
+    setup: Annotated[bool, typer.Option("--setup", help="Set up Jest configuration instead of running tests")] = False,
+    skip_services: Annotated[bool, typer.Option("--skip-services", help="Skip starting Docker services")] = False,
     quiet: Annotated[bool, typer.Option("--quiet", "-q", help="Suppress command output")] = False,
 ) -> None:
     """Run JavaScript tests (Jest) via invenio webpack.
@@ -1114,24 +1080,21 @@ def library_jstest(
         oarepo-cli library jstest
         oarepo-cli library jstest --skip-services
         oarepo-cli library jstest --setup
+
     """
-    extra_args = ctx.args if ctx.args else []
+    extra_args = ctx.args or []
 
     context = discover_context()
 
     # Start services unless already running or explicitly skipped, and get
     # the environment variables needed to connect to them
     if skip_services:
-        services_mgr = ServicesLifecycleManager(
-            config=context.config, project_root=context.root_directory
-        )
+        services_mgr = ServicesLifecycleManager(config=context.config, project_root=context.root_directory)
         service_env = services_mgr.load_service_env()
     else:
         service_env = _start_services_if_needed_impl(quiet=quiet)
 
-    js_commands.run_jstest_command(
-        context, setup=setup, service_env=service_env, extra_args=extra_args, quiet=quiet
-    )
+    js_commands.run_jstest_command(context, setup=setup, service_env=service_env, extra_args=extra_args, quiet=quiet)
 
 
 @library_app.command("oarepo-versions")
@@ -1164,6 +1127,7 @@ def library_oarepo_versions(
     Examples:
         oarepo-cli library oarepo-versions
         oarepo-cli library oarepo-versions | jq .python_versions
+
     """
     # Deliberately not discover_context(): this command only ever needs
     # pyproject.toml to exist (it reports what a project *declares*, before

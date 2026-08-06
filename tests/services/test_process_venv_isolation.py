@@ -16,7 +16,7 @@ from oarepo_cli.services import process
 def test_strip_venv_vars_removes_virtual_env() -> None:
     """Test that VIRTUAL_ENV variable is stripped."""
     env = {"VIRTUAL_ENV": "/path/to/venv", "OTHER": "value"}
-    cleaned = process._strip_venv_vars(env)
+    cleaned = process._strip_venv_vars(env)  # noqa: SLF001
 
     assert "VIRTUAL_ENV" not in cleaned
     assert "OTHER" in cleaned
@@ -32,7 +32,7 @@ def test_strip_venv_vars_removes_all_venv_variables() -> None:
         "_OLD_VIRTUAL_PYTHONHOME": "/usr",
         "OTHER": "value",
     }
-    cleaned = process._strip_venv_vars(env)
+    cleaned = process._strip_venv_vars(env)  # noqa: SLF001
 
     assert "VIRTUAL_ENV" not in cleaned
     assert "VIRTUAL_ENV_PROMPT" not in cleaned
@@ -51,7 +51,7 @@ def test_strip_venv_vars_removes_venv_bin_from_path_unix() -> None:
         "VIRTUAL_ENV": venv_path,
         "PATH": f"{venv_path}/bin:/usr/bin:/usr/local/bin",
     }
-    cleaned = process._strip_venv_vars(env)
+    cleaned = process._strip_venv_vars(env)  # noqa: SLF001
 
     assert "VIRTUAL_ENV" not in cleaned
     assert cleaned["PATH"] == "/usr/bin:/usr/local/bin"
@@ -67,7 +67,7 @@ def test_strip_venv_vars_removes_venv_bin_from_path_with_trailing_slash() -> Non
         "VIRTUAL_ENV": venv_path,
         "PATH": f"{venv_path}/bin/:/usr/bin:/usr/local/bin",
     }
-    cleaned = process._strip_venv_vars(env)
+    cleaned = process._strip_venv_vars(env)  # noqa: SLF001
 
     assert cleaned["PATH"] == "/usr/bin:/usr/local/bin"
 
@@ -82,7 +82,7 @@ def test_strip_venv_vars_handles_multiple_venv_bin_in_path() -> None:
         "VIRTUAL_ENV": venv_path,
         "PATH": f"{venv_path}/bin:/usr/bin:{venv_path}/bin:/usr/local/bin",
     }
-    cleaned = process._strip_venv_vars(env)
+    cleaned = process._strip_venv_vars(env)  # noqa: SLF001
 
     assert cleaned["PATH"] == "/usr/bin:/usr/local/bin"
 
@@ -93,7 +93,7 @@ def test_strip_venv_vars_preserves_path_without_venv() -> None:
         "VIRTUAL_ENV": "/home/user/.venv",
         "PATH": "/usr/bin:/usr/local/bin",
     }
-    cleaned = process._strip_venv_vars(env)
+    cleaned = process._strip_venv_vars(env)  # noqa: SLF001
 
     assert cleaned["PATH"] == "/usr/bin:/usr/local/bin"
 
@@ -101,7 +101,7 @@ def test_strip_venv_vars_preserves_path_without_venv() -> None:
 def test_strip_venv_vars_no_virtual_env_set() -> None:
     """Test that PATH is unchanged when VIRTUAL_ENV is not set."""
     env = {"PATH": "/usr/bin:/usr/local/bin"}
-    cleaned = process._strip_venv_vars(env)
+    cleaned = process._strip_venv_vars(env)  # noqa: SLF001
 
     assert cleaned["PATH"] == "/usr/bin:/usr/local/bin"
 
@@ -204,9 +204,7 @@ def test_get_output_strips_venv_by_default(monkeypatch: pytest.MonkeyPatch) -> N
     """Test that get_output() strips venv variables by default."""
     monkeypatch.setenv("VIRTUAL_ENV", "/path/to/venv")
 
-    output = process.get_output(
-        ["python3", "-c", "import os; print(os.environ.get('VIRTUAL_ENV', 'NOT_SET'))"]
-    )
+    output = process.get_output(["python3", "-c", "import os; print(os.environ.get('VIRTUAL_ENV', 'NOT_SET'))"])
 
     assert output == "NOT_SET"
 
@@ -216,7 +214,8 @@ def test_get_system_path_strips_active_venv_bin(monkeypatch: pytest.MonkeyPatch)
     repository_runner.sh's get_highest_available_python -- otherwise
     resolving a system Python while a project's own venv is activated
     finds that venv's own interpreter, which is wrong for anything that
-    needs to (re)create that very venv (e.g. `repository upgrade`)."""
+    needs to (re)create that very venv (e.g. `repository upgrade`).
+    """
     if sys.platform == "win32":
         pytest.skip("Unix-specific test")
 

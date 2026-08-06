@@ -1,6 +1,8 @@
 # SPDX-FileCopyrightText: 2026 CESNET z.s.p.o.
 # SPDX-License-Identifier: MIT
 
+"""Exception classes for OARepo CLI errors."""
+
 from __future__ import annotations
 
 from typing import TYPE_CHECKING
@@ -83,8 +85,7 @@ def safe_run(
     check: bool = True,
     **kwargs: object,
 ) -> object:
-    """
-    Wrap a function call with consistent error handling.
+    """Wrap a function call with consistent error handling.
 
     Args:
         func: The function to execute
@@ -97,6 +98,7 @@ def safe_run(
 
     Raises:
         OARepoError: If check=True and the function raises an OARepoError subclass
+
     """
     try:
         return func(*args, **kwargs)

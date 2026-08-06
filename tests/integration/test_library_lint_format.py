@@ -38,9 +38,7 @@ def test_format_help_displays(runner: CliRunner) -> None:
     assert "format" in result.stdout.lower()
 
 
-def test_lint_passes_on_clean_code(
-    runner: CliRunner, lint_project: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
+def test_lint_passes_on_clean_code(runner: CliRunner, lint_project: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """Test that 'library lint' exits 0 on a clean project."""
     monkeypatch.chdir(lint_project)
 
@@ -61,7 +59,8 @@ def test_lint_does_not_swallow_non_oareporerror_exceptions(
     a blanket `except Exception`, so unexpected bugs surface as real tracebacks rather
     than being silently reported as ordinary command failures. The shared lint/format/
     check command body lives in cli/lint_commands.py, reused by both `library lint`
-    and `repository lint`."""
+    and `repository lint`.
+    """
     monkeypatch.chdir(lint_project)
 
     def _raise_value_error(_self: object, **_kwargs: object) -> None:
@@ -192,9 +191,7 @@ def test_lint_fails_when_future_annotations_missing(
     assert result.exit_code != 0
 
 
-def test_lint_fails_on_type_error(
-    runner: CliRunner, lint_project: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
+def test_lint_fails_on_type_error(runner: CliRunner, lint_project: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """Test that 'library lint' exits non-zero when ty finds a real type error.
 
     Exercises the ty check step specifically: the return type doesn't match
@@ -220,9 +217,7 @@ def test_lint_fails_on_type_error(
     assert result.exit_code != 0
 
 
-def test_format_fixes_issues(
-    runner: CliRunner, lint_project: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
+def test_format_fixes_issues(runner: CliRunner, lint_project: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """Test that 'library format' rewrites badly-formatted code via ruff."""
     monkeypatch.chdir(lint_project)
 
@@ -276,9 +271,7 @@ def test_format_no_fix_previews_without_modifying(
     )
     module.write_text(dirty)
 
-    result = runner.invoke(
-        app, ["library", "format", "--no-fix", "--quiet"], catch_exceptions=False
-    )
+    result = runner.invoke(app, ["library", "format", "--no-fix", "--quiet"], catch_exceptions=False)
 
     assert result.exit_code != 0
     assert module.read_text() == dirty
@@ -322,9 +315,7 @@ def test_format_passes_through_extra_args_to_ruff(
         "    return   '{word}'\n"
     )
     formatted_module = lint_project / "src" / "cleanlib" / "__init__.py"
-    formatted_module.write_text(
-        dirty.format(docstring="Sample clean module.", func="greet", word="hello")
-    )
+    formatted_module.write_text(dirty.format(docstring="Sample clean module.", func="greet", word="hello"))
     untouched_module = lint_project / "src" / "cleanlib" / "other.py"
     untouched_dirty = dirty.format(docstring="Other module.", func="farewell", word="bye")
     untouched_module.write_text(untouched_dirty)
@@ -340,9 +331,7 @@ def test_format_passes_through_extra_args_to_ruff(
     assert untouched_module.read_text() == untouched_dirty
 
 
-def test_lint_requires_pyproject(
-    runner: CliRunner, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
+def test_lint_requires_pyproject(runner: CliRunner, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """Test that 'library lint' fails gracefully without pyproject.toml."""
     empty_dir = tmp_path / "empty"
     empty_dir.mkdir()

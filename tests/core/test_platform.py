@@ -191,7 +191,7 @@ def test_get_platform_detector_returns_singleton() -> None:
     # Reset the global instance
     import oarepo_cli.core.platform as platform_module
 
-    platform_module._detector = None
+    platform_module._detector = None  # noqa: SLF001
 
     detector1 = get_platform_detector()
     detector2 = get_platform_detector()

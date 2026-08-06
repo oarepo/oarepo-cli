@@ -37,7 +37,8 @@ def runner() -> CliRunner:
 def test_repository_test_help_displays(runner: CliRunner) -> None:
     """Test that 'repository test --help' displays help text. Safe to drive through
     CliRunner directly: --help is intercepted by Typer before the command body (and
-    any os.execve) is ever reached."""
+    any os.execve) is ever reached.
+    """
     result = runner.invoke(app, ["repository", "test", "--help"])
 
     assert result.exit_code == 0
@@ -74,7 +75,8 @@ def test_repository_test_runs_real_pytest_and_installs_it_on_demand(
 ) -> None:
     """`run_tests()` installs pytest into the venv (missing by default in a fresh
     repository fixture) and then really execs into it, end to end, in its own
-    isolated subprocess -- inheriting pytest's own exit code."""
+    isolated subprocess -- inheriting pytest's own exit code.
+    """
     tests_dir = lint_project_multi_module / "tests"
     tests_dir.mkdir()
     (tests_dir / "test_sample.py").write_text("def test_pass():\n    assert True\n")
@@ -88,9 +90,7 @@ def test_repository_test_exit_code_on_failure(lint_project_multi_module: Path) -
     """A failing test makes the subprocess exit with pytest's own non-zero code."""
     tests_dir = lint_project_multi_module / "tests"
     tests_dir.mkdir()
-    (tests_dir / "test_sample.py").write_text(
-        "def test_fail():\n    assert False, 'this test fails'\n"
-    )
+    (tests_dir / "test_sample.py").write_text("def test_fail():\n    assert False, 'this test fails'\n")
 
     result = _run_tests_in_subprocess(lint_project_multi_module)
 

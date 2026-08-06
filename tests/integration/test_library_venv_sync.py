@@ -39,9 +39,7 @@ def testlib_without_gitignored_uv_lock(clean_testlib: Path) -> Iterator[Path]:
     """
     gitignore = clean_testlib / ".gitignore"
     original_content = gitignore.read_text()
-    stripped_content = "\n".join(
-        line for line in original_content.splitlines() if line.strip() != "uv.lock"
-    )
+    stripped_content = "\n".join(line for line in original_content.splitlines() if line.strip() != "uv.lock")
     gitignore.write_text(stripped_content + "\n")
     try:
         yield clean_testlib

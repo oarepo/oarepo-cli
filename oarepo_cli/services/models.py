@@ -34,13 +34,14 @@ def _relative_to_root(path: Path, root: Path) -> Path:
 
 
 def _load_yaml_data(path: Path) -> dict[str, Any]:
-    """Load a YAML answers/data file into a dict, the same way copier's own
-    ``--data-file`` CLI flag does (``copier._cli.py:data_file_switch``).
+    """Load a YAML answers/data file into a dict.
 
-    PyYAML isn't declared directly in oarepo-cli's own dependencies, but
-    it's a direct (not merely transitive) dependency of ``copier`` itself,
-    for this exact purpose -- if it ever went away, copier's own
-    ``--data-file`` would break too, so relying on it here is safe.
+    Loads the same way copier's own ``--data-file`` CLI flag does
+    (``copier._cli.py:data_file_switch``). PyYAML isn't declared directly
+    in oarepo-cli's own dependencies, but it's a direct (not merely
+    transitive) dependency of ``copier`` itself, for this exact purpose --
+    if it ever went away, copier's own ``--data-file`` would break too, so
+    relying on it here is safe.
     """
     with path.open("rb") as f:
         return yaml.safe_load(f) or {}
@@ -73,6 +74,7 @@ class ModelManager:
         Args:
             context: Project context with paths and configuration
             console: Console output handler for status messages
+
         """
         self._context = context
         self._console = console
@@ -100,6 +102,7 @@ class ModelManager:
 
         Raises:
             ConfigurationError: If config_file is given but doesn't exist
+
         """
         if config_file is not None and not config_file.exists():
             raise ConfigurationError(f"Missing model config file: {config_file}")
@@ -154,6 +157,7 @@ class ModelManager:
         Raises:
             ConfigurationError: If the model directory or answers file
                 doesn't exist
+
         """
         model_dir = self._context.root_directory / "models" / name
         if not model_dir.is_dir():

@@ -26,7 +26,7 @@ from oarepo_cli.cli.main import app
 from oarepo_cli.core.config import CliConfig, ModelConfig
 from oarepo_cli.core.context import ProjectContext
 from oarepo_cli.core.errors import ConfigurationError
-from oarepo_cli.ui.console import ConsoleOutput  # noqa: TC001
+from oarepo_cli.ui.console import ConsoleOutput
 
 if TYPE_CHECKING:
     from pathlib import Path
@@ -59,9 +59,7 @@ def local_template(tmp_path: Path) -> Path:
     model_dir = template_dir / "models" / "{{model_name}}"
     model_dir.mkdir(parents=True)
     (model_dir / "model.py.jinja").write_text(MODEL_FILE_TEMPLATE)
-    (template_dir / "{{_copier_conf.answers_file}}.jinja").write_text(
-        "{{ _copier_answers|to_nice_yaml }}\n"
-    )
+    (template_dir / "{{_copier_conf.answers_file}}.jinja").write_text("{{ _copier_answers|to_nice_yaml }}\n")
     _git("init", "-q", cwd=template_dir)
     _git("add", "-A", cwd=template_dir)
     _git(
@@ -112,16 +110,12 @@ def _fake_model_manager(calls: list[dict[str, object]]) -> type:
             self._calls.append({"method": "create_model", "name": name, "config_file": config_file})
 
         def update_model(self, name: str, answers_file: object = None) -> None:
-            self._calls.append(
-                {"method": "update_model", "name": name, "answers_file": answers_file}
-            )
+            self._calls.append({"method": "update_model", "name": name, "answers_file": answers_file})
 
     return FakeModelManager
 
 
-def test_model_create_delegates_to_model_manager(
-    mock_context: Mock, monkeypatch: pytest.MonkeyPatch
-) -> None:
+def test_model_create_delegates_to_model_manager(mock_context: Mock, monkeypatch: pytest.MonkeyPatch) -> None:
     """`repository model create <name>` constructs a ModelManager and calls create_model()."""
     calls: list[dict[str, object]] = []
     monkeypatch.setattr("oarepo_cli.cli.repository.ModelManager", _fake_model_manager(calls))
@@ -147,9 +141,7 @@ def test_model_create_passes_config_file_and_quiet(
     monkeypatch.setattr("oarepo_cli.cli.repository.ModelManager", _fake_model_manager(calls))
 
     runner = CliRunner()
-    result = runner.invoke(
-        app, ["repository", "model", "create", "my_model", str(config_file), "--quiet"]
-    )
+    result = runner.invoke(app, ["repository", "model", "create", "my_model", str(config_file), "--quiet"])
 
     assert result.exit_code == 0, result.output
     assert calls[0]["context"] == mock_context
@@ -163,7 +155,7 @@ def test_model_create_passes_config_file_and_quiet(
 
 
 def test_model_create_reports_error_and_exits_1(
-    mock_context: Mock,  # noqa: ARG001 -- fixture used for its discover_context patch
+    mock_context: Mock,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """A ConfigurationError raised by ModelManager is reported cleanly, exit code 1."""
@@ -201,9 +193,7 @@ def test_model_create_reports_context_discovery_failure(
     assert result.exit_code == 1
 
 
-def test_model_update_delegates_to_model_manager(
-    mock_context: Mock, monkeypatch: pytest.MonkeyPatch
-) -> None:
+def test_model_update_delegates_to_model_manager(mock_context: Mock, monkeypatch: pytest.MonkeyPatch) -> None:
     """`repository model update <name>` constructs a ModelManager and calls update_model()."""
     calls: list[dict[str, object]] = []
     monkeypatch.setattr("oarepo_cli.cli.repository.ModelManager", _fake_model_manager(calls))
@@ -229,9 +219,7 @@ def test_model_update_passes_answers_file_and_quiet(
     monkeypatch.setattr("oarepo_cli.cli.repository.ModelManager", _fake_model_manager(calls))
 
     runner = CliRunner()
-    result = runner.invoke(
-        app, ["repository", "model", "update", "my_model", str(answers_file), "--quiet"]
-    )
+    result = runner.invoke(app, ["repository", "model", "update", "my_model", str(answers_file), "--quiet"])
 
     assert result.exit_code == 0, result.output
     assert calls[0]["context"] == mock_context
@@ -245,7 +233,7 @@ def test_model_update_passes_answers_file_and_quiet(
 
 
 def test_model_update_reports_error_and_exits_1(
-    mock_context: Mock,  # noqa: ARG001 -- fixture used for its discover_context patch
+    mock_context: Mock,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """A ConfigurationError raised by ModelManager is reported cleanly, exit code 1."""
@@ -334,7 +322,5 @@ def test_model_create_and_update_against_real_template(
         cwd=repo_root,
     )
 
-    update_result = runner.invoke(
-        app, ["repository", "model", "update", "my_model", "--quiet"], catch_exceptions=False
-    )
+    update_result = runner.invoke(app, ["repository", "model", "update", "my_model", "--quiet"], catch_exceptions=False)
     assert update_result.exit_code == 0, update_result.output

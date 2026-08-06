@@ -27,9 +27,7 @@ def runner() -> CliRunner:
     return CliRunner()
 
 
-def test_check_never_modifies_files(
-    runner: CliRunner, lint_project: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
+def test_check_never_modifies_files(runner: CliRunner, lint_project: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """Test that 'library check' reports violations without modifying any file.
 
     This is the critical behavior difference from 'library lint' - check is
@@ -62,9 +60,7 @@ def test_check_matches_lint_no_fix_behavior(
     module.write_text(module.read_text() + "\nimport os\n")
 
     check_result = runner.invoke(app, ["library", "check", "--quiet"], catch_exceptions=False)
-    lint_no_fix_result = runner.invoke(
-        app, ["library", "lint", "--no-fix", "--quiet"], catch_exceptions=False
-    )
+    lint_no_fix_result = runner.invoke(app, ["library", "lint", "--no-fix", "--quiet"], catch_exceptions=False)
 
     assert check_result.exit_code == lint_no_fix_result.exit_code
     assert check_result.exit_code != 0

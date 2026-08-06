@@ -67,11 +67,10 @@ def _fake_repository_installer(calls: list[dict[str, object]]) -> type:
 
 def test_new_uses_defaults(monkeypatch: pytest.MonkeyPatch) -> None:
     """Only REPOSITORY_NAME given: python/template/version/uv/uvx all take their defaults,
-    and RepositoryInstaller.install() is called with them."""
+    and RepositoryInstaller.install() is called with them.
+    """
     calls: list[dict[str, object]] = []
-    monkeypatch.setattr(
-        "oarepo_cli.cli.installer.RepositoryInstaller", _fake_repository_installer(calls)
-    )
+    monkeypatch.setattr("oarepo_cli.cli.installer.RepositoryInstaller", _fake_repository_installer(calls))
 
     result = runner.invoke(app, ["new", "my-repo"])
 
@@ -92,9 +91,7 @@ def test_new_passes_all_options(tmp_path: Path, monkeypatch: pytest.MonkeyPatch)
     config_file.write_text("repository_name: my-repo\n")
 
     calls: list[dict[str, object]] = []
-    monkeypatch.setattr(
-        "oarepo_cli.cli.installer.RepositoryInstaller", _fake_repository_installer(calls)
-    )
+    monkeypatch.setattr("oarepo_cli.cli.installer.RepositoryInstaller", _fake_repository_installer(calls))
 
     result = runner.invoke(
         app,
@@ -126,15 +123,13 @@ def test_new_passes_all_options(tmp_path: Path, monkeypatch: pytest.MonkeyPatch)
     }
 
 
-def test_new_reports_installer_error_and_exits_1(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
+def test_new_reports_installer_error_and_exits_1(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """A ConfigurationError raised by RepositoryInstaller is reported cleanly, exit code 1."""
     config_file = tmp_path / "answers.yaml"
     config_file.write_text("repository_name: my-repo\n")
 
     class RaisingRepositoryInstaller:
-        def __init__(self, console: ConsoleOutput) -> None:  # noqa: ARG002
+        def __init__(self, console: ConsoleOutput) -> None:
             pass
 
         def install(

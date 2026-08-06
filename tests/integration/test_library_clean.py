@@ -114,7 +114,8 @@ def test_library_clean_command_prints_summary_once_when_something_removed(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """The "Cleanup completed" summary line is printed exactly once, not twice
-    (regression test for a copy-paste bug where the summary block was duplicated)."""
+    (regression test for a copy-paste bug where the summary block was duplicated).
+    """
     monkeypatch.chdir(testlib_with_artifacts)
 
     result = runner.invoke(app, ["library", "clean"], catch_exceptions=False)
@@ -129,7 +130,8 @@ def test_library_clean_command_prints_summary_once_when_already_clean(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """The "already clean" summary line is printed exactly once, not twice
-    (regression test for a copy-paste bug where the summary block was duplicated)."""
+    (regression test for a copy-paste bug where the summary block was duplicated).
+    """
     monkeypatch.chdir(clean_testlib)
 
     result = runner.invoke(app, ["library", "clean"], catch_exceptions=False)

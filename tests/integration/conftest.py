@@ -59,7 +59,7 @@ build-backend = "uv_build"
 
 @pytest.fixture
 def lint_project(tmp_path: Path) -> Path:
-    """A minimal, lint-clean library project with a real venv.
+    """Create a minimal, lint-clean library project with a real venv.
 
     Set up as a real git repo with `.venv/` gitignored: ruff (like the
     original bash script's `run_linters`) is invoked with `--exclude
@@ -87,11 +87,14 @@ def lint_project(tmp_path: Path) -> Path:
 
 @pytest.fixture
 def lint_project_multi_module(tmp_path: Path) -> Path:
-    """A minimal, lint-clean repository project with a real venv, laid out like a real
-    uv_build repository (tests/testrepo): several top-level module directories declared
-    in [tool.uv.build-backend] instead of a single src/ -- unlike lint_project's
-    library-style single-source-dir layout. See lint_project's own docstring for the
-    .gitignore/--exclude pyproject.toml rationale, identical here.
+    """Create a minimal, lint-clean repository project with a real venv.
+
+    Laid out like a real uv_build repository (tests/testrepo): several
+    top-level module directories declared in [tool.uv.build-backend]
+    instead of a single src/ -- unlike lint_project's
+    library-style single-source-dir layout. See lint_project's own
+    docstring for the .gitignore/--exclude pyproject.toml rationale,
+    identical here.
     """
     root = tmp_path / "cleanrepo"
     (root / "common").mkdir(parents=True)

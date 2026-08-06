@@ -70,9 +70,7 @@ def test_repository_check_matches_lint_no_fix_exit_code(
     module.write_text(module.read_text() + "\nimport os\n")
 
     check_result = runner.invoke(app, ["repository", "check", "--quiet"], catch_exceptions=False)
-    lint_no_fix_result = runner.invoke(
-        app, ["repository", "lint", "--no-fix", "--quiet"], catch_exceptions=False
-    )
+    lint_no_fix_result = runner.invoke(app, ["repository", "lint", "--no-fix", "--quiet"], catch_exceptions=False)
 
     assert check_result.exit_code == lint_no_fix_result.exit_code
     assert check_result.exit_code != 0

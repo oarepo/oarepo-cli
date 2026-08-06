@@ -47,7 +47,8 @@ def test_repository_lint_passes_on_clean_multi_module_project(
     runner: CliRunner, lint_project_multi_module: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     """`repository lint` exits 0 on a clean, multi-module (uv_build) project -- exercising
-    the real ty/ruff invocation across every module directory, not just the first."""
+    the real ty/ruff invocation across every module directory, not just the first.
+    """
     monkeypatch.chdir(lint_project_multi_module)
 
     result = runner.invoke(app, ["repository", "lint", "--quiet"], catch_exceptions=False)
@@ -62,7 +63,8 @@ def test_repository_lint_fails_on_type_error_in_second_module(
 ) -> None:
     """`repository lint` catches a type error in the *second* module directory --
     matters because ty is invoked against every code_directories entry, not just the
-    first, since a repository typically has several module directories."""
+    first, since a repository typically has several module directories.
+    """
     monkeypatch.chdir(lint_project_multi_module)
 
     second_module = lint_project_multi_module / "i18n" / "__init__.py"
@@ -112,9 +114,7 @@ def test_repository_format_fixes_issues(
     assert "def greet() -> str:" in module.read_text()
 
 
-def test_repository_lint_requires_pyproject(
-    runner: CliRunner, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
+def test_repository_lint_requires_pyproject(runner: CliRunner, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """`repository lint` fails cleanly (exit 1) when no pyproject.toml can be found."""
     monkeypatch.chdir(tmp_path)
 

@@ -7,7 +7,7 @@ from __future__ import annotations
 
 import json
 import os
-from typing import TYPE_CHECKING, NoReturn
+from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from oarepo_cli.core.context import ProjectContext
@@ -33,6 +33,7 @@ def run_jslint(context: ProjectContext, *, quiet: bool = False) -> process.Proce
 
     Returns:
         ProcessResult from the linting commands
+
     """
     root = context.root_directory
     # Exclude tests directory for jslint, matching bash script behavior
@@ -134,7 +135,7 @@ def run_jstest(
     service_env: dict[str, str] | None = None,
     extra_args: list[str] | None = None,
     quiet: bool = False,  # noqa: ARG001 -- kept for interface symmetry with run_jslint
-) -> process.ProcessResult | NoReturn:
+) -> process.ProcessResult:
     """Replace the current process with ``invenio webpack run test`` (Jest).
 
     Mirrors ``library_runner.sh``'s ``run_jstest``. Never returns once the
@@ -172,6 +173,7 @@ def run_jstest(
 
     Raises:
         OSError: If invenio can't be exec'd (not found, not executable, ...)
+
     """
     from oarepo_cli.core.platform import get_platform_detector
 

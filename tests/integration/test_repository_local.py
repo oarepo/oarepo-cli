@@ -28,7 +28,7 @@ from oarepo_cli.cli.main import app
 from oarepo_cli.core.config import CliConfig
 from oarepo_cli.core.context import ProjectContext
 from oarepo_cli.core.errors import ConfigurationError
-from oarepo_cli.ui.console import ConsoleOutput  # noqa: TC001
+from oarepo_cli.ui.console import ConsoleOutput
 
 if TYPE_CHECKING:
     from pathlib import Path
@@ -66,9 +66,7 @@ def test_local_add_delegates_to_local_package_manager(
 ) -> None:
     """`repository local add <path>` constructs a LocalPackageManager and calls add_package()."""
     calls: list[dict[str, object]] = []
-    monkeypatch.setattr(
-        "oarepo_cli.cli.repository.LocalPackageManager", _fake_local_package_manager(calls)
-    )
+    monkeypatch.setattr("oarepo_cli.cli.repository.LocalPackageManager", _fake_local_package_manager(calls))
 
     runner = CliRunner()
     result = runner.invoke(app, ["repository", "local", "add", str(tmp_path)])
@@ -80,14 +78,10 @@ def test_local_add_delegates_to_local_package_manager(
     assert calls[1] == {"method": "add_package", "path": tmp_path}
 
 
-def test_local_add_passes_quiet(
-    mock_context: Mock, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
-) -> None:
+def test_local_add_passes_quiet(mock_context: Mock, monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
     """--quiet is forwarded to the LocalPackageManager constructor."""
     calls: list[dict[str, object]] = []
-    monkeypatch.setattr(
-        "oarepo_cli.cli.repository.LocalPackageManager", _fake_local_package_manager(calls)
-    )
+    monkeypatch.setattr("oarepo_cli.cli.repository.LocalPackageManager", _fake_local_package_manager(calls))
 
     runner = CliRunner()
     result = runner.invoke(app, ["repository", "local", "add", str(tmp_path), "--quiet"])
@@ -99,7 +93,7 @@ def test_local_add_passes_quiet(
 
 
 def test_local_add_reports_error_and_exits_1(
-    mock_context: Mock,  # noqa: ARG001 -- fixture used for its discover_context patch
+    mock_context: Mock,
     monkeypatch: pytest.MonkeyPatch,
     tmp_path: Path,
 ) -> None:
@@ -135,15 +129,12 @@ def test_local_add_reports_context_discovery_failure(monkeypatch: pytest.MonkeyP
     assert result.exit_code == 1
 
 
-def test_local_remove_delegates_to_local_package_manager(
-    mock_context: Mock, monkeypatch: pytest.MonkeyPatch
-) -> None:
+def test_local_remove_delegates_to_local_package_manager(mock_context: Mock, monkeypatch: pytest.MonkeyPatch) -> None:
     """`repository local remove <name>` constructs a LocalPackageManager and calls
-    remove_package()."""
+    remove_package().
+    """
     calls: list[dict[str, object]] = []
-    monkeypatch.setattr(
-        "oarepo_cli.cli.repository.LocalPackageManager", _fake_local_package_manager(calls)
-    )
+    monkeypatch.setattr("oarepo_cli.cli.repository.LocalPackageManager", _fake_local_package_manager(calls))
 
     runner = CliRunner()
     result = runner.invoke(app, ["repository", "local", "remove", "mypkg"])
@@ -155,14 +146,10 @@ def test_local_remove_delegates_to_local_package_manager(
     assert calls[1] == {"method": "remove_package", "name": "mypkg"}
 
 
-def test_local_remove_all_delegates_to_remove_all_packages(
-    mock_context: Mock, monkeypatch: pytest.MonkeyPatch
-) -> None:
+def test_local_remove_all_delegates_to_remove_all_packages(mock_context: Mock, monkeypatch: pytest.MonkeyPatch) -> None:
     """`repository local remove --all` calls remove_all_packages(), not remove_package()."""
     calls: list[dict[str, object]] = []
-    monkeypatch.setattr(
-        "oarepo_cli.cli.repository.LocalPackageManager", _fake_local_package_manager(calls)
-    )
+    monkeypatch.setattr("oarepo_cli.cli.repository.LocalPackageManager", _fake_local_package_manager(calls))
 
     runner = CliRunner()
     result = runner.invoke(app, ["repository", "local", "remove", "--all"])
@@ -175,7 +162,7 @@ def test_local_remove_all_delegates_to_remove_all_packages(
 
 
 def test_local_remove_neither_name_nor_all_exits_1(
-    mock_context: Mock,  # noqa: ARG001 -- fixture used for its discover_context patch
+    mock_context: Mock,
 ) -> None:
     """Neither a name nor --all is an error, not silently a no-op."""
     runner = CliRunner()
@@ -186,7 +173,7 @@ def test_local_remove_neither_name_nor_all_exits_1(
 
 
 def test_local_remove_both_name_and_all_exits_1(
-    mock_context: Mock,  # noqa: ARG001 -- fixture used for its discover_context patch
+    mock_context: Mock,
 ) -> None:
     """Both a name and --all together is an error, not an implicit choice of one."""
     runner = CliRunner()
@@ -197,7 +184,7 @@ def test_local_remove_both_name_and_all_exits_1(
 
 
 def test_local_remove_reports_error_and_exits_1(
-    mock_context: Mock,  # noqa: ARG001 -- fixture used for its discover_context patch
+    mock_context: Mock,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """A ConfigurationError raised by LocalPackageManager is reported cleanly, exit code 1."""
@@ -206,7 +193,7 @@ def test_local_remove_reports_error_and_exits_1(
         def __init__(self, context: object, console: object) -> None:
             pass
 
-        def remove_package(self, name: str) -> None:  # noqa: ARG002
+        def remove_package(self, name: str) -> None:
             raise ConfigurationError(f"No local package named '{name}' found in [tool.uv.sources].")
 
     monkeypatch.setattr("oarepo_cli.cli.repository.LocalPackageManager", RaisingLocalPackageManager)
@@ -251,9 +238,7 @@ def repo_root(tmp_path: Path) -> Path:
     """A minimal repository root with just a pyproject.toml, no venv/git."""
     root = tmp_path / "repo"
     root.mkdir()
-    (root / "pyproject.toml").write_text(
-        '[project]\nname = "myrepo"\ndependencies = ["oarepo>=14.0.0,<15.0.0"]\n'
-    )
+    (root / "pyproject.toml").write_text('[project]\nname = "myrepo"\ndependencies = ["oarepo>=14.0.0,<15.0.0"]\n')
     return root
 
 
@@ -282,24 +267,21 @@ def test_local_add_and_remove_against_real_pyproject(
     mock_upgrade: list[dict[str, Any]],
 ) -> None:
     """End-to-end: `repository local add`/`remove` are wired correctly through to a real,
-    on-disk pyproject.toml, via the real LocalPackageManager."""
+    on-disk pyproject.toml, via the real LocalPackageManager.
+    """
     context = make_context(repo_root)
     monkeypatch.setattr("oarepo_cli.cli.repository.discover_context", lambda: context)
     package_dir = make_local_package(tmp_path, "mypkg")
 
     runner = CliRunner()
-    add_result = runner.invoke(
-        app, ["repository", "local", "add", str(package_dir), "--quiet"], catch_exceptions=False
-    )
+    add_result = runner.invoke(app, ["repository", "local", "add", str(package_dir), "--quiet"], catch_exceptions=False)
     assert add_result.exit_code == 0, add_result.output
 
     document = tomlkit.parse(context.pyproject_path.read_text())
     assert "mypkg" in document["project"]["dependencies"]
     assert "mypkg" in document["tool"]["uv"]["sources"]
 
-    remove_result = runner.invoke(
-        app, ["repository", "local", "remove", "mypkg", "--quiet"], catch_exceptions=False
-    )
+    remove_result = runner.invoke(app, ["repository", "local", "remove", "mypkg", "--quiet"], catch_exceptions=False)
     assert remove_result.exit_code == 0, remove_result.output
 
     document = tomlkit.parse(context.pyproject_path.read_text())
@@ -315,7 +297,8 @@ def test_local_remove_all_against_real_pyproject(
     mock_upgrade: list[dict[str, Any]],
 ) -> None:
     """End-to-end: `repository local remove --all` removes every local package in one go,
-    leaving unrelated [tool.uv.sources] entries (e.g. an index override) untouched."""
+    leaving unrelated [tool.uv.sources] entries (e.g. an index override) untouched.
+    """
     context = make_context(repo_root)
     monkeypatch.setattr("oarepo_cli.cli.repository.discover_context", lambda: context)
 
@@ -329,16 +312,12 @@ def test_local_remove_all_against_real_pyproject(
     runner = CliRunner()
     for name in ("pkg-a", "pkg-b"):
         package_dir = make_local_package(tmp_path, name)
-        result = runner.invoke(
-            app, ["repository", "local", "add", str(package_dir), "--quiet"], catch_exceptions=False
-        )
+        result = runner.invoke(app, ["repository", "local", "add", str(package_dir), "--quiet"], catch_exceptions=False)
         assert result.exit_code == 0, result.output
 
     mock_upgrade.clear()
 
-    remove_result = runner.invoke(
-        app, ["repository", "local", "remove", "--all", "--quiet"], catch_exceptions=False
-    )
+    remove_result = runner.invoke(app, ["repository", "local", "remove", "--all", "--quiet"], catch_exceptions=False)
     assert remove_result.exit_code == 0, remove_result.output
 
     document = tomlkit.parse(context.pyproject_path.read_text())

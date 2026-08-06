@@ -5,7 +5,7 @@
 
 from __future__ import annotations
 
-from pathlib import Path  # noqa: TCH003
+from pathlib import Path  # noqa: TC003
 from typing import TYPE_CHECKING, Annotated
 
 if TYPE_CHECKING:
@@ -126,8 +126,9 @@ def _run_services_subcommand(ctx: typer.Context, subcommand: str, *, quiet: bool
         ctx: Typer context, used to capture passthrough arguments
         subcommand: One of "setup", "start", "stop", "destroy"
         quiet: If True, suppress real-time subprocess output
+
     """
-    extra_args = ctx.args if ctx.args else []
+    extra_args = ctx.args or []
 
     try:
         context = discover_context()
@@ -148,11 +149,9 @@ def _run_services_subcommand(ctx: typer.Context, subcommand: str, *, quiet: bool
 @services_app.command("setup", context_settings=_SERVICES_CONTEXT_SETTINGS)
 def services_setup(
     ctx: typer.Context,
-    quiet: Annotated[
-        bool, typer.Option("--quiet", "-q", help="Suppress output from invenio-cli")
-    ] = False,
+    quiet: Annotated[bool, typer.Option("--quiet", "-q", help="Suppress output from invenio-cli")] = False,
 ) -> None:
-    """Setup Docker services.
+    """Set up Docker services.
 
     Delegates to ``invenio-cli services setup``. Any extra arguments
     (e.g. ``-N`` for no demo data) are passed through verbatim.
@@ -163,9 +162,7 @@ def services_setup(
 @services_app.command("start", context_settings=_SERVICES_CONTEXT_SETTINGS)
 def services_start(
     ctx: typer.Context,
-    quiet: Annotated[
-        bool, typer.Option("--quiet", "-q", help="Suppress output from invenio-cli")
-    ] = False,
+    quiet: Annotated[bool, typer.Option("--quiet", "-q", help="Suppress output from invenio-cli")] = False,
 ) -> None:
     """Start Docker services.
 
@@ -178,9 +175,7 @@ def services_start(
 @services_app.command("stop", context_settings=_SERVICES_CONTEXT_SETTINGS)
 def services_stop(
     ctx: typer.Context,
-    quiet: Annotated[
-        bool, typer.Option("--quiet", "-q", help="Suppress output from invenio-cli")
-    ] = False,
+    quiet: Annotated[bool, typer.Option("--quiet", "-q", help="Suppress output from invenio-cli")] = False,
 ) -> None:
     """Stop Docker services.
 
@@ -193,9 +188,7 @@ def services_stop(
 @services_app.command("destroy", context_settings=_SERVICES_CONTEXT_SETTINGS)
 def services_destroy(
     ctx: typer.Context,
-    quiet: Annotated[
-        bool, typer.Option("--quiet", "-q", help="Suppress output from invenio-cli")
-    ] = False,
+    quiet: Annotated[bool, typer.Option("--quiet", "-q", help="Suppress output from invenio-cli")] = False,
 ) -> None:
     """Destroy Docker services.
 
@@ -215,12 +208,13 @@ def _install_impl(
     *,
     quiet: bool = False,
 ) -> None:
-    """Implementation for repository install command.
+    """Implement repository install command.
 
     Args:
         context: Project context (injected by decorator)
         console: Console output handler (injected by decorator)
         quiet: If True, suppress output from subprocesses (uv, invenio-cli, etc.)
+
     """
     repository.install_repository(context, quiet=quiet)
 
@@ -247,6 +241,7 @@ def install(
     Exit codes:
         0: Installation successful
         1: Installation failed
+
     """
     _install_impl(quiet=quiet)
 
@@ -261,12 +256,13 @@ def _upgrade_impl(
     *,
     quiet: bool = False,
 ) -> None:
-    """Implementation for repository upgrade command.
+    """Implement repository upgrade command.
 
     Args:
         context: Project context (injected by decorator)
         console: Console output handler (injected by decorator)
         quiet: If True, suppress output from subprocesses (uv, invenio-cli, etc.)
+
     """
     repository.upgrade_repository(context, quiet=quiet)
 
@@ -297,6 +293,7 @@ def upgrade(
     Exit codes:
         0: Upgrade successful
         1: Upgrade failed
+
     """
     _upgrade_impl(quiet=quiet)
 
@@ -313,7 +310,7 @@ def _model_create_impl(
     config_file: Path | None = None,
     quiet: bool = False,  # noqa: ARG001
 ) -> None:
-    """Implementation for repository model create command.
+    """Implement repository model create command.
 
     Args:
         context: Project context (injected by decorator)
@@ -321,6 +318,7 @@ def _model_create_impl(
         name: Name of the model to create
         config_file: Optional YAML file whose content seeds all answers non-interactively
         quiet: If True, suppress output from subprocesses (copier, invenio-cli, etc.)
+
     """
     ModelManager(context, console).create_model(name, config_file=config_file)
 
@@ -332,8 +330,7 @@ def model_create(
         Path | None,
         typer.Argument(
             help=(
-                "Optional YAML file whose content seeds all answers "
-                "non-interactively (must supply model_name itself)"
+                "Optional YAML file whose content seeds all answers non-interactively (must supply model_name itself)"
             ),
         ),
     ] = None,
@@ -357,6 +354,7 @@ def model_create(
     Exit codes:
         0: Model created successfully
         1: Model creation failed
+
     """
     _model_create_impl(name=name, config_file=config_file, quiet=quiet)
 
@@ -393,6 +391,7 @@ def model_update(
     Exit codes:
         0: Model updated successfully
         1: Model update failed
+
     """
     try:
         context = discover_context()
@@ -427,6 +426,7 @@ def local_add(
     Exit codes:
         0: Package added successfully
         1: Package addition failed
+
     """
     try:
         context = discover_context()
@@ -464,6 +464,7 @@ def local_remove(
         0: Package(s) removed successfully
         1: Removal failed (e.g. unknown package name, neither/both of a name
            and --all given)
+
     """
     if name is None and not all_packages:
         console_err = ConsoleOutput(quiet=False)
@@ -471,9 +472,7 @@ def local_remove(
         raise typer.Exit(1)
     if name is not None and all_packages:
         console_err = ConsoleOutput(quiet=False)
-        console_err.error(
-            "\n✗ Specify either a package name or --all, not both.\n", fg=typer.colors.RED
-        )
+        console_err.error("\n✗ Specify either a package name or --all, not both.\n", fg=typer.colors.RED)
         raise typer.Exit(1)
 
     try:
@@ -533,6 +532,7 @@ def run_command(
         Whatever invenio-cli/invenio itself exits with, once running
         1: Starting Docker services failed, or project context could not be
            discovered
+
     """
     try:
         context = discover_context()
@@ -563,6 +563,7 @@ def cli_command(ctx: typer.Context) -> None:
     Exit codes:
         Whatever invenio-cli itself exits with
         1: Project context could not be discovered
+
     """
     try:
         context = discover_context()
@@ -591,6 +592,7 @@ def invenio_command(ctx: typer.Context) -> None:
     Exit codes:
         Whatever invenio itself exits with
         1: Project context could not be discovered
+
     """
     try:
         context = discover_context()
@@ -639,6 +641,7 @@ def shell_command(
         Whatever the shell itself exits with
         1: Starting Docker services failed, or project context could not be
            discovered
+
     """
     try:
         context = discover_context()
@@ -662,13 +665,9 @@ def shell_command(
 def lint_command(
     fix: Annotated[
         bool,
-        typer.Option(
-            "--fix/--no-fix", help="Auto-fix what ruff/ty can fix (default) vs. report only"
-        ),
+        typer.Option("--fix/--no-fix", help="Auto-fix what ruff/ty can fix (default) vs. report only"),
     ] = True,
-    quiet: Annotated[
-        bool, typer.Option("--quiet", "-q", help="Suppress output from subprocesses")
-    ] = False,
+    quiet: Annotated[bool, typer.Option("--quiet", "-q", help="Suppress output from subprocesses")] = False,
 ) -> None:
     """Run linters and type checkers on the repository's codebase.
 
@@ -715,9 +714,7 @@ def format_command(
             help="Rewrite files (default) vs. preview-only (`ruff format --check`)",
         ),
     ] = True,
-    quiet: Annotated[
-        bool, typer.Option("--quiet", "-q", help="Suppress output from subprocesses")
-    ] = False,
+    quiet: Annotated[bool, typer.Option("--quiet", "-q", help="Suppress output from subprocesses")] = False,
 ) -> None:
     """Format the repository's codebase using ruff.
 
@@ -735,8 +732,9 @@ def format_command(
     Exit codes:
         Exit code of the underlying ruff invocation
         1: Project context could not be discovered
+
     """
-    extra_args = ctx.args if ctx.args else []
+    extra_args = ctx.args or []
 
     try:
         context = discover_context()
@@ -750,9 +748,7 @@ def format_command(
 
 @repository_app.command("check")
 def check_command(
-    quiet: Annotated[
-        bool, typer.Option("--quiet", "-q", help="Suppress output from subprocesses")
-    ] = False,
+    quiet: Annotated[bool, typer.Option("--quiet", "-q", help="Suppress output from subprocesses")] = False,
 ) -> None:
     """Check the repository's codebase without modifying any file.
 
@@ -780,9 +776,7 @@ def check_command(
 
 @repository_app.command("jslint")
 def jslint_command(
-    quiet: Annotated[
-        bool, typer.Option("--quiet", "-q", help="Suppress output from subprocesses")
-    ] = False,
+    quiet: Annotated[bool, typer.Option("--quiet", "-q", help="Suppress output from subprocesses")] = False,
 ) -> None:
     """Run ESLint and Prettier on the repository's JavaScript files.
 
@@ -821,15 +815,9 @@ def jslint_command(
 )
 def jstest_command(
     ctx: typer.Context,
-    setup: Annotated[
-        bool, typer.Option("--setup", help="Set up Jest configuration instead of running tests")
-    ] = False,
-    skip_services: Annotated[
-        bool, typer.Option("--skip-services", help="Skip starting Docker services")
-    ] = False,
-    quiet: Annotated[
-        bool, typer.Option("--quiet", "-q", help="Suppress output from subprocesses")
-    ] = False,
+    setup: Annotated[bool, typer.Option("--setup", help="Set up Jest configuration instead of running tests")] = False,
+    skip_services: Annotated[bool, typer.Option("--skip-services", help="Skip starting Docker services")] = False,
+    quiet: Annotated[bool, typer.Option("--quiet", "-q", help="Suppress output from subprocesses")] = False,
 ) -> None:
     """Run JavaScript tests (Jest) via ``invenio webpack``.
 
@@ -850,7 +838,7 @@ def jstest_command(
         Exit code of the underlying test command
         1: Project context could not be discovered
     """
-    extra_args = ctx.args if ctx.args else []
+    extra_args = ctx.args or []
 
     try:
         context = discover_context()
@@ -863,9 +851,7 @@ def jstest_command(
         # A repository doesn't need service connection env vars -- it resolves
         # connection details from invenio.cfg/.invenio.private, not from the
         # .env-services file docker-services-cli would write for a library
-        js_commands.run_jstest_command(
-            context, setup=setup, service_env=None, extra_args=extra_args, quiet=quiet
-        )
+        js_commands.run_jstest_command(context, setup=setup, service_env=None, extra_args=extra_args, quiet=quiet)
     except OARepoError as e:
         console_err = ConsoleOutput(quiet=False)
         console_err.error(f"\n✗ repository jstest failed: {e}\n", fg=typer.colors.RED)
@@ -886,9 +872,7 @@ def test_command(
         bool,
         typer.Option("--no-services", help="Don't start Docker services first"),
     ] = False,
-    with_coverage: Annotated[
-        bool, typer.Option("--with-coverage", help="Enable coverage reporting")
-    ] = False,
+    with_coverage: Annotated[bool, typer.Option("--with-coverage", help="Enable coverage reporting")] = False,
     quiet: Annotated[
         bool,
         typer.Option(
@@ -925,8 +909,9 @@ def test_command(
         Whatever pytest itself exits with
         1: Starting Docker services failed, installing pytest/pytest-cov
            failed, or project context could not be discovered
+
     """
-    pytest_args = ctx.args if ctx.args else []
+    pytest_args = ctx.args or []
 
     try:
         context = discover_context()
@@ -951,9 +936,7 @@ def test_command(
 @repository_app.command("translations", context_settings=_SERVICES_CONTEXT_SETTINGS)
 def translations_command(
     ctx: typer.Context,
-    quiet: Annotated[
-        bool, typer.Option("--quiet", "-q", help="Suppress output from subprocesses")
-    ] = False,
+    quiet: Annotated[bool, typer.Option("--quiet", "-q", help="Suppress output from subprocesses")] = False,
 ) -> None:
     """Extract, merge and compile translations (BE + JS) via oarepo-tools.
 
@@ -971,6 +954,7 @@ def translations_command(
         0: Success
         1: Failure (translations compile/make-translations failed, or
            project context could not be discovered)
+
     """
     try:
         context = discover_context()
@@ -986,9 +970,7 @@ def translations_command(
 
 @index_app.command("rebuild")
 def index_rebuild(
-    quiet: Annotated[
-        bool, typer.Option("--quiet", "-q", help="Suppress output from subprocesses")
-    ] = False,
+    quiet: Annotated[bool, typer.Option("--quiet", "-q", help="Suppress output from subprocesses")] = False,
 ) -> None:
     """Destroy and rebuild the search index (and custom fields).
 
@@ -1009,9 +991,7 @@ def index_rebuild(
 
 @repository_app.command("reset")
 def reset_command(
-    quiet: Annotated[
-        bool, typer.Option("--quiet", "-q", help="Suppress output from subprocesses")
-    ] = False,
+    quiet: Annotated[bool, typer.Option("--quiet", "-q", help="Suppress output from subprocesses")] = False,
 ) -> None:
     """Perform a full reset of the repository: wipe all data, reinstall, and reseed demo data.
 
@@ -1027,6 +1007,7 @@ def reset_command(
         0: Reset completed, or cancelled by the user
         1: Reset failed partway through, or project context could not be
            discovered
+
     """
     console = ConsoleOutput(quiet=False)
     console.warning("\n⚠️  Performing full reset of the repository...\n")
@@ -1046,8 +1027,7 @@ def reset_command(
             bold=True,
         )
         console.info(
-            "Please run `oarepo-cli repository run` to start the server "
-            "and wait for the initial data to be loaded.\n"
+            "Please run `oarepo-cli repository run` to start the server and wait for the initial data to be loaded.\n"
         )
     except OARepoError as e:
         console_err = ConsoleOutput(quiet=False)

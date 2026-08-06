@@ -26,6 +26,7 @@ def _tool_path(name: str) -> str:
         Absolute path to the binary if found next to the current
         interpreter, otherwise the bare name (resolved via PATH by the
         subprocess call).
+
     """
     candidate = Path(sys.executable).parent / name
     return str(candidate) if candidate.exists() else name
@@ -46,6 +47,7 @@ def run_translations(
 
     Returns:
         ProcessResult from the make-translations command
+
     """
     extra_args = extra_args or []
     make_translations = _tool_path("make-translations")
@@ -77,6 +79,7 @@ def copy_translations(
 
     Raises:
         ProcessExecutionError: If site-packages detection or copy fails
+
     """
     # Get site-packages directory from the venv Python
     result = process.run(

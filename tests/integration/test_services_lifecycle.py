@@ -151,8 +151,7 @@ def test_load_service_env_reads_file_real(
     # Create .env-services file
     env_file = clean_testlib / ".env-services"
     env_file.write_text(
-        'export DATABASE_URL="postgresql://localhost:5432/test"\n'
-        "export SEARCH_URL=opensearch://localhost:9200\n"
+        'export DATABASE_URL="postgresql://localhost:5432/test"\nexport SEARCH_URL=opensearch://localhost:9200\n'
     )
 
     env_vars = manager.load_service_env()
@@ -209,7 +208,7 @@ export VAR4=value4
 # Another comment
 """
 
-    env_vars = manager._parse_env_file(content)
+    env_vars = manager._parse_env_file(content)  # noqa: SLF001
 
     assert env_vars["VAR1"] == "value1"
     assert env_vars["VAR2"] == "value2"

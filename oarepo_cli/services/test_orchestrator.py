@@ -34,6 +34,7 @@ class TestOrchestrator:
         Args:
             context: Project context with configuration and paths
             quiet: If True, suppress service start/stop messages
+
         """
         self._context = context
         self._quiet = quiet
@@ -64,6 +65,7 @@ class TestOrchestrator:
 
         Raises:
             ProcessExecutionError: If pytest execution fails (when check=True)
+
         """
         pytest_args = pytest_args or []
 
@@ -71,9 +73,7 @@ class TestOrchestrator:
         use_coverage = coverage if coverage is not None else self._context.config.test.coverage
 
         # Determine if we should skip services (CLI arg > config)
-        should_skip_services = (
-            skip_services if skip_services is not None else self._context.config.test.skip_services
-        )
+        should_skip_services = skip_services if skip_services is not None else self._context.config.test.skip_services
 
         services_started = False
         console = None
@@ -133,7 +133,7 @@ class TestOrchestrator:
             result = process.run(
                 pytest_cmd,
                 cwd=self._context.root_directory,
-                env=service_env_vars if service_env_vars else None,
+                env=service_env_vars or None,
                 check=False,
                 output_mode=ProcessOutputMode.INTERACTIVE,
             )
@@ -162,6 +162,7 @@ class TestOrchestrator:
 
         Args:
             use_coverage: Whether coverage reporting is enabled
+
         """
         # Use uv pip to install in the project venv
         python_bin = self._context.venv_path / "bin" / "python"
@@ -215,6 +216,7 @@ class TestOrchestrator:
 
         Returns:
             Complete pytest command as list of arguments
+
         """
         # Use the venv's pytest
         pytest_bin = self._context.venv_path / "bin" / "pytest"

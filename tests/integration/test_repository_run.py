@@ -67,9 +67,7 @@ def _fake_server_runner(calls: list[dict[str, object]]) -> type:
     return FakeServerRunner
 
 
-def test_run_delegates_to_server_runner(
-    mock_context: Mock, monkeypatch: pytest.MonkeyPatch
-) -> None:
+def test_run_delegates_to_server_runner(mock_context: Mock, monkeypatch: pytest.MonkeyPatch) -> None:
     """`repository run` constructs a ServerRunner and calls run() with defaults."""
     calls: list[dict[str, object]] = []
     monkeypatch.setattr("oarepo_cli.cli.repository.ServerRunner", _fake_server_runner(calls))
@@ -88,7 +86,7 @@ def test_run_delegates_to_server_runner(
 
 
 def test_run_passes_no_services_and_no_celery(
-    mock_context: Mock,  # noqa: ARG001 -- fixture used for its discover_context patch
+    mock_context: Mock,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """--no-services/--no-celery are forwarded to ServerRunner.run()."""
@@ -103,9 +101,7 @@ def test_run_passes_no_services_and_no_celery(
     assert calls[1]["no_celery"] is True
 
 
-def test_run_passes_quiet_to_server_runner_constructor(
-    mock_context: Mock, monkeypatch: pytest.MonkeyPatch
-) -> None:
+def test_run_passes_quiet_to_server_runner_constructor(mock_context: Mock, monkeypatch: pytest.MonkeyPatch) -> None:
     """--quiet is consumed as the quiet= kwarg on the ServerRunner constructor."""
     calls: list[dict[str, object]] = []
     monkeypatch.setattr("oarepo_cli.cli.repository.ServerRunner", _fake_server_runner(calls))
@@ -118,11 +114,12 @@ def test_run_passes_quiet_to_server_runner_constructor(
 
 
 def test_run_forwards_extra_args(
-    mock_context: Mock,  # noqa: ARG001 -- fixture used for its discover_context patch
+    mock_context: Mock,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """Unrecognized args/options (e.g. -p 5001) are forwarded to ServerRunner.run() as
-    extra_args, mirroring repository_runner.sh's run_server()'s extra_options."""
+    extra_args, mirroring repository_runner.sh's run_server()'s extra_options.
+    """
     calls: list[dict[str, object]] = []
     monkeypatch.setattr("oarepo_cli.cli.repository.ServerRunner", _fake_server_runner(calls))
 
@@ -149,7 +146,7 @@ def test_run_reports_context_discovery_failure(monkeypatch: pytest.MonkeyPatch) 
 
 
 def test_run_reports_server_runner_error_and_exits_1(
-    mock_context: Mock,  # noqa: ARG001 -- fixture used for its discover_context patch
+    mock_context: Mock,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """A ProcessExecutionError raised while starting Docker services is reported cleanly."""
@@ -176,9 +173,10 @@ def test_run_reports_server_runner_error_and_exits_1(
     assert "Failed to start server" in result.output
 
 
-def test_run_help_shows_oarepo_clis_own_help(mock_context: Mock) -> None:  # noqa: ARG001
+def test_run_help_shows_oarepo_clis_own_help(mock_context: Mock) -> None:
     """--help shows oarepo-cli's own help (--no-services/--no-celery/--quiet), unlike the
-    services subcommands, which forward --help to invenio-cli's own help instead."""
+    services subcommands, which forward --help to invenio-cli's own help instead.
+    """
     runner = CliRunner()
     result = runner.invoke(app, ["repository", "run", "--help"])
 
@@ -206,12 +204,12 @@ def test_run_real_exec_replaces_process(tmp_path: Path) -> None:
     """End-to-end: `oarepo-cli repository run` really discovers the project, starts no
     services (--no-services), and execve()s into invenio-cli -- driven via the real CLI
     entry point, in its own isolated subprocess (a real exec would otherwise replace the
-    pytest worker), against a tiny fake invenio-cli substituted in for this one process."""
+    pytest worker), against a tiny fake invenio-cli substituted in for this one process.
+    """
     project_root = tmp_path / "repo"
     project_root.mkdir()
     (project_root / "pyproject.toml").write_text(
-        '[project]\nname = "myrepo"\nrequires-python = ">=3.14,<3.15"\n'
-        'dependencies = ["oarepo>=14.0.0,<15.0.0"]\n'
+        '[project]\nname = "myrepo"\nrequires-python = ">=3.14,<3.15"\ndependencies = ["oarepo>=14.0.0,<15.0.0"]\n'
     )
 
     fake_invenio_cli = tmp_path / "fake-invenio-cli"

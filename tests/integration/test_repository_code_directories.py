@@ -24,7 +24,8 @@ def test_code_directories_resolves_real_testrepo_uv_build_modules(
     testrepo_project: Path,
 ) -> None:
     """code_directories resolves testrepo's real [tool.uv.build-backend].module-name
-    (["common", "i18n", "ui"]) rather than raising or guessing a single package dir."""
+    (["common", "i18n", "ui"]) rather than raising or guessing a single package dir.
+    """
     context = ContextBuilder().from_directory(testrepo_project).validate()
 
     assert context.code_directories == [

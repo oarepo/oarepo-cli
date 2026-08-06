@@ -77,9 +77,7 @@ def _write_template(template_dir: Path, copier_yml: str, model_file_content: str
     # must contain a file that renders the special `_copier_answers`
     # context variable (this is the exact mechanism nrp-app-copier/
     # nrp-model-copier use too, via `{{_copier_conf.answers_file}}.copier`).
-    (template_dir / "{{_copier_conf.answers_file}}.jinja").write_text(
-        "{{ _copier_answers|to_nice_yaml }}\n"
-    )
+    (template_dir / "{{_copier_conf.answers_file}}.jinja").write_text("{{ _copier_answers|to_nice_yaml }}\n")
     # copier records the template's commit/ref in the answers file, which
     # update_model() later needs to know what to update *from* -- so, like
     # any real copier template, this one must be a real git repo.
@@ -146,12 +144,11 @@ def test_create_model_renders_local_template(repo_root: Path, static_template: P
     assert rendered.read_text() == 'GREETING = "hello"\n'
 
 
-def test_create_model_with_config_file_seeds_answers(
-    repo_root: Path, answered_template: Path, tmp_path: Path
-) -> None:
+def test_create_model_with_config_file_seeds_answers(repo_root: Path, answered_template: Path, tmp_path: Path) -> None:
     """create_model(config_file=...) seeds all answers from that file (model_name included),
     mirroring repository_runner.sh: when a config file is given, -d model_name is NOT also
-    passed -- the file must supply model_name itself."""
+    passed -- the file must supply model_name itself.
+    """
     config_file = tmp_path / "answers.yml"
     config_file.write_text("model_name: configured_model\ngreeting: hi there\n")
 
@@ -219,7 +216,8 @@ def test_template_url_handling_vcs_ref_only_for_github_urls(
     repo_root: Path, static_template: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     """vcs_ref is only passed to copier for github:// template URLs, never for local paths
-    (mirrors repository_runner.sh's `if [[ "${MODEL_TEMPLATE}" == https://* ]]`)."""
+    (mirrors repository_runner.sh's `if [[ "${MODEL_TEMPLATE}" == https://* ]]`).
+    """
     calls: list[dict[str, Any]] = []
     real_run_copy = copier.run_copy
 
@@ -300,9 +298,7 @@ def test_update_model_missing_model_dir_raises(repo_root: Path, static_template:
         manager.update_model("never_created")
 
 
-def test_update_model_missing_answers_file_raises(
-    repo_root: Path, answered_template: Path, tmp_path: Path
-) -> None:
+def test_update_model_missing_answers_file_raises(repo_root: Path, answered_template: Path, tmp_path: Path) -> None:
     """An explicitly given answers_file that doesn't exist raises ConfigurationError."""
     config_file = tmp_path / "answers.yml"
     config_file.write_text("model_name: my_model\ngreeting: hello\n")

@@ -54,7 +54,8 @@ def local_template(tmp_path: Path) -> Path:
     """A small, real, git-tracked copier template: a hidden repository_name
     question, a rendered README, and the docker/variables layout a real
     repository template has (needed by certificate generation/the docker
-    compose cleanup step)."""
+    compose cleanup step).
+    """
     template_dir = tmp_path / "template"
     template_dir.mkdir()
     (template_dir / "copier.yml").write_text(COPIER_YML)
@@ -84,7 +85,8 @@ def local_template(tmp_path: Path) -> Path:
 def local_template_with_compose(tmp_path: Path) -> Path:
     """A variant of local_template with a docker-compose.yml file, used for
     end-to-end tests that verify the transient .env symlink dance doesn't
-    delete the real compose file."""
+    delete the real compose file.
+    """
     template_dir = tmp_path / "template"
     template_dir.mkdir()
     (template_dir / "copier.yml").write_text(COPIER_YML)
@@ -113,16 +115,15 @@ def local_template_with_compose(tmp_path: Path) -> Path:
 @pytest.fixture(autouse=True)
 def _skip_git_init_by_default(monkeypatch: pytest.MonkeyPatch) -> None:
     """Most tests here aren't about git initialization -- skip it (as in CI) by
-    default, so only the tests that care about it opt back in."""
+    default, so only the tests that care about it opt back in.
+    """
     monkeypatch.setenv("CI", "true")
 
 
 # --- Direct RepositoryInstaller tests (service layer) ---
 
 
-def test_install_renders_local_template(
-    tmp_path: Path, local_template: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
+def test_install_renders_local_template(tmp_path: Path, local_template: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """install() renders the template for real into ./<name>, using repository_name as data."""
     monkeypatch.chdir(tmp_path)
 
@@ -139,7 +140,8 @@ def test_install_config_file_answers_but_repository_name_always_wins(
 ) -> None:
     """A --config data file seeds answers, but repository_name is always forced to the
     given name -- mirrors repository_installer.sh's unconditional `-d repository_name=`,
-    passed even when --data-file is also given (unlike ModelManager's create_model)."""
+    passed even when --data-file is also given (unlike ModelManager's create_model).
+    """
     monkeypatch.chdir(tmp_path)
     config_file = tmp_path / "answers.yml"
     config_file.write_text("repository_name: wrong-name\n")
@@ -171,7 +173,8 @@ def test_template_url_handling_vcs_ref_only_for_github_urls(
     tmp_path: Path, local_template: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     """vcs_ref is only passed to copier for https:// template URLs, never for local paths
-    (mirrors repository_installer.sh's `if [[ "${template}" == https://* ]]`)."""
+    (mirrors repository_installer.sh's `if [[ "${template}" == https://* ]]`).
+    """
     monkeypatch.chdir(tmp_path)
     calls: list[dict[str, Any]] = []
     real_run_copy = copier.run_copy
@@ -182,9 +185,7 @@ def test_template_url_handling_vcs_ref_only_for_github_urls(
 
     monkeypatch.setattr("oarepo_cli.services.repository_installer.copier.run_copy", spy_run_copy)
 
-    RepositoryInstaller(ConsoleOutput(quiet=True)).install(
-        "my-repo", template=str(local_template), version="some-ref"
-    )
+    RepositoryInstaller(ConsoleOutput(quiet=True)).install("my-repo", template=str(local_template), version="some-ref")
 
     assert calls[0]["vcs_ref"] is None
 
@@ -192,7 +193,7 @@ def test_template_url_handling_vcs_ref_only_for_github_urls(
 def test_install_generates_development_certificates(
     tmp_path: Path, local_template: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    """openssl generates a real self-signed cert/key pair under docker/."""
+    """Openssl generates a real self-signed cert/key pair under docker/."""
     monkeypatch.chdir(tmp_path)
 
     target = RepositoryInstaller(ConsoleOutput(quiet=True)).install(
@@ -232,9 +233,7 @@ def test_install_initializes_git_repository(
     )
 
     assert (target / ".git").is_dir()
-    log = subprocess.run(
-        ["git", "log", "--oneline"], cwd=target, check=True, capture_output=True, text=True
-    )
+    log = subprocess.run(["git", "log", "--oneline"], cwd=target, check=True, capture_output=True, text=True)
     assert "Initial commit" in log.stdout
 
 
@@ -256,7 +255,8 @@ def test_install_skips_git_without_git_installed(
     tmp_path: Path, local_template: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     """Without git on PATH, git init is skipped entirely (mirrors repository_installer.sh's
-    `command -v git` check)."""
+    `command -v git` check).
+    """
     monkeypatch.chdir(tmp_path)
     monkeypatch.delenv("CI", raising=False)
     monkeypatch.setattr("oarepo_cli.services.repository_installer.shutil.which", lambda _name: None)
@@ -277,7 +277,8 @@ def test_new_full_installation_flow(
     """`oarepo-cli new` renders the template, generates certificates, cleans up
     the transient docker/.env symlink (while leaving the template's own
     docker-compose.yml untouched), and initializes git -- all through the
-    real CLI entry point, exit code 0."""
+    real CLI entry point, exit code 0.
+    """
     monkeypatch.chdir(tmp_path)
     monkeypatch.delenv("CI", raising=False)  # exercise real git init too
 
@@ -301,9 +302,7 @@ def test_new_full_installation_flow(
 
     # Git repo initialized with an initial commit
     assert (target / ".git").is_dir()
-    log = subprocess.run(
-        ["git", "log", "--oneline"], cwd=target, check=True, capture_output=True, text=True
-    )
+    log = subprocess.run(["git", "log", "--oneline"], cwd=target, check=True, capture_output=True, text=True)
     assert "Initial commit" in log.stdout
 
 
@@ -313,7 +312,8 @@ def test_new_template_variation_vcs_ref_only_for_github_style_urls(
     """--version is only forwarded to copier as vcs_ref for https:// (GitHub-style)
     templates, never for local paths -- exercised through the full CLI, not just
     RepositoryInstaller directly, confirming the CLI layer forwards --template/--version
-    correctly."""
+    correctly.
+    """
     monkeypatch.chdir(tmp_path)
     monkeypatch.setenv("CI", "true")
     calls: list[dict[str, Any]] = []
@@ -339,7 +339,7 @@ def test_new_template_variation_vcs_ref_only_for_github_style_urls(
     # --version as vcs_ref down to copier for an https:// --template.
     calls.clear()
 
-    def fake_run_copy(template: str, dst: Path, **kwargs: Any) -> None:  # noqa: ARG001
+    def fake_run_copy(template: str, dst: Path, **kwargs: Any) -> None:
         calls.append(kwargs)
         (dst / "docker").mkdir(parents=True)
 
@@ -361,15 +361,14 @@ def test_new_template_variation_vcs_ref_only_for_github_style_urls(
     assert calls[0]["vcs_ref"] == "v2"
 
 
-def test_new_reports_invalid_template_gracefully(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
+def test_new_reports_invalid_template_gracefully(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """An invalid/nonexistent --template is reported with the same clean
     "Repository creation failed" message as any other failure, not an
     uncaught traceback -- copier itself raises inconsistent exception types
     here (a bare ValueError for this particular case, not one of its own
     copier.errors.CopierError subclasses), which RepositoryInstaller
-    normalizes into ConfigurationError."""
+    normalizes into ConfigurationError.
+    """
     monkeypatch.chdir(tmp_path)
 
     result = runner.invoke(app, ["new", "--template", str(tmp_path / "does-not-exist"), "my-repo"])
@@ -381,11 +380,10 @@ def test_new_reports_invalid_template_gracefully(
     assert not (tmp_path / "my-repo").exists()
 
 
-def test_new_reports_missing_python_binary_gracefully(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
+def test_new_reports_missing_python_binary_gracefully(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """A --python binary that doesn't resolve on PATH is rejected before anything
-    else runs -- exercised with a real, definitely-nonexistent path."""
+    else runs -- exercised with a real, definitely-nonexistent path.
+    """
     monkeypatch.chdir(tmp_path)
 
     result = runner.invoke(app, ["new", "--python", "/definitely/does/not/exist", "my-repo"])

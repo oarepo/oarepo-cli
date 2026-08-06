@@ -143,6 +143,7 @@ class CliConfig:
 
         Returns:
             CliConfig with values from environment variables or defaults
+
         """
         return cls(
             build=BuildConfig(editable=_get_bool("OAREPO_BUILD_EDITABLE", True)),
@@ -196,6 +197,7 @@ class CliConfig:
 
         Returns:
             CliConfig with values from pyproject.toml or defaults
+
         """
         pyproject_path = root / "pyproject.toml"
 
@@ -241,7 +243,7 @@ class CliConfig:
         # Python config
         python_data = get_nested(tool_data, "python", default={})
         python_binary = python_data.get("binary")
-        python = PythonConfig(binary=python_binary if python_binary else None)
+        python = PythonConfig(binary=python_binary or None)
 
         # OARepo version is deliberately never read from pyproject.toml here:
         # [tool.oarepo-cli].oarepo.version is deprecated (see
@@ -264,9 +266,7 @@ class CliConfig:
         # Model config
         model_data = get_nested(tool_data, "model", default={})
         model = ModelConfig(
-            template_url=model_data.get(
-                "template_url", "https://github.com/oarepo/nrp-model-copier"
-            ),
+            template_url=model_data.get("template_url", "https://github.com/oarepo/nrp-model-copier"),
             template_version=model_data.get("template_version", "rdm-14"),
         )
 
@@ -284,9 +284,7 @@ class CliConfig:
 
         # License config
         license_data = get_nested(tool_data, "license", default={})
-        license_config = LicenseConfig(
-            organization=license_data.get("organization", "CESNET z.s.p.o")
-        )
+        license_config = LicenseConfig(organization=license_data.get("organization", "CESNET z.s.p.o"))
 
         # Security config
         security_data = get_nested(tool_data, "security", default={})
@@ -317,6 +315,7 @@ class CliConfig:
 
         Returns:
             Merged CliConfig
+
         """
         if not configs:
             return cls()
@@ -351,39 +350,27 @@ class CliConfig:
                     else result.test.skip_services,
                 ),
                 venv=VenvConfig(
-                    path=config.venv.path
-                    if config.venv.path != default_venv.path
-                    else result.venv.path,
+                    path=config.venv.path if config.venv.path != default_venv.path else result.venv.path,
                 ),
                 python=PythonConfig(
-                    binary=config.python.binary
-                    if config.python.binary is not None
-                    else result.python.binary,
+                    binary=config.python.binary if config.python.binary is not None else result.python.binary,
                 ),
                 oarepo=OARepoConfig(
-                    version=config.oarepo.version
-                    if config.oarepo.version is not None
-                    else result.oarepo.version,
+                    version=config.oarepo.version if config.oarepo.version is not None else result.oarepo.version,
                 ),
                 services=ServicesConfig(
                     skip=config.services.skip
                     if config.services.skip != default_services.skip
                     else result.services.skip,
-                    db=config.services.db
-                    if config.services.db != default_services.db
-                    else result.services.db,
+                    db=config.services.db if config.services.db != default_services.db else result.services.db,
                     search=config.services.search
                     if config.services.search != default_services.search
                     else result.services.search,
-                    mq=config.services.mq
-                    if config.services.mq != default_services.mq
-                    else result.services.mq,
+                    mq=config.services.mq if config.services.mq != default_services.mq else result.services.mq,
                     cache=config.services.cache
                     if config.services.cache != default_services.cache
                     else result.services.cache,
-                    s3=config.services.s3
-                    if config.services.s3 != default_services.s3
-                    else result.services.s3,
+                    s3=config.services.s3 if config.services.s3 != default_services.s3 else result.services.s3,
                 ),
                 model=ModelConfig(
                     template_url=config.model.template_url
@@ -425,21 +412,19 @@ class CliConfig:
 
         Raises:
             ValidationError: If any configuration value is invalid
+
         """
         from oarepo_cli.core.errors import ValidationError
 
         # Validate Python binary name if specified
         if self.python.binary and not self.python.binary.startswith("python"):
             raise ValidationError(
-                f"Invalid Python binary name: {self.python.binary}. "
-                "Should start with 'python' (e.g., 'python3.12')"
+                f"Invalid Python binary name: {self.python.binary}. Should start with 'python' (e.g., 'python3.12')"
             )
 
         # Validate Celery concurrency
         if self.celery.concurrency < 1:
-            raise ValidationError(
-                f"Celery concurrency must be at least 1, got {self.celery.concurrency}"
-            )
+            raise ValidationError(f"Celery concurrency must be at least 1, got {self.celery.concurrency}")
 
         # Warn about default demo password (not an error, just validation)
         if self.security.demo_user_password == "123456":

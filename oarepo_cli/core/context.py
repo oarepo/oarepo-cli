@@ -62,6 +62,7 @@ class ProjectContext:
 
         Raises:
             ConfigurationError: If none of the above can be found
+
         """
         pyproject_data = PyProjectReader().read(self.pyproject_path)
 
@@ -73,9 +74,7 @@ class ProjectContext:
             directories.append(src_dir)
         elif module_names:
             module_root = self.root_directory / pyproject_data.uv_build_module_root
-            directories.extend(
-                module_root / name for name in module_names if (module_root / name).is_dir()
-            )
+            directories.extend(module_root / name for name in module_names if (module_root / name).is_dir())
         else:
             top_level = pyproject_data.name.replace("-", "_")
             package_dir = self.root_directory / top_level
@@ -94,8 +93,7 @@ class ProjectContext:
                     directories.append(self.root_directory / wheel_packages[0])
                 else:
                     raise ConfigurationError(
-                        f"No src/ or {top_level}/ directory found, please ensure "
-                        "your package structure is correct."
+                        f"No src/ or {top_level}/ directory found, please ensure your package structure is correct."
                     )
 
         tests_dir = self.root_directory / "tests"
@@ -110,6 +108,7 @@ class ProjectContext:
 
         Returns:
             Path to instance directory if it exists, None otherwise
+
         """
         instance_dir = self.root_directory / "instance"
         return instance_dir if instance_dir.exists() else None
@@ -120,6 +119,7 @@ class ProjectContext:
 
         Returns:
             Path to assets directory if it exists, None otherwise
+
         """
         assets_dir = self.root_directory / "assets"
         return assets_dir if assets_dir.exists() else None
@@ -143,6 +143,7 @@ def find_pyproject_toml(start: Path | None = None) -> Path | None:
     Returns:
         Path to the found pyproject.toml, or None if none exists in
         ``start`` or any parent directory
+
     """
     for directory in [start or Path.cwd(), *(start or Path.cwd()).parents]:
         candidate = directory / "pyproject.toml"
@@ -180,6 +181,7 @@ class ContextBuilder:
 
         Raises:
             ConfigurationError: If pyproject.toml is not found
+
         """
         cwd = Path.cwd()
 
@@ -202,6 +204,7 @@ class ContextBuilder:
 
         Raises:
             ConfigurationError: If pyproject.toml is not found
+
         """
         pyproject = path / "pyproject.toml"
 
@@ -220,6 +223,7 @@ class ContextBuilder:
 
         Returns:
             Self for method chaining
+
         """
         self._venv_path = path
         return self
@@ -232,6 +236,7 @@ class ContextBuilder:
 
         Returns:
             Self for method chaining
+
         """
         self._python_binary = path
         return self
@@ -244,6 +249,7 @@ class ContextBuilder:
 
         Returns:
             Self for method chaining
+
         """
         self._oarepo_version = version
         return self
@@ -256,6 +262,7 @@ class ContextBuilder:
 
         Returns:
             Self for method chaining
+
         """
         self._config = config
         return self
@@ -276,6 +283,7 @@ class ContextBuilder:
             ConfigurationError: If required files/paths are missing
             VersionMismatchError: If the Python/OARepo version combination
                 is incompatible
+
         """
         if self._root_directory is None or self._pyproject_path is None:
             raise ConfigurationError("Project root and pyproject.toml must be set")
@@ -316,9 +324,7 @@ class ContextBuilder:
             info = resolver.resolve_from_pyproject(self._pyproject_path)
             python_version = resolver.find_available_python(info.python_versions)
             system_path = get_system_path()
-            python_binary = Path(
-                shutil.which(f"python{python_version}", path=system_path) or "python"
-            )
+            python_binary = Path(shutil.which(f"python{python_version}", path=system_path) or "python")
 
         # Validate Python binary exists
         if not python_binary.exists():
@@ -357,7 +363,7 @@ class ContextBuilder:
 
 
 def discover_context(cwd: Path | None = None) -> ProjectContext:
-    """Convenience function to discover project context.
+    """Discover project context.
 
     Args:
         cwd: Optional directory to start search from (defaults to current directory)
@@ -367,6 +373,7 @@ def discover_context(cwd: Path | None = None) -> ProjectContext:
 
     Raises:
         ConfigurationError: If context cannot be discovered
+
     """
     builder = ContextBuilder()
     if cwd:

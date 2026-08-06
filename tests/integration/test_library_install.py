@@ -66,9 +66,7 @@ def test_library_install_passes_flags_to_venv(
     assert marker_file.exists()
 
     # Run install with force flag - this tests flag forwarding
-    result = runner.invoke(
-        app, ["library", "install", "--force", "--quiet"], catch_exceptions=False
-    )
+    result = runner.invoke(app, ["library", "install", "--force", "--quiet"], catch_exceptions=False)
 
     # Should complete (may fail if uv not available)
     assert result.exit_code in [0, 1]

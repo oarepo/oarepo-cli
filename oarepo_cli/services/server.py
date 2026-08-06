@@ -63,6 +63,7 @@ class ServerRunner:
             quiet: If True, suppress status/progress messages (never
                 applies to the server's own output, which always streams
                 live)
+
         """
         self._context = context
         self._quiet = quiet
@@ -88,6 +89,7 @@ class ServerRunner:
         Raises:
             ProcessExecutionError: If starting Docker services fails
             OSError: If exec'ing the server binary fails
+
         """
         console = ConsoleOutput(quiet=self._quiet)
 
@@ -133,7 +135,5 @@ class ServerRunner:
             str(key_path),
             *extra_args,
         ]
-        env = process.build_subprocess_env(
-            {**site_env, "FLASK_DEBUG": "1", "PYTHONWARNINGS": "ignore"}
-        )
+        env = process.build_subprocess_env({**site_env, "FLASK_DEBUG": "1", "PYTHONWARNINGS": "ignore"})
         os.execve(str(invenio_path), argv, env)

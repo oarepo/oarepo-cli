@@ -75,7 +75,8 @@ dependencies = ["oarepo>=14.0.0,<15.0.0"]
 
 def test_computed_properties_code_directories_uv_build_modules(tmp_path: Path) -> None:
     """code_directories resolves every [tool.uv.build-backend].module-name entry,
-    matching a real repository's multi-module uv_build layout (tests/testrepo)."""
+    matching a real repository's multi-module uv_build layout (tests/testrepo).
+    """
     (tmp_path / "pyproject.toml").write_text(
         """
 [project]
@@ -107,7 +108,8 @@ def test_computed_properties_code_directories_uv_build_modules_skips_missing(
     tmp_path: Path,
 ) -> None:
     """A declared module-name entry that doesn't exist on disk is silently skipped,
-    rather than raising -- e.g. a module not yet scaffolded."""
+    rather than raising -- e.g. a module not yet scaffolded.
+    """
     (tmp_path / "pyproject.toml").write_text(
         """
 [project]
@@ -332,7 +334,8 @@ venv = { path = "/custom/venv" }
 def test_validation_fails_for_incompatible_versions(tmp_path: Path) -> None:
     """ContextBuilder.validate() raises VersionMismatchError when the resolved
     Python binary's version isn't in OAREPO_PYTHON_COMPATIBILITY for the
-    project's OARepo version (only "3.14" is compatible with OARepo 14)."""
+    project's OARepo version (only "3.14" is compatible with OARepo 14).
+    """
     (tmp_path / "pyproject.toml").write_text(
         """
 [project]
@@ -344,9 +347,7 @@ dependencies = ["oarepo>=14.0.0,<15.0.0"]
     incompatible_python = Path(shutil.which("python3") or "/usr/bin/python3")
 
     with pytest.raises(VersionMismatchError):
-        ContextBuilder().from_directory(tmp_path).with_python_override(
-            incompatible_python
-        ).validate()
+        ContextBuilder().from_directory(tmp_path).with_python_override(incompatible_python).validate()
 
 
 def test_context_is_immutable(tmp_path: Path) -> None:
@@ -368,9 +369,7 @@ dependencies = ["oarepo>=14.0.0,<15.0.0"]
         context.oarepo_version = 15  # type: ignore
 
 
-def test_discover_context_convenience_function(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
+def test_discover_context_convenience_function(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """Test the discover_context convenience function."""
     (tmp_path / "pyproject.toml").write_text(
         """
@@ -440,9 +439,7 @@ def test_find_pyproject_toml_returns_none_when_not_found(tmp_path: Path) -> None
     assert find_pyproject_toml(subdir) is None
 
 
-def test_find_pyproject_toml_defaults_to_cwd(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
+def test_find_pyproject_toml_defaults_to_cwd(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """find_pyproject_toml() defaults to searching from the current working directory."""
     (tmp_path / "pyproject.toml").write_text("[project]\nname = 'test'\n")
     monkeypatch.chdir(tmp_path)
@@ -470,9 +467,7 @@ tests = ["oarepo>=13.0.0,<14.0.0"]
     assert context.oarepo_version == 14
 
 
-def test_python_autodetect_ignores_active_venv(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
+def test_python_autodetect_ignores_active_venv(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """Auto-detecting the Python binary must exclude the currently active venv.
 
     Running oarepo-cli from inside a project with its own venv activated

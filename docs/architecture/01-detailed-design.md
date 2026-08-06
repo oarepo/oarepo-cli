@@ -627,9 +627,13 @@ def _extract_oarepo_version_from_specifier(dep_spec: str) -> int | None:
         Returns None for invalid specifiers (logs warning).
 
     Example:
-        >>> _extract_oarepo_version_from_specifier("oarepo>=14.0.0,<15.0.0")
+        >>> _extract_oarepo_version_from_specifier(
+        ...     "oarepo>=14.0.0,<15.0.0"
+        ... )
         14
-        >>> _extract_oarepo_version_from_specifier("other-package>=1.0")
+        >>> _extract_oarepo_version_from_specifier(
+        ...     "other-package>=1.0"
+        ... )
         None
     """
     from packaging.requirements import Requirement, InvalidRequirement

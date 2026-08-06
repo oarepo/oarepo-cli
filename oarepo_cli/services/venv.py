@@ -42,6 +42,7 @@ class VenvRequirements:
 
         Raises:
             ValidationError: If Python version is incompatible with OARepo version.
+
         """
         if self.oarepo_version is None:
             # No OARepo version specified, nothing to validate
@@ -53,10 +54,7 @@ class VenvRequirements:
         # Use VersionResolver to check compatibility
         resolver = VersionResolver()
         if not resolver.is_compatible(python_version, self.oarepo_version):
-            msg = (
-                f"Python {python_version} is not compatible with "
-                f"OARepo version {self.oarepo_version}"
-            )
+            msg = f"Python {python_version} is not compatible with OARepo version {self.oarepo_version}"
             raise ValidationError(msg)
 
     def _extract_python_version(self) -> str:
@@ -69,6 +67,7 @@ class VenvRequirements:
 
         Returns:
             Version string extracted from binary name.
+
         """
         # Get the binary name without path
         binary_name = self.python_binary.split("/")[-1]
@@ -76,7 +75,7 @@ class VenvRequirements:
         # Remove "python" prefix if present
         if binary_name.startswith("python"):
             version_str = binary_name[6:]  # Remove "python" (6 chars)
-            return version_str if version_str else "3"  # Default to "3" if just "python"
+            return version_str or "3"  # Default to "3" if just "python"
 
         # If no "python" prefix, return as-is (unusual case)
         return binary_name
@@ -100,6 +99,7 @@ class VirtualEnvironmentManager:
             config: CLI configuration containing venv path and other settings
             project_root: Absolute path to the project root (source of the
                 editable/wheel install and base for a relative venv.path)
+
         """
         self._config = config
         self._project_root = project_root
@@ -131,6 +131,7 @@ class VirtualEnvironmentManager:
         Raises:
             ValidationError: If requirements are invalid
             ProcessExecutionError: If uv commands fail
+
         """
         venv_path = self._venv_path
 
@@ -174,6 +175,7 @@ class VirtualEnvironmentManager:
         Raises:
             ValidationError: If requirements are invalid
             ProcessExecutionError: If uv commands fail
+
         """
         if self._venv_path.exists():
             return self._venv_path
@@ -202,6 +204,7 @@ class VirtualEnvironmentManager:
 
         Args:
             quiet: If True, suppress warning message (for --quiet flag)
+
         """
         gitignore_path = self._project_root / ".gitignore"
 
@@ -253,6 +256,7 @@ class VirtualEnvironmentManager:
 
         Returns:
             True if the directory looks like a real virtual environment
+
         """
         return (venv_path / "pyvenv.cfg").exists()
 
@@ -266,6 +270,7 @@ class VirtualEnvironmentManager:
 
         Raises:
             ProcessExecutionError: If uv venv command fails
+
         """
         process.run(
             ["uv", "venv", "--python", python, "--seed", str(path)],
@@ -297,15 +302,14 @@ class VirtualEnvironmentManager:
 
         Raises:
             ProcessExecutionError: If uv sync or install commands fail
+
         """
         if requirements.editable:
             self._sync_editable(requirements, venv_path, quiet=quiet)
         else:
             self._build_and_install_wheel(requirements, venv_path, quiet=quiet)
 
-    def _sync_editable(
-        self, requirements: VenvRequirements, venv_path: Path, quiet: bool = False
-    ) -> None:
+    def _sync_editable(self, requirements: VenvRequirements, venv_path: Path, quiet: bool = False) -> None:
         """Sync project dependencies in editable mode using uv sync.
 
         Uses `uv sync --extra <extras>` to:
@@ -321,6 +325,7 @@ class VirtualEnvironmentManager:
 
         Raises:
             ProcessExecutionError: If uv sync fails
+
         """
         from oarepo_cli.services.pyproject_reader import PyProjectReader
 
@@ -370,9 +375,7 @@ class VirtualEnvironmentManager:
             output_mode=ProcessOutputMode.INTERACTIVE if not quiet else ProcessOutputMode.CAPTURE,
         )
 
-    def _build_and_install_wheel(
-        self, requirements: VenvRequirements, venv_path: Path, quiet: bool = False
-    ) -> None:
+    def _build_and_install_wheel(self, requirements: VenvRequirements, venv_path: Path, quiet: bool = False) -> None:
         """Build wheel and install (non-editable mode).
 
         Args:
@@ -382,6 +385,7 @@ class VirtualEnvironmentManager:
 
         Raises:
             ProcessExecutionError: If build or install fails
+
         """
         # Get platform-specific paths
         bin_dir = self._platform.get_venv_bin_dir()

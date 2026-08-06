@@ -21,11 +21,10 @@ def test_starts_services_before_tests_real(
     test_context: ProjectContext,
 ) -> None:
     """Test that services are started before pytest runs."""
-
     orchestrator = TestOrchestrator(test_context)
 
     # Start services manually first
-    services_mgr = orchestrator._services_manager
+    services_mgr = orchestrator._services_manager  # noqa: SLF001
     env_vars = services_mgr.start_services()
 
     # Verify we got some env vars (services started)
@@ -39,9 +38,8 @@ def test_stops_services_after_tests_real(
     test_context: ProjectContext,
 ) -> None:
     """Test that services are stopped after operations complete."""
-
     orchestrator = TestOrchestrator(test_context)
-    services_mgr = orchestrator._services_manager
+    services_mgr = orchestrator._services_manager  # noqa: SLF001
 
     # Start services
     services_mgr.start_services()
@@ -65,7 +63,7 @@ def test_skips_services_when_configured(
     test_context.config.services.skip = True
 
     orchestrator = TestOrchestrator(test_context)
-    services_mgr = orchestrator._services_manager
+    services_mgr = orchestrator._services_manager  # noqa: SLF001
 
     # Should return empty dict when skipped
     env_vars = services_mgr.start_services()
@@ -84,13 +82,9 @@ def test_returns_failure_status_on_test_failure(
     test_context.config.services.skip = True
 
     # First ensure venv exists with pytest - use extras=["tests"] to get pytest
-    venv_mgr = VirtualEnvironmentManager(
-        test_context.config, project_root=test_context.root_directory
-    )
+    venv_mgr = VirtualEnvironmentManager(test_context.config, project_root=test_context.root_directory)
     venv_mgr.ensure_venv(
-        VenvRequirements(
-            python_binary="python3.14", oarepo_version=14, extras=["tests"], editable=True
-        )
+        VenvRequirements(python_binary="python3.14", oarepo_version=14, extras=["tests"], editable=True)
     )
 
     # Manually install pytest if not present (fallback)
@@ -121,12 +115,8 @@ def test_passes_coverage_flags_when_enabled_real(
     test_context.config.test.coverage = True
 
     # Ensure venv has pytest-cov
-    venv_mgr = VirtualEnvironmentManager(
-        test_context.config, project_root=test_context.root_directory
-    )
-    venv_mgr.ensure_venv(
-        VenvRequirements(python_binary="python3.14", oarepo_version=14, editable=True)
-    )
+    venv_mgr = VirtualEnvironmentManager(test_context.config, project_root=test_context.root_directory)
+    venv_mgr.ensure_venv(VenvRequirements(python_binary="python3.14", oarepo_version=14, editable=True))
 
     # Install pytest-cov if not present
     subprocess.run(
@@ -138,7 +128,7 @@ def test_passes_coverage_flags_when_enabled_real(
 
     # The orchestrator should add coverage flags when running tests
     # We can verify by checking the command construction
-    pytest_cmd = orchestrator._build_pytest_command(["tests/"], use_coverage=True)
+    pytest_cmd = orchestrator._build_pytest_command(["tests/"], use_coverage=True)  # noqa: SLF001
     assert "--cov" in pytest_cmd
 
 
@@ -147,17 +137,13 @@ def test_passes_additional_pytest_args_real(
 ) -> None:
     """Test that additional pytest arguments are passed through."""
     # Ensure venv exists
-    venv_mgr = VirtualEnvironmentManager(
-        test_context.config, project_root=test_context.root_directory
-    )
-    venv_mgr.ensure_venv(
-        VenvRequirements(python_binary="python3.14", oarepo_version=14, editable=True)
-    )
+    venv_mgr = VirtualEnvironmentManager(test_context.config, project_root=test_context.root_directory)
+    venv_mgr.ensure_venv(VenvRequirements(python_binary="python3.14", oarepo_version=14, editable=True))
 
     orchestrator = TestOrchestrator(test_context)
 
     # Build pytest command with custom arguments
-    pytest_cmd = orchestrator._build_pytest_command(["-v", "-x", "tests/"], use_coverage=False)
+    pytest_cmd = orchestrator._build_pytest_command(["-v", "-x", "tests/"], use_coverage=False)  # noqa: SLF001
     assert "-v" in pytest_cmd
     assert "-x" in pytest_cmd
     assert "tests/" in pytest_cmd
@@ -173,7 +159,7 @@ def test_coverage_override_via_parameter_real(
     orchestrator = TestOrchestrator(test_context)
 
     # Build command with coverage=True override
-    pytest_cmd = orchestrator._build_pytest_command(["tests/"], use_coverage=True)
+    pytest_cmd = orchestrator._build_pytest_command(["tests/"], use_coverage=True)  # noqa: SLF001
     assert "--cov" in pytest_cmd
 
 
@@ -190,7 +176,7 @@ def test_skip_services_override_via_parameter_real(
     # by checking the internal logic - when skip_services=True is passed,
     # should_skip_services should be True regardless of config
     # We test this indirectly by verifying the command building works
-    pytest_cmd = orchestrator._build_pytest_command(["tests/"], use_coverage=False)
+    pytest_cmd = orchestrator._build_pytest_command(["tests/"], use_coverage=False)  # noqa: SLF001
     assert str(test_context.venv_path / "bin" / "pytest") in pytest_cmd
 
 
@@ -201,12 +187,11 @@ def test_loads_service_env_from_file_real(
     # Pre-create .env-services file
     env_file = test_context.root_directory / ".env-services"
     env_file.write_text(
-        'export DATABASE_URL="postgresql://localhost:5432/test"\n'
-        'export SEARCH_URL="opensearch://localhost:9200"\n'
+        'export DATABASE_URL="postgresql://localhost:5432/test"\nexport SEARCH_URL="opensearch://localhost:9200"\n'
     )
 
     orchestrator = TestOrchestrator(test_context)
-    services_mgr = orchestrator._services_manager
+    services_mgr = orchestrator._services_manager  # noqa: SLF001
 
     env_vars = services_mgr.load_service_env()
 
@@ -226,13 +211,9 @@ def test_full_test_run_with_real_venv(
     test_context.config.services.skip = True
 
     # Ensure venv exists with test dependencies
-    venv_mgr = VirtualEnvironmentManager(
-        test_context.config, project_root=test_context.root_directory
-    )
+    venv_mgr = VirtualEnvironmentManager(test_context.config, project_root=test_context.root_directory)
     venv_mgr.ensure_venv(
-        VenvRequirements(
-            python_binary="python3.14", oarepo_version=14, extras=["tests"], editable=True
-        )
+        VenvRequirements(python_binary="python3.14", oarepo_version=14, extras=["tests"], editable=True)
     )
 
     # Manually install pytest-cov if needed (for coverage tests)

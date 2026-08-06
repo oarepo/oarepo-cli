@@ -6,7 +6,7 @@
 from __future__ import annotations
 
 import sys
-from pathlib import Path  # noqa: TCH003
+from pathlib import Path  # noqa: TC003
 from typing import Annotated
 
 import typer
@@ -83,8 +83,7 @@ def main(
         ),
     ] = None,
 ) -> None:
-    """
-    OARepo CLI - Manage OARepo libraries and repositories.
+    """Oarepo CLI - Manage OARepo libraries and repositories.
 
     Use 'oarepo-cli COMMAND --help' for help on specific commands.
     """
