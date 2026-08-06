@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "oarepo-cli"
-dynamic = ["version"]
+version = "14.0.0"
 description = "A standalone Python CLI for OARepo library and repository management"
 readme = "README.md"
 license = "MIT"
@@ -55,7 +55,6 @@ oarepo-cli = "oarepo_cli.cli.main:cli_main"
 [project.optional-dependencies]
 dev = [
     "ruff>=0.9.0",
-    "pre-commit>=4.0.0",
 ]
 tests = [
     "pytest>=7.1.2",
@@ -64,7 +63,7 @@ tests = [
     "pytest-mock>=3.14.0",
 ]
 oarepo14 = [
-    # Never installed (no Makefile/CI target requests this extra) -- exists
+    # Never installed (no run.sh/CI target requests this extra) -- exists
     # solely so PyProjectData.oarepo_versions (see pyproject_reader.py) can
     # detect "14" for `oarepo-cli library oarepo-versions`, which drives the
     # CI test matrix in run.sh/.github/workflows.
@@ -79,9 +78,6 @@ url = "https://gitlab.cesnet.cz/api/v4/projects/1408/packages/pypi/simple"
 
 [tool.uv.sources]
 invenio-cli = { index = "cesnet" }
-
-[tool.hatch.version]
-path = "oarepo_cli/__init__.py"
 
 [tool.hatch.build.targets.sdist]
 include = [
@@ -162,7 +158,3 @@ exclude_lines = [
 
 [tool.coverage.html]
 directory = "htmlcov"
-
-# Pre-commit configuration (also in .pre-commit-config.yaml)
-[tool.pre-commit]
-skip = []

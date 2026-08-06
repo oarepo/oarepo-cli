@@ -64,26 +64,18 @@ These are architectural decisions already made — don't re-litigate them, just 
 
 ## Dev commands
 
-Phase 0 has landed: use the `Makefile` for all dev tasks instead of invoking `pytest`/`ruff`/`ty`
-directly — each target auto-installs the right dependency group into `.venv` via `uv` first
-(tracked with marker files under `.venv/markers`, so re-running a target is fast/idempotent).
+Use `run.sh` for all dev tasks instead of invoking `pytest`/`ruff`/`ty` directly — it's a thin
+wrapper that forwards to this project's own `oarepo-cli library` commands (dogfooding the CLI on
+itself), creating/updating `.venv` via `uv` as needed.
 
 ```bash
-make help              # list all targets with descriptions
-make test               # pytest with coverage (installs [tests] extra)
-make lint                # ruff check .
-make format               # ruff format .
-make type-check           # ty check --python-version 3.14 .
-make check                # lint + format + type-check, in that order — run this before opening a PR
-make pre-commit-setup     # install the pre-commit git hook
-make pre-commit-run       # run pre-commit on all files
-make clean                # remove build artifacts, caches, htmlcov, and .venv
+./run.sh test               # pytest with coverage (installs [tests] extra)
+./run.sh lint                # ruff check/format, license-header + future-annotations checks, ty check — auto-fixes what it can
+./run.sh format               # ruff format + ruff check --fix
+./run.sh check                # same checks as lint, read-only (no fixes applied) — run this before opening a PR
 ```
 
-`install-dev` / `install-tests` / `install-all` targets exist too, but you rarely need to call
-them directly — `test`/`lint`/`format`/`type-check` depend on the right one automatically.
-
-**Always run `make check` after making changes**, per the non-negotiable constraints below.
+**Always run `./run.sh check` after making changes**, per the non-negotiable constraints below.
 
 **Important**: Integration tests are very slow. If you are making changes that don't affect the CLI itself, consider skipping them. If not skipping, run just the single test that you need to run. They will be run
 in full on testing servers, so it is safe to skip the previous ones.

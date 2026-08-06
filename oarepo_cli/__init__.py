@@ -8,4 +8,9 @@ Re-exports core exceptions and utilities for convenience.
 
 from __future__ import annotations
 
-__version__ = "0.1.0"
+from importlib.metadata import PackageNotFoundError, version
+
+try:
+    __version__ = version("oarepo-cli")
+except PackageNotFoundError:
+    __version__ = "0.0.0dev0+unknown"

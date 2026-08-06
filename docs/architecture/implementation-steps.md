@@ -50,7 +50,7 @@ Per-phase deliverable. Steps within a phase can often be parallelized; see each 
 
 **Deliverables**:
 - [x] Project scaffolding committed to git
-- [x] `make` targets or scripts for common operations (test, lint, format)
+- [x] `run.sh` targets or scripts for common operations (test, lint, format)
 - [x] Pre-commit hooks installed and working
 
 **Tests**:
@@ -2150,19 +2150,19 @@ steps, etc.):
 
 ---
 
-### Step 6.4.3: Use static library version in tests
+### Step 6.4.3: Use static library version
 
 **Goal**: Replace dynamic version in pyproject.toml with static version.
 
 **Current State**: pyproject.toml uses dynamic version that is taken from the library's `__init__.py`.
 
 **Implementation**:
-- Define a static version inside the pyproject.toml
-- in __init__.py define a constant that reads the static version from the runtime environment (similar to [oarepo-runtime's `__init__.py`](https://github.com/oarepo/oarepo-runtime/blob/main/oarepo_runtime/__init__.py))
+- [x] Define a static version inside the pyproject.toml
+- [x] in __init__.py define a constant that reads the static version from the runtime environment (similar to [oarepo-runtime's `__init__.py`](https://github.com/oarepo/oarepo-runtime/blob/main/oarepo_runtime/__init__.py))
 
 **Deliverables**:
-- Static version constant defined for the library
-- All tests passing
+- [x] Static version constant defined for the library
+- [x] All tests passing
 
 ---
 

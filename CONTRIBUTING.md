@@ -49,13 +49,10 @@ Ready to contribute? Here's how to set up `oarepo-cli` for local development.
    $ cd oarepo-cli
    ```
 
-2. Install the development dependencies. This project uses [`uv`](https://docs.astral.sh/uv/)
-   and a `Makefile` that installs the right dependency group automatically:
-
-   ```console
-   $ make install-dev    # ruff, ty, pre-commit
-   $ make pre-commit-setup
-   ```
+2. This project uses [`uv`](https://docs.astral.sh/uv/) and its own `run.sh` script (a thin
+   wrapper around `oarepo-cli library` commands, dogfooded on this repo itself), which creates
+   `.venv` and installs the right dependency group automatically the first time you run it — no
+   separate install step needed.
 
 3. **Create a branch off `cli-as-python`, not `main`** — this repository is
    mid-rewrite (see `AGENTS.md`), and `cli-as-python` is the integration
@@ -78,8 +75,8 @@ Ready to contribute? Here's how to set up `oarepo-cli` for local development.
 5. Run the checks and the test suite:
 
    ```console
-   $ make check   # lint + format + type-check
-   $ make test    # pytest with coverage
+   $ ./run.sh check   # lint + format + type-check, read-only
+   $ ./run.sh test    # pytest with coverage
    ```
 
    Integration tests are slow; if you're only touching one area, run just
@@ -106,7 +103,7 @@ Ready to contribute? Here's how to set up `oarepo-cli` for local development.
 Before you submit a pull request, check that it meets these guidelines:
 
 1. The pull request should include tests and must not decrease test coverage.
-2. `make check` and `make test` both pass.
+2. `./run.sh check` and `./run.sh test` both pass.
 3. If the pull request changes user-facing behavior, `README.md` is updated
    to match.
 4. If the pull request implements or finishes a step from
@@ -118,7 +115,7 @@ Before you submit a pull request, check that it meets these guidelines:
 ## Code Style
 
 - Python 3.14 only, `ruff` for linting/formatting, `ty` for type checking —
-  `make check` runs all three.
+  `./run.sh check` runs all three.
 - Never `subprocess` with `shell=True`; always pass argument lists.
 - No test classes — plain `test_*` functions, with shared setup in fixtures.
 - Every source file starts with an SPDX header and `from __future__ import annotations`:
