@@ -5,6 +5,7 @@
 
 from __future__ import annotations
 
+import json
 import shutil
 from dataclasses import dataclass
 from typing import TYPE_CHECKING
@@ -17,7 +18,8 @@ from packaging.version import Version
 
 from oarepo_cli.configuration.constants import KNOWN_PYTHON_VERSIONS, OAREPO_PYTHON_COMPATIBILITY
 from oarepo_cli.core.errors import VersionMismatchError
-from oarepo_cli.services.process import get_system_path
+from oarepo_cli.services import process
+from oarepo_cli.services.process import ProcessOutputMode, get_system_path
 from oarepo_cli.services.pyproject_reader import PyProjectReader
 
 
@@ -234,12 +236,15 @@ class VersionResolver:
         - python{version} (e.g., python3.12)
         - python{major}{minor} (e.g., python312)
         - python{major}.{minor} (e.g., python3.12)
+        - a matching interpreter already known to `uv` (see
+          `_is_uv_managed_python_available`), as a fallback
 
         Args:
             version: Python version string (e.g., "3.12")
 
         Returns:
-            True if the Python binary is found in PATH (excluding any active venv)
+            True if the Python binary is found in PATH (excluding any active
+            venv) or `uv` already has a matching interpreter on hand
 
         """
         major, minor = version.split(".")
@@ -256,4 +261,45 @@ class VersionResolver:
         # would be reported "available" even when nothing about to (re)create
         # that venv could actually use it.
         system_path = get_system_path()
-        return any(shutil.which(candidate, path=system_path) is not None for candidate in candidates)
+        if any(shutil.which(candidate, path=system_path) is not None for candidate in candidates):
+            return True
+
+        return self._is_uv_managed_python_available(version)
+
+    def _is_uv_managed_python_available(self, version: str) -> bool:
+        """Check uv's own interpreter registry for a matching Python.
+
+        `uv venv --python <version>` (see services.venv._create_venv)
+        transparently downloads a matching interpreter on demand, so a
+        machine can satisfy `version` even when no `pythonX.Y` binary is
+        exposed on PATH -- e.g. a fresh CI runner where an earlier `uv
+        venv`/`uv sync` call already auto-downloaded the interpreter into
+        uv's own managed-installations directory without ever symlinking it
+        onto PATH. `uv python list --only-installed` reports exactly what
+        uv already has on hand and never triggers a download itself, so
+        this only ever reflects an interpreter that's already there.
+
+        Args:
+            version: Python version string (e.g., "3.14")
+
+        Returns:
+            True if `uv` is on PATH and reports at least one matching
+            already-installed interpreter
+
+        """
+        if shutil.which("uv", path=get_system_path()) is None:
+            return False
+
+        result = process.run(
+            ["uv", "python", "list", version, "--only-installed", "--output-format", "json"],
+            check=False,
+            output_mode=ProcessOutputMode.CAPTURE,
+        )
+        if not result.success:
+            return False
+
+        try:
+            installed = json.loads(result.stdout)
+        except json.JSONDecodeError:
+            return False
+        return bool(installed)
