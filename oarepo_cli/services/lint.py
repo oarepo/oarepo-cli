@@ -9,6 +9,9 @@ import sys
 from pathlib import Path
 from typing import TYPE_CHECKING
 
+import pathspec
+import typer
+
 if TYPE_CHECKING:
     from oarepo_cli.core.context import ProjectContext
 
@@ -37,19 +40,61 @@ def _tool_path(name: str) -> str:
     return str(candidate) if candidate.exists() else name
 
 
+def _find_gitignore_root(start: Path) -> Path | None:
+    """Locate the directory holding the project's root ``.gitignore``, if any.
+
+    Walks upward from `start` looking for a `.gitignore`. The search stops
+    as soon as it reaches the library/repository root - identified by a
+    `.gitignore` file itself, or a `.git` entry if there's no `.gitignore`
+    there - so a stray `.gitignore` further up an unrelated ancestor
+    directory (e.g. the user's home directory) is never picked up.
+
+    Args:
+        start: Directory to start searching from
+
+    Returns:
+        The directory containing the `.gitignore`, or None if none was found
+
+    """
+    for directory in (start, *start.parents):
+        if (directory / ".gitignore").exists():
+            return directory
+        if (directory / ".git").exists():
+            break
+    return None
+
+
 def _iter_python_files(directories: list[Path]) -> list[Path]:
-    """Find all *.py files under the given directories.
+    """Find all *.py files under the given directories, honoring .gitignore.
 
     Args:
         directories: Directories to search recursively
 
     Returns:
-        Sorted list of Python file paths
+        Sorted list of Python file paths, excluding any matched by the
+        library's/repository's root `.gitignore`
 
     """
     files: list[Path] = []
+    # Keyed by the directory holding the .gitignore, not by `directory`
+    # below: distinct code directories (src/, tests/, ...) commonly share
+    # the same root .gitignore, so this avoids re-reading/re-parsing it
+    # once per code directory.
+    spec_cache: dict[Path, pathspec.PathSpec] = {}
     for directory in directories:
-        files.extend(directory.rglob("*.py"))
+        gitignore_root = _find_gitignore_root(directory)
+        spec_info: tuple[Path, pathspec.PathSpec] | None = None
+        if gitignore_root is not None:
+            if gitignore_root not in spec_cache:
+                lines = (gitignore_root / ".gitignore").read_text(encoding="utf-8", errors="replace").splitlines()
+                spec_cache[gitignore_root] = pathspec.PathSpec.from_lines("gitignore", lines)
+            spec_info = (gitignore_root, spec_cache[gitignore_root])
+        for file in directory.rglob("*.py"):
+            if spec_info is not None:
+                root, spec = spec_info
+                if spec.match_file(file.relative_to(root).as_posix()):
+                    continue
+            files.append(file)
     return sorted(files)
 
 
@@ -116,6 +161,30 @@ class LintRunner:
         self._context = context
         self._quiet = quiet
 
+    def _print_step(self, label: str) -> None:
+        """Print a header naming the check about to run (skipped when quiet).
+
+        Each step below shares the "All checks passed!"/similar wording with
+        its underlying tool's own stdout, so without a header it's not clear
+        from the output alone which tool a given "All checks passed!" belongs to.
+
+        Args:
+            label: Name of the step about to run (e.g. "ruff check")
+
+        """
+        if not self._quiet:
+            typer.secho(f"→ {label}", fg=typer.colors.CYAN, bold=True)
+
+    def _print_ok(self, label: str) -> None:
+        """Print a pass marker for a step that has no stdout of its own.
+
+        Args:
+            label: Name of the step that just passed
+
+        """
+        if not self._quiet:
+            typer.secho(f"  ✓ {label} passed", fg=typer.colors.GREEN)
+
     def run_lint(self, *, fix: bool = True) -> process.ProcessResult:
         """Run the full lint suite: ruff, license headers, future annotations, ty.
 
@@ -137,6 +206,7 @@ class LintRunner:
 
         ruff = _tool_path("ruff")
         fix_flag = ["--fix"] if fix else []
+        self._print_step("ruff check")
         result = process.run(
             [ruff, "check", *fix_flag, "--exclude", "pyproject.toml"],
             cwd=root,
@@ -148,6 +218,7 @@ class LintRunner:
 
         # When fix=True, actually reformat the code; when fix=False, only check
         format_mode = [] if fix else ["--check"]
+        self._print_step("ruff format" if fix else "ruff format --check")
         result = process.run(
             [ruff, "format", *format_mode, "--exclude", "pyproject.toml"],
             cwd=root,
@@ -157,6 +228,7 @@ class LintRunner:
         if not result.success:
             return result
 
+        self._print_step("license headers")
         missing_headers = check_license_headers(code_directories)
         if missing_headers:
             return _synthetic_failure(
@@ -164,7 +236,9 @@ class LintRunner:
                 [f"Missing license header in {f}" for f in missing_headers]
                 + [f"{len(missing_headers)} file(s) are missing license headers."],
             )
+        self._print_ok("license headers")
 
+        self._print_step("future annotations")
         missing_annotations = check_future_annotations(code_directories)
         if missing_annotations:
             return _synthetic_failure(
@@ -172,6 +246,7 @@ class LintRunner:
                 [f"Missing 'from __future__ import annotations' in {f}" for f in missing_annotations]
                 + [f"{len(missing_annotations)} file(s) are missing future annotations."],
             )
+        self._print_ok("future annotations")
 
         _write_config(root / "ty.toml", resources.read_text("ty.toml.tmpl"))
 
@@ -182,6 +257,7 @@ class LintRunner:
         source_directories = [d for d in code_directories if d.name != "tests"]
 
         venv_python = self._context.venv_path / "bin" / "python"
+        self._print_step("ty check")
         return process.run(
             [
                 _tool_path("ty"),
@@ -227,6 +303,7 @@ class LintRunner:
         check_args = extra_args  # --unsafe-fixes is valid for ruff check --fix
 
         if not fix:
+            self._print_step("ruff format --check")
             return process.run(
                 [ruff, "format", "--check", "--exclude", "pyproject.toml", *format_args],
                 cwd=root,
@@ -234,6 +311,7 @@ class LintRunner:
                 output_mode=ProcessOutputMode.INTERACTIVE if not self._quiet else ProcessOutputMode.CAPTURE,
             )
 
+        self._print_step("ruff format")
         result = process.run(
             [ruff, "format", "--exclude", "pyproject.toml", *format_args],
             cwd=root,
@@ -243,6 +321,7 @@ class LintRunner:
         if not result.success:
             return result
 
+        self._print_step("ruff check --fix")
         return process.run(
             [ruff, "check", "--fix", "--exclude", "pyproject.toml", *check_args],
             cwd=root,
