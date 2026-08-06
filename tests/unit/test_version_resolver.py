@@ -217,7 +217,7 @@ def test_version_info_is_immutable() -> None:
     )
 
     with pytest.raises(FrozenInstanceError):
-        object.__setattr__(info, "oarepo_versions", [15])  # type: ignore[misc]
+        info.oarepo_versions = [15]  # ty: ignore[invalid-assignment]
 
 
 def test_parse_requires_python_with_complex_constraint() -> None:
