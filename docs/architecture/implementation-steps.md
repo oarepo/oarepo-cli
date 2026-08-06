@@ -2136,7 +2136,37 @@ steps, etc.):
 - Complete documentation suite
 
 
-replace testrepo project fixture with call to oarepo-cli (the new client)
+### Step 6.4.2: Replace testrepo fixture's implementation with oarepo-cli `new` command
+
+**Goal**: Replace the testrepo project fixture implementation to use oarepo-cli's `new` operation instead of downloading and executing the bash script.
+
+**Current State**: The `testrepo_project` fixture in `tests/conftest.py` downloads the `repository_installer.sh` bash script from GitHub and executes it with copier to create a test repository.
+
+**Implementation**:
+- Modify the `testrepo_project` fixture to call `oarepo-cli new` command instead
+- Remove the dependency on downloading the bash script
+- Use the library scaffolding functionality that is already implemented
+
+**Deliverables**:
+- Updated `testrepo_project` fixture using oarepo-cli `new` command
+- Removed bash script download logic from tests
+
+---
+
+### Step 6.4.3: Use static library version in tests
+
+**Goal**: Replace dynamic version in pyproject.toml with static version.
+
+**Current State**: pyproject.toml uses dynamic version that is taken from the library's `__init__.py`.
+
+**Implementation**:
+- Define a static version inside the pyproject.toml
+- in __init__.py define a constant that reads the static version from the runtime environment (similar to [oarepo-runtime's `__init__.py`](https://github.com/oarepo/oarepo-runtime/blob/main/oarepo_runtime/__init__.py))
+
+**Deliverables**:
+- Static version constant defined for the library
+- All tests passing
+
 ---
 
 ### Step 6.4.1: `node_versions` inconsistency between `oarepo-versions` and `VersionResolver`
