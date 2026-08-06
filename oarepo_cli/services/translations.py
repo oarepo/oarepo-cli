@@ -99,21 +99,12 @@ def copy_translations(
     # Check if source exists
     if not src.exists():
         if not quiet:
-            import sys
+            pass
 
-            print(
-                f"\n⚠️  No translations to overlay (looked at: {src}), skipping",
-                file=sys.stderr,
-            )
         return
 
     if not quiet:
-        import sys
-
-        print(
-            f"\n→ Overlaying translations from {src} onto {site_packages}",
-            file=sys.stderr,
-        )
+        pass
 
     # Use cp -R to recursively copy and merge
     # The /. pattern copies contents and merges into existing directories (works on both BSD and GNU cp)
@@ -129,6 +120,4 @@ def copy_translations(
             shutil.copy2(item, dest)
 
     if not quiet:
-        import sys
-
-        print("✓ Translation overlay applied\n", file=sys.stderr)
+        pass

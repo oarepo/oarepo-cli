@@ -71,21 +71,12 @@ def configure_local_ports(context: ProjectContext, *, quiet: bool = False) -> No
 
     if not ports:
         if not quiet:
-            import sys
+            pass
 
-            print(
-                "\n⚠️  Warning: No port variables found in variables file, skipping port configuration",
-                file=sys.stderr,
-            )
         return
 
     if not quiet:
-        import sys
-
-        print(
-            f"\n→ Configuring local service ports in {invenio_private.name}",
-            file=sys.stderr,
-        )
+        pass
 
     # Read existing .invenio.private and remove old port entries
     content = invenio_private.read_text()
@@ -109,9 +100,7 @@ def configure_local_ports(context: ProjectContext, *, quiet: bool = False) -> No
             f.write(f"{key} = {value}\n")
 
     if not quiet:
-        import sys
-
-        print("✓ Port configuration updated\n", file=sys.stderr)
+        pass
 
 
 def get_instance_path(context: ProjectContext) -> Path:
@@ -158,22 +147,13 @@ def ensure_instance_structure(
 
     """
     if not quiet:
-        import sys
-
-        print(
-            f"\n→ Instance path: {instance_path}",
-            file=sys.stderr,
-        )
+        pass
 
     # Create instance directory if it doesn't exist
     if not instance_path.exists():
         if not quiet:
-            import sys
+            pass
 
-            print(
-                f"  Creating instance path: {instance_path}",
-                file=sys.stderr,
-            )
         instance_path.mkdir(parents=True, exist_ok=True)
 
     # Create symlink to invenio.cfg if it doesn't exist
@@ -182,12 +162,8 @@ def ensure_instance_structure(
 
     if not invenio_cfg_link.exists() and invenio_cfg_source.exists():
         if not quiet:
-            import sys
+            pass
 
-            print(
-                f"  Symlinking {invenio_cfg_source.name} to instance",
-                file=sys.stderr,
-            )
         # Use relative path if possible, absolute otherwise
         try:
             invenio_cfg_link.symlink_to(invenio_cfg_source)
@@ -198,9 +174,7 @@ def ensure_instance_structure(
             shutil.copy2(invenio_cfg_source, invenio_cfg_link)
 
     if not quiet:
-        import sys
-
-        print("✓ Instance structure ready\n", file=sys.stderr)
+        pass
 
 
 def install_repository(context: ProjectContext, *, quiet: bool = False) -> None:

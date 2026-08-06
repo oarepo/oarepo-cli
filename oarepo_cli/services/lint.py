@@ -207,7 +207,8 @@ class LintRunner:
                 preview once formatting itself doesn't run).
             extra_args: Additional arguments passed through to the ruff
                 invocation(s) (e.g. a path to restrict formatting to, or
-                ruff flags like ``--diff``)
+                ruff flags like ``--diff``). Note: ``--unsafe-fixes`` is
+                only passed to ``ruff check --fix``, not to ``ruff format``.
 
         Returns:
             ProcessResult of the first failing step, or the final result
@@ -221,16 +222,20 @@ class LintRunner:
         if not ruff_toml.exists():
             _write_config(ruff_toml, resources.read_text("ruff.toml.tmpl"))
 
+        # Separate --unsafe-fixes for ruff check (it's not valid for ruff format)
+        format_args = [arg for arg in extra_args if arg != "--unsafe-fixes"]
+        check_args = extra_args  # --unsafe-fixes is valid for ruff check --fix
+
         if not fix:
             return process.run(
-                [ruff, "format", "--check", "--exclude", "pyproject.toml", *extra_args],
+                [ruff, "format", "--check", "--exclude", "pyproject.toml", *format_args],
                 cwd=root,
                 check=False,
                 output_mode=ProcessOutputMode.INTERACTIVE if not self._quiet else ProcessOutputMode.CAPTURE,
             )
 
         result = process.run(
-            [ruff, "format", "--exclude", "pyproject.toml", *extra_args],
+            [ruff, "format", "--exclude", "pyproject.toml", *format_args],
             cwd=root,
             check=False,
             output_mode=ProcessOutputMode.INTERACTIVE if not self._quiet else ProcessOutputMode.CAPTURE,
@@ -239,7 +244,7 @@ class LintRunner:
             return result
 
         return process.run(
-            [ruff, "check", "--fix", "--exclude", "pyproject.toml", *extra_args],
+            [ruff, "check", "--fix", "--exclude", "pyproject.toml", *check_args],
             cwd=root,
             check=False,
             output_mode=ProcessOutputMode.INTERACTIVE if not self._quiet else ProcessOutputMode.CAPTURE,
@@ -269,7 +274,6 @@ def _synthetic_failure(root: Path, messages: list[str]) -> process.ProcessResult
 
     """
     text = "\n".join(messages)
-    print(text, file=sys.stderr)
     return process.ProcessResult(
         return_code=1,
         stdout="",

@@ -64,8 +64,10 @@ def test_upgrade_cleans_uv_cache_with_force(
     clean_testrepo: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """`repository upgrade` runs `uv cache clean --force` (unlike `library upgrade`,
-    which omits --force), mirroring repository_runner.sh's upgrade_repository.
+    """Repository upgrade runs uv cache clean --force.
+
+    Unlike `library upgrade`, which omits --force. Mirrors
+    repository_runner.sh's upgrade_repository.
     """
     monkeypatch.chdir(clean_testrepo)
     monkeypatch.setattr("oarepo_cli.services.repository.install_repository", lambda *_args, **_kwargs: None)

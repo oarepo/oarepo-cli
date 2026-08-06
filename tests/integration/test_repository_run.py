@@ -117,8 +117,9 @@ def test_run_forwards_extra_args(
     mock_context: Mock,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """Unrecognized args/options (e.g. -p 5001) are forwarded to ServerRunner.run() as
-    extra_args, mirroring repository_runner.sh's run_server()'s extra_options.
+    """Unrecognized args/options are forwarded to ServerRunner.run as extra_args.
+
+    E.g. -p 5001. Mirrors repository_runner.sh's run_server()'s extra_options.
     """
     calls: list[dict[str, object]] = []
     monkeypatch.setattr("oarepo_cli.cli.repository.ServerRunner", _fake_server_runner(calls))
@@ -132,7 +133,10 @@ def test_run_forwards_extra_args(
 
 
 def test_run_reports_context_discovery_failure(monkeypatch: pytest.MonkeyPatch) -> None:
-    """A context-discovery failure (e.g. no pyproject.toml) is reported cleanly, exit code 1."""
+    """A context-discovery failure is reported cleanly.
+
+    E.g. no pyproject.toml. Exit code 1.
+    """
 
     def raise_config_error() -> None:
         raise ConfigurationError("pyproject.toml not found")
@@ -149,7 +153,10 @@ def test_run_reports_server_runner_error_and_exits_1(
     mock_context: Mock,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """A ProcessExecutionError raised while starting Docker services is reported cleanly."""
+    """A ProcessExecutionError raised while starting Docker services is reported.
+
+    Reported cleanly with exit code 1.
+    """
 
     class RaisingServerRunner:
         def __init__(self, context: object, *, quiet: bool = False) -> None:
@@ -174,8 +181,10 @@ def test_run_reports_server_runner_error_and_exits_1(
 
 
 def test_run_help_shows_oarepo_clis_own_help(mock_context: Mock) -> None:
-    """--help shows oarepo-cli's own help (--no-services/--no-celery/--quiet), unlike the
-    services subcommands, which forward --help to invenio-cli's own help instead.
+    """Help shows oarepo-cli's own options.
+
+    Shows --no-services/--no-celery/--quiet, unlike the services subcommands,
+    which forward --help to invenio-cli's own help instead.
     """
     runner = CliRunner()
     result = runner.invoke(app, ["repository", "run", "--help"])
@@ -201,10 +210,13 @@ def _make_executable(path: Path, content: str) -> None:
 
 
 def test_run_real_exec_replaces_process(tmp_path: Path) -> None:
-    """End-to-end: `oarepo-cli repository run` really discovers the project, starts no
-    services (--no-services), and execve()s into invenio-cli -- driven via the real CLI
-    entry point, in its own isolated subprocess (a real exec would otherwise replace the
-    pytest worker), against a tiny fake invenio-cli substituted in for this one process.
+    """End-to-end test for repository run command.
+
+    Tests that `oarepo-cli repository run` really discovers the project,
+    starts no services (--no-services), and execve()s into invenio-cli --
+    driven via the real CLI entry point, in its own isolated subprocess
+    (a real exec would otherwise replace the pytest worker), against a tiny
+    fake invenio-cli substituted in for this one process.
     """
     project_root = tmp_path / "repo"
     project_root.mkdir()
@@ -226,11 +238,8 @@ from oarepo_cli.cli.main import app
 sys.argv = ["oarepo-cli", "repository", "run", "--no-services", "--", "--debugger"]
 app()
 """
-    result = subprocess.run(
-        [sys.executable, "-c", driver],
-        cwd=project_root,
-        capture_output=True,
-        text=True,
+    result = subprocess.run(  # noqa: S603 - just a test, not a security issue to run the program
+        [sys.executable, "-c", driver], cwd=project_root, capture_output=True, text=True, check=False
     )
 
     assert result.returncode == 42, result.stderr

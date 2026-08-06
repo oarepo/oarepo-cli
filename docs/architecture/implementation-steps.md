@@ -2135,6 +2135,8 @@ steps, etc.):
 **Deliverables**:
 - Complete documentation suite
 
+
+replace testrepo project fixture with call to oarepo-cli (the new client)
 ---
 
 ### Step 6.4.1: `node_versions` inconsistency between `oarepo-versions` and `VersionResolver`

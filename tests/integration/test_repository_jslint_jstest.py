@@ -49,8 +49,9 @@ def test_repository_jstest_help_displays(runner: CliRunner) -> None:
 def test_repository_jslint_skips_without_package_json(
     runner: CliRunner, lint_project_multi_module: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    """Test that 'repository jslint' skips gracefully when no package.json exists --
-    the common case for a repository, which doesn't commit one at the project root.
+    """Repository jslint skips gracefully when no package.json exists.
+
+    The common case for a repository, which doesn't commit one at the project root.
     """
     monkeypatch.chdir(lint_project_multi_module)
 

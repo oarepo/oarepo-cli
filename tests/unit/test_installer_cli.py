@@ -66,8 +66,10 @@ def _fake_repository_installer(calls: list[dict[str, object]]) -> type:
 
 
 def test_new_uses_defaults(monkeypatch: pytest.MonkeyPatch) -> None:
-    """Only REPOSITORY_NAME given: python/template/version/uv/uvx all take their defaults,
-    and RepositoryInstaller.install() is called with them.
+    """New uses defaults when only repository name is given.
+
+    Python/template/version/uv/uvx all take their defaults, and
+    RepositoryInstaller.install() is called with them.
     """
     calls: list[dict[str, object]] = []
     monkeypatch.setattr("oarepo_cli.cli.installer.RepositoryInstaller", _fake_repository_installer(calls))

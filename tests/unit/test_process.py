@@ -183,10 +183,10 @@ def _sigterm_worker(child_pid_file: str) -> None:
 
 @pytest.mark.skipif(sys.platform == "win32", reason="POSIX signal semantics assumed")
 def test_sigterm_forwarded_to_child_and_worker_exits_cleanly(tmp_path: Path) -> None:
-    """A SIGTERM sent to a process that's inside process.run() is forwarded to
-    its child subprocess (which is killed, not orphaned), and the process
-    itself exits via SystemExit(143) rather than hanging or leaving a
-    traceback.
+    """SIGTERM sent to process.run() is forwarded to child subprocess.
+
+    The child subprocess is killed, not orphaned, and the process itself
+    exits via SystemExit(143) rather than hanging or leaving a traceback.
     """
     child_pid_file = tmp_path / "child.pid"
 

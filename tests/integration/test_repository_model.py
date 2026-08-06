@@ -47,12 +47,17 @@ MODEL_FILE_TEMPLATE = 'GREETING = "{{ greeting }}"\n'
 
 
 def _git(*args: str, cwd: Path) -> None:
-    subprocess.run(["git", *args], cwd=cwd, check=True, capture_output=True)
+    subprocess.run(  # noqa: S603 - just a test, not a security issue to run the program
+        ["git", *args],  # noqa: S607 git is ok
+        cwd=cwd,
+        check=True,
+        capture_output=True,
+    )
 
 
 @pytest.fixture
 def local_template(tmp_path: Path) -> Path:
-    """A small, real, git-tracked copier template (model_name + greeting)."""
+    """Create a small, real, git-tracked copier template (model_name + greeting)."""
     template_dir = tmp_path / "template"
     template_dir.mkdir()
     (template_dir / "copier.yml").write_text(COPIER_YML + ANSWERS_FILE_SETTING)
@@ -78,7 +83,7 @@ def local_template(tmp_path: Path) -> Path:
 
 @pytest.fixture
 def repo_root(tmp_path: Path) -> Path:
-    """An empty, git-tracked repository root to render model templates into."""
+    """Create an empty, git-tracked repository root to render model templates into."""
     root = tmp_path / "repo"
     root.mkdir()
     _git("init", "-q", cwd=root)
@@ -274,8 +279,10 @@ def test_model_help_text(args: list[str]) -> None:
 def test_model_create_and_update_against_real_template(
     repo_root: Path, local_template: Path, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> None:
-    """End-to-end: the `model` command group is wired correctly through to real copier,
-    for both create and update, against a small local template.
+    """End-to-end test for model command group wiring.
+
+    Tests that the `model` command group is wired correctly through to real
+    copier, for both create and update, against a small local template.
 
     A config_file is passed to `create` (seeding all answers, including the
     visible `greeting` question) so copier never needs an interactive

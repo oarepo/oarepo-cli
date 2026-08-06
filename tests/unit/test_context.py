@@ -74,8 +74,10 @@ dependencies = ["oarepo>=14.0.0,<15.0.0"]
 
 
 def test_computed_properties_code_directories_uv_build_modules(tmp_path: Path) -> None:
-    """code_directories resolves every [tool.uv.build-backend].module-name entry,
-    matching a real repository's multi-module uv_build layout (tests/testrepo).
+    """Code directories resolves every module-name entry.
+
+    Resolves every [tool.uv.build-backend].module-name entry, matching a real
+    repository's multi-module uv_build layout (tests/testrepo).
     """
     (tmp_path / "pyproject.toml").write_text(
         """
@@ -107,7 +109,9 @@ module-name = ["common", "i18n", "ui"]
 def test_computed_properties_code_directories_uv_build_modules_skips_missing(
     tmp_path: Path,
 ) -> None:
-    """A declared module-name entry that doesn't exist on disk is silently skipped,
+    """Missing module-name entries are silently skipped.
+
+    A declared module-name entry that doesn't exist on disk is silently skipped,
     rather than raising -- e.g. a module not yet scaffolded.
     """
     (tmp_path / "pyproject.toml").write_text(
@@ -332,9 +336,11 @@ venv = { path = "/custom/venv" }
 
 
 def test_validation_fails_for_incompatible_versions(tmp_path: Path) -> None:
-    """ContextBuilder.validate() raises VersionMismatchError when the resolved
-    Python binary's version isn't in OAREPO_PYTHON_COMPATIBILITY for the
-    project's OARepo version (only "3.14" is compatible with OARepo 14).
+    """Validation raises VersionMismatchError for incompatible versions.
+
+    Raises when the resolved Python binary's version isn't in
+    OAREPO_PYTHON_COMPATIBILITY for the project's OARepo version (only "3.14"
+    is compatible with OARepo 14).
     """
     (tmp_path / "pyproject.toml").write_text(
         """

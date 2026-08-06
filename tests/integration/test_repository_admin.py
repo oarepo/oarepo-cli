@@ -68,8 +68,9 @@ def test_translations_no_args_runs_make_translations(mock_context: Mock, monkeyp
 
 
 def test_translations_compile_delegates_to_invenio_cli(mock_context: Mock, monkeypatch: pytest.MonkeyPatch) -> None:
-    """`repository translations compile` delegates to `invenio-cli translations compile`,
-    not make-translations.
+    """Repository translations compile delegates to invenio-cli translations compile.
+
+    Not make-translations.
     """
     make_translations_calls: list[object] = []
     invenio_cli_calls: list[dict[str, object]] = []
@@ -93,8 +94,9 @@ def test_translations_compile_delegates_to_invenio_cli(mock_context: Mock, monke
 def test_translations_other_args_forwarded_to_make_translations(
     mock_context: Mock, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    """Any first arg other than exactly "compile" is forwarded to make-translations,
-    mirroring repository_runner.sh's translations()'s exact-match check.
+    """Any first arg other than exactly "compile" is forwarded to make-translations.
+
+    Mirrors repository_runner.sh's translations()'s exact-match check.
     """
     calls: list[dict[str, object]] = []
     monkeypatch.setattr(
@@ -113,7 +115,10 @@ def test_translations_reports_failure_and_exits_1(
     mock_context: Mock,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """A failing make-translations run is reported cleanly, exit code 1."""
+    """A failing make-translations run is reported cleanly.
+
+    Exit code 1.
+    """
     monkeypatch.setattr(
         "oarepo_cli.cli.repository.translations.run_translations",
         lambda *_args, **_kwargs: _fake_process_result(return_code=1),
@@ -127,7 +132,10 @@ def test_translations_reports_failure_and_exits_1(
 
 
 def test_translations_reports_context_discovery_failure(monkeypatch: pytest.MonkeyPatch) -> None:
-    """A context-discovery failure is reported cleanly, exit code 1."""
+    """A context-discovery failure is reported cleanly.
+
+    Exit code 1.
+    """
     monkeypatch.setattr(
         "oarepo_cli.cli.repository.discover_context",
         Mock(side_effect=ConfigurationError("pyproject.toml not found")),
@@ -186,11 +194,12 @@ def test_index_rebuild_does_not_swallow_non_oareporerror_exceptions(
     mock_context: Mock,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """A non-OARepoError raised by rebuild_index propagates instead of being turned
-    into a clean "exit 1": repository.py's command handler only catches
-    `except OARepoError` (ProcessExecutionError already subclasses it, so a
-    separate except clause for it would be redundant), not a blanket
-    `except Exception`, so unexpected bugs surface as real tracebacks.
+    """A non-OARepoError raised by rebuild_index propagates instead of being turned into a clean exit 1.
+
+    Repository.py's command handler only catches `except OARepoError`
+    (ProcessExecutionError already subclasses it, so a separate except clause
+    for it would be redundant), not a blanket `except Exception`, so unexpected
+    bugs surface as real tracebacks.
     """
     monkeypatch.setattr(
         "oarepo_cli.cli.repository.repository.rebuild_index",
@@ -211,9 +220,11 @@ def test_reset_cancelled_without_exact_yes(
     mock_context: Mock,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """Anything other than exactly "yes" cancels the reset without error, exit code 0,
-    and without calling reset_repository -- mirrors repository_runner.sh's exact-match
-    `[ "$answer" != "yes" ]` check (not a fuzzy y/N confirm).
+    """Anything other than exactly "yes" cancels the reset without error.
+
+    Exit code 0 and without calling reset_repository -- mirrors
+    repository_runner.sh's exact-match `[ "$answer" != "yes" ]` check
+    (not a fuzzy y/N confirm).
     """
     calls: list[object] = []
     monkeypatch.setattr(
@@ -274,8 +285,9 @@ def test_reset_reports_failure_and_exits_1(
 
 
 def test_info_prints_python_version_and_models(mock_context: Mock, monkeypatch: pytest.MonkeyPatch) -> None:
-    """`repository info` prints the Python version and discovered models, matching
-    repository_runner.sh's show_info()'s exact output format.
+    """Repository info prints the Python version and discovered models.
+
+    Matches repository_runner.sh's show_info()'s exact output format.
     """
     mock_context.python_binary = "/usr/bin/python3.14"
     monkeypatch.setattr(

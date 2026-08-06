@@ -130,9 +130,7 @@ def test_local_add_reports_context_discovery_failure(monkeypatch: pytest.MonkeyP
 
 
 def test_local_remove_delegates_to_local_package_manager(mock_context: Mock, monkeypatch: pytest.MonkeyPatch) -> None:
-    """`repository local remove <name>` constructs a LocalPackageManager and calls
-    remove_package().
-    """
+    """Repository local remove <name> constructs LocalPackageManager and calls remove_package."""
     calls: list[dict[str, object]] = []
     monkeypatch.setattr("oarepo_cli.cli.repository.LocalPackageManager", _fake_local_package_manager(calls))
 
@@ -147,7 +145,7 @@ def test_local_remove_delegates_to_local_package_manager(mock_context: Mock, mon
 
 
 def test_local_remove_all_delegates_to_remove_all_packages(mock_context: Mock, monkeypatch: pytest.MonkeyPatch) -> None:
-    """`repository local remove --all` calls remove_all_packages(), not remove_package()."""
+    """Repository local remove --all calls remove_all_packages, not remove_package."""
     calls: list[dict[str, object]] = []
     monkeypatch.setattr("oarepo_cli.cli.repository.LocalPackageManager", _fake_local_package_manager(calls))
 
@@ -164,7 +162,10 @@ def test_local_remove_all_delegates_to_remove_all_packages(mock_context: Mock, m
 def test_local_remove_neither_name_nor_all_exits_1(
     mock_context: Mock,
 ) -> None:
-    """Neither a name nor --all is an error, not silently a no-op."""
+    """Neither a name nor --all is an error.
+
+    Not silently a no-op.
+    """
     runner = CliRunner()
     result = runner.invoke(app, ["repository", "local", "remove"])
 
@@ -175,7 +176,10 @@ def test_local_remove_neither_name_nor_all_exits_1(
 def test_local_remove_both_name_and_all_exits_1(
     mock_context: Mock,
 ) -> None:
-    """Both a name and --all together is an error, not an implicit choice of one."""
+    """Both a name and --all together is an error.
+
+    Not an implicit choice of one.
+    """
     runner = CliRunner()
     result = runner.invoke(app, ["repository", "local", "remove", "mypkg", "--all"])
 
@@ -187,7 +191,10 @@ def test_local_remove_reports_error_and_exits_1(
     mock_context: Mock,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """A ConfigurationError raised by LocalPackageManager is reported cleanly, exit code 1."""
+    """A ConfigurationError raised by LocalPackageManager is reported cleanly.
+
+    Exit code 1.
+    """
 
     class RaisingLocalPackageManager:
         def __init__(self, context: object, console: object) -> None:
@@ -214,7 +221,10 @@ def test_local_remove_reports_error_and_exits_1(
     ],
 )
 def test_local_help_text(args: list[str]) -> None:
-    """--help works for the local group and both subcommands, without a real project."""
+    """Help works for the local group and both subcommands.
+
+    Works without a real project.
+    """
     runner = CliRunner()
     result = runner.invoke(app, args)
 
@@ -235,7 +245,10 @@ def make_context(root: Path) -> ProjectContext:
 
 @pytest.fixture
 def repo_root(tmp_path: Path) -> Path:
-    """A minimal repository root with just a pyproject.toml, no venv/git."""
+    """Create a minimal repository root with just a pyproject.toml.
+
+    No venv/git.
+    """
     root = tmp_path / "repo"
     root.mkdir()
     (root / "pyproject.toml").write_text('[project]\nname = "myrepo"\ndependencies = ["oarepo>=14.0.0,<15.0.0"]\n')
@@ -251,7 +264,10 @@ def make_local_package(tmp_path: Path, name: str) -> Path:
 
 @pytest.fixture
 def mock_upgrade(monkeypatch: pytest.MonkeyPatch) -> list[dict[str, Any]]:
-    """Mock services.local_packages.upgrade_repository, recording calls."""
+    """Mock services.local_packages.upgrade_repository.
+
+    Records calls.
+    """
     calls: list[dict[str, Any]] = []
     monkeypatch.setattr(
         "oarepo_cli.services.local_packages.upgrade_repository",
@@ -266,8 +282,10 @@ def test_local_add_and_remove_against_real_pyproject(
     monkeypatch: pytest.MonkeyPatch,
     mock_upgrade: list[dict[str, Any]],
 ) -> None:
-    """End-to-end: `repository local add`/`remove` are wired correctly through to a real,
-    on-disk pyproject.toml, via the real LocalPackageManager.
+    """End-to-end test for repository local add/remove.
+
+    Tests that they are wired correctly through to a real, on-disk
+    pyproject.toml, via the real LocalPackageManager.
     """
     context = make_context(repo_root)
     monkeypatch.setattr("oarepo_cli.cli.repository.discover_context", lambda: context)
@@ -296,8 +314,10 @@ def test_local_remove_all_against_real_pyproject(
     monkeypatch: pytest.MonkeyPatch,
     mock_upgrade: list[dict[str, Any]],
 ) -> None:
-    """End-to-end: `repository local remove --all` removes every local package in one go,
-    leaving unrelated [tool.uv.sources] entries (e.g. an index override) untouched.
+    """End-to-end test for repository local remove --all.
+
+    Removes every local package in one go, leaving unrelated
+    [tool.uv.sources] entries (e.g. an index override) untouched.
     """
     context = make_context(repo_root)
     monkeypatch.setattr("oarepo_cli.cli.repository.discover_context", lambda: context)

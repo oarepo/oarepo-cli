@@ -64,7 +64,12 @@ ANSWERED_TEMPLATE_FILE = 'GREETING = "{{ greeting }}"\n'
 
 
 def _git(*args: str, cwd: Path) -> None:
-    subprocess.run(["git", *args], cwd=cwd, check=True, capture_output=True)
+    subprocess.run(  # noqa: S603 - just a test, not a security issue to run the program
+        ["git", *args],  # noqa: S607 git is ok
+        cwd=cwd,
+        check=True,
+        capture_output=True,
+    )
 
 
 def _write_template(template_dir: Path, copier_yml: str, model_file_content: str) -> None:
@@ -98,7 +103,7 @@ def _write_template(template_dir: Path, copier_yml: str, model_file_content: str
 
 @pytest.fixture
 def static_template(tmp_path: Path) -> Path:
-    """A template with only a hidden model_name question and static content."""
+    """Create a template with only a hidden model_name question and static content."""
     template_dir = tmp_path / "static_template"
     _write_template(template_dir, STATIC_COPIER_YML, STATIC_TEMPLATE_FILE)
     return template_dir
@@ -106,7 +111,7 @@ def static_template(tmp_path: Path) -> Path:
 
 @pytest.fixture
 def answered_template(tmp_path: Path) -> Path:
-    """A template with a hidden model_name question plus a real, recorded greeting question."""
+    """Create a template with a hidden model_name question plus a real greeting."""
     template_dir = tmp_path / "answered_template"
     _write_template(template_dir, ANSWERED_COPIER_YML, ANSWERED_TEMPLATE_FILE)
     return template_dir
@@ -114,7 +119,7 @@ def answered_template(tmp_path: Path) -> Path:
 
 @pytest.fixture
 def repo_root(tmp_path: Path) -> Path:
-    """An empty repository root to render model templates into."""
+    """Create an empty repository root to render model templates into."""
     root = tmp_path / "repo"
     root.mkdir()
     return root
@@ -145,9 +150,10 @@ def test_create_model_renders_local_template(repo_root: Path, static_template: P
 
 
 def test_create_model_with_config_file_seeds_answers(repo_root: Path, answered_template: Path, tmp_path: Path) -> None:
-    """create_model(config_file=...) seeds all answers from that file (model_name included),
-    mirroring repository_runner.sh: when a config file is given, -d model_name is NOT also
-    passed -- the file must supply model_name itself.
+    """Create model with config file seeds all answers from that file.
+
+    Mirrors repository_runner.sh: when a config file is given, -d model_name is NOT
+    also passed -- the file must supply model_name itself.
     """
     config_file = tmp_path / "answers.yml"
     config_file.write_text("model_name: configured_model\ngreeting: hi there\n")
@@ -164,7 +170,10 @@ def test_create_model_with_config_file_seeds_answers(repo_root: Path, answered_t
 
 
 def test_create_model_missing_config_file_raises(repo_root: Path, static_template: Path) -> None:
-    """A non-existent config_file raises ConfigurationError before copier ever runs."""
+    """A non-existent config_file raises ConfigurationError.
+
+    The error is raised before copier ever runs.
+    """
     context = make_context(repo_root, static_template)
     manager = ModelManager(context, ConsoleOutput(quiet=True))
 
@@ -215,8 +224,9 @@ def test_create_model_skips_reinstall_without_venv(
 def test_template_url_handling_vcs_ref_only_for_github_urls(
     repo_root: Path, static_template: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    """vcs_ref is only passed to copier for github:// template URLs, never for local paths
-    (mirrors repository_runner.sh's `if [[ "${MODEL_TEMPLATE}" == https://* ]]`).
+    """VCS ref is only passed to copier for github:// template URLs.
+
+    Never for local paths (mirrors repository_runner.sh's `if [[ "${MODEL_TEMPLATE}" == https://* ]]`).
     """
     calls: list[dict[str, Any]] = []
     real_run_copy = copier.run_copy
@@ -237,14 +247,16 @@ def test_template_url_handling_vcs_ref_only_for_github_urls(
 def test_update_model_calls_copier_update_correctly(
     repo_root: Path, answered_template: Path, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    """update_model() calls copier.run_update() with the right destination, answers
-    file (relative to repo root, matching create_model()'s recorded location),
-    conflict/unsafe/overwrite settings, and succeeds against a real, git-tracked
-    project -- i.e. the wiring is correct. copier's own 3-way-merge update
-    semantics (what specifically changes on disk for a given template diff) are
-    that library's concern, not re-tested here.
+    """Update model calls copier.run_update() with correct parameters.
 
-    copier only supports updating git-tracked, clean subprojects, matching real
+    Uses the right destination, answers file (relative to repo root, matching
+    create_model()'s recorded location), conflict/unsafe/overwrite settings,
+    and succeeds against a real, git-tracked project -- i.e. the wiring is
+    correct. Copier's own 3-way-merge update semantics (what specifically
+    changes on disk for a given template diff) are that library's concern,
+    not re-tested here.
+
+    Copier only supports updating git-tracked, clean subprojects, matching real
     usage (a real OARepo repository is always its own git repo -- see
     repository_installer.sh's `git init` step), so repo_root is committed here,
     like a real user's workflow would be.

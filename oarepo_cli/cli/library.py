@@ -5,7 +5,6 @@
 
 from __future__ import annotations
 
-import json
 import os
 import traceback
 from typing import TYPE_CHECKING, Annotated
@@ -1157,11 +1156,10 @@ def library_oarepo_versions(
 
     # Construct JSON output
     # Note: Convert oarepo_versions from int to string to match bash output format
-    output = {
+    {
         "oarepo_versions": [str(v) for v in info.oarepo_versions],
         "python_versions": info.python_versions,
         "node_versions": ["24"],  # Hard-coded to match bash script behavior
     }
 
     # Print JSON to stdout (so it can be piped or parsed)
-    print(json.dumps(output, separators=(",", ": ")))

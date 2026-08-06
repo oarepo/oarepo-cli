@@ -29,8 +29,8 @@ def test_library_run_script_syntax():
     script_path = Path(__file__).parent.parent.parent / "scripts" / "library_run.sh"
 
     # Try to check syntax with bash -n
-    result = subprocess.run(
-        ["bash", "-n", str(script_path)],
+    result = subprocess.run(  # noqa: S603 - just a test, not a security issue to run the program
+        ["bash", "-n", str(script_path)],  # noqa: S607 bash is ok
         capture_output=True,
         text=True,
     )

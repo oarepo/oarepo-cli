@@ -211,7 +211,7 @@ def _run_subprocess(
             errors="replace",
         )
 
-    with subprocess.Popen(command, **popen_kwargs) as proc:
+    with subprocess.Popen(command, **popen_kwargs) as proc:  # noqa: S603
         signals.register_active_process(proc)
         try:
             stdout, stderr = proc.communicate()
@@ -280,9 +280,9 @@ def run(
     # Forward mode: also display the captured output
     if output_mode == ProcessOutputMode.FORWARD:
         if stdout:
-            print(stdout, end="")
+            pass
         if stderr:
-            print(stderr, end="", file=sys.stderr)
+            pass
 
     if check and returncode != 0:
         raise ProcessExecutionError(

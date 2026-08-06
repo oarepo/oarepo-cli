@@ -15,7 +15,7 @@ meaningful "real" behavior to exercise here beyond command construction.
 from __future__ import annotations
 
 from pathlib import Path
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Never
 from unittest.mock import Mock
 
 import pytest
@@ -58,9 +58,11 @@ def _fake_run_invenio_cli(calls: list[dict[str, object]], return_code: int = 0):
 def test_services_subcommand_delegates_to_invenio_cli(
     subcommand: str, mock_context: Mock, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    """Each services subcommand calls `invenio-cli services <subcommand>` with check=False
-    (so the subcommand's own exit code can be propagated, rather than being collapsed by
-    run_invenio_cli's default check=True -> ProcessExecutionError -> exit 1).
+    """Services subcommand calls invenio-cli services <subcommand> with check=False.
+
+    So the subcommand's own exit code can be propagated, rather than being
+    collapsed by run_invenio_cli's default check=True -> ProcessExecutionError
+    -> exit 1.
     """
     calls: list[dict[str, object]] = []
     monkeypatch.setattr("oarepo_cli.cli.repository.invenio_cli.run_invenio_cli", _fake_run_invenio_cli(calls))
@@ -81,7 +83,10 @@ def test_services_subcommand_passes_through_extra_args(
     mock_context: Mock,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """Extra arguments after the subcommand are forwarded to invenio-cli verbatim."""
+    """Extra arguments after the subcommand are forwarded to invenio-cli.
+
+    Forwarded verbatim.
+    """
     calls: list[dict[str, object]] = []
     monkeypatch.setattr("oarepo_cli.cli.repository.invenio_cli.run_invenio_cli", _fake_run_invenio_cli(calls))
 
@@ -98,7 +103,10 @@ def test_services_subcommand_propagates_exit_code(
     mock_context: Mock,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """The delegated command's own exit code is propagated exactly, not collapsed to 0/1."""
+    """The delegated command's own exit code is propagated exactly.
+
+    Not collapsed to 0/1.
+    """
     calls: list[dict[str, object]] = []
     monkeypatch.setattr(
         "oarepo_cli.cli.repository.invenio_cli.run_invenio_cli",
@@ -115,7 +123,10 @@ def test_services_setup_quiet_flag_forwarded(
     mock_context: Mock,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """--quiet is consumed as the quiet= kwarg, not forwarded as an extra positional arg."""
+    """Quiet flag is consumed as the quiet= kwarg.
+
+    Not forwarded as an extra positional arg.
+    """
     calls: list[dict[str, object]] = []
     monkeypatch.setattr("oarepo_cli.cli.repository.invenio_cli.run_invenio_cli", _fake_run_invenio_cli(calls))
 
@@ -131,8 +142,9 @@ def test_services_subcommand_help_reaches_invenio_cli(
     mock_context: Mock,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """--help is forwarded to invenio-cli rather than intercepted by Typer/Click,
-    so the user sees invenio-cli's own help for the delegated subcommand.
+    """Help is forwarded to invenio-cli rather than intercepted by Typer/Click.
+
+    So the user sees invenio-cli's own help for the delegated subcommand.
     """
     calls: list[dict[str, object]] = []
     monkeypatch.setattr("oarepo_cli.cli.repository.invenio_cli.run_invenio_cli", _fake_run_invenio_cli(calls))
@@ -149,7 +161,7 @@ def test_services_subcommand_reports_context_discovery_failure(
 ) -> None:
     """A context-discovery failure (e.g. no pyproject.toml) is reported cleanly, exit code 1."""
 
-    def raise_config_error():
+    def raise_config_error() -> Never:
         raise ConfigurationError("pyproject.toml not found")
 
     monkeypatch.setattr("oarepo_cli.cli.repository.discover_context", raise_config_error)

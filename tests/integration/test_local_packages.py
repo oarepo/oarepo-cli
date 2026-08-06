@@ -57,7 +57,7 @@ def make_context(root: Path) -> ProjectContext:
 
 @pytest.fixture
 def repo_root(tmp_path: Path) -> Path:
-    """A repository root with a real, hand-commented pyproject.toml."""
+    """Create a repository root with a real, hand-commented pyproject.toml."""
     root = tmp_path / "repo"
     root.mkdir()
     (root / "pyproject.toml").write_text(ROOT_PYPROJECT)
@@ -65,7 +65,7 @@ def repo_root(tmp_path: Path) -> Path:
 
 
 def make_local_package(tmp_path: Path, name: str, dirname: str | None = None) -> Path:
-    """A minimal local package directory with its own pyproject.toml."""
+    """Create a minimal local package directory with its own pyproject.toml."""
     pkg_dir = tmp_path / (dirname or name)
     pkg_dir.mkdir()
     (pkg_dir / "pyproject.toml").write_text(f'[project]\nname = "{name}"\n')
@@ -105,8 +105,9 @@ def test_add_package_writes_sources_and_dependency(
 def test_add_package_triggers_repository_upgrade(
     repo_root: Path, tmp_path: Path, mock_upgrade: list[dict[str, Any]]
 ) -> None:
-    """add_package() unconditionally triggers upgrade_repository, unlike
-    ModelManager.create_model()'s conditional reinstall.
+    """Add package unconditionally triggers upgrade_repository.
+
+    Unlike ModelManager.create_model()'s conditional reinstall.
     """
     package_dir = make_local_package(tmp_path, "mypkg")
     context = make_context(repo_root)
@@ -121,7 +122,10 @@ def test_add_package_triggers_repository_upgrade(
 def test_add_package_missing_pyproject_raises(
     repo_root: Path, tmp_path: Path, mock_upgrade: list[dict[str, Any]]
 ) -> None:
-    """A path without its own pyproject.toml raises ConfigurationError before any write."""
+    """A path without its own pyproject.toml raises ConfigurationError.
+
+    The error is raised before any write operation.
+    """
     context = make_context(repo_root)
     manager = LocalPackageManager(context, ConsoleOutput(quiet=True))
     original_content = context.pyproject_path.read_text()
@@ -308,8 +312,9 @@ def test_list_local_packages_excludes_non_path_sources(
     tmp_path: Path,
     mock_upgrade: list[dict[str, Any]],
 ) -> None:
-    """list_local_packages() only returns [tool.uv.sources] entries with a path key,
-    excluding e.g. an index-based override like invenio-cli's CESNET registry pin.
+    """List local packages only returns sources with a path key.
+
+    Excludes e.g. an index-based override like invenio-cli's CESNET registry pin.
     """
     document = tomlkit.parse((repo_root / "pyproject.toml").read_text())
     tool = document.setdefault("tool", tomlkit.table())
@@ -330,8 +335,9 @@ def test_list_local_packages_excludes_non_path_sources(
 def test_remove_all_packages_removes_everything_in_one_upgrade(
     repo_root: Path, mock_upgrade: list[dict[str, Any]]
 ) -> None:
-    """remove_all_packages() removes every local source and triggers exactly one upgrade,
-    regardless of how many packages were removed.
+    """Remove all packages removes every local source in one upgrade.
+
+    Triggers exactly one upgrade regardless of how many packages were removed.
     """
     _add_local_source(repo_root / "pyproject.toml", "pkg-a", "../pkg-a")
     _add_local_source(repo_root / "pyproject.toml", "pkg-b", "../pkg-b")

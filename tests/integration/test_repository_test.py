@@ -1,16 +1,18 @@
 # SPDX-FileCopyrightText: 2026 CESNET z.s.p.o.
 # SPDX-License-Identifier: MIT
 
-"""Integration tests for `repository test`, using a real venv/pytest (installed on
-demand, since -- unlike a library -- a fresh repository has no "tests" extras
-convention of its own).
+"""Integration tests for repository test with real venv/pytest.
+
+Tests use a real venv/pytest (installed on demand, since -- unlike a library --
+a fresh repository has no "tests" extras convention of its own).
 
 `services.repository.run_tests()` ends by `os.execve`-ing into pytest, which
 replaces the *calling* process -- exercising that for real (rather than mocking
-`os.execve`, already covered in tests/unit/test_repository_service.py) means driving
-it from its own isolated subprocess (a small driver script run via `sys.executable`),
-never through this test's own CliRunner/pytest worker process, mirroring
-test_server_runner.py's identical rationale for `ServerRunner`'s exec calls.
+`os.execve`, already covered in tests/unit/test_repository_service.py) means
+driving it from its own isolated subprocess (a small driver script run via
+`sys.executable`), never through this test's own CliRunner/pytest worker
+process, mirroring test_server_runner.py's identical rationale for `ServerRunner`
+'s exec calls.
 """
 
 from __future__ import annotations
@@ -35,9 +37,10 @@ def runner() -> CliRunner:
 
 
 def test_repository_test_help_displays(runner: CliRunner) -> None:
-    """Test that 'repository test --help' displays help text. Safe to drive through
-    CliRunner directly: --help is intercepted by Typer before the command body (and
-    any os.execve) is ever reached.
+    """Repository test --help displays help text.
+
+    Safe to drive through CliRunner directly: --help is intercepted by Typer
+    before the command body (and any os.execve) is ever reached.
     """
     result = runner.invoke(app, ["repository", "test", "--help"])
 
@@ -47,7 +50,10 @@ def test_repository_test_help_displays(runner: CliRunner) -> None:
 
 
 def _run_tests_in_subprocess(project_root: Path) -> subprocess.CompletedProcess[str]:
-    """Call services.repository.run_tests() for real, in its own isolated subprocess."""
+    """Run tests in a subprocess.
+
+    Calls services.repository.run_tests() for real, in its own isolated subprocess.
+    """
     driver = f"""
 from pathlib import Path
 from oarepo_cli.core.config import CliConfig
@@ -73,9 +79,10 @@ run_tests(context, quiet=True)
 def test_repository_test_runs_real_pytest_and_installs_it_on_demand(
     lint_project_multi_module: Path,
 ) -> None:
-    """`run_tests()` installs pytest into the venv (missing by default in a fresh
-    repository fixture) and then really execs into it, end to end, in its own
-    isolated subprocess -- inheriting pytest's own exit code.
+    """Run tests installs pytest into the venv and execs into it.
+
+    Pytest is missing by default in a fresh repository fixture. Runs end to
+    end, in its own isolated subprocess -- inheriting pytest's own exit code.
     """
     tests_dir = lint_project_multi_module / "tests"
     tests_dir.mkdir()
@@ -87,7 +94,10 @@ def test_repository_test_runs_real_pytest_and_installs_it_on_demand(
 
 
 def test_repository_test_exit_code_on_failure(lint_project_multi_module: Path) -> None:
-    """A failing test makes the subprocess exit with pytest's own non-zero code."""
+    """A failing test makes the subprocess exit with pytest's exit code.
+
+    The exit code is non-zero.
+    """
     tests_dir = lint_project_multi_module / "tests"
     tests_dir.mkdir()
     (tests_dir / "test_sample.py").write_text("def test_fail():\n    assert False, 'this test fails'\n")

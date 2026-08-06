@@ -54,10 +54,11 @@ def test_lint_passes_on_clean_code(runner: CliRunner, lint_project: Path, monkey
 def test_lint_does_not_swallow_non_oareporerror_exceptions(
     runner: CliRunner, lint_project: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    """A non-OARepoError raised by LintRunner propagates instead of being turned into a
-    clean "exit 1": library.py's command handlers only catch `except OARepoError`, not
-    a blanket `except Exception`, so unexpected bugs surface as real tracebacks rather
-    than being silently reported as ordinary command failures. The shared lint/format/
+    """A non-OARepoError raised by LintRunner propagates instead of being turned into a clean "exit 1".
+
+    Library.py's command handlers only catch `except OARepoError`, not a blanket
+    `except Exception`, so unexpected bugs surface as real tracebacks rather than
+    being silently reported as ordinary command failures. The shared lint/format/
     check command body lives in cli/lint_commands.py, reused by both `library lint`
     and `repository lint`.
     """

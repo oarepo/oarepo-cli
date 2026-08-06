@@ -55,7 +55,7 @@ def make_context(root: Path) -> ProjectContext:
 
 @pytest.fixture
 def repo_root(tmp_path: Path) -> Path:
-    """An empty repository root directory, for ServerRunner tests that need a real path."""
+    """Create an empty repository root directory for ServerRunner tests."""
     root = tmp_path / "repo"
     root.mkdir()
     return root
@@ -127,8 +127,9 @@ def test_run_with_celery_delegates_to_exec_invenio_cli(
     mock_services_start: list[list[str]],
     mock_exec_invenio_cli: list[dict[str, Any]],
 ) -> None:
-    """Without --no-celery, run() hands off to invenio_cli.exec_invenio_cli(["run", ...])
-    with cert/key env vars.
+    """Run without --no-celery hands off to invenio_cli.exec_invenio_cli.
+
+    Uses ["run", ...] with cert/key env vars.
     """
     context = make_context(repo_root)
     ServerRunner(context, quiet=True).run(extra_args=["--debugger"])
@@ -145,8 +146,10 @@ def test_run_no_celery_execs_bare_invenio_binary(
     mock_services_start: list[list[str]],
     mock_exec_bare_invenio: list[dict[str, Any]],
 ) -> None:
-    """--no-celery bypasses invenio-cli entirely, exec'ing the venv's own invenio binary
-    directly, with FLASK_DEBUG/PYTHONWARNINGS set and --cert/--key passed.
+    """No-celery bypasses invenio-cli entirely.
+
+    Execs the venv's own invenio binary directly, with FLASK_DEBUG/PYTHONWARNINGS
+    set and --cert/--key passed.
     """
     context = make_context(repo_root)
     ServerRunner(context, quiet=True).run(no_celery=True, extra_args=["-p", "5001"])
@@ -177,9 +180,11 @@ def test_run_no_celery_applies_same_env_defaults_as_blocking_calls(
     mock_exec_bare_invenio: list[dict[str, Any]],
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """--no-celery's exec'd environment gets the same OAREPO_ENV_DEFAULTS/venv-stripping
-    treatment any process.run() call gets, rather than being built from bare
-    os.environ, which would silently miss both.
+    """No-celery's exec'd environment gets OAREPO_ENV_DEFAULTS/venv-stripping.
+
+    Gets the same OAREPO_ENV_DEFAULTS/venv-stripping treatment any process.run()
+    call gets, rather than being built from bare os.environ, which would
+    silently miss both.
     """
     monkeypatch.setenv("VIRTUAL_ENV", "/oarepo-cli/own/venv")
     monkeypatch.delenv("INVENIO_APP_THEME", raising=False)
@@ -198,7 +203,7 @@ def test_run_no_celery_does_not_call_invenio_cli(
     mock_exec_bare_invenio: list[dict[str, Any]],
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """--no-celery never touches invenio-cli at all."""
+    """No-celery never touches invenio-cli at all."""
     called: list[bool] = []
     monkeypatch.setattr(
         "oarepo_cli.services.server.invenio_cli.exec_invenio_cli",
@@ -218,8 +223,10 @@ def _make_executable(path: Path, content: str) -> None:
 
 
 def test_run_no_celery_real_exec_replaces_process(repo_root: Path) -> None:
-    """End-to-end: run(no_celery=True) really execve()s into the venv's own invenio
-    binary, inheriting its exit code and passing cwd/argv/env correctly.
+    """End-to-end test for run(no_celery=True).
+
+    Tests that it really execve()s into the venv's own invenio binary,
+    inheriting its exit code and passing cwd/argv/env correctly.
     """
     invenio_bin_dir = repo_root / ".venv" / "bin"
     invenio_bin_dir.mkdir(parents=True)
@@ -242,7 +249,9 @@ context = ProjectContext(
 )
 ServerRunner(context, quiet=True).run(no_services=True, no_celery=True, extra_args=["-p", "5001"])
 """
-    result = subprocess.run([sys.executable, "-c", driver], capture_output=True, text=True)
+    result = subprocess.run(  # noqa: S603 - just a test, not a security issue to run the program
+        [sys.executable, "-c", driver], capture_output=True, text=True, check=False
+    )
 
     assert result.returncode == 42, result.stderr
     assert f"CWD:{repo_root}" in result.stdout
@@ -253,9 +262,11 @@ ServerRunner(context, quiet=True).run(no_services=True, no_celery=True, extra_ar
 
 
 def test_run_with_celery_real_exec_replaces_process(repo_root: Path, tmp_path: Path) -> None:
-    """End-to-end: run() (no --no-celery) really execve()s into invenio-cli, inheriting
-    its exit code and passing cwd/argv/env correctly -- doesn't touch the real
-    invenio-cli, only a fake one substituted in for this one subprocess.
+    """End-to-end test for run() with celery.
+
+    Tests that it really execve()s into invenio-cli, inheriting its exit code
+    and passing cwd/argv/env correctly. Doesn't touch the real invenio-cli,
+    only a fake one substituted in for this one subprocess.
     """
     fake_invenio_cli = tmp_path / "fake-invenio-cli"
     _make_executable(fake_invenio_cli, FAKE_BINARY_SCRIPT)
@@ -280,7 +291,9 @@ context = ProjectContext(
 )
 ServerRunner(context, quiet=True).run(no_services=True, extra_args=["--debugger"])
 """
-    result = subprocess.run([sys.executable, "-c", driver], capture_output=True, text=True)
+    result = subprocess.run(  # noqa: S603 - just a test, not a security issue to run the program
+        [sys.executable, "-c", driver], capture_output=True, text=True, check=False
+    )
 
     assert result.returncode == 42, result.stderr
     assert f"CWD:{repo_root}" in result.stdout

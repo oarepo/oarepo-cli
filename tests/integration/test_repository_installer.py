@@ -46,15 +46,21 @@ repository_name:
 
 
 def _git(*args: str, cwd: Path) -> None:
-    subprocess.run(["git", *args], cwd=cwd, check=True, capture_output=True)
+    subprocess.run(  # noqa: S603 - just a test, not a security issue to run the program
+        ["git", *args],  # noqa: S607 git is ok
+        cwd=cwd,
+        check=True,
+        capture_output=True,
+    )
 
 
 @pytest.fixture
 def local_template(tmp_path: Path) -> Path:
-    """A small, real, git-tracked copier template: a hidden repository_name
-    question, a rendered README, and the docker/variables layout a real
-    repository template has (needed by certificate generation/the docker
-    compose cleanup step).
+    """Create a small, real, git-tracked copier template.
+
+    With a hidden repository_name question, a rendered README, and the
+    docker/variables layout a real repository template has (needed by
+    certificate generation/the docker compose cleanup step).
     """
     template_dir = tmp_path / "template"
     template_dir.mkdir()
@@ -83,9 +89,10 @@ def local_template(tmp_path: Path) -> Path:
 
 @pytest.fixture
 def local_template_with_compose(tmp_path: Path) -> Path:
-    """A variant of local_template with a docker-compose.yml file, used for
-    end-to-end tests that verify the transient .env symlink dance doesn't
-    delete the real compose file.
+    """Create a variant of local_template with a docker-compose.yml file.
+
+    For end-to-end tests that verify the transient .env symlink dance
+    doesn't delete the real compose file.
     """
     template_dir = tmp_path / "template"
     template_dir.mkdir()
@@ -114,8 +121,10 @@ def local_template_with_compose(tmp_path: Path) -> Path:
 
 @pytest.fixture(autouse=True)
 def _skip_git_init_by_default(monkeypatch: pytest.MonkeyPatch) -> None:
-    """Most tests here aren't about git initialization -- skip it (as in CI) by
-    default, so only the tests that care about it opt back in.
+    """Skip git initialization by default for most tests.
+
+    Most tests here aren't about git initialization -- skip it (as in CI)
+    by default, so only the tests that care about it opt back in.
     """
     monkeypatch.setenv("CI", "true")
 
@@ -124,7 +133,10 @@ def _skip_git_init_by_default(monkeypatch: pytest.MonkeyPatch) -> None:
 
 
 def test_install_renders_local_template(tmp_path: Path, local_template: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    """install() renders the template for real into ./<name>, using repository_name as data."""
+    """Install renders the template for real into ./<name>.
+
+    Uses repository_name as data.
+    """
     monkeypatch.chdir(tmp_path)
 
     target = RepositoryInstaller(ConsoleOutput(quiet=True)).install(
@@ -138,8 +150,9 @@ def test_install_renders_local_template(tmp_path: Path, local_template: Path, mo
 def test_install_config_file_answers_but_repository_name_always_wins(
     tmp_path: Path, local_template: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    """A --config data file seeds answers, but repository_name is always forced to the
-    given name -- mirrors repository_installer.sh's unconditional `-d repository_name=`,
+    """Config file seeds answers, but repository_name is always forced to the given name.
+
+    Mirrors repository_installer.sh's unconditional `-d repository_name=`,
     passed even when --data-file is also given (unlike ModelManager's create_model).
     """
     monkeypatch.chdir(tmp_path)
@@ -157,7 +170,10 @@ def test_install_config_file_answers_but_repository_name_always_wins(
 def test_install_missing_config_file_raises(
     tmp_path: Path, local_template: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    """A non-existent config_file raises ConfigurationError before copier ever runs."""
+    """A non-existent config_file raises ConfigurationError.
+
+    The error is raised before copier ever runs.
+    """
     monkeypatch.chdir(tmp_path)
 
     with pytest.raises(ConfigurationError, match="Missing repository config file"):
@@ -172,8 +188,9 @@ def test_install_missing_config_file_raises(
 def test_template_url_handling_vcs_ref_only_for_github_urls(
     tmp_path: Path, local_template: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    """vcs_ref is only passed to copier for https:// template URLs, never for local paths
-    (mirrors repository_installer.sh's `if [[ "${template}" == https://* ]]`).
+    """VCS ref is only passed to copier for https:// template URLs.
+
+    Never for local paths (mirrors repository_installer.sh's `if [[ "${template}" == https://* ]]`).
     """
     monkeypatch.chdir(tmp_path)
     calls: list[dict[str, Any]] = []
@@ -210,7 +227,7 @@ def test_install_generates_development_certificates(
 def test_install_removes_transient_env_symlink(
     tmp_path: Path, local_template: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    """The docker/.env symlink used for `docker compose down` is removed again afterward."""
+    """The docker/.env symlink used for docker compose down is removed afterward."""
     monkeypatch.chdir(tmp_path)
 
     target = RepositoryInstaller(ConsoleOutput(quiet=True)).install(
@@ -224,7 +241,7 @@ def test_install_removes_transient_env_symlink(
 def test_install_initializes_git_repository(
     tmp_path: Path, local_template: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    """Without CI set, git is initialized with an initial commit."""
+    """Git is initialized with an initial commit without CI set."""
     monkeypatch.chdir(tmp_path)
     monkeypatch.delenv("CI", raising=False)
 
@@ -233,14 +250,23 @@ def test_install_initializes_git_repository(
     )
 
     assert (target / ".git").is_dir()
-    log = subprocess.run(["git", "log", "--oneline"], cwd=target, check=True, capture_output=True, text=True)
+    log = subprocess.run(
+        ["git", "log", "--oneline"],  # noqa: S607 git is ok
+        cwd=target,
+        check=True,
+        capture_output=True,
+        text=True,
+    )
     assert "Initial commit" in log.stdout
 
 
 def test_install_skips_git_when_ci_env_set(
     tmp_path: Path, local_template: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    """With CI set (to any non-empty value, not just "true"), git init is skipped entirely."""
+    """Git init is skipped entirely when CI is set.
+
+    CI can be set to any non-empty value, not just "true".
+    """
     monkeypatch.chdir(tmp_path)
     monkeypatch.setenv("CI", "1")
 
@@ -254,8 +280,9 @@ def test_install_skips_git_when_ci_env_set(
 def test_install_skips_git_without_git_installed(
     tmp_path: Path, local_template: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    """Without git on PATH, git init is skipped entirely (mirrors repository_installer.sh's
-    `command -v git` check).
+    """Git init is skipped entirely without git on PATH.
+
+    Mirrors repository_installer.sh's `command -v git` check.
     """
     monkeypatch.chdir(tmp_path)
     monkeypatch.delenv("CI", raising=False)
@@ -274,9 +301,10 @@ def test_install_skips_git_without_git_installed(
 def test_new_full_installation_flow(
     tmp_path: Path, local_template_with_compose: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    """`oarepo-cli new` renders the template, generates certificates, cleans up
-    the transient docker/.env symlink (while leaving the template's own
-    docker-compose.yml untouched), and initializes git -- all through the
+    """Oarepo-cli new renders the template and generates certificates.
+
+    Cleans up the transient docker/.env symlink (while leaving the template's
+    own docker-compose.yml untouched), and initializes git -- all through the
     real CLI entry point, exit code 0.
     """
     monkeypatch.chdir(tmp_path)
@@ -302,17 +330,24 @@ def test_new_full_installation_flow(
 
     # Git repo initialized with an initial commit
     assert (target / ".git").is_dir()
-    log = subprocess.run(["git", "log", "--oneline"], cwd=target, check=True, capture_output=True, text=True)
+    log = subprocess.run(
+        ["git", "log", "--oneline"],  # noqa: S607 git is ok
+        cwd=target,
+        check=True,
+        capture_output=True,
+        text=True,
+    )
     assert "Initial commit" in log.stdout
 
 
 def test_new_template_variation_vcs_ref_only_for_github_style_urls(
     tmp_path: Path, local_template: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    """--version is only forwarded to copier as vcs_ref for https:// (GitHub-style)
-    templates, never for local paths -- exercised through the full CLI, not just
-    RepositoryInstaller directly, confirming the CLI layer forwards --template/--version
-    correctly.
+    """Version is only forwarded to copier as vcs_ref for https:// templates.
+
+    Never for local paths -- exercised through the full CLI, not just
+    RepositoryInstaller directly, confirming the CLI layer forwards
+    --template/--version correctly.
     """
     monkeypatch.chdir(tmp_path)
     monkeypatch.setenv("CI", "true")
@@ -362,11 +397,12 @@ def test_new_template_variation_vcs_ref_only_for_github_style_urls(
 
 
 def test_new_reports_invalid_template_gracefully(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    """An invalid/nonexistent --template is reported with the same clean
-    "Repository creation failed" message as any other failure, not an
-    uncaught traceback -- copier itself raises inconsistent exception types
-    here (a bare ValueError for this particular case, not one of its own
-    copier.errors.CopierError subclasses), which RepositoryInstaller
+    """An invalid/nonexistent --template is reported with a clean error message.
+
+    Uses the same "Repository creation failed" message as any other failure,
+    not an uncaught traceback. Copier itself raises inconsistent exception
+    types here (a bare ValueError for this particular case, not one of its
+    own copier.errors.CopierError subclasses), which RepositoryInstaller
     normalizes into ConfigurationError.
     """
     monkeypatch.chdir(tmp_path)
@@ -381,8 +417,10 @@ def test_new_reports_invalid_template_gracefully(tmp_path: Path, monkeypatch: py
 
 
 def test_new_reports_missing_python_binary_gracefully(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    """A --python binary that doesn't resolve on PATH is rejected before anything
-    else runs -- exercised with a real, definitely-nonexistent path.
+    """A --python binary that doesn't resolve on PATH is rejected early.
+
+    Rejected before anything else runs -- exercised with a real,
+    definitely-nonexistent path.
     """
     monkeypatch.chdir(tmp_path)
 

@@ -218,20 +218,7 @@ class VirtualEnvironmentManager:
 
         # uv.lock is not gitignored - add it and warn the user
         if not quiet:
-            import sys
-
-            print(
-                "\n⚠️  Warning: uv.lock was not in .gitignore",
-                file=sys.stderr,
-            )
-            print(
-                "   Adding 'uv.lock' to .gitignore (lockfiles should not be committed for libraries)",
-                file=sys.stderr,
-            )
-            print(
-                "   Note: Repositories (not libraries) should commit uv.lock for reproducible deploys.\n",
-                file=sys.stderr,
-            )
+            pass
 
         # Add uv.lock to .gitignore
         with gitignore_path.open("a") as f:

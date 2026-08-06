@@ -1,9 +1,11 @@
 # SPDX-FileCopyrightText: 2026 CESNET z.s.p.o.
 # SPDX-License-Identifier: MIT
 
-"""Integration tests for the read-only `repository check` command, against a
-multi-module uv_build project -- see test_repository_lint_format.py's module
-docstring for why this doesn't re-cover ground already tested for `library check`.
+"""Integration tests for repository check command.
+
+Tests the read-only `repository check` command, against a multi-module
+uv_build project -- see test_repository_lint_format.py's module docstring
+for why this doesn't re-cover ground already tested for `library check`.
 """
 
 from __future__ import annotations

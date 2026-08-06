@@ -88,7 +88,7 @@ def test_returns_failure_status_on_test_failure(
     )
 
     # Manually install pytest if not present (fallback)
-    result = subprocess.run(
+    result = subprocess.run(  # noqa: S603 - just a test, not a security issue to run the program
         [str(test_context.venv_path / "bin" / "pip"), "install", "pytest"],
         capture_output=True,
         text=True,
@@ -119,7 +119,7 @@ def test_passes_coverage_flags_when_enabled_real(
     venv_mgr.ensure_venv(VenvRequirements(python_binary="python3.14", oarepo_version=14, editable=True))
 
     # Install pytest-cov if not present
-    subprocess.run(
+    subprocess.run(  # noqa: S603 - just a test, not a security issue to run the program
         [str(test_context.venv_path / "bin" / "pip"), "install", "pytest-cov"],
         check=True,
     )
@@ -217,7 +217,7 @@ def test_full_test_run_with_real_venv(
     )
 
     # Manually install pytest-cov if needed (for coverage tests)
-    subprocess.run(
+    subprocess.run(  # noqa: S603 - just a test, not checking here is ok
         [str(test_context.venv_path / "bin" / "pip"), "install", "pytest-cov"],
         capture_output=True,
         check=False,

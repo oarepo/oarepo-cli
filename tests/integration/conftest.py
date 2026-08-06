@@ -74,9 +74,14 @@ def lint_project(tmp_path: Path) -> Path:
     (root / "src" / "cleanlib" / "__init__.py").write_text(CLEAN_MODULE)
     (root / ".gitignore").write_text(".venv/\n")
 
-    subprocess.run(["git", "init"], cwd=root, check=True, capture_output=True)
     subprocess.run(
-        ["uv", "venv", "--python", "3.14", "--seed", ".venv"],
+        ["git", "init"],  # noqa: S607 git is ok
+        cwd=root,
+        check=True,
+        capture_output=True,
+    )
+    subprocess.run(
+        ["uv", "venv", "--python", "3.14", "--seed", ".venv"],  # noqa: S607 uv is ok
         cwd=root,
         check=True,
         capture_output=True,
@@ -104,9 +109,14 @@ def lint_project_multi_module(tmp_path: Path) -> Path:
     (root / "i18n" / "__init__.py").write_text(CLEAN_MODULE)
     (root / ".gitignore").write_text(".venv/\n")
 
-    subprocess.run(["git", "init"], cwd=root, check=True, capture_output=True)
     subprocess.run(
-        ["uv", "venv", "--python", "3.14", "--seed", ".venv"],
+        ["git", "init"],  # noqa: S607 git is ok
+        cwd=root,
+        check=True,
+        capture_output=True,
+    )
+    subprocess.run(
+        ["uv", "venv", "--python", "3.14", "--seed", ".venv"],  # noqa: S607 uv is ok
         cwd=root,
         check=True,
         capture_output=True,

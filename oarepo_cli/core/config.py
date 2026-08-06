@@ -96,7 +96,7 @@ class LicenseConfig:
 class SecurityConfig:
     """Security configuration."""
 
-    demo_user_password: str = "123456"  # Warn if not changed
+    demo_user_password: str = "123456"  # Warn if not changed # noqa: S105 - just a test password
 
 
 def _get_bool(env_var: str, default: bool) -> bool:
@@ -427,7 +427,7 @@ class CliConfig:
             raise ValidationError(f"Celery concurrency must be at least 1, got {self.celery.concurrency}")
 
         # Warn about default demo password (not an error, just validation)
-        if self.security.demo_user_password == "123456":
+        if self.security.demo_user_password == "123456":  # noqa: S105 - just a test password
             import warnings
 
             warnings.warn(

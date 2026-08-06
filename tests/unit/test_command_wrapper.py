@@ -5,7 +5,7 @@
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Never
 from unittest.mock import Mock, patch
 
 import pytest
@@ -28,7 +28,7 @@ def test_with_context_and_console_basic(tmp_path):
     called_with = {}
 
     @with_context_and_console()
-    def test_command(context: ProjectContext, console: ConsoleOutput, quiet: bool = False):
+    def test_command(context: ProjectContext, console: ConsoleOutput, quiet: bool = False) -> str:
         called_with["context"] = context
         called_with["console"] = console
         called_with["quiet"] = quiet
@@ -58,7 +58,7 @@ def test_with_context_and_console_with_messages(tmp_path):
     def test_command(
         context: ProjectContext,
         console: ConsoleOutput,
-    ):
+    ) -> str:
         return "done"
 
     with patch("oarepo_cli.cli.command_wrapper.discover_context") as mock_discover:
@@ -88,7 +88,7 @@ def test_with_context_and_console_error_handling():
     def test_command(
         context: ProjectContext,
         console: ConsoleOutput,
-    ):
+    ) -> Never:
         raise OARepoError("Something went wrong")
 
     with patch("oarepo_cli.cli.command_wrapper.discover_context") as mock_discover:
@@ -117,7 +117,7 @@ def test_with_context_and_console_no_messages():
     def test_command(
         context: ProjectContext,
         console: ConsoleOutput,
-    ):
+    ) -> str:
         return "result"
 
     with patch("oarepo_cli.cli.command_wrapper.discover_context") as mock_discover:
@@ -141,7 +141,7 @@ def test_with_context_only():
     called_with = {}
 
     @with_context_only
-    def test_command(context: ProjectContext, some_arg: str):
+    def test_command(context: ProjectContext, some_arg: str) -> str:
         called_with["context"] = context
         called_with["some_arg"] = some_arg
         return "done"
@@ -161,7 +161,7 @@ def test_with_context_only_preserves_errors():
     """Test that with_context_only doesn't catch exceptions."""
 
     @with_context_only
-    def test_command(context: ProjectContext):
+    def test_command(context: ProjectContext) -> Never:
         raise ValueError("Some error")
 
     with patch("oarepo_cli.cli.command_wrapper.discover_context") as mock_discover:
@@ -177,8 +177,8 @@ def test_with_context_and_console_preserves_function_metadata():
     """Test that decorator preserves function name and docstring."""
 
     @with_context_and_console()
-    def my_command(context: ProjectContext, console: ConsoleOutput):
-        """This is my command."""
+    def my_command(context: ProjectContext, console: ConsoleOutput) -> None:
+        """Execute the command."""
 
     assert my_command.__name__ == "my_command"
     assert my_command.__doc__ == "This is my command."
@@ -188,7 +188,7 @@ def test_with_context_only_preserves_function_metadata():
     """Test that with_context_only preserves function metadata."""
 
     @with_context_only
-    def another_command(context: ProjectContext):
+    def another_command(context: ProjectContext) -> None:
         """Another command."""
 
     assert another_command.__name__ == "another_command"

@@ -170,7 +170,8 @@ def test_license_headers_adds_to_jinja(runner: CliRunner, lint_project: Path, mo
     # Check that it has SPDX headers in a Jinja comment block
     assert "spdx-filecopyrighttext:" in content.lower()
     assert "spdx-license-identifier: mit" in content.lower()
-    assert "{#" in content and "#}" in content
+    assert "{#" in content
+    assert "#}" in content
     # Check that DOCTYPE is preserved at the start
     assert content.startswith("<!DOCTYPE html>")
     # Check that the template content is preserved
@@ -187,8 +188,9 @@ def test_license_headers_adds_to_jinja(runner: CliRunner, lint_project: Path, mo
 
 @pytest.fixture
 def mock_library_context(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Mock:
-    """Mock discover_context() and venv-existence checks so library shell/invenio
-    reach their os.execve call without needing a real venv.
+    """Mock discover_context() and venv-existence checks for shell/invenio commands.
+
+    Allows library shell/invenio to reach their os.execve call without needing a real venv.
     """
     context = Mock(spec=ProjectContext)
     context.root_directory = tmp_path
@@ -208,9 +210,11 @@ def mock_library_context(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Moc
 def test_library_shell_applies_same_env_defaults_as_blocking_calls(
     runner: CliRunner, mock_library_context: Mock, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    """Library shell's exec'd environment gets the same OAREPO_ENV_DEFAULTS/venv-stripping
-    treatment any process.run() call gets, rather than being built from bare
-    os.environ, which would silently miss both.
+    """Library shell's exec'd environment gets OAREPO_ENV_DEFAULTS/venv-stripping.
+
+    The environment gets the same OAREPO_ENV_DEFAULTS/venv-stripping treatment any
+    process.run() call gets, rather than being built from bare os.environ, which
+    would silently miss both.
     """
     monkeypatch.setenv("VIRTUAL_ENV", "/oarepo-cli/own/venv")
     monkeypatch.delenv("INVENIO_APP_THEME", raising=False)
@@ -231,9 +235,11 @@ def test_library_shell_applies_same_env_defaults_as_blocking_calls(
 def test_library_invenio_applies_same_env_defaults_as_blocking_calls(
     runner: CliRunner, mock_library_context: Mock, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    """Library invenio's exec'd environment gets the same OAREPO_ENV_DEFAULTS/venv-stripping
-    treatment any process.run() call gets, rather than being built from bare
-    os.environ, which would silently miss both.
+    """Library invenio's exec'd environment gets OAREPO_ENV_DEFAULTS/venv-stripping.
+
+    The environment gets the same OAREPO_ENV_DEFAULTS/venv-stripping treatment any
+    process.run() call gets, rather than being built from bare os.environ, which
+    would silently miss both.
     """
     invenio_path = mock_library_context.venv_path / "bin" / "invenio"
     invenio_path.parent.mkdir(parents=True)

@@ -164,8 +164,7 @@ def _extract_oarepo_version_from_specifier(dep_spec: str) -> int | None:
         if spec.operator in (">=", "==", "~="):
             # Parse version string (e.g., "14.0.0" -> 14)
             version_str = spec.version
-            major = int(version_str.split(".")[0])
-            return major
+            return int(version_str.split(".")[0])
 
     return None
 

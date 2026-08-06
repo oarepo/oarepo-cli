@@ -130,15 +130,13 @@ class TestOrchestrator:
             pytest_cmd = self._build_pytest_command(pytest_args, use_coverage)
 
             # Run pytest (don't check=True so we can always clean up services)
-            result = process.run(
+            return process.run(
                 pytest_cmd,
                 cwd=self._context.root_directory,
                 env=service_env_vars or None,
                 check=False,
                 output_mode=ProcessOutputMode.INTERACTIVE,
             )
-
-            return result
 
         finally:
             # Always stop services if we started them

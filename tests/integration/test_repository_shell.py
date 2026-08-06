@@ -85,8 +85,9 @@ def test_cli_reports_context_discovery_failure(monkeypatch: pytest.MonkeyPatch) 
 
 
 def test_invenio_delegates_to_exec_invenio(mock_context: Mock, monkeypatch: pytest.MonkeyPatch) -> None:
-    """`repository invenio <args>` execs the bare invenio binary with the given args
-    verbatim (not invenio-cli -- see `repository cli` for that).
+    """Repository invenio <args> execs the bare invenio binary with given args.
+
+    Args are passed verbatim (not invenio-cli -- see `repository cli` for that).
     """
     calls: list[dict[str, object]] = []
     monkeypatch.setattr(
@@ -105,7 +106,7 @@ def test_invenio_help_forwarded_to_invenio(
     mock_context: Mock,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """--help is forwarded to invenio rather than intercepted by Typer/Click."""
+    """Help is forwarded to invenio rather than intercepted by Typer/Click."""
     calls: list[dict[str, object]] = []
     monkeypatch.setattr(
         "oarepo_cli.cli.repository.repository.exec_invenio",
@@ -120,7 +121,10 @@ def test_invenio_help_forwarded_to_invenio(
 
 
 def test_invenio_reports_context_discovery_failure(monkeypatch: pytest.MonkeyPatch) -> None:
-    """A context-discovery failure is reported cleanly, exit code 1."""
+    """A context-discovery failure is reported cleanly.
+
+    Exit code 1.
+    """
     monkeypatch.setattr(
         "oarepo_cli.cli.repository.discover_context",
         Mock(side_effect=ConfigurationError("pyproject.toml not found")),
@@ -136,8 +140,9 @@ def test_invenio_reports_context_discovery_failure(monkeypatch: pytest.MonkeyPat
 
 
 def test_shell_starts_services_by_default_then_execs_shell(mock_context: Mock, monkeypatch: pytest.MonkeyPatch) -> None:
-    """`repository shell` starts Docker services via invenio-cli (like `repository run`,
-    not ServicesLifecycleManager) before exec'ing the shell, by default.
+    """Repository shell starts Docker services via invenio-cli by default.
+
+    Like `repository run`, not ServicesLifecycleManager, before exec'ing the shell.
     """
     services_calls: list[dict[str, object]] = []
     shell_calls: list[object] = []
@@ -156,7 +161,7 @@ def test_shell_starts_services_by_default_then_execs_shell(mock_context: Mock, m
 
 
 def test_shell_no_services_skips_starting_services(mock_context: Mock, monkeypatch: pytest.MonkeyPatch) -> None:
-    """--no-services skips starting Docker services but still execs the shell."""
+    """No-services flag skips starting Docker services but still execs the shell."""
     services_calls: list[object] = []
     shell_calls: list[object] = []
     monkeypatch.setattr(
@@ -177,7 +182,7 @@ def test_shell_quiet_forwarded_to_services_start(
     mock_context: Mock,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """--quiet is forwarded to the services-start invenio-cli call."""
+    """Quiet flag is forwarded to the services-start invenio-cli call."""
     services_calls: list[dict[str, object]] = []
     monkeypatch.setattr(
         "oarepo_cli.cli.repository.invenio_cli.run_invenio_cli",
@@ -193,7 +198,10 @@ def test_shell_quiet_forwarded_to_services_start(
 
 
 def test_shell_reports_context_discovery_failure(monkeypatch: pytest.MonkeyPatch) -> None:
-    """A context-discovery failure is reported cleanly, exit code 1."""
+    """A context-discovery failure is reported cleanly.
+
+    Exit code 1.
+    """
     monkeypatch.setattr(
         "oarepo_cli.cli.repository.discover_context",
         Mock(side_effect=ConfigurationError("pyproject.toml not found")),
@@ -209,8 +217,9 @@ def test_shell_reports_services_start_failure_and_never_execs_shell(
     mock_context: Mock,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """A ProcessExecutionError starting services is reported cleanly, exit code 1, and
-    the shell is never exec'd.
+    """A ProcessExecutionError starting services is reported cleanly.
+
+    Exit code 1, and the shell is never exec'd.
     """
     shell_calls: list[object] = []
     monkeypatch.setattr(

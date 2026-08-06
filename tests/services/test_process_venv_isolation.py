@@ -210,11 +210,12 @@ def test_get_output_strips_venv_by_default(monkeypatch: pytest.MonkeyPatch) -> N
 
 
 def test_get_system_path_strips_active_venv_bin(monkeypatch: pytest.MonkeyPatch) -> None:
-    """get_system_path() must exclude an active venv's bin dir, mirroring
-    repository_runner.sh's get_highest_available_python -- otherwise
-    resolving a system Python while a project's own venv is activated
-    finds that venv's own interpreter, which is wrong for anything that
-    needs to (re)create that very venv (e.g. `repository upgrade`).
+    """Get system path excludes an active venv's bin dir.
+
+    Mirrors repository_runner.sh's get_highest_available_python -- otherwise
+    resolving a system Python while a project's own venv is activated finds
+    that venv's own interpreter, which is wrong for anything that needs to
+    (re)create that very venv (e.g. `repository upgrade`).
     """
     if sys.platform == "win32":
         pytest.skip("Unix-specific test")
@@ -227,7 +228,7 @@ def test_get_system_path_strips_active_venv_bin(monkeypatch: pytest.MonkeyPatch)
 
 
 def test_get_system_path_unchanged_without_active_venv(monkeypatch: pytest.MonkeyPatch) -> None:
-    """get_system_path() returns PATH unchanged when no venv is active."""
+    """Get system path returns PATH unchanged when no venv is active."""
     monkeypatch.delenv("VIRTUAL_ENV", raising=False)
     monkeypatch.setenv("PATH", "/usr/bin:/usr/local/bin")
 

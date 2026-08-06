@@ -43,7 +43,7 @@ class VersionInfo:
         object.__setattr__(
             self,
             "python_versions",
-            sorted(self.python_versions, key=lambda v: Version(v), reverse=True),
+            sorted(self.python_versions, key=Version, reverse=True),
         )
 
 

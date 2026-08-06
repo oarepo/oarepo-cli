@@ -168,8 +168,8 @@ def testrepo_project() -> Path:
     with tempfile.TemporaryDirectory() as tmp:
         tmp_path = Path(tmp)
         installer = tmp_path / "repository_installer.sh"
-        subprocess.run(
-            ["curl", "-fsSL", "-o", str(installer), REPOSITORY_INSTALLER_URL],
+        subprocess.run(  # noqa: S603 - just a test, not a security issue
+            ["curl", "-fsSL", "-o", str(installer), REPOSITORY_INSTALLER_URL],  # noqa: S607 - curl is trusted
             check=True,
         )
         installer.chmod(0o755)
@@ -181,7 +181,7 @@ def testrepo_project() -> Path:
         # which mishandles the script's `"${@}"` expansion under `set -u`
         # when called with zero arguments. Same issue and fix as
         # PlatformDetector.get_default_shell().
-        subprocess.run(
+        subprocess.run(  # noqa: S603 - just a test, not a security issue to run the program
             [
                 get_platform_detector().get_default_shell(),
                 str(installer),

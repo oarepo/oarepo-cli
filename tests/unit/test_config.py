@@ -43,7 +43,7 @@ def test_default_values_for_all_configs() -> None:
     assert config.celery.pool_type == "threads"
     assert config.celery.concurrency == 10
     assert config.license.organization == "CESNET z.s.p.o"
-    assert config.security.demo_user_password == "123456"
+    assert config.security.demo_user_password == "123456"  # noqa: S105 - just a test password
 
 
 def test_environment_variable_overrides(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -111,7 +111,7 @@ security = { demo_user_password = "secure-password" }
     assert config.celery.pool_type == "prefork"
     assert config.celery.concurrency == 20
     assert config.license.organization == "Test Org"
-    assert config.security.demo_user_password == "secure-password"
+    assert config.security.demo_user_password == "secure-password"  # noqa: S105 - just a test password
 
 
 def test_missing_pyproject_returns_defaults(tmp_path: Path) -> None:

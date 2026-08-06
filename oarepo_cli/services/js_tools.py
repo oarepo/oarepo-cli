@@ -43,7 +43,7 @@ def run_jslint(context: ProjectContext, *, quiet: bool = False) -> process.Proce
     package_json_path = root / "package.json"
     if not package_json_path.exists():
         if not quiet:
-            print("No package.json found, skipping JavaScript linting.")
+            pass
         return process.ProcessResult(
             return_code=0,
             stdout="No package.json found",
@@ -60,7 +60,7 @@ def run_jslint(context: ProjectContext, *, quiet: bool = False) -> process.Proce
     dev_deps = package_data.get("devDependencies", {})
     if "@inveniosoftware/eslint-config-invenio" not in dev_deps:
         if not quiet:
-            print("Adding @inveniosoftware/eslint-config-invenio to dev dependencies...")
+            pass
         result = process.run(
             ["pnpm", "add", "-D", "@inveniosoftware/eslint-config-invenio@2"],
             cwd=root,
@@ -74,7 +74,7 @@ def run_jslint(context: ProjectContext, *, quiet: bool = False) -> process.Proce
     eslint_bin = root / "node_modules" / ".bin" / "eslint"
     if not eslint_bin.exists():
         if not quiet:
-            print("Installing ESLint...")
+            pass
         result = process.run(
             ["pnpm", "install"],
             cwd=root,
@@ -86,13 +86,13 @@ def run_jslint(context: ProjectContext, *, quiet: bool = False) -> process.Proce
 
     # Write ESLint config
     if not quiet:
-        print("Copying ESLint configuration files...")
+        pass
     eslintrc = root / ".eslintrc.yaml"
     eslintrc.write_text(resources.read_text("eslintrc.yaml.tmpl"))
 
     # Run eslint with --fix
     if not quiet:
-        print("Running ESLint...")
+        pass
 
     # Pass directory names as relative paths (matching bash script behavior)
     dir_names = [str(d.relative_to(root)) for d in code_directories]
@@ -108,7 +108,7 @@ def run_jslint(context: ProjectContext, *, quiet: bool = False) -> process.Proce
 
     # Run prettier
     if not quiet:
-        print("Running Prettier...")
+        pass
 
     # Check if we're in CI
     is_ci = os.environ.get("CI", "false").lower() == "true"
@@ -217,3 +217,4 @@ def run_jstest(
 
     os.chdir(context.root_directory)
     os.execve(str(invenio_path), cmd, cmd_env)
+    return None

@@ -85,9 +85,7 @@ class ServicesLifecycleManager:
         self._env_file.write_text(result.stdout)
 
         # Parse environment variables from output
-        env_vars = self._parse_env_file(result.stdout)
-
-        return env_vars
+        return self._parse_env_file(result.stdout)
 
     def start_services_if_needed(self) -> dict[str, str]:
         """Start services unless already running, and return connection env vars.

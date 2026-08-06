@@ -318,7 +318,7 @@ def add_license_headers(
             )
 
     if not quiet and files_processed > 0:
-        print(f"Added license headers to {files_processed} file(s)")
+        pass
 
     return process.ProcessResult(
         return_code=0,
