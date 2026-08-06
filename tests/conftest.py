@@ -26,14 +26,17 @@ from oarepo_cli.services.services_lifecycle import ServicesLifecycleManager
 # Rich/Click's help-text renderer falls back to os.get_terminal_size() on the
 # real stdout/stderr file descriptors, which typer.testing.CliRunner.invoke()
 # doesn't redirect (it only swaps the Python-level sys.stdout object) -- so
-# on a CI runner whose job step happens to have a narrow controlling pty,
-# `--help` output wraps differently than on a real dev terminal and can
-# split an option name (e.g. "--force") across a line break. Rich/Click both
-# prefer the COLUMNS/LINES env vars over that OS query when set, so pinning
-# them here makes every CliRunner-rendered help text deterministic across
-# environments.
-os.environ.setdefault("COLUMNS", "200")
-os.environ.setdefault("LINES", "50")
+# on a CI runner whose job step has no controlling terminal (or one reporting
+# a degenerate size), `--help` output can wrap down to almost nothing --
+# observed on GitHub Actions as help panels rendering as an empty box with no
+# visible option text at all (COLUMNS/LINES of "1" reproduces this exactly
+# locally). Rich/Click both prefer the COLUMNS/LINES env vars over that OS
+# query when set, so pinning them here makes every CliRunner-rendered help
+# text deterministic across environments -- unconditionally, not just
+# `setdefault`, since a CI environment that already exports a degenerate
+# COLUMNS/LINES value is exactly the failure case this works around.
+os.environ["COLUMNS"] = "200"
+os.environ["LINES"] = "50"
 
 
 def _cleanup_testlib(project_path: Path, stop_services: bool = True) -> None:
