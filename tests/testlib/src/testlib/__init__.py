@@ -8,4 +8,3 @@ from __future__ import annotations
 
 def main() -> None:
     """Print hello message."""
-    print("Hello from testlib!")

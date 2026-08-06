@@ -1,24 +1,20 @@
 #!/usr/bin/env bash
+# SPDX-FileCopyrightText: 2026 CESNET z.s.p.o.
+# SPDX-License-Identifier: MIT
 #
-# This script sets up a Python virtual environment, installs necessary packages,
-# runs tests and other tasks for libraries which are part of the OARepo Invenio RDM
-# flavour.
-#
-# Usage: ./run.sh --help
-#
-#
-# (C) 2025 CESNET, z.s.p.o.
-# OARepo is free software; you can redistribute it and/or modify
-# it under the terms of the MIT License; see LICENSE file for more details.
-#
+# temporary CI entry point for oarepo-cli's own test/release pipeline (.github/workflows,
+# via oarepo/oarepo's reusable workflows and .github/actions/{install_dependencies,
+# pytest,jstest}).
+
 set -euo pipefail
 
-base_dir="$(dirname "$0")"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+cd "${SCRIPT_DIR}"
 
-if [ ! -f "${base_dir}/.runner.sh" ]; then
-  echo "Downloading .runner.sh from oarepo repository..." >&2
-  curl -o "${base_dir}/.runner.sh" https://raw.githubusercontent.com/oarepo/oarepo/main/tools/library_runner.sh
-  chmod +x "${base_dir}/.runner.sh"
+PYTHON_VERSION="${PYTHON_VERSION:-3.14}"
+
+if [ ! -d .venv ] ; then
+    uv venv
+    uv pip install -e .
 fi
-
-"${base_dir}/.runner.sh" "$@"
+.venv/bin/oarepo-cli library "$@"

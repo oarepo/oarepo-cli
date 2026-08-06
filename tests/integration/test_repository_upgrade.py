@@ -39,9 +39,7 @@ def test_upgrade_removes_venv_and_lock(
 ) -> None:
     """`repository upgrade` removes the existing .venv and uv.lock before reinstalling."""
     monkeypatch.chdir(clean_testrepo)
-    monkeypatch.setattr(
-        "oarepo_cli.services.repository.install_repository", lambda *_args, **_kwargs: None
-    )
+    monkeypatch.setattr("oarepo_cli.services.repository.install_repository", lambda *_args, **_kwargs: None)
     monkeypatch.setattr(
         "oarepo_cli.services.repository.process.run",
         lambda cmd, **_kwargs: process.ProcessResult(
@@ -66,16 +64,17 @@ def test_upgrade_cleans_uv_cache_with_force(
     clean_testrepo: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """`repository upgrade` runs `uv cache clean --force` (unlike `library upgrade`,
-    which omits --force), mirroring repository_runner.sh's upgrade_repository."""
+    """Repository upgrade runs uv cache clean --force.
+
+    Unlike `library upgrade`, which omits --force. Mirrors
+    repository_runner.sh's upgrade_repository.
+    """
     monkeypatch.chdir(clean_testrepo)
-    monkeypatch.setattr(
-        "oarepo_cli.services.repository.install_repository", lambda *_args, **_kwargs: None
-    )
+    monkeypatch.setattr("oarepo_cli.services.repository.install_repository", lambda *_args, **_kwargs: None)
 
     calls: list[list[str]] = []
 
-    def spy_run(cmd, **_kwargs):
+    def spy_run(cmd: list[str], **_kwargs: object) -> process.ProcessResult:
         calls.append(list(cmd))
         return process.ProcessResult(
             return_code=0, stdout="", stderr="", command=cmd, cwd=clean_testrepo, duration_ms=0
@@ -91,9 +90,7 @@ def test_upgrade_cleans_uv_cache_with_force(
 
 
 @pytest.fixture(scope="module")
-def upgraded_repo(
-    testrepo_project: Path, reset_testrepo_state_fn: Callable[[Path], None]
-) -> Iterator[Path]:
+def upgraded_repo(testrepo_project: Path, reset_testrepo_state_fn: Callable[[Path], None]) -> Iterator[Path]:
     """Run a real install then a real `repository upgrade`, once for this module."""
     reset_testrepo_state_fn(testrepo_project)
     previous_cwd = Path.cwd()

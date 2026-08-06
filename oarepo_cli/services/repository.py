@@ -23,7 +23,7 @@ if TYPE_CHECKING:
     from oarepo_cli.core.context import ProjectContext
 
 
-def configure_local_ports(context: ProjectContext, *, quiet: bool = False) -> None:
+def configure_local_ports(context: ProjectContext) -> None:
     """Configure local service ports in .invenio.private file.
 
     Mirrors ``repository_runner.sh``'s port configuration step in install_repository:
@@ -31,11 +31,11 @@ def configure_local_ports(context: ProjectContext, *, quiet: bool = False) -> No
 
     Args:
         context: Project context with paths and configuration
-        quiet: If True, suppress status messages
 
     Raises:
         FileNotFoundError: If .invenio.private or variables file doesn't exist
         IOError: If reading/writing files fails
+
     """
     invenio_private = context.root_directory / ".invenio.private"
     variables_file = context.root_directory / "variables"
@@ -48,7 +48,26 @@ def configure_local_ports(context: ProjectContext, *, quiet: bool = False) -> No
         msg = f"variables file not found at {variables_file}"
         raise FileNotFoundError(msg)
 
-    # Read port values from variables file
+    # Read port mappings from variables file
+    ports = _extract_port_variables(variables_file)
+
+    if not ports:
+        return
+
+    # Update .invenio.private with new port values
+    _update_invenio_private(invenio_private, ports)
+
+
+def _extract_port_variables(variables_file: Path) -> dict[str, str]:
+    """Extract port variable mappings from the variables file.
+
+    Args:
+        variables_file: Path to the variables file
+
+    Returns:
+        Dictionary mapping port keys to their values
+
+    """
     variables_content = variables_file.read_text()
     port_vars = {
         "search_port": "INVENIO_OPENSEARCH_PORT",
@@ -68,24 +87,17 @@ def configure_local_ports(context: ProjectContext, *, quiet: bool = False) -> No
         if match:
             ports[key] = match.group(1).strip("\"'")
 
-    if not ports:
-        if not quiet:
-            import sys
+    return ports
 
-            print(
-                "\n⚠️  Warning: No port variables found in variables file, skipping port configuration",
-                file=sys.stderr,
-            )
-        return
 
-    if not quiet:
-        import sys
+def _update_invenio_private(invenio_private: Path, ports: dict[str, str]) -> None:
+    """Update .invenio.private file with new port values.
 
-        print(
-            f"\n→ Configuring local service ports in {invenio_private.name}",
-            file=sys.stderr,
-        )
+    Args:
+        invenio_private: Path to the .invenio.private file
+        ports: Dictionary of port names to values
 
+    """
     # Read existing .invenio.private and remove old port entries
     content = invenio_private.read_text()
     lines = content.splitlines()
@@ -107,11 +119,6 @@ def configure_local_ports(context: ProjectContext, *, quiet: bool = False) -> No
         for key, value in ports.items():
             f.write(f"{key} = {value}\n")
 
-    if not quiet:
-        import sys
-
-        print("✓ Port configuration updated\n", file=sys.stderr)
-
 
 def get_instance_path(context: ProjectContext) -> Path:
     """Get the Invenio instance path without booting the Flask app.
@@ -129,6 +136,7 @@ def get_instance_path(context: ProjectContext) -> Path:
 
     Returns:
         Path to the Invenio instance directory
+
     """
     instance_path = os.environ.get("INVENIO_INSTANCE_PATH")
     if instance_path:
@@ -153,24 +161,16 @@ def ensure_instance_structure(
         context: Project context with paths and configuration
         instance_path: Path to the instance directory
         quiet: If True, suppress status messages
+
     """
     if not quiet:
-        import sys
-
-        print(
-            f"\n→ Instance path: {instance_path}",
-            file=sys.stderr,
-        )
+        pass
 
     # Create instance directory if it doesn't exist
     if not instance_path.exists():
         if not quiet:
-            import sys
+            pass
 
-            print(
-                f"  Creating instance path: {instance_path}",
-                file=sys.stderr,
-            )
         instance_path.mkdir(parents=True, exist_ok=True)
 
     # Create symlink to invenio.cfg if it doesn't exist
@@ -179,12 +179,8 @@ def ensure_instance_structure(
 
     if not invenio_cfg_link.exists() and invenio_cfg_source.exists():
         if not quiet:
-            import sys
+            pass
 
-            print(
-                f"  Symlinking {invenio_cfg_source.name} to instance",
-                file=sys.stderr,
-            )
         # Use relative path if possible, absolute otherwise
         try:
             invenio_cfg_link.symlink_to(invenio_cfg_source)
@@ -195,9 +191,7 @@ def ensure_instance_structure(
             shutil.copy2(invenio_cfg_source, invenio_cfg_link)
 
     if not quiet:
-        import sys
-
-        print("✓ Instance structure ready\n", file=sys.stderr)
+        pass
 
 
 def install_repository(context: ProjectContext, *, quiet: bool = False) -> None:
@@ -228,6 +222,7 @@ def install_repository(context: ProjectContext, *, quiet: bool = False) -> None:
     Raises:
         ProcessExecutionError: If a required step (uv sync, invenio-cli
             install) fails
+
     """
     console = ConsoleOutput(quiet=quiet)
 
@@ -274,7 +269,7 @@ def install_repository(context: ProjectContext, *, quiet: bool = False) -> None:
     # Step 6: Configure local service ports
     console.info("→ Configuring service ports\n")
 
-    configure_local_ports(context, quiet=quiet)
+    configure_local_ports(context)
 
     # Step 7: Compile backend translations
     # First, ensure translations directory structure exists (bootstrap if needed)
@@ -303,9 +298,7 @@ def install_repository(context: ProjectContext, *, quiet: bool = False) -> None:
         console.warning("⚠️  Warning: invenio-cli failed to compile backend translations!")
 
 
-def upgrade_repository(
-    context: ProjectContext, *, quiet: bool = False, clean_cache: bool = True
-) -> None:
+def upgrade_repository(context: ProjectContext, *, quiet: bool = False, clean_cache: bool = True) -> None:
     """Upgrade repository: clean venv (and, by default, cache) and reinstall from scratch.
 
     Mirrors ``repository_runner.sh``'s ``upgrade_repository`` function:
@@ -334,6 +327,7 @@ def upgrade_repository(
     Raises:
         ProcessExecutionError: If ``uv cache clean`` or ``install_repository``
             fails
+
     """
     console = ConsoleOutput(quiet=quiet)
 
@@ -384,6 +378,7 @@ def exec_invenio(context: ProjectContext, args: Sequence[str]) -> NoReturn:
     Raises:
         OSError: If the invenio binary can't be exec'd (not found, not
             executable, ...)
+
     """
     os.chdir(context.root_directory)
     binary = get_invenio_binary(context)
@@ -392,7 +387,7 @@ def exec_invenio(context: ProjectContext, args: Sequence[str]) -> NoReturn:
     # call gets -- there's no other subprocess env-merging safety net once
     # this replaces the current process.
     env = process.build_subprocess_env({"PYTHONWARNINGS": "ignore"})
-    os.execve(str(binary), [str(binary), *args], env)
+    os.execve(str(binary), [str(binary), *args], env)  # noqa S606 no shell is ok here, replacing the process
 
 
 def exec_shell(context: ProjectContext) -> NoReturn:
@@ -418,6 +413,7 @@ def exec_shell(context: ProjectContext) -> NoReturn:
 
     Raises:
         OSError: If the shell can't be exec'd (not found, not executable, ...)
+
     """
     platform = get_platform_detector()
     bin_dir = platform.get_venv_bin_dir()
@@ -451,7 +447,7 @@ def exec_shell(context: ProjectContext) -> NoReturn:
 
     os.chdir(context.root_directory)
     bash_path = platform.get_default_shell()
-    os.execve(bash_path, ["bash"], shell_env)
+    os.execve(bash_path, ["bash"], shell_env)  # noqa S606 no shell is ok here, replacing the process
 
 
 def _run_invenio(context: ProjectContext, args: Sequence[str], *, quiet: bool = False) -> None:
@@ -482,6 +478,7 @@ def rebuild_index(context: ProjectContext, *, quiet: bool = False) -> None:
 
     Raises:
         ProcessExecutionError: If any of the ``invenio`` subcommands fail
+
     """
     console = ConsoleOutput(quiet=quiet)
 
@@ -499,9 +496,7 @@ def rebuild_index(context: ProjectContext, *, quiet: bool = False) -> None:
     _run_invenio(context, ["rdm", "rebuild-all-indices"], quiet=quiet)
 
     console.success("✓ Search index was destroyed and re-created\n")
-    console.info(
-        "Please run the server with workers (oarepo-cli repository run) to complete the indexing.\n"
-    )
+    console.info("Please run the server with workers (oarepo-cli repository run) to complete the indexing.\n")
 
 
 def reset_repository(context: ProjectContext, *, quiet: bool = False) -> None:
@@ -521,6 +516,7 @@ def reset_repository(context: ProjectContext, *, quiet: bool = False) -> None:
     Raises:
         ProcessExecutionError: If reinstalling, setting up services, or
             seeding the demo admin/user fails
+
     """
     console = ConsoleOutput(quiet=quiet)
 
@@ -631,6 +627,7 @@ def run_tests(
     Raises:
         ProcessExecutionError: If installing pytest/pytest-cov fails
         OSError: If pytest can't be exec'd (not found, not executable, ...)
+
     """
     console = ConsoleOutput(quiet=quiet)
     bin_dir = get_platform_detector().get_venv_bin_dir()
@@ -657,9 +654,7 @@ def run_tests(
                 ["uv", "pip", "install", "--python", str(venv_python), "pytest-cov"],
                 cwd=context.root_directory,
                 check=True,
-                output_mode=ProcessOutputMode.INTERACTIVE
-                if not quiet
-                else ProcessOutputMode.CAPTURE,
+                output_mode=ProcessOutputMode.INTERACTIVE if not quiet else ProcessOutputMode.CAPTURE,
             )
 
     cmd = [str(pytest_bin)]
@@ -672,7 +667,7 @@ def run_tests(
 
     os.chdir(context.root_directory)
     env = process.build_subprocess_env()
-    os.execve(str(pytest_bin), cmd, env)
+    os.execve(str(pytest_bin), cmd, env)  # noqa S606 no shell is ok here, replacing the process
 
 
 def get_python_version(context: ProjectContext) -> str:
@@ -716,9 +711,7 @@ def list_repository_models(context: ProjectContext) -> list[ModelInfo]:
             continue
         if not (entry / ".copier-answers.yml").exists() or not (entry / "model.py").exists():
             continue
-        models.append(
-            ModelInfo(name=entry.name, version=_extract_model_version(entry / "model.py"))
-        )
+        models.append(ModelInfo(name=entry.name, version=_extract_model_version(entry / "model.py")))
     return models
 
 
@@ -730,6 +723,7 @@ def _extract_model_version(model_py: Path) -> str:
 
     Returns:
         The version string if found, otherwise "unknown"
+
     """
     for line in model_py.read_text().splitlines():
         match = _MODEL_VERSION_PATTERN.search(line)

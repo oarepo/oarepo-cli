@@ -47,12 +47,11 @@ def _require_binary(binary: str, option: str) -> None:
     """
     if shutil.which(binary, path=get_system_path()) is None:
         raise ConfigurationError(
-            f"{option} binary '{binary}' not found. Install it, or specify a different "
-            f"binary with {option}."
+            f"{option} binary '{binary}' not found. Install it, or specify a different binary with {option}."
         )
 
 
-def new_repository(
+def new_repository(  # noqa: PLR0913,PLR0917 too many arguments ok for commandline client
     repository_name: Annotated[
         str,
         typer.Argument(help="Name of the repository to create (also the target directory)"),
@@ -102,6 +101,7 @@ def new_repository(
         0: Success
         1: Invalid input (missing repository name, or uv/uvx/python binary
            not found), or repository creation failed
+
     """
     console = ConsoleOutput()
     try:
@@ -112,8 +112,7 @@ def new_repository(
         _require_binary(python, "--python")
 
         console.info(
-            f"Creating repository '{repository_name}' using template '{template}' "
-            f"with version '{version}'...\n",
+            f"Creating repository '{repository_name}' using template '{template}' with version '{version}'...\n",
             fg=typer.colors.BRIGHT_BLUE,
         )
         RepositoryInstaller(console).install(

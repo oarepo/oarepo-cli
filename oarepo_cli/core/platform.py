@@ -1,6 +1,8 @@
 # SPDX-FileCopyrightText: 2026 CESNET z.s.p.o.
 # SPDX-License-Identifier: MIT
 
+"""Platform detection utilities for cross-platform compatibility."""
+
 from __future__ import annotations
 
 import platform
@@ -10,8 +12,7 @@ from pathlib import Path
 
 
 class PlatformDetector:
-    """
-    Abstract platform-specific behavior.
+    """Abstract platform-specific behavior.
 
     Provides utilities for detecting the current operating system and
     determining platform-specific paths and behaviors.
@@ -34,30 +35,29 @@ class PlatformDetector:
         return self._system == "windows"
 
     def get_venv_bin_dir(self) -> str:
-        """
-        Get the virtual environment bin directory name.
+        """Get the virtual environment bin directory name.
 
         Returns:
             'bin' on Unix-like systems (macOS, Linux), 'Scripts' on Windows.
+
         """
         if self.is_windows():
             return "Scripts"
         return "bin"
 
     def get_venv_python(self) -> str:
-        """
-        Get the Python executable name in a virtual environment.
+        """Get the Python executable name in a virtual environment.
 
         Returns:
             'python' on Unix-like systems, 'python.exe' on Windows.
+
         """
         if self.is_windows():
             return "python.exe"
         return "python"
 
     def get_default_shell(self) -> str:
-        """
-        Get the path to the preferred bash executable for interactive shells.
+        """Get the path to the preferred bash executable for interactive shells.
 
         On macOS, Apple ships a very old bash (3.2, frozen for licensing
         reasons) as /bin/bash. A Homebrew-installed bash is a modern
@@ -67,6 +67,7 @@ class PlatformDetector:
 
         Returns:
             Absolute path to the bash executable to use.
+
         """
         if self.is_macos():
             for homebrew_bash in (
@@ -87,37 +88,37 @@ class PlatformDetector:
         return "bash"
 
     def needs_dyld_fix(self) -> bool:
-        """
-        Check if DYLD_LIBRARY_PATH fix is needed.
+        """Check if DYLD_LIBRARY_PATH fix is needed.
 
         On macOS, certain environment variables are stripped when spawning
         subprocesses. This method determines if special handling is required.
 
         Returns:
             True if running on macOS and dyld fix is needed.
+
         """
         return self.is_macos()
 
     def get_celery_pool_recommendation(self) -> str:
-        """
-        Get the recommended Celery pool implementation for the platform.
+        """Get the recommended Celery pool implementation for the platform.
 
         On macOS, the 'threads' pool is recommended due to process forking
         issues with the default 'prefork' pool.
 
         Returns:
             'threads' on macOS, 'prefork' on other platforms.
+
         """
         if self.is_macos():
             return "threads"
         return "prefork"
 
     def get_system_info(self) -> dict[str, str]:
-        """
-        Get detailed system information.
+        """Get detailed system information.
 
         Returns:
             Dictionary with platform details.
+
         """
         return {
             "system": self._system,
@@ -129,18 +130,18 @@ class PlatformDetector:
         }
 
 
-# Global instance for convenience
+# Singleton instance for platform detection
 _detector: PlatformDetector | None = None
 
 
 def get_platform_detector() -> PlatformDetector:
-    """
-    Get or create the global platform detector instance.
+    """Get or create the global platform detector instance.
 
     Returns:
         The singleton PlatformDetector instance.
+
     """
-    global _detector
+    global _detector  # noqa: PLW0603 singleton
     if _detector is None:
         _detector = PlatformDetector()
     return _detector

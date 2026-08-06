@@ -47,9 +47,7 @@ def test_runs_tests_with_real_venv(
     test_file.write_text("def test_pass():\n    assert True\n")
 
     # Skip services and run tests
-    result = runner.invoke(
-        app, ["library", "test", "--skip-services", "--quiet"], catch_exceptions=False
-    )
+    result = runner.invoke(app, ["library", "test", "--skip-services", "--quiet"], catch_exceptions=False)
 
     # Test should complete (may fail if pytest not installed, but should not crash)
     assert result.exit_code in [0, 1]
@@ -101,9 +99,7 @@ def test_skip_services_flag_real(
     test_file.write_text("def test_pass():\n    assert True\n")
 
     # Run with skip-services
-    result = runner.invoke(
-        app, ["library", "test", "--skip-services", "--quiet"], catch_exceptions=False
-    )
+    result = runner.invoke(app, ["library", "test", "--skip-services", "--quiet"], catch_exceptions=False)
 
     # Should complete without trying to start services
     assert result.exit_code in [0, 1]
@@ -155,9 +151,7 @@ def test_exit_code_on_test_failure_real(
     test_file.write_text("def test_fail():\n    assert False, 'This test fails'\n")
 
     # Run tests (should fail)
-    result = runner.invoke(
-        app, ["library", "test", "--skip-services", "--quiet"], catch_exceptions=False
-    )
+    result = runner.invoke(app, ["library", "test", "--skip-services", "--quiet"], catch_exceptions=False)
 
     # Should have non-zero exit code due to test failure
     # Note: exit code depends on whether pytest was actually run
@@ -223,9 +217,7 @@ def test_interspersed_flags_real(
     test_file.unlink(missing_ok=True)
 
 
-def test_test_requires_pyproject(
-    runner: CliRunner, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
+def test_test_requires_pyproject(runner: CliRunner, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """Test that test command fails gracefully without pyproject.toml."""
     empty_dir = tmp_path / "empty"
     empty_dir.mkdir()

@@ -37,7 +37,7 @@ def with_context_and_console(
     error_prefix: str = "Error",
     console_quiet_from_args: bool = True,
 ) -> Any:
-    """Decorator to handle common CLI command pattern.
+    """Handle common CLI command pattern.
 
     Automatically:
     - Discovers project context
@@ -71,6 +71,7 @@ def with_context_and_console(
             # Implementation here
             services_mgr = ServicesLifecycleManager(context.config, context.root_directory, quiet=quiet)
             services_mgr.start_services()
+
     """
 
     def decorator(func: Any) -> Any:
@@ -118,7 +119,7 @@ def with_context_and_console(
 
 
 def with_context_only(func: Any) -> Any:
-    """Decorator for commands that only need context discovery.
+    """Handle commands that only need context discovery.
 
     Use for passthrough commands (shell, invenio) that handle their own
     console output and error handling. Only injects the 'context' parameter.
@@ -136,6 +137,7 @@ def with_context_only(func: Any) -> Any:
         def shell_command(context: ProjectContext, args: list[str]):
             # Implementation here - handles its own console and errors
             exec_shell(context, args)
+
     """
 
     @wraps(func)

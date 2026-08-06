@@ -180,9 +180,7 @@ dependencies = [
     assert data.oarepo_versions == [14]
 
 
-def test_warns_about_deprecated_tool_config(
-    tmp_path: Path, caplog: pytest.LogCaptureFixture
-) -> None:
+def test_warns_about_deprecated_tool_config(tmp_path: Path, caplog: pytest.LogCaptureFixture) -> None:
     """Test that [tool.oarepo-cli].oarepo.version triggers a deprecation warning."""
     import logging
 

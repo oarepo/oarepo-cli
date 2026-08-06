@@ -12,6 +12,7 @@ ignore = [
     "ANN204",  # Missing return type annotation for __init__
     "ANN401",  # Any in *args/**kwargs
     "TRY003",  # Avoid long exception messages
+    "TRY300",  # Do not force moving return to except/else block
     "EM101",   # Avoid using string literal in exception
     "EM102",   # Avoid using f-string literal in exception
     "TRY301",  # Avoid raising/catching the same exception type
@@ -39,6 +40,9 @@ ignore = [
     "PLR",
     "PLC"
     ]
+
+[lint.flake8-copyright]
+notice-rgx = "SPDX-License-Identifier: MIT"
 
 [format]
 docstring-code-format = true

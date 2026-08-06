@@ -15,6 +15,7 @@ from oarepo_cli.services import process
 from oarepo_cli.services.process import ProcessOutputMode
 from oarepo_cli.services.services_lifecycle import ServicesLifecycleManager
 from oarepo_cli.services.venv import VenvRequirements, VirtualEnvironmentManager
+from oarepo_cli.ui import ConsoleOutput
 
 
 class TestOrchestrator:
@@ -34,6 +35,7 @@ class TestOrchestrator:
         Args:
             context: Project context with configuration and paths
             quiet: If True, suppress service start/stop messages
+
         """
         self._context = context
         self._quiet = quiet
@@ -64,104 +66,127 @@ class TestOrchestrator:
 
         Raises:
             ProcessExecutionError: If pytest execution fails (when check=True)
+
         """
         pytest_args = pytest_args or []
 
-        # Determine if we should use coverage (CLI arg > config)
+        # Determine configuration overrides
         use_coverage = coverage if coverage is not None else self._context.config.test.coverage
+        should_skip_services = skip_services if skip_services is not None else self._context.config.test.skip_services
 
-        # Determine if we should skip services (CLI arg > config)
-        should_skip_services = (
-            skip_services if skip_services is not None else self._context.config.test.skip_services
-        )
-
-        services_started = False
-        console = None
-        service_env_vars = {}
+        # Setup phase: start services and prepare environment
+        services_started, console, service_env_vars = self._setup_test_environment(should_skip_services)
 
         try:
-            # Start services if not skipped, unless already running (fast
-            # path: just load the existing connection details in that case)
-            if not should_skip_services:
-                already_running = self._services_manager.are_services_running()
+            # Ensure venv exists and install dependencies
+            self._ensure_test_environment(use_coverage, console)
 
-                if not already_running and not self._quiet:
-                    from oarepo_cli.ui import ConsoleOutput
-
-                    console = ConsoleOutput(quiet=False)
-                    console.info("🚀 Starting services...", fg=None, bold=True)
-
-                service_env_vars = self._services_manager.start_services_if_needed()
-                services_started = not already_running
-
-                if services_started and not self._quiet and console:
-                    console.info("  ✓ Services started", fg=None)
-
-            # Ensure venv exists before trying to install dependencies (fast
-            # path: skip reinstalling - and validating requirements - if the
-            # venv directory is already there)
-            venv_existed = self._context.venv_path.exists()
-            if not venv_existed:
-                if not self._quiet:
-                    if console is None:
-                        from oarepo_cli.ui import ConsoleOutput
-
-                        console = ConsoleOutput(quiet=False)
-                    console.info("🔨 Creating virtual environment...", fg=None, bold=True)
-
-                requirements = VenvRequirements(
-                    python_binary=str(self._context.python_binary),
-                    oarepo_version=self._context.oarepo_version,
-                    extras=[],
-                    editable=True,
-                )
-                venv_mgr = VirtualEnvironmentManager(
-                    config=self._context.config, project_root=self._context.root_directory
-                )
-                venv_mgr.ensure_venv_exists(requirements, quiet=self._quiet)
-
-                if not self._quiet and console:
-                    console.info("  ✓ Virtual environment created", fg=None)
-
-            # Ensure pytest and coverage are installed if needed
-            self._ensure_test_dependencies(use_coverage)
-
-            # Build pytest command
+            # Build and run pytest command
             pytest_cmd = self._build_pytest_command(pytest_args, use_coverage)
 
-            # Run pytest (don't check=True so we can always clean up services)
-            result = process.run(
+            return process.run(
                 pytest_cmd,
                 cwd=self._context.root_directory,
-                env=service_env_vars if service_env_vars else None,
+                env=service_env_vars or None,
                 check=False,
                 output_mode=ProcessOutputMode.INTERACTIVE,
             )
 
-            return result
-
         finally:
-            # Always stop services if we started them
-            if services_started:
-                if not self._quiet:
-                    if console is None:
-                        from oarepo_cli.ui import ConsoleOutput
+            # Cleanup phase: stop services if we started them
+            self._cleanup_test_environment(services_started, console)
 
-                        console = ConsoleOutput(quiet=False)
-                    console.info("🛑 Stopping services...", fg=None, bold=True)
+    def _setup_test_environment(self, skip_services: bool) -> tuple[bool, ConsoleOutput | None, dict[str, str]]:
+        """Set up the test environment (start services, etc.).
 
-                with contextlib.suppress(Exception):
-                    # Don't let service cleanup errors mask test failures
-                    self._services_manager.stop_services()
+        Args:
+            skip_services: Whether to skip starting services
 
-                if not self._quiet and console:
-                    console.info("  ✓ Services stopped", fg=None)
+        Returns:
+            Tuple of (services_started, console, service_env_vars)
+
+        """
+        console: ConsoleOutput | None = None
+        service_env_vars: dict[str, str] = {}
+        services_started = False
+
+        if not skip_services:
+            already_running = self._services_manager.are_services_running()
+
+            if not already_running and not self._quiet:
+                console = ConsoleOutput(quiet=False)
+                console.info("🚀 Starting services...", fg=None, bold=True)
+
+            service_env_vars = self._services_manager.start_services_if_needed()
+            services_started = not already_running
+
+            if services_started and not self._quiet and console:
+                console.info("  ✓ Services started", fg=None)
+
+        return services_started, console, service_env_vars
+
+    def _ensure_test_environment(self, use_coverage: bool, console: ConsoleOutput | None) -> None:
+        """Ensure virtual environment and test dependencies exist.
+
+        Args:
+            use_coverage: Whether coverage is enabled
+            console: Console output instance (may be None)
+
+        """
+        # Ensure venv exists before trying to install dependencies
+        venv_existed = self._context.venv_path.exists()
+        if not venv_existed:
+            if not self._quiet:
+                if console is None:
+                    from oarepo_cli.ui import ConsoleOutput
+
+                    console = ConsoleOutput(quiet=False)
+                console.info("🔨 Creating virtual environment...", fg=None, bold=True)
+
+            requirements = VenvRequirements(
+                python_binary=str(self._context.python_binary),
+                oarepo_version=self._context.oarepo_version,
+                extras=[],
+                editable=True,
+            )
+            venv_mgr = VirtualEnvironmentManager(config=self._context.config, project_root=self._context.root_directory)
+            venv_mgr.ensure_venv_exists(requirements, quiet=self._quiet)
+
+            if not self._quiet and console:
+                console.info("  ✓ Virtual environment created", fg=None)
+
+        # Ensure pytest and coverage are installed if needed
+        self._ensure_test_dependencies(use_coverage)
+
+    def _cleanup_test_environment(self, services_started: bool, console: ConsoleOutput | None) -> None:
+        """Clean up the test environment (stop services, etc.).
+
+        Args:
+            services_started: Whether we started services
+            console: Console output instance (may be None)
+
+        """
+        if services_started:
+            if not self._quiet:
+                if console is None:
+                    from oarepo_cli.ui import ConsoleOutput
+
+                    console = ConsoleOutput(quiet=False)
+                console.info("🛑 Stopping services...", fg=None, bold=True)
+
+            with contextlib.suppress(Exception):
+                # Don't let service cleanup errors mask test failures
+                self._services_manager.stop_services()
+
+            if not self._quiet and console:
+                console.info("  ✓ Services stopped", fg=None)
 
     def _ensure_test_dependencies(self, use_coverage: bool) -> None:
         """Ensure pytest and coverage dependencies are installed.
 
         Args:
             use_coverage: Whether coverage reporting is enabled
+
         """
         # Use uv pip to install in the project venv
         python_bin = self._context.venv_path / "bin" / "python"
@@ -215,6 +240,7 @@ class TestOrchestrator:
 
         Returns:
             Complete pytest command as list of arguments
+
         """
         # Use the venv's pytest
         pytest_bin = self._context.venv_path / "bin" / "pytest"

@@ -23,6 +23,7 @@ class ConsoleOutput:
 
         Args:
             quiet: If True, suppress info/success messages (errors/warnings still shown)
+
         """
         self._quiet = quiet
 
@@ -37,6 +38,7 @@ class ConsoleOutput:
         Args:
             message: Message to print
             **kwargs: Same arguments as typer.secho (fg, bg, bold, etc.)
+
         """
         if not self._quiet:
             typer.secho(message, **kwargs)
@@ -47,6 +49,7 @@ class ConsoleOutput:
         Args:
             message: Message to print
             **kwargs: Same arguments as typer.secho (fg, bg, bold, etc.)
+
         """
         if not self._quiet:
             typer.secho(message, **kwargs)
@@ -58,6 +61,7 @@ class ConsoleOutput:
             message: Message to print
             **kwargs: Same arguments as typer.secho (fg, bg, bold, etc.)
                      err=True by default for warnings
+
         """
         # Default to stderr for warnings
         if "err" not in kwargs:
@@ -71,6 +75,7 @@ class ConsoleOutput:
             message: Message to print
             **kwargs: Same arguments as typer.secho (fg, bg, bold, etc.)
                      err=True by default for errors
+
         """
         # Default to stderr for errors
         if "err" not in kwargs:

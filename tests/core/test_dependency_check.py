@@ -68,5 +68,5 @@ def test_error_message_points_to_cesnet_registry(mocker) -> None:
         "oarepo_cli.core.dependency_check.version",
         return_value="1.12.0",
     )
-    with pytest.raises(VersionMismatchError, match="gitlab.cesnet.cz"):
+    with pytest.raises(VersionMismatchError, match=r"gitlab\.cesnet\.cz"):
         check_invenio_cli_version()

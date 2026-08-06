@@ -30,13 +30,13 @@ def check_invenio_cli_version() -> None:
     Raises:
         VersionMismatchError: If invenio-cli is missing or is not a
             CESNET-patched build.
+
     """
     try:
         installed_version = version("invenio-cli")
     except PackageNotFoundError as exc:
         raise VersionMismatchError(
-            "invenio-cli is not installed. Install the CESNET-patched build "
-            f"from {CESNET_PYPI_INDEX_URL}"
+            f"invenio-cli is not installed. Install the CESNET-patched build from {CESNET_PYPI_INDEX_URL}"
         ) from exc
 
     try:

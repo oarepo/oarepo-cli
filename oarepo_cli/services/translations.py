@@ -26,6 +26,7 @@ def _tool_path(name: str) -> str:
         Absolute path to the binary if found next to the current
         interpreter, otherwise the bare name (resolved via PATH by the
         subprocess call).
+
     """
     candidate = Path(sys.executable).parent / name
     return str(candidate) if candidate.exists() else name
@@ -46,6 +47,7 @@ def run_translations(
 
     Returns:
         ProcessResult from the make-translations command
+
     """
     extra_args = extra_args or []
     make_translations = _tool_path("make-translations")
@@ -77,6 +79,7 @@ def copy_translations(
 
     Raises:
         ProcessExecutionError: If site-packages detection or copy fails
+
     """
     # Get site-packages directory from the venv Python
     result = process.run(
@@ -88,7 +91,7 @@ def copy_translations(
 
     # Determine source directory
     if collected_translations_dir is None:
-        # Default: oarepo/collected_translations in site-packages
+        # Default is the "oarepo/collected_translations" in site-packages
         src = site_packages / "oarepo" / "collected_translations"
     else:
         src = Path(collected_translations_dir)
@@ -96,21 +99,12 @@ def copy_translations(
     # Check if source exists
     if not src.exists():
         if not quiet:
-            import sys
+            pass
 
-            print(
-                f"\n⚠️  No translations to overlay (looked at: {src}), skipping",
-                file=sys.stderr,
-            )
         return
 
     if not quiet:
-        import sys
-
-        print(
-            f"\n→ Overlaying translations from {src} onto {site_packages}",
-            file=sys.stderr,
-        )
+        pass
 
     # Use cp -R to recursively copy and merge
     # The /. pattern copies contents and merges into existing directories (works on both BSD and GNU cp)
@@ -126,6 +120,4 @@ def copy_translations(
             shutil.copy2(item, dest)
 
     if not quiet:
-        import sys
-
-        print("✓ Translation overlay applied\n", file=sys.stderr)
+        pass

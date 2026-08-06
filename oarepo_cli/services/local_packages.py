@@ -60,6 +60,7 @@ class LocalPackageManager:
         Args:
             context: Project context with paths and configuration
             console: Console output handler for status messages
+
         """
         self._context = context
         self._console = console
@@ -81,6 +82,7 @@ class LocalPackageManager:
 
         Raises:
             ConfigurationError: If ``path`` has no ``pyproject.toml``
+
         """
         package_pyproject = path / "pyproject.toml"
         if not package_pyproject.exists():
@@ -122,15 +124,14 @@ class LocalPackageManager:
 
         Raises:
             ConfigurationError: If ``name`` isn't a known local package
+
         """
         canonical_name = canonicalize_name(name)
         document = self._read_document()
 
         sources = document.get("tool", {}).get("uv", {}).get("sources", {})
         if canonical_name not in sources:
-            raise ConfigurationError(
-                f"No local package named '{canonical_name}' found in [tool.uv.sources]."
-            )
+            raise ConfigurationError(f"No local package named '{canonical_name}' found in [tool.uv.sources].")
 
         self._console.info(f"→ Removing local package '{canonical_name}'\n")
 
@@ -167,6 +168,7 @@ class LocalPackageManager:
         Returns:
             The canonical names of the packages that were removed (possibly
             empty)
+
         """
         names = self.list_local_packages()
         for name in names:
@@ -183,6 +185,7 @@ class LocalPackageManager:
 
         Returns:
             Parsed TOML document as a tomlkit object
+
         """
         return tomlkit.parse(self._context.pyproject_path.read_text(encoding="utf-8"))
 
@@ -191,6 +194,7 @@ class LocalPackageManager:
 
         Args:
             document: The TOML document to write
+
         """
         self._context.pyproject_path.write_text(tomlkit.dumps(document), encoding="utf-8")
 
@@ -202,6 +206,7 @@ class LocalPackageManager:
 
         Returns:
             The [tool.uv.sources] table, creating intermediate tables if needed
+
         """
         tool = document.setdefault("tool", tomlkit.table())
         uv = tool.setdefault("uv", tomlkit.table())
@@ -234,6 +239,7 @@ def _has_dependency(dependencies: Array, name: str) -> bool:
 
     Returns:
         True if a dependency with the given name exists, False otherwise
+
     """
     return any(_dependency_name(dep) == name for dep in dependencies)
 
@@ -244,6 +250,7 @@ def _remove_dependency(dependencies: Array, name: str) -> None:
     Args:
         dependencies: TOML array of dependency specifiers to modify in-place
         name: Canonicalized package name to remove
+
     """
     for index, dep in enumerate(list(dependencies)):
         if _dependency_name(dep) == name:

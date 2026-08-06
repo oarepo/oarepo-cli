@@ -50,13 +50,13 @@ def register_active_process(process: subprocess.Popen[Any]) -> None:
     subprocess at a time (no concurrent/background children), so there's
     at most one to track.
     """
-    global _active_process
+    global _active_process  # noqa: PLW0603 global variable to track the active child process
     _active_process = process
 
 
 def unregister_active_process() -> None:
     """Clear the active child subprocess record once it has finished."""
-    global _active_process
+    global _active_process  # noqa: PLW0603 global variable to track the active child process
     _active_process = None
 
 
@@ -75,7 +75,7 @@ def _forward_sigterm(signum: int, _frame: object) -> None:
 
 def install() -> None:
     """Install the SIGTERM handler. Idempotent -- call once, at CLI startup."""
-    global _installed
+    global _installed  # noqa: PLW0603 global variable to track whether the handler is installed
     if _installed:
         return
     signal.signal(signal.SIGTERM, _forward_sigterm)

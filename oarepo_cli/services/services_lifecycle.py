@@ -31,6 +31,7 @@ class ServicesLifecycleManager:
             config: CLI configuration with service settings
             project_root: Root directory of the project (where .env-services is written)
             quiet: If True, suppress docker-services-cli output
+
         """
         self._config = config
         self._project_root = project_root
@@ -48,6 +49,7 @@ class ServicesLifecycleManager:
 
         Raises:
             ProcessExecutionError: If docker-services-cli fails
+
         """
         if self._config.services.skip:
             return {}
@@ -83,9 +85,7 @@ class ServicesLifecycleManager:
         self._env_file.write_text(result.stdout)
 
         # Parse environment variables from output
-        env_vars = self._parse_env_file(result.stdout)
-
-        return env_vars
+        return self._parse_env_file(result.stdout)
 
     def start_services_if_needed(self) -> dict[str, str]:
         """Start services unless already running, and return connection env vars.
@@ -102,6 +102,7 @@ class ServicesLifecycleManager:
 
         Raises:
             ProcessExecutionError: If docker-services-cli fails
+
         """
         if self.are_services_running():
             return self.load_service_env()
@@ -115,6 +116,7 @@ class ServicesLifecycleManager:
 
         Raises:
             ProcessExecutionError: If docker-services-cli fails
+
         """
         if self._config.services.skip:
             return
@@ -148,6 +150,7 @@ class ServicesLifecycleManager:
 
         Raises:
             ValueError: If .env-services file is malformed
+
         """
         if not self._env_file.exists():
             return {}
@@ -160,6 +163,7 @@ class ServicesLifecycleManager:
 
         Returns:
             True if .env-services file exists, False otherwise
+
         """
         return self._env_file.exists()
 
@@ -174,17 +178,17 @@ class ServicesLifecycleManager:
 
         Raises:
             ValueError: If content is malformed
+
         """
         env_vars = {}
 
-        for line in content.strip().split("\n"):
-            line = line.strip()
+        for raw_line in content.strip().split("\n"):
+            line = raw_line.strip()
             if not line or line.startswith("#"):
                 continue
 
             # Handle export statements
-            if line.startswith("export "):
-                line = line[7:]  # Remove "export " prefix
+            line = line.removeprefix("export ")  # Remove "export " prefix
 
             # Split on first =
             if "=" not in line:
@@ -195,12 +199,7 @@ class ServicesLifecycleManager:
             value = value.strip()
 
             # Remove quotes if present
-            if (
-                value.startswith('"')
-                and value.endswith('"')
-                or value.startswith("'")
-                and value.endswith("'")
-            ):
+            if (value.startswith('"') and value.endswith('"')) or (value.startswith("'") and value.endswith("'")):
                 value = value[1:-1]
 
             env_vars[key] = value

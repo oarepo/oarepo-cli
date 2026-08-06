@@ -101,17 +101,17 @@ def test_validation_with_different_python_binary_formats() -> None:
 def test_extract_python_version_from_binary_path() -> None:
     """Test extraction of Python version from various binary path formats."""
     req = VenvRequirements(python_binary="python3.14")
-    assert req._extract_python_version() == "3.14"
+    assert req._extract_python_version() == "3.14"  # noqa: SLF001
 
     req = VenvRequirements(python_binary="/usr/bin/python3.13")
-    assert req._extract_python_version() == "3.13"
+    assert req._extract_python_version() == "3.13"  # noqa: SLF001
 
     req = VenvRequirements(python_binary="python3")
-    assert req._extract_python_version() == "3"
+    assert req._extract_python_version() == "3"  # noqa: SLF001
 
     # Edge case: just "python" (unusual but should handle gracefully)
     req = VenvRequirements(python_binary="python")
-    assert req._extract_python_version() == "3"
+    assert req._extract_python_version() == "3"  # noqa: SLF001
 
 
 def test_validation_fails_with_incompatible_versions() -> None:

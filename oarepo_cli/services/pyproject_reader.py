@@ -74,14 +74,10 @@ class PyProjectData:
             drifting out of sync -- see the deprecated-config warning
             below. Version constraints are parsed using
             packaging.requirements.
+
         """
         # Check for deprecated [tool.oarepo-cli].oarepo.version config and warn
-        if (
-            deprecated_version := self.raw.get("tool", {})
-            .get("oarepo-cli", {})
-            .get("oarepo", {})
-            .get("version")
-        ):
+        if deprecated_version := self.raw.get("tool", {}).get("oarepo-cli", {}).get("oarepo", {}).get("version"):
             logger.warning(
                 "[tool.oarepo-cli].oarepo.version = %s is deprecated and ignored. "
                 "OARepo versions are now extracted from [project].dependencies "
@@ -119,9 +115,7 @@ class PyProjectData:
         or ``<package_name>/`` directory. Empty if the project uses a
         different build backend or doesn't set this key.
         """
-        return (
-            self.raw.get("tool", {}).get("uv", {}).get("build-backend", {}).get("module-name", [])
-        )
+        return self.raw.get("tool", {}).get("uv", {}).get("build-backend", {}).get("module-name", [])
 
     @property
     def uv_build_module_root(self) -> str:
@@ -129,9 +123,7 @@ class PyProjectData:
 
         Defaults to "" (project root itself), matching ``uv_build``'s own default.
         """
-        return (
-            self.raw.get("tool", {}).get("uv", {}).get("build-backend", {}).get("module-root", "")
-        )
+        return self.raw.get("tool", {}).get("uv", {}).get("build-backend", {}).get("module-root", "")
 
 
 def _extract_oarepo_version_from_specifier(dep_spec: str) -> int | None:
@@ -148,10 +140,15 @@ def _extract_oarepo_version_from_specifier(dep_spec: str) -> int | None:
         Returns None for invalid specifiers (logs warning).
 
     Example:
-        >>> _extract_oarepo_version_from_specifier("oarepo>=14.0.0,<15.0.0")
+        >>> _extract_oarepo_version_from_specifier(
+        ...     "oarepo>=14.0.0,<15.0.0"
+        ... )
         14
-        >>> _extract_oarepo_version_from_specifier("other-package>=1.0")
+        >>> _extract_oarepo_version_from_specifier(
+        ...     "other-package>=1.0"
+        ... )
         None
+
     """
     try:
         req = Requirement(dep_spec)
@@ -167,8 +164,7 @@ def _extract_oarepo_version_from_specifier(dep_spec: str) -> int | None:
         if spec.operator in (">=", "==", "~="):
             # Parse version string (e.g., "14.0.0" -> 14)
             version_str = spec.version
-            major = int(version_str.split(".")[0])
-            return major
+            return int(version_str.split(".")[0])
 
     return None
 
@@ -187,6 +183,7 @@ class PyProjectReader:
 
         Raises:
             ConfigurationError: If the file is missing or contains invalid TOML
+
         """
         from oarepo_cli.core.errors import ConfigurationError
 

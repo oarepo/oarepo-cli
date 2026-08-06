@@ -33,6 +33,7 @@ See Also:
 - core/dependency_check.py: Validates invenio-cli is the CESNET-patched version
 - services/process.py: build_subprocess_env() handles venv stripping
 - cli/repository.py: Commands that use these functions
+
 """
 
 from __future__ import annotations
@@ -52,7 +53,7 @@ from oarepo_cli.services.process import ProcessOutputMode
 
 
 def _default_prerelease_env() -> dict[str, str]:
-    """Base env for uv invocations in a repository project.
+    """Set base env for uv invocations in a repository project.
 
     Mirrors ``repository_runner.sh``'s ``export UV_PRERELEASE=${UV_PRERELEASE:-"allow"}``:
     every uv command run for a repository allows pre-release versions (e.g. RDM
@@ -82,6 +83,7 @@ def _invenio_cli_path() -> str:
         Absolute path to the binary if found next to the current
         interpreter, otherwise the bare name (resolved via PATH by the
         subprocess call).
+
     """
     candidate = Path(sys.executable).parent / "invenio-cli"
     return str(candidate) if candidate.exists() else "invenio-cli"
@@ -114,6 +116,7 @@ def run_invenio_cli(
 
     Raises:
         ProcessExecutionError: If check=True and command fails
+
     """
     run_env = _default_prerelease_env()
     if env:
@@ -166,9 +169,10 @@ def exec_invenio_cli(
     Raises:
         OSError: If the invenio-cli binary can't be exec'd (not found, not
             executable, ...)
+
     """
     run_env = process.build_subprocess_env({**_default_prerelease_env(), **(env or {})})
 
     os.chdir(context.root_directory)
     binary = _invenio_cli_path()
-    os.execvpe(binary, [binary, *args], run_env)
+    os.execvpe(binary, [binary, *args], run_env)  # noqa S606 no shell is ok here, replacing the process

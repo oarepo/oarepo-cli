@@ -61,7 +61,11 @@ tests = [
     "pytest-mock>=3.14.0",
 ]
 oarepo14 = [
-    # just for installation, no code dependency
+    # Never installed (no Makefile/CI target requests this extra) -- exists
+    # solely so PyProjectData.oarepo_versions (see pyproject_reader.py) can
+    # detect "14" for `oarepo-cli library oarepo-versions`, which drives the
+    # CI test matrix in run.sh/.github/workflows.
+    "oarepo>=14.0.0,<15.0.0",
 ]
 
 # CESNET GitLab PyPI registry, used to resolve the CESNET-patched

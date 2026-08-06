@@ -53,7 +53,7 @@ Homepage = "https://github.com/example/test-package"
 
 def test_oarepo_versions_json_format(
     runner: CliRunner,
-    sample_project_with_versions: Path,  # noqa: ARG001
+    sample_project_with_versions: Path,
 ) -> None:
     """Test that oarepo-versions outputs valid JSON."""
     result = runner.invoke(app, ["library", "oarepo-versions"])
@@ -76,7 +76,7 @@ def test_oarepo_versions_json_format(
 
 def test_oarepo_versions_correct_values(
     runner: CliRunner,
-    sample_project_with_versions: Path,  # noqa: ARG001
+    sample_project_with_versions: Path,
 ) -> None:
     """Test that oarepo-versions extracts correct version values."""
     result = runner.invoke(app, ["library", "oarepo-versions"])
@@ -105,7 +105,7 @@ def test_oarepo_versions_correct_values(
 
 def test_oarepo_versions_pipeable(
     runner: CliRunner,
-    sample_project_with_versions: Path,  # noqa: ARG001
+    sample_project_with_versions: Path,
 ) -> None:
     """Test that output is clean and pipeable (no extra text on stdout)."""
     result = runner.invoke(app, ["library", "oarepo-versions"])

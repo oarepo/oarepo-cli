@@ -28,5 +28,6 @@ def read_text(filename: str) -> str:
 
     Returns:
         The file's contents as text
+
     """
     return resources.files(__package__).joinpath(filename).read_text(encoding="utf-8")

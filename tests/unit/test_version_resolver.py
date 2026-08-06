@@ -41,9 +41,7 @@ requires-python = ">=3.12,<3.15"
     assert all(Version(v) < Version("3.15") for v in versions), "All versions should be < 3.15"
     # Verify sorted highest-first
     for i in range(len(versions) - 1):
-        assert Version(versions[i]) > Version(versions[i + 1]), (
-            "Versions should be sorted highest-first"
-        )
+        assert Version(versions[i]) > Version(versions[i + 1]), "Versions should be sorted highest-first"
 
 
 def test_version_range_parsing_gte_only(tmp_path: Path) -> None:
@@ -217,7 +215,7 @@ def test_version_info_is_immutable() -> None:
     )
 
     with pytest.raises(FrozenInstanceError):
-        object.__setattr__(info, "oarepo_versions", [15])  # type: ignore[misc]
+        info.oarepo_versions = [15]  # ty: ignore[invalid-assignment]
 
 
 def test_parse_requires_python_with_complex_constraint() -> None:
@@ -225,13 +223,13 @@ def test_parse_requires_python_with_complex_constraint() -> None:
     resolver = VersionResolver()
 
     # Test various constraint formats - verify behavior works with current KNOWN_PYTHON_VERSIONS
-    result = resolver._parse_requires_python(">=3.10,<3.15")
+    result = resolver._parse_requires_python(">=3.10,<3.15")  # noqa: SLF001
     # With KNOWN_PYTHON_VERSIONS=["3.14"], should include 3.14
     assert "3.14" in result, "Should include 3.14 (which is in range >=3.10,<3.15)"
     assert all(Version(v) >= Version("3.10") for v in result), "All versions should be >= 3.10"
     assert all(Version(v) < Version("3.15") for v in result), "All versions should be < 3.15"
 
-    result = resolver._parse_requires_python(">=3.13")
+    result = resolver._parse_requires_python(">=3.13")  # noqa: SLF001
     assert all(Version(v) >= Version("3.13") for v in result), "All versions should be >= 3.13"
     # With current KNOWN_PYTHON_VERSIONS=["3.14"], should include 3.14
     assert "3.14" in result

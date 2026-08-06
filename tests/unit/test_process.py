@@ -133,18 +133,14 @@ def test_get_output_returns_stripped_stdout() -> None:
 
 def test_capture_output_false_returns_empty_strings() -> None:
     """INTERACTIVE mode never captures output, so stdout/stderr are both empty strings."""
-    result = process.run(
-        ["echo", "hidden"], output_mode=process.ProcessOutputMode.INTERACTIVE, check=False
-    )
+    result = process.run(["echo", "hidden"], output_mode=process.ProcessOutputMode.INTERACTIVE, check=False)
     assert result.stdout == ""
     assert result.stderr == ""
 
 
 def test_forward_output_mode_is_accepted() -> None:
     """FORWARD mode runs successfully (capturing output while also displaying it)."""
-    result = process.run(
-        ["echo", "test"], output_mode=process.ProcessOutputMode.FORWARD, check=False
-    )
+    result = process.run(["echo", "test"], output_mode=process.ProcessOutputMode.FORWARD, check=False)
     assert result.return_code == 0
 
 
@@ -179,8 +175,7 @@ def _sigterm_worker(child_pid_file: str) -> None:
         [
             sys.executable,
             "-c",
-            f"import os; open({child_pid_file!r}, 'w').write(str(os.getpid())); "
-            "import time; time.sleep(30)",
+            f"import os; open({child_pid_file!r}, 'w').write(str(os.getpid())); import time; time.sleep(30)",
         ],
         check=False,
     )
@@ -188,10 +183,11 @@ def _sigterm_worker(child_pid_file: str) -> None:
 
 @pytest.mark.skipif(sys.platform == "win32", reason="POSIX signal semantics assumed")
 def test_sigterm_forwarded_to_child_and_worker_exits_cleanly(tmp_path: Path) -> None:
-    """A SIGTERM sent to a process that's inside process.run() is forwarded to
-    its child subprocess (which is killed, not orphaned), and the process
-    itself exits via SystemExit(143) rather than hanging or leaving a
-    traceback."""
+    """SIGTERM sent to process.run() is forwarded to child subprocess.
+
+    The child subprocess is killed, not orphaned, and the process itself
+    exits via SystemExit(143) rather than hanging or leaving a traceback.
+    """
     child_pid_file = tmp_path / "child.pid"
 
     worker = multiprocessing.Process(target=_sigterm_worker, args=(str(child_pid_file),))

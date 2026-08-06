@@ -72,7 +72,7 @@ def test_non_editable_uses_wheel_not_sync(
     wheel_path = dist_dir / "test_project-0.1.0-py3-none-any.whl"
 
     # Mock uv build - use callback to create the wheel file after build is called
-    def create_wheel_callback(_process):
+    def create_wheel_callback(_process) -> None:
         dist_dir.mkdir(exist_ok=True)
         wheel_path.touch()
 

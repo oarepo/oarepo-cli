@@ -29,19 +29,17 @@ def runner() -> CliRunner:
 
 @pytest.fixture
 def testlib_without_gitignored_uv_lock(clean_testlib: Path) -> Iterator[Path]:
-    """Temporarily strip any ``uv.lock`` line from testlib's real, checked-in
-    .gitignore, restoring the original content afterward.
+    """Temporarily strip any ``uv.lock`` line from testlib's gitignore.
 
-    testlib's own .gitignore already lists ``uv.lock`` (it's a member of
-    this repo's root uv workspace), so ``test_uv_lock_added_to_gitignore``
-    needs a .gitignore that doesn't have it yet to verify `library venv`
-    adds it dynamically, without permanently mutating the committed fixture.
+    Restores the original content afterward. Testlib's own .gitignore already
+    lists ``uv.lock`` (it's a member of this repo's root uv workspace), so
+    ``test_uv_lock_added_to_gitignore`` needs a .gitignore that doesn't have
+    it yet to verify `library venv` adds it dynamically, without permanently
+    mutating the committed fixture.
     """
     gitignore = clean_testlib / ".gitignore"
     original_content = gitignore.read_text()
-    stripped_content = "\n".join(
-        line for line in original_content.splitlines() if line.strip() != "uv.lock"
-    )
+    stripped_content = "\n".join(line for line in original_content.splitlines() if line.strip() != "uv.lock")
     gitignore.write_text(stripped_content + "\n")
     try:
         yield clean_testlib
@@ -120,7 +118,7 @@ def test_venv_with_extras_includes_in_sync(
         # Check pip list in the venv
         import subprocess
 
-        pip_list = subprocess.run(
+        pip_list = subprocess.run(  # noqa: S603 - just a test, not a security issue to run the program
             [str(venv_path / "bin" / "python"), "-m", "pip", "list"],
             capture_output=True,
             text=True,
@@ -181,7 +179,7 @@ def test_sync_installs_project_editable(
         # Check if testlib is installed in editable mode
         import subprocess
 
-        pip_list = subprocess.run(
+        pip_list = subprocess.run(  # noqa: S603 - just a test, not a security issue to run the program
             [str(venv_path / "bin" / "python"), "-m", "pip", "list", "--format=freeze"],
             capture_output=True,
             text=True,
@@ -278,7 +276,7 @@ def test_sync_respects_pyproject_dependencies(
         # Verify that dependencies from pyproject.toml are installed
         import subprocess
 
-        pip_list = subprocess.run(
+        pip_list = subprocess.run(  # noqa: S603 - just a test, not a security issue to run the program
             [str(venv_path / "bin" / "python"), "-m", "pip", "list"],
             capture_output=True,
             text=True,

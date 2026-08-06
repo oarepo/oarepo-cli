@@ -9,7 +9,7 @@ import pytest
 
 from oarepo_cli.core.errors import (
     ConfigurationError,
-    FileNotFoundError,
+    FileNotFoundExitCodeError,
     OARepoError,
     ProcessExecutionError,
     ValidationError,
@@ -50,8 +50,8 @@ def test_process_execution_error_can_be_raised() -> None:
 
 def test_file_not_found_error_can_be_raised() -> None:
     """FileNotFoundError can be raised and caught like any exception."""
-    with pytest.raises(FileNotFoundError):
-        raise FileNotFoundError("File not found")
+    with pytest.raises(FileNotFoundExitCodeError):
+        raise FileNotFoundExitCodeError("File not found")
 
 
 def test_validation_error_can_be_raised() -> None:
@@ -65,7 +65,7 @@ def test_all_exceptions_are_subclasses_of_base() -> None:
     assert issubclass(ConfigurationError, OARepoError)
     assert issubclass(VersionMismatchError, OARepoError)
     assert issubclass(ProcessExecutionError, OARepoError)
-    assert issubclass(FileNotFoundError, OARepoError)
+    assert issubclass(FileNotFoundExitCodeError, OARepoError)
     assert issubclass(ValidationError, OARepoError)
 
 
@@ -104,7 +104,7 @@ def test_process_execution_error_exit_code() -> None:
 
 def test_file_not_found_error_exit_code() -> None:
     """FileNotFoundError.exit_code is 13."""
-    assert FileNotFoundError.exit_code == 13
+    assert FileNotFoundExitCodeError.exit_code == 13
 
 
 def test_validation_error_exit_code() -> None:

@@ -19,7 +19,7 @@ def test_license_header_check_detects_missing(tmp_path: Path) -> None:
     missing_file = tmp_path / "src" / "no_header.py"
     missing_file.write_text('"""No header here."""\n')
     has_header_file = tmp_path / "src" / "has_header.py"
-    has_header_file.write_text('# Copyright (c) 2026 Example Org.\n\n"""Has a header."""\n')
+    has_header_file.write_text('# SPDX-License-Identifier: MIT\n\n"""Has a header."""\n')
 
     missing = check_license_headers([tmp_path / "src"])
 
@@ -29,7 +29,7 @@ def test_license_header_check_detects_missing(tmp_path: Path) -> None:
 def test_license_header_check_passes_with_header(tmp_path: Path) -> None:
     """Test check_license_headers returns nothing when all files have a header."""
     (tmp_path / "src").mkdir()
-    (tmp_path / "src" / "ok.py").write_text("# Copyright (c) 2026 Example Org.\n")
+    (tmp_path / "src" / "ok.py").write_text("# SPDX-License-Identifier: MIT\n")
 
     assert check_license_headers([tmp_path / "src"]) == []
 

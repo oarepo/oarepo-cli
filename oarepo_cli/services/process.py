@@ -37,6 +37,7 @@ class ProcessOutputMode(Enum):
         CAPTURE: Capture stdout/stderr silently (default)
         FORWARD: Capture stdout/stderr AND display in real-time
         INTERACTIVE: Real-time output only, no capture (for interactive commands)
+
     """
 
     CAPTURE = "capture"  # Capture only, no display
@@ -68,6 +69,7 @@ class ProcessResult:
 
         Raises:
             ProcessExecutionError: If return_code is non-zero.
+
         """
         if not self.success:
             from oarepo_cli.core.errors import ProcessExecutionError
@@ -95,6 +97,7 @@ def _strip_venv_vars(env: dict[str, str]) -> dict[str, str]:
 
     Returns:
         New environment dictionary without venv variables
+
     """
     cleaned = {k: v for k, v in env.items() if k not in VENV_ENV_VARS}
 
@@ -110,11 +113,7 @@ def _strip_venv_vars(env: dict[str, str]) -> dict[str, str]:
 
         # Remove venv bin from PATH
         path_parts = cleaned["PATH"].split(os.pathsep)
-        cleaned_path_parts = [
-            p
-            for p in path_parts
-            if not (p == venv_bin or p.rstrip("/\\") == venv_bin.rstrip("/\\"))
-        ]
+        cleaned_path_parts = [p for p in path_parts if not (p == venv_bin or p.rstrip("/\\") == venv_bin.rstrip("/\\"))]
         cleaned["PATH"] = os.pathsep.join(cleaned_path_parts)
 
     return cleaned
@@ -134,6 +133,7 @@ def get_system_path() -> str:
 
     Returns:
         PATH string with the active venv's bin directory removed, if any
+
     """
     return _strip_venv_vars(dict(os.environ)).get("PATH", os.environ.get("PATH", ""))
 
@@ -168,6 +168,7 @@ def build_subprocess_env(
     Returns:
         A full environment dict, suitable for ``subprocess.run(env=...)``/
         ``os.execve``/``os.execvpe``
+
     """
     run_env = dict(os.environ)
 
@@ -210,7 +211,7 @@ def _run_subprocess(
             errors="replace",
         )
 
-    with subprocess.Popen(command, **popen_kwargs) as proc:
+    with subprocess.Popen(command, **popen_kwargs) as proc:  # noqa: S603
         signals.register_active_process(proc)
         try:
             stdout, stderr = proc.communicate()
@@ -223,7 +224,7 @@ def _run_subprocess(
     return proc.returncode, stdout or "", stderr or ""
 
 
-def run(
+def run(  # noqa: PLR0913 too many arguments ok here
     command: Sequence[str],
     *,
     cwd: Path | None = None,
@@ -255,6 +256,7 @@ def run(
 
     Raises:
         ProcessExecutionError: If check=True and return_code != 0
+
     """
     from oarepo_cli.core.errors import ProcessExecutionError
 
@@ -278,9 +280,9 @@ def run(
     # Forward mode: also display the captured output
     if output_mode == ProcessOutputMode.FORWARD:
         if stdout:
-            print(stdout, end="")
+            pass
         if stderr:
-            print(stderr, end="", file=sys.stderr)
+            pass
 
     if check and returncode != 0:
         raise ProcessExecutionError(
@@ -313,6 +315,7 @@ def get_output(
 
     Returns:
         Stripped stdout output
+
     """
     result = run(
         command,

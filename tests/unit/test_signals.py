@@ -39,18 +39,21 @@ def test_register_and_unregister_active_process() -> None:
     )
     try:
         signals.register_active_process(proc)
-        assert signals._active_process is proc
+        assert signals._active_process is proc  # noqa: SLF001
 
         signals.unregister_active_process()
-        assert signals._active_process is None
+        assert signals._active_process is None  # noqa: SLF001
     finally:
         proc.kill()
         proc.wait()
 
 
 def test_forward_sigterm_signals_and_waits_for_active_process() -> None:
-    """The registered child is sent SIGTERM and actually reaped before the
-    handler exits -- not left running."""
+    """Forward sigterm signals and waits for active process.
+
+    The registered child is sent SIGTERM and actually reaped before the
+    handler exits -- not left running.
+    """
     proc = subprocess.Popen(
         [sys.executable, "-c", "import time; time.sleep(5)"],
         stdout=subprocess.DEVNULL,
@@ -59,30 +62,34 @@ def test_forward_sigterm_signals_and_waits_for_active_process() -> None:
     signals.register_active_process(proc)
 
     with pytest.raises(SystemExit) as exc_info:
-        signals._forward_sigterm(signal.SIGTERM, None)
+        signals._forward_sigterm(signal.SIGTERM, None)  # noqa: SLF001
 
     assert exc_info.value.code == 128 + signal.SIGTERM
     assert proc.poll() is not None
 
 
 def test_forward_sigterm_without_active_process_just_exits() -> None:
-    """With no registered child, the handler just exits, without erroring."""
+    """Forward sigterm without active process just exits.
+
+    With no registered child, the handler just exits, without erroring.
+    """
     with pytest.raises(SystemExit) as exc_info:
-        signals._forward_sigterm(signal.SIGTERM, None)
+        signals._forward_sigterm(signal.SIGTERM, None)  # noqa: SLF001
 
     assert exc_info.value.code == 128 + signal.SIGTERM
 
 
 def test_forward_sigterm_skips_already_finished_process() -> None:
-    """A registered process that already exited isn't signaled again."""
-    proc = subprocess.Popen(
-        [sys.executable, "-c", "pass"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL
-    )
+    """Forward sigterm skips already finished process.
+
+    A registered process that already exited isn't signaled again.
+    """
+    proc = subprocess.Popen([sys.executable, "-c", "pass"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
     proc.wait()
     signals.register_active_process(proc)
 
     with pytest.raises(SystemExit):
-        signals._forward_sigterm(signal.SIGTERM, None)
+        signals._forward_sigterm(signal.SIGTERM, None)  # noqa: SLF001
 
 
 def test_install_registers_sigterm_handler(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -92,7 +99,7 @@ def test_install_registers_sigterm_handler(monkeypatch: pytest.MonkeyPatch) -> N
 
     signals.install()
 
-    assert calls == [(signal.SIGTERM, signals._forward_sigterm)]
+    assert calls == [(signal.SIGTERM, signals._forward_sigterm)]  # noqa: SLF001
 
 
 def test_install_is_idempotent(monkeypatch: pytest.MonkeyPatch) -> None:

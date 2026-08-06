@@ -28,9 +28,7 @@ def test_configure_local_ports_updates_invenio_private(tmp_path: Path) -> None:
     """Test that configure_local_ports updates .invenio.private correctly."""
     # Setup files
     invenio_private = tmp_path / ".invenio.private"
-    invenio_private.write_text(
-        "# Existing config\nsearch_port = 1234\nsome_other_setting = 'value'\n"
-    )
+    invenio_private.write_text("# Existing config\nsearch_port = 1234\nsome_other_setting = 'value'\n")
 
     variables = tmp_path / "variables"
     variables.write_text(
@@ -48,7 +46,7 @@ export INVENIO_UI_PORT=5000
     context.root_directory = tmp_path
 
     # Run function
-    repository.configure_local_ports(context, quiet=True)
+    repository.configure_local_ports(context)
 
     # Verify result
     content = invenio_private.read_text()
@@ -76,7 +74,7 @@ def test_configure_local_ports_handles_missing_variables(tmp_path: Path) -> None
     context.root_directory = tmp_path
 
     # Should not raise, but should skip update
-    repository.configure_local_ports(context, quiet=True)
+    repository.configure_local_ports(context)
 
     # Content should be unchanged (except no port variables added)
     content = invenio_private.read_text()
@@ -88,19 +86,17 @@ def test_configure_local_ports_raises_on_missing_files(tmp_path: Path) -> None:
     context = Mock(spec=ProjectContext)
     context.root_directory = tmp_path
 
-    with pytest.raises(FileNotFoundError, match=".invenio.private"):
-        repository.configure_local_ports(context, quiet=True)
+    with pytest.raises(FileNotFoundError, match=r"\.invenio\.private"):
+        repository.configure_local_ports(context)
 
     # Create .invenio.private but not variables
     (tmp_path / ".invenio.private").write_text("")
 
     with pytest.raises(FileNotFoundError, match="variables"):
-        repository.configure_local_ports(context, quiet=True)
+        repository.configure_local_ports(context)
 
 
-def test_get_instance_path_defaults_to_venv_var_instance(
-    mock_context: Mock, monkeypatch: pytest.MonkeyPatch
-) -> None:
+def test_get_instance_path_defaults_to_venv_var_instance(mock_context: Mock, monkeypatch: pytest.MonkeyPatch) -> None:
     """Without INVENIO_INSTANCE_PATH, it's <venv>/var/instance (Invenio's own default)."""
     monkeypatch.delenv("INVENIO_INSTANCE_PATH", raising=False)
     mock_context.venv_path = Path("/fake/project/.venv")
@@ -190,11 +186,12 @@ def _fake_process_result(**overrides: object) -> process.ProcessResult:
     return process.ProcessResult(**defaults)  # type: ignore[arg-type]
 
 
-def test_upgrade_repository_cleans_cache_by_default(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
-    """upgrade_repository() runs `uv cache clean --force` when clean_cache is left at its
-    default (True) -- matches `repository upgrade`'s bash-compatible behavior."""
+def test_upgrade_repository_cleans_cache_by_default(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """Upgrade repository runs uv cache clean --force by default.
+
+    Runs when clean_cache is left at its default (True). Matches
+    `repository upgrade`'s bash-compatible behavior.
+    """
     context = Mock(spec=ProjectContext)
     context.root_directory = tmp_path
     context.venv_path = tmp_path / ".venv"
@@ -207,24 +204,21 @@ def test_upgrade_repository_cleans_cache_by_default(
         return _fake_process_result()
 
     monkeypatch.setattr("oarepo_cli.services.repository.process.run", fake_run)
-    monkeypatch.setattr(
-        "oarepo_cli.services.repository.VirtualEnvironmentManager.cleanup", lambda _self: None
-    )
-    monkeypatch.setattr(
-        "oarepo_cli.services.repository.install_repository", lambda *_args, **_kwargs: None
-    )
+    monkeypatch.setattr("oarepo_cli.services.repository.VirtualEnvironmentManager.cleanup", lambda _self: None)
+    monkeypatch.setattr("oarepo_cli.services.repository.install_repository", lambda *_args, **_kwargs: None)
 
     repository.upgrade_repository(context, quiet=True)
 
     assert ["uv", "cache", "clean", "--force"] in calls
 
 
-def test_upgrade_repository_skips_cache_clean_when_disabled(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
-    """upgrade_repository(clean_cache=False) -- used by LocalPackageManager -- never runs
-    `uv cache clean`, since adding/removing a local package doesn't change any other
-    package's version and purging the cache would just force a wasted re-download."""
+def test_upgrade_repository_skips_cache_clean_when_disabled(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """Upgrade repository with clean_cache=False skips cache cleaning.
+
+    Used by LocalPackageManager -- never runs `uv cache clean`, since
+    adding/removing a local package doesn't change any other package's version
+    and purging the cache would just force a wasted re-download.
+    """
     context = Mock(spec=ProjectContext)
     context.root_directory = tmp_path
     context.venv_path = tmp_path / ".venv"
@@ -237,9 +231,7 @@ def test_upgrade_repository_skips_cache_clean_when_disabled(
         return _fake_process_result()
 
     monkeypatch.setattr("oarepo_cli.services.repository.process.run", fake_run)
-    monkeypatch.setattr(
-        "oarepo_cli.services.repository.VirtualEnvironmentManager.cleanup", lambda _self: None
-    )
+    monkeypatch.setattr("oarepo_cli.services.repository.VirtualEnvironmentManager.cleanup", lambda _self: None)
     install_calls: list[object] = []
     monkeypatch.setattr(
         "oarepo_cli.services.repository.install_repository",
@@ -253,7 +245,10 @@ def test_upgrade_repository_skips_cache_clean_when_disabled(
 
 
 def test_get_invenio_binary_resolves_venv_bin_dir(tmp_path: Path) -> None:
-    """get_invenio_binary() resolves <venv>/<bin_dir>/invenio, platform-aware."""
+    """Get invenio binary resolves venv/bin_dir/invenio.
+
+    Platform-aware.
+    """
     context = Mock(spec=ProjectContext)
     context.venv_path = tmp_path / ".venv"
 
@@ -261,12 +256,13 @@ def test_get_invenio_binary_resolves_venv_bin_dir(tmp_path: Path) -> None:
     assert repository.get_invenio_binary(context) == tmp_path / ".venv" / bin_dir / "invenio"
 
 
-def test_exec_invenio_chdirs_and_execs_resolved_binary(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
-    """exec_invenio() chdirs into the project root first (execve has no cwd of its own),
-    then execve's into the venv's own invenio binary with args appended, setting
-    PYTHONWARNINGS=ignore like repository_runner.sh's run_invenio()."""
+def test_exec_invenio_chdirs_and_execs_resolved_binary(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """Exec invenio chdirs into the project root first.
+
+    Execve has no cwd of its own, then execve's into the venv's own invenio
+    binary with args appended, setting PYTHONWARNINGS=ignore like
+    repository_runner.sh's run_invenio().
+    """
     context = Mock(spec=ProjectContext)
     context.root_directory = tmp_path
     context.venv_path = tmp_path / ".venv"
@@ -293,10 +289,12 @@ def test_exec_invenio_chdirs_and_execs_resolved_binary(
 def test_exec_invenio_and_exec_shell_apply_same_env_defaults_as_blocking_calls(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    """exec_invenio()'s and exec_shell()'s environments get the same
-    OAREPO_ENV_DEFAULTS/venv-stripping treatment any process.run() call gets,
-    rather than building their env from bare os.environ, which would silently
-    miss both."""
+    """Exec invenio and exec shell apply same env defaults as blocking calls.
+
+    Their environments get the same OAREPO_ENV_DEFAULTS/venv-stripping
+    treatment any process.run() call gets, rather than building their env from
+    bare os.environ, which would silently miss both.
+    """
     context = Mock(spec=ProjectContext)
     context.root_directory = tmp_path
     context.venv_path = tmp_path / ".venv"
@@ -328,12 +326,13 @@ def test_exec_invenio_and_exec_shell_apply_same_env_defaults_as_blocking_calls(
     assert shell_env["INVENIO_APP_THEME"] == '["semantic-ui"]'
 
 
-def test_exec_shell_sets_up_venv_activation_and_execs_bash(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
-    """exec_shell() chdirs into the project root, activates the venv (VIRTUAL_ENV/PATH,
-    VIRTUAL_ENV_PROMPT, a fallback PS1), and execve's into the default shell -- without
-    loading any .env-services variables, unlike library_shell."""
+def test_exec_shell_sets_up_venv_activation_and_execs_bash(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """Exec shell sets up venv activation and execs bash.
+
+    Chdirs into the project root, activates the venv (VIRTUAL_ENV/PATH,
+    VIRTUAL_ENV_PROMPT, a fallback PS1), and execve's into the default shell
+    -- without loading any .env-services variables, unlike library_shell.
+    """
     context = Mock(spec=ProjectContext)
     context.root_directory = tmp_path
     context.venv_path = tmp_path / ".venv"
@@ -365,11 +364,12 @@ def test_exec_shell_sets_up_venv_activation_and_execs_bash(
     assert env["BASH_SILENCE_DEPRECATION_WARNING"] == "1"
 
 
-def test_rebuild_index_runs_expected_invenio_sequence(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
-    """rebuild_index() runs the exact invenio subcommand sequence
-    repository_runner.sh's rebuild_index() does, via the bare venv invenio binary."""
+def test_rebuild_index_runs_expected_invenio_sequence(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """Rebuild index runs the expected invenio subcommand sequence.
+
+    Runs the exact invenio subcommand sequence repository_runner.sh's
+    rebuild_index() does, via the bare venv invenio binary.
+    """
     context = Mock(spec=ProjectContext)
     context.venv_path = tmp_path / ".venv"
     context.root_directory = tmp_path
@@ -394,15 +394,18 @@ def test_rebuild_index_runs_expected_invenio_sequence(
     ]
 
 
-def test_reset_repository_runs_expected_sequence(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
-    """reset_repository() destroys services (ignoring failure), wipes venv/lock/private
-    config, cleans the uv cache, reinstalls, sets up services, and seeds a demo admin."""
+def test_reset_repository_runs_expected_sequence(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """Reset repository runs the expected sequence.
+
+    Destroys services (ignoring failure), wipes venv/lock/private config,
+    cleans the uv cache, reinstalls, sets up services, and seeds a demo admin.
+    """
     context = Mock(spec=ProjectContext)
     context.root_directory = tmp_path
     context.venv_path = tmp_path / ".venv"
-    context.config = CliConfig(security=SecurityConfig(demo_user_password="testpass123"))
+    context.config = CliConfig(
+        security=SecurityConfig(demo_user_password="testpass123"),  # noqa: S106 - just a test password
+    )
 
     invenio_cli_calls: list[dict[str, object]] = []
     process_calls: list[list[str]] = []
@@ -416,9 +419,7 @@ def test_reset_repository_runs_expected_sequence(
         process_calls.append(list(command))
         return _fake_process_result()
 
-    monkeypatch.setattr(
-        "oarepo_cli.services.repository.invenio_cli.run_invenio_cli", fake_run_invenio_cli
-    )
+    monkeypatch.setattr("oarepo_cli.services.repository.invenio_cli.run_invenio_cli", fake_run_invenio_cli)
     monkeypatch.setattr("oarepo_cli.services.repository.process.run", fake_process_run)
     monkeypatch.setattr(
         "oarepo_cli.services.repository.install_repository",
@@ -473,8 +474,11 @@ def test_reset_repository_runs_expected_sequence(
 
 
 def test_list_repository_models_finds_valid_models(tmp_path: Path) -> None:
-    """list_repository_models() only counts dirs with both .copier-answers.yml and
-    model.py, extracting the version from the first `version = "..."` match."""
+    """List repository models finds valid models.
+
+    Only counts dirs with both .copier-answers.yml and model.py, extracting
+    the version from the first `version = "..."` match.
+    """
     context = Mock(spec=ProjectContext)
     context.root_directory = tmp_path
 
@@ -506,7 +510,10 @@ def test_list_repository_models_finds_valid_models(tmp_path: Path) -> None:
 
 
 def test_list_repository_models_returns_empty_without_models_dir(tmp_path: Path) -> None:
-    """No models/ directory at all -> empty list, not an error."""
+    """List repository models returns empty without models directory.
+
+    No models/ directory at all results in empty list, not an error.
+    """
     context = Mock(spec=ProjectContext)
     context.root_directory = tmp_path
 
@@ -514,8 +521,11 @@ def test_list_repository_models_returns_empty_without_models_dir(tmp_path: Path)
 
 
 def test_get_python_version_returns_stripped_output(monkeypatch: pytest.MonkeyPatch) -> None:
-    """get_python_version() runs `<python_binary> --version` and returns the stripped
-    output, mirroring repository_runner.sh's show_info()'s `"$PYTHON" --version`."""
+    """Get python version returns stripped output.
+
+    Runs `<python_binary> --version` and returns the stripped output,
+    mirroring repository_runner.sh's show_info()'s `"$PYTHON" --version`.
+    """
     context = Mock(spec=ProjectContext)
     context.python_binary = Path("/usr/bin/python3.14")
 
@@ -541,8 +551,11 @@ def _run_tests_context(tmp_path: Path, *, code_directories: list[Path]) -> Mock:
 
 
 def _mock_exec(monkeypatch: pytest.MonkeyPatch) -> list[tuple[object, ...]]:
-    """Mock os.chdir/os.execve at the repository module, so run_tests() never really
-    exec's (which would replace the test runner's own process)."""
+    """Mock os.chdir/os.execve at the repository module.
+
+    So run_tests() never really exec's (which would replace the test runner's
+    own process).
+    """
     execve_calls: list[tuple[object, ...]] = []
     monkeypatch.setattr("oarepo_cli.services.repository.os.chdir", lambda _path: None)
     monkeypatch.setattr(
@@ -552,14 +565,15 @@ def _mock_exec(monkeypatch: pytest.MonkeyPatch) -> list[tuple[object, ...]]:
     return execve_calls
 
 
-def test_run_tests_installs_pytest_when_missing(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
-    """run_tests() installs pytest into the venv's own python directly (not via a
-    "tests" extras group, unlike TestOrchestrator, and not context.python_binary,
-    which is the interpreter used to *create* the venv, not the venv's own) when it
-    isn't already there -- a fresh repository has no "tests" extras convention to
-    rely on."""
+def test_run_tests_installs_pytest_when_missing(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """Run tests installs pytest when missing.
+
+    Installs pytest into the venv's own python directly (not via a "tests"
+    extras group, unlike TestOrchestrator, and not context.python_binary,
+    which is the interpreter used to *create* the venv, not the venv's own)
+    when it isn't already there. A fresh repository has no "tests" extras
+    convention to rely on.
+    """
     context = _run_tests_context(tmp_path, code_directories=[])
     bin_dir = get_platform_detector().get_venv_bin_dir()
     venv_python = context.venv_path / bin_dir / "python"
@@ -581,10 +595,11 @@ def test_run_tests_installs_pytest_when_missing(
     assert str(context.python_binary) not in install_call
 
 
-def test_run_tests_skips_pytest_install_when_already_present(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
-    """run_tests() doesn't reinstall pytest if the venv's own binary already exists."""
+def test_run_tests_skips_pytest_install_when_already_present(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """Run tests skips pytest install when already present.
+
+    Doesn't reinstall pytest if the venv's own binary already exists.
+    """
     context = _run_tests_context(tmp_path, code_directories=[])
     bin_dir = get_platform_detector().get_venv_bin_dir()
     pytest_bin = context.venv_path / bin_dir / "pytest"
@@ -603,13 +618,15 @@ def test_run_tests_skips_pytest_install_when_already_present(
     assert not any(c[:3] == ["uv", "pip", "install"] for c in calls)
 
 
-def test_run_tests_execs_pytest_with_correct_env(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
-    """run_tests() chdirs into the project root (execve has no cwd of its own) and
-    execve's into the venv's own pytest, rather than blocking on a subprocess -- there's
-    nothing to do afterward (no services to stop, unlike library test), so a terminal
-    Ctrl+C hits pytest directly and its exit code is preserved exactly."""
+def test_run_tests_execs_pytest_with_correct_env(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """Run tests execs pytest with correct environment.
+
+    Chdirs into the project root (execve has no cwd of its own) and execve's
+    into the venv's own pytest, rather than blocking on a subprocess --
+    there's nothing to do afterward (no services to stop, unlike library test),
+    so a terminal Ctrl+C hits pytest directly and its exit code is preserved
+    exactly.
+    """
     context = _run_tests_context(tmp_path, code_directories=[])
     bin_dir = get_platform_detector().get_venv_bin_dir()
     pytest_bin = context.venv_path / bin_dir / "pytest"
@@ -637,10 +654,13 @@ def test_run_tests_execs_pytest_with_correct_env(
 def test_run_tests_covers_every_module_directory_not_a_single_package(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    """--with-coverage covers every non-tests code_directories entry by name -- unlike
-    TestOrchestrator's single [project].name-derived target, since a repository's
-    code_directories are typically several real, importable top-level packages,
-    not one src/-or-package-dir."""
+    """Run tests covers every module directory with coverage.
+
+    With --with-coverage covers every non-tests code_directories entry by
+    name -- unlike TestOrchestrator's single [project].name-derived target,
+    since a repository's code_directories are typically several real,
+    importable top-level packages, not one src/-or-package-dir.
+    """
     common = tmp_path / "common"
     i18n = tmp_path / "i18n"
     tests_dir = tmp_path / "tests"

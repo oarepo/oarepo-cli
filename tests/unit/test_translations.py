@@ -25,9 +25,7 @@ def mock_context(tmp_path: Path) -> Mock:
     return context
 
 
-def test_copy_translations_copies_files(
-    mock_context: Mock, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
+def test_copy_translations_copies_files(mock_context: Mock, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """Test that copy_translations copies files to site-packages."""
     from oarepo_cli.services import process
 

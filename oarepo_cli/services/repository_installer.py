@@ -22,9 +22,11 @@ DEVELOPMENT_CERT_SUBJECT = "/C=CH/ST=./L=./O=./OU=./CN=localhost/emailAddress=."
 
 
 def _load_yaml_data(path: Path) -> dict[str, Any]:
-    """Load a YAML answers/data file into a dict, the same way copier's own
-    ``--data-file`` CLI flag does (``copier._cli.py:data_file_switch``),
-    matching ``services.models._load_yaml_data``'s same rationale.
+    """Load a YAML answers/data file into a dict.
+
+    Loads the same way copier's own ``--data-file`` CLI flag does
+    (``copier._cli.py:data_file_switch``), matching
+    ``services.models._load_yaml_data``'s same rationale.
     """
     with path.open("rb") as f:
         return yaml.safe_load(f) or {}
@@ -57,6 +59,7 @@ class RepositoryInstaller:
 
         Args:
             console: Console output handler for status messages
+
         """
         self._console = console
 
@@ -98,6 +101,7 @@ class RepositoryInstaller:
 
         Raises:
             ConfigurationError: If config_file is given but doesn't exist
+
         """
         if config_file is not None and not config_file.exists():
             raise ConfigurationError(f"Missing repository config file: {config_file}")
@@ -165,15 +169,15 @@ class RepositoryInstaller:
         )
 
     def _clean_docker_state(self, target_dir: Path) -> None:
-        """Best-effort ``docker compose down`` for any stale containers left
-        over from a previous attempt at this repository name.
+        """Clean Docker state with best-effort ``docker compose down``.
 
-        Matches ``repository_installer.sh``'s transient ``.env`` symlink
-        (``ln -s ../variables .env``, used only so ``docker compose`` can
-        resolve its variable substitutions, then removed again
-        immediately after) -- the failure of ``docker compose down``
-        itself is ignored (``|| true`` in the shell script), since a
-        brand-new repository name should never have any containers to
+        Removes any stale containers left over from a previous attempt at
+        this repository name. Matches ``repository_installer.sh``'s
+        transient ``.env`` symlink (``ln -s ../variables .env``, used only
+        so ``docker compose`` can resolve its variable substitutions, then
+        removed again immediately after) -- the failure of ``docker compose
+        down`` itself is ignored (``|| true`` in the shell script), since
+        a brand-new repository name should never have any containers to
         remove in the first place.
         """
         docker_dir = target_dir / "docker"
@@ -203,9 +207,7 @@ class RepositoryInstaller:
             return
 
         self._console.info("→ Initializing git repository\n")
-        process.run(
-            ["git", "init", "-b", "main"], cwd=target_dir, output_mode=ProcessOutputMode.INTERACTIVE
-        )
+        process.run(["git", "init", "-b", "main"], cwd=target_dir, output_mode=ProcessOutputMode.INTERACTIVE)
         process.run(["git", "add", "."], cwd=target_dir, output_mode=ProcessOutputMode.INTERACTIVE)
         process.run(
             ["git", "commit", "-m", "Initial commit"],

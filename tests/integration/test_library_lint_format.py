@@ -38,9 +38,7 @@ def test_format_help_displays(runner: CliRunner) -> None:
     assert "format" in result.stdout.lower()
 
 
-def test_lint_passes_on_clean_code(
-    runner: CliRunner, lint_project: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
+def test_lint_passes_on_clean_code(runner: CliRunner, lint_project: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """Test that 'library lint' exits 0 on a clean project."""
     monkeypatch.chdir(lint_project)
 
@@ -56,12 +54,14 @@ def test_lint_passes_on_clean_code(
 def test_lint_does_not_swallow_non_oareporerror_exceptions(
     runner: CliRunner, lint_project: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    """A non-OARepoError raised by LintRunner propagates instead of being turned into a
-    clean "exit 1": library.py's command handlers only catch `except OARepoError`, not
-    a blanket `except Exception`, so unexpected bugs surface as real tracebacks rather
-    than being silently reported as ordinary command failures. The shared lint/format/
+    """A non-OARepoError raised by LintRunner propagates instead of being turned into a clean "exit 1".
+
+    Library.py's command handlers only catch `except OARepoError`, not a blanket
+    `except Exception`, so unexpected bugs surface as real tracebacks rather than
+    being silently reported as ordinary command failures. The shared lint/format/
     check command body lives in cli/lint_commands.py, reused by both `library lint`
-    and `repository lint`."""
+    and `repository lint`.
+    """
     monkeypatch.chdir(lint_project)
 
     def _raise_value_error(_self: object, **_kwargs: object) -> None:
@@ -86,9 +86,8 @@ def test_lint_fixes_autofixable_violation_by_default(
     # convention), so --fix wouldn't apply it there.
     module = lint_project / "src" / "cleanlib" / "extra.py"
     dirty = (
-        "# Copyright (c) 2026 Example Org.\n"
-        "#\n"
-        "# This file is a part of cleanlib.\n\n"
+        "# SPDX-FileCopyrightText: 2026 Example Org.\n"
+        "# SPDX-License-Identifier: MIT\n\n"
         '"""Extra module."""\n\n'
         "from __future__ import annotations\n\n"
         "import os\n\n\n"
@@ -116,9 +115,8 @@ def test_lint_fixes_formatting_issues_by_default(
     # just formatting that ruff format would fix.
     module = lint_project / "src" / "cleanlib" / "__init__.py"
     dirty = (
-        "# Copyright (c) 2026 Example Org.\n"
-        "#\n"
-        "# This file is a part of cleanlib.\n\n"
+        "# SPDX-FileCopyrightText: 2026 Example Org.\n"
+        "# SPDX-License-Identifier: MIT\n\n"
         '"""Sample clean module."""\n\n'
         "from __future__ import annotations\n\n\n"
         "def greet(  ) ->str:\n"
@@ -180,7 +178,8 @@ def test_lint_fails_when_future_annotations_missing(
 
     module = lint_project / "src" / "cleanlib" / "__init__.py"
     module.write_text(
-        "# Copyright (c) 2026 Example Org.\n\n"
+        "# SPDX-FileCopyrightText: 2026 Example Org.\n"
+        "# SPDX-License-Identifier: MIT\n\n"
         '"""Sample clean module."""\n\n\n'
         "def greet() -> str:\n"
         '    """Return a greeting message."""\n'
@@ -192,9 +191,7 @@ def test_lint_fails_when_future_annotations_missing(
     assert result.exit_code != 0
 
 
-def test_lint_fails_on_type_error(
-    runner: CliRunner, lint_project: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
+def test_lint_fails_on_type_error(runner: CliRunner, lint_project: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """Test that 'library lint' exits non-zero when ty finds a real type error.
 
     Exercises the ty check step specifically: the return type doesn't match
@@ -205,9 +202,8 @@ def test_lint_fails_on_type_error(
 
     module = lint_project / "src" / "cleanlib" / "__init__.py"
     module.write_text(
-        "# Copyright (c) 2026 Example Org.\n"
-        "#\n"
-        "# This file is a part of cleanlib.\n\n"
+        "# SPDX-FileCopyrightText: 2026 Example Org.\n"
+        "# SPDX-License-Identifier: MIT\n\n"
         '"""Sample clean module."""\n\n'
         "from __future__ import annotations\n\n\n"
         "def greet() -> int:\n"
@@ -220,9 +216,7 @@ def test_lint_fails_on_type_error(
     assert result.exit_code != 0
 
 
-def test_format_fixes_issues(
-    runner: CliRunner, lint_project: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
+def test_format_fixes_issues(runner: CliRunner, lint_project: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """Test that 'library format' rewrites badly-formatted code via ruff."""
     monkeypatch.chdir(lint_project)
 
@@ -231,9 +225,8 @@ def test_format_fixes_issues(
     # so this isolates the formatting behavior under test.
     module = lint_project / "src" / "cleanlib" / "__init__.py"
     dirty = (
-        "# Copyright (c) 2026 Example Org.\n"
-        "#\n"
-        "# This file is a part of cleanlib.\n\n"
+        "# SPDX-FileCopyrightText: 2026 Example Org.\n"
+        "# SPDX-License-Identifier: MIT\n\n"
         '"""Sample clean module."""\n\n'
         "from __future__ import annotations\n\n\n"
         "def greet(  ) ->str:\n"
@@ -265,9 +258,8 @@ def test_format_no_fix_previews_without_modifying(
 
     module = lint_project / "src" / "cleanlib" / "__init__.py"
     dirty = (
-        "# Copyright (c) 2026 Example Org.\n"
-        "#\n"
-        "# This file is a part of cleanlib.\n\n"
+        "# SPDX-FileCopyrightText: 2026 Example Org.\n"
+        "# SPDX-License-Identifier: MIT\n\n"
         '"""Sample clean module."""\n\n'
         "from __future__ import annotations\n\n\n"
         "def greet(  ) ->str:\n"
@@ -276,9 +268,7 @@ def test_format_no_fix_previews_without_modifying(
     )
     module.write_text(dirty)
 
-    result = runner.invoke(
-        app, ["library", "format", "--no-fix", "--quiet"], catch_exceptions=False
-    )
+    result = runner.invoke(app, ["library", "format", "--no-fix", "--quiet"], catch_exceptions=False)
 
     assert result.exit_code != 0
     assert module.read_text() == dirty
@@ -312,9 +302,8 @@ def test_format_passes_through_extra_args_to_ruff(
     monkeypatch.chdir(lint_project)
 
     dirty = (
-        "# Copyright (c) 2026 Example Org.\n"
-        "#\n"
-        "# This file is a part of cleanlib.\n\n"
+        "# SPDX-FileCopyrightText: 2026 Example Org.\n"
+        "# SPDX-License-Identifier: MIT\n\n"
         '"""{docstring}"""\n\n'
         "from __future__ import annotations\n\n\n"
         "def {func}(  ) ->str:\n"
@@ -322,9 +311,7 @@ def test_format_passes_through_extra_args_to_ruff(
         "    return   '{word}'\n"
     )
     formatted_module = lint_project / "src" / "cleanlib" / "__init__.py"
-    formatted_module.write_text(
-        dirty.format(docstring="Sample clean module.", func="greet", word="hello")
-    )
+    formatted_module.write_text(dirty.format(docstring="Sample clean module.", func="greet", word="hello"))
     untouched_module = lint_project / "src" / "cleanlib" / "other.py"
     untouched_dirty = dirty.format(docstring="Other module.", func="farewell", word="bye")
     untouched_module.write_text(untouched_dirty)
@@ -340,9 +327,7 @@ def test_format_passes_through_extra_args_to_ruff(
     assert untouched_module.read_text() == untouched_dirty
 
 
-def test_lint_requires_pyproject(
-    runner: CliRunner, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
+def test_lint_requires_pyproject(runner: CliRunner, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """Test that 'library lint' fails gracefully without pyproject.toml."""
     empty_dir = tmp_path / "empty"
     empty_dir.mkdir()

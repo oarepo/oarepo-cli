@@ -1378,7 +1378,7 @@ own help, not invenio-cli's.
 **Deliverables**:
 - Complete repository command set
 
-**Tests** (`tests/integration/test_repository_misc.py`, plus new
+**Tests** (`tests/integration/test_repository_admin.py`, plus new
 `services/repository.py` coverage in `tests/unit/test_repository_service.py`):
 - [x] Test each command executes
 - [x] Test reset confirmation prompt
@@ -1682,7 +1682,7 @@ specifically.
 **Deliverables**:
 - `oarepo-cli repository invenio <args>` mirrors `run.sh invenio <args>`
 
-**Tests** (mirroring `tests/integration/test_repository_misc.py`'s existing
+**Tests** (mirroring `tests/integration/test_repository_shell.py`'s existing
 `cli` coverage):
 - [x] Test forwards arbitrary args to the venv's `invenio` binary
 - [x] Test `--help` reaches `invenio`'s own help output
@@ -1809,7 +1809,7 @@ on Step 4.15 for correct multi-module source-directory detection.
 
 **Tests** (mirroring `tests/integration/test_library_lint_format.py`/
 `test_library_check.py`, plus CLI-wiring tests in
-`tests/integration/test_repository_misc.py`):
+`tests/integration/test_repository_lint_format.py` and `test_repository_check.py`):
 - [x] Test each command executes against a real multi-module repository
   fixture -- a new, lint-clean `lint_project_multi_module` fixture
   (`tests/integration/conftest.py`) shaped like the real `tests/testrepo`
@@ -1875,7 +1875,7 @@ call it too rather than leaving the duplicated bodies in place.
 
 **Tests** (mirroring `tests/integration/test_library_misc_commands.py`'s
 `library jslint`/`library jstest` coverage, plus CLI-wiring tests in
-`tests/integration/test_repository_misc.py`):
+`tests/integration/test_repository_jslint_jstest.py`):
 - [x] Test each command's `--help`; a full real `jstest` run needs an
   installed venv plus node/npm/webpack -- too heavy for this suite, and not
   exercised for `library jstest` either
@@ -1961,7 +1961,6 @@ reused; `services.repository.run_tests()` was added instead, and
 
 **Tests** (unit tests for `services.repository.run_tests()` in
 `tests/unit/test_repository_service.py`, CLI-wiring tests in
-`tests/integration/test_repository_misc.py`, and a new
 `tests/integration/test_repository_test.py` for real end-to-end coverage):
 - [x] Test execution against a real project fixture -- the
   `lint_project_multi_module` fixture from Step 4.18, always with
@@ -2036,7 +2035,7 @@ reused; `services.repository.run_tests()` was added instead, and
       `RepositoryInstaller.install()` now normalizes any exception from
       `copier.run_copy` into `ConfigurationError`.
 
-**Tests** (`tests/integration/test_repository_installer_e2e.py`):
+**Tests** (`tests/integration/test_repository_installer.py`):
 - [x] Test successful installation
 - [x] Test certificate files exist
 - [x] Test docker compose file present
@@ -2136,6 +2135,8 @@ steps, etc.):
 **Deliverables**:
 - Complete documentation suite
 
+
+replace testrepo project fixture with call to oarepo-cli (the new client)
 ---
 
 ### Step 6.4.1: `node_versions` inconsistency between `oarepo-versions` and `VersionResolver`

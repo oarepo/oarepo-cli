@@ -6,7 +6,7 @@
 from __future__ import annotations
 
 import sys
-from pathlib import Path  # noqa: TCH003
+from pathlib import Path  # noqa: TC003
 from typing import Annotated
 
 import typer
@@ -38,7 +38,7 @@ def version_callback(value: bool) -> None:
     """Display version and exit."""
     if value:
         typer.echo(f"oarepo-cli version {__version__}")
-        raise typer.Exit()
+        raise typer.Exit
 
 
 @app.callback()
@@ -83,8 +83,7 @@ def main(
         ),
     ] = None,
 ) -> None:
-    """
-    OARepo CLI - Manage OARepo libraries and repositories.
+    """Oarepo CLI - Manage OARepo libraries and repositories.
 
     Use 'oarepo-cli COMMAND --help' for help on specific commands.
     """
@@ -110,7 +109,7 @@ def cli_main() -> None:
     except KeyboardInterrupt:
         typer.echo("\nInterrupted by user", err=True)
         sys.exit(130)  # Standard exit code for SIGINT
-    except Exception as e:
+    except Exception as e:  # noqa: BLE001
         typer.echo(f"Error: {e}", err=True)
         sys.exit(1)
 

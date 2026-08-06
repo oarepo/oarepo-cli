@@ -22,6 +22,111 @@ from oarepo_cli.core.context import ProjectContext
 from oarepo_cli.core.platform import get_platform_detector
 from oarepo_cli.services.services_lifecycle import ServicesLifecycleManager
 
+
+def _cleanup_testlib(project_path: Path, stop_services: bool = True) -> None:
+    """Clean up testlib project directory.
+
+    Args:
+        project_path: Path to the testlib project
+        stop_services: Whether to stop running services first
+
+    """
+    if stop_services:
+        _stop_services(project_path)
+
+    # Remove artifacts
+    _remove_venv(project_path / ".venv")
+    _remove_if_exists(project_path / ".env-services")
+    _remove_if_exists(project_path / "uv.lock")
+    _remove_coverage_files(project_path)
+    _remove_if_exists(project_path / "htmlcov")
+    _remove_if_exists(project_path / "dist")
+    _remove_if_exists(project_path / "build")
+    _remove_test_venvs(project_path)
+    _remove_pycache_directories(project_path)
+
+
+def _stop_services(project_path: Path) -> None:
+    """Stop services if they are running.
+
+    Args:
+        project_path: Path to the project
+
+    """
+    config = CliConfig()
+    config.services = ServicesConfig(skip=False)
+    services_mgr = ServicesLifecycleManager(config=config, project_root=project_path)
+
+    if services_mgr.are_services_running():
+        with contextlib.suppress(Exception):
+            services_mgr.stop_services()
+
+
+def _remove_venv(venv_path: Path) -> None:
+    """Remove venv directory if it exists.
+
+    Args:
+        venv_path: Path to the venv directory
+
+    """
+    if venv_path.exists():
+        shutil.rmtree(venv_path)
+
+
+def _remove_if_exists(path: Path) -> None:
+    """Remove a file or directory if it exists.
+
+    Args:
+        path: Path to remove
+
+    """
+    if path.exists():
+        if path.is_dir():
+            shutil.rmtree(path)
+        else:
+            path.unlink()
+
+
+def _remove_coverage_files(project_path: Path) -> None:
+    """Remove coverage files from project directory.
+
+    Args:
+        project_path: Path to the project
+
+    """
+    for f in project_path.glob(".coverage*"):
+        f.unlink()
+
+
+def _remove_test_venvs(project_path: Path) -> None:
+    """Remove test venv directories.
+
+    Args:
+        project_path: Path to the project
+
+    """
+    test_venvs = [
+        project_path.parent / "testlib_test_venv",
+        project_path.parent / "testlib_cleanup_test_venv",
+        project_path.parent / "testlib_full_cleanup_venv",
+        project_path.parent / "testlib_failure_test_venv",
+        project_path.parent / "testlib_full_test_venv",
+    ]
+    for venv_dir in test_venvs:
+        _remove_venv(venv_dir)
+
+
+def _remove_pycache_directories(project_path: Path) -> None:
+    """Remove __pycache__ directories recursively.
+
+    Args:
+        project_path: Path to the project
+
+    """
+    for pycache in project_path.rglob("__pycache__"):
+        shutil.rmtree(pycache)
+
+
 # https://raw.githubusercontent.com/oarepo/oarepo/refs/heads/main/tools/repository_installer.sh
 # creates a real repository from the nrp-app-copier template, as documented at
 # https://nrp-cz.github.io/docs/installation/create_instance
@@ -57,71 +162,13 @@ def clean_testlib(testlib_project: Path) -> Iterator[Path]:
 
     Also ensures services are stopped if running.
     """
-    venv_path = testlib_project / ".venv"
-    env_services = testlib_project / ".env-services"
-    uv_lock = testlib_project / "uv.lock"
-    coverage_files = list(testlib_project.glob(".coverage*"))
-    htmlcov = testlib_project / "htmlcov"
-    dist = testlib_project / "dist"
-    build = testlib_project / "build"
-
-    # Various test venv directories that may be created by tests (cleanup these too)
-    test_venvs = [
-        testlib_project.parent / "testlib_test_venv",
-        testlib_project.parent / "testlib_cleanup_test_venv",
-        testlib_project.parent / "testlib_full_cleanup_venv",
-        testlib_project.parent / "testlib_failure_test_venv",
-        testlib_project.parent / "testlib_full_test_venv",
-    ]
-
-    # Stop services if running
-    config = CliConfig()
-    config.services = ServicesConfig(skip=False)
-    services_mgr = ServicesLifecycleManager(config=config, project_root=testlib_project)
-
-    if services_mgr.are_services_running():
-        with contextlib.suppress(Exception):
-            services_mgr.stop_services()
-
-    # Remove artifacts
-    if venv_path.exists():
-        shutil.rmtree(venv_path)
-    if env_services.exists():
-        env_services.unlink()
-    if uv_lock.exists():
-        uv_lock.unlink()
-    for f in coverage_files:
-        f.unlink()
-    if htmlcov.exists():
-        shutil.rmtree(htmlcov)
-    if dist.exists():
-        shutil.rmtree(dist)
-    if build.exists():
-        shutil.rmtree(build)
-    for venv_dir in test_venvs:
-        if venv_dir.exists():
-            shutil.rmtree(venv_dir)
-
-    # Remove __pycache__ directories
-    for pycache in testlib_project.rglob("__pycache__"):
-        shutil.rmtree(pycache)
+    # Setup: stop services and clean up before test
+    _cleanup_testlib(testlib_project, stop_services=True)
 
     yield testlib_project
 
-    # Clean up after test
-    if venv_path.exists():
-        shutil.rmtree(venv_path)
-    if env_services.exists():
-        env_services.unlink()
-    if uv_lock.exists():
-        uv_lock.unlink()
-    for f in testlib_project.glob(".coverage*"):
-        f.unlink()
-    if htmlcov.exists():
-        shutil.rmtree(htmlcov)
-    for venv_dir in test_venvs:
-        if venv_dir.exists():
-            shutil.rmtree(venv_dir)
+    # Teardown: clean up after test
+    _cleanup_testlib(testlib_project, stop_services=True)
 
 
 @pytest.fixture
@@ -168,8 +215,8 @@ def testrepo_project() -> Path:
     with tempfile.TemporaryDirectory() as tmp:
         tmp_path = Path(tmp)
         installer = tmp_path / "repository_installer.sh"
-        subprocess.run(
-            ["curl", "-fsSL", "-o", str(installer), REPOSITORY_INSTALLER_URL],
+        subprocess.run(  # noqa: S603 - just a test, not a security issue
+            ["curl", "-fsSL", "-o", str(installer), REPOSITORY_INSTALLER_URL],  # noqa: S607 - curl is trusted
             check=True,
         )
         installer.chmod(0o755)
@@ -181,7 +228,7 @@ def testrepo_project() -> Path:
         # which mishandles the script's `"${@}"` expansion under `set -u`
         # when called with zero arguments. Same issue and fix as
         # PlatformDetector.get_default_shell().
-        subprocess.run(
+        subprocess.run(  # noqa: S603 - just a test, not a security issue to run the program
             [
                 get_platform_detector().get_default_shell(),
                 str(installer),

@@ -31,6 +31,7 @@ def _tool_path(name: str) -> str:
         Absolute path to the binary if found next to the current
         interpreter, otherwise the bare name (resolved via PATH by the
         subprocess call).
+
     """
     candidate = Path(sys.executable).parent / name
     return str(candidate) if candidate.exists() else name
@@ -44,6 +45,7 @@ def _iter_python_files(directories: list[Path]) -> list[Path]:
 
     Returns:
         Sorted list of Python file paths
+
     """
     files: list[Path] = []
     for directory in directories:
@@ -55,18 +57,19 @@ def check_license_headers(directories: list[Path]) -> list[Path]:
     """Find Python files missing a license header.
 
     Mirrors ``library_runner.sh``'s ``check_license_headers``: a file passes
-    if it contains "Copyright (c)" (case-insensitive) anywhere in its text.
+    if it contains "SPDX-License-Identifier" (case-insensitive) anywhere in its text.
 
     Args:
         directories: Directories to search for Python files
 
     Returns:
         List of files missing a license header
+
     """
     missing = []
     for file in _iter_python_files(directories):
         content = file.read_text(encoding="utf-8", errors="replace")
-        if "copyright (c)" not in content.lower():
+        if "spdx-license-identifier" not in content.lower():
             missing.append(file)
     return missing
 
@@ -82,15 +85,14 @@ def check_future_annotations(directories: list[Path]) -> list[Path]:
 
     Returns:
         List of files missing the future annotations import
+
     """
     missing = []
     for file in _iter_python_files(directories):
         if ".venv" in file.parts:
             continue
         content = file.read_text(encoding="utf-8", errors="replace")
-        if not any(
-            "from __future__" in line and "annotations" in line for line in content.splitlines()
-        ):
+        if not any("from __future__" in line and "annotations" in line for line in content.splitlines()):
             missing.append(file)
     return missing
 
@@ -109,6 +111,7 @@ class LintRunner:
         Args:
             context: Project context with paths and configuration
             quiet: If True, suppress real-time subprocess output
+
         """
         self._context = context
         self._quiet = quiet
@@ -125,6 +128,7 @@ class LintRunner:
 
         Returns:
             ProcessResult of the first failing step, or a success result if all pass
+
         """
         root = self._context.root_directory
         code_directories = self._context.code_directories
@@ -137,9 +141,7 @@ class LintRunner:
             [ruff, "check", *fix_flag, "--exclude", "pyproject.toml"],
             cwd=root,
             check=False,
-            output_mode=ProcessOutputMode.INTERACTIVE
-            if not self._quiet
-            else ProcessOutputMode.CAPTURE,
+            output_mode=ProcessOutputMode.INTERACTIVE if not self._quiet else ProcessOutputMode.CAPTURE,
         )
         if not result.success:
             return result
@@ -150,9 +152,7 @@ class LintRunner:
             [ruff, "format", *format_mode, "--exclude", "pyproject.toml"],
             cwd=root,
             check=False,
-            output_mode=ProcessOutputMode.INTERACTIVE
-            if not self._quiet
-            else ProcessOutputMode.CAPTURE,
+            output_mode=ProcessOutputMode.INTERACTIVE if not self._quiet else ProcessOutputMode.CAPTURE,
         )
         if not result.success:
             return result
@@ -169,10 +169,7 @@ class LintRunner:
         if missing_annotations:
             return _synthetic_failure(
                 root,
-                [
-                    f"Missing 'from __future__ import annotations' in {f}"
-                    for f in missing_annotations
-                ]
+                [f"Missing 'from __future__ import annotations' in {f}" for f in missing_annotations]
                 + [f"{len(missing_annotations)} file(s) are missing future annotations."],
             )
 
@@ -196,14 +193,10 @@ class LintRunner:
             ],
             cwd=root,
             check=False,
-            output_mode=ProcessOutputMode.INTERACTIVE
-            if not self._quiet
-            else ProcessOutputMode.CAPTURE,
+            output_mode=ProcessOutputMode.INTERACTIVE if not self._quiet else ProcessOutputMode.CAPTURE,
         )
 
-    def run_format(
-        self, *, fix: bool = True, extra_args: list[str] | None = None
-    ) -> process.ProcessResult:
+    def run_format(self, *, fix: bool = True, extra_args: list[str] | None = None) -> process.ProcessResult:
         """Format code with ruff.
 
         Args:
@@ -214,10 +207,12 @@ class LintRunner:
                 preview once formatting itself doesn't run).
             extra_args: Additional arguments passed through to the ruff
                 invocation(s) (e.g. a path to restrict formatting to, or
-                ruff flags like ``--diff``)
+                ruff flags like ``--diff``). Note: ``--unsafe-fixes`` is
+                only passed to ``ruff check --fix``, not to ``ruff format``.
 
         Returns:
             ProcessResult of the first failing step, or the final result
+
         """
         root = self._context.root_directory
         ruff = _tool_path("ruff")
@@ -227,34 +222,32 @@ class LintRunner:
         if not ruff_toml.exists():
             _write_config(ruff_toml, resources.read_text("ruff.toml.tmpl"))
 
+        # Separate --unsafe-fixes for ruff check (it's not valid for ruff format)
+        format_args = [arg for arg in extra_args if arg != "--unsafe-fixes"]
+        check_args = extra_args  # --unsafe-fixes is valid for ruff check --fix
+
         if not fix:
             return process.run(
-                [ruff, "format", "--check", "--exclude", "pyproject.toml", *extra_args],
+                [ruff, "format", "--check", "--exclude", "pyproject.toml", *format_args],
                 cwd=root,
                 check=False,
-                output_mode=ProcessOutputMode.INTERACTIVE
-                if not self._quiet
-                else ProcessOutputMode.CAPTURE,
+                output_mode=ProcessOutputMode.INTERACTIVE if not self._quiet else ProcessOutputMode.CAPTURE,
             )
 
         result = process.run(
-            [ruff, "format", "--exclude", "pyproject.toml", *extra_args],
+            [ruff, "format", "--exclude", "pyproject.toml", *format_args],
             cwd=root,
             check=False,
-            output_mode=ProcessOutputMode.INTERACTIVE
-            if not self._quiet
-            else ProcessOutputMode.CAPTURE,
+            output_mode=ProcessOutputMode.INTERACTIVE if not self._quiet else ProcessOutputMode.CAPTURE,
         )
         if not result.success:
             return result
 
         return process.run(
-            [ruff, "check", "--fix", "--exclude", "pyproject.toml", *extra_args],
+            [ruff, "check", "--fix", "--exclude", "pyproject.toml", *check_args],
             cwd=root,
             check=False,
-            output_mode=ProcessOutputMode.INTERACTIVE
-            if not self._quiet
-            else ProcessOutputMode.CAPTURE,
+            output_mode=ProcessOutputMode.INTERACTIVE if not self._quiet else ProcessOutputMode.CAPTURE,
         )
 
 
@@ -264,6 +257,7 @@ def _write_config(path: Path, content: str) -> None:
     Args:
         path: Destination file path
         content: File contents to write
+
     """
     path.write_text(content, encoding="utf-8")
 
@@ -277,9 +271,9 @@ def _synthetic_failure(root: Path, messages: list[str]) -> process.ProcessResult
 
     Returns:
         A failed ProcessResult (return_code=1) carrying the given messages
+
     """
     text = "\n".join(messages)
-    print(text, file=sys.stderr)
     return process.ProcessResult(
         return_code=1,
         stdout="",
