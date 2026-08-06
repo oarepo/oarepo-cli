@@ -52,8 +52,25 @@ library_app.add_typer(services_app)
 
 
 @library_app.callback()
-def library_callback() -> None:
+def library_callback(
+    ctx: typer.Context,
+    no_editable: Annotated[
+        bool,
+        typer.Option(
+            "--no-editable",
+            help="Build wheel instead of editable install (bash-CLI-compatible global "
+            "position; same flag on 'venv'/'install' themselves takes precedence over this)",
+        ),
+    ] = False,
+) -> None:
     """Library command group."""
+    # The old bash `library_runner.sh` treated --no-editable as a flag that
+    # could appear anywhere in argv (`./run.sh --no-editable venv`), not
+    # just after the subcommand name. Typer/Click only accept a group's own
+    # options before the subcommand, so this stores it on the context for
+    # `venv`/`install` to fall back to when their own --no-editable wasn't
+    # given, preserving that old position.
+    ctx.obj = {"no_editable": no_editable}
 
 
 @services_app.callback()
@@ -186,8 +203,29 @@ def _library_venv_impl(
     console.info(f"  Path: {venv_path}", fg=typer.colors.GREEN)
 
 
+def _resolve_no_editable(ctx: typer.Context, *, no_editable: bool) -> bool:
+    """Merge a command's own --no-editable with the group-level fallback.
+
+    Mirrors the old bash CLI, where `--no-editable` could appear anywhere in
+    argv and just set a flag: either position implies non-editable, so this
+    is an OR, not an override.
+
+    Args:
+        ctx: Command's Typer context (its `.obj` holds the group-level flag,
+            set by `library_callback`)
+        no_editable: The value of this command's own --no-editable option
+
+    Returns:
+        True if --no-editable was given either on the group or the command
+
+    """
+    group_no_editable = bool(ctx.obj and ctx.obj.get("no_editable"))
+    return no_editable or group_no_editable
+
+
 @library_app.command("venv")
 def library_venv(
+    ctx: typer.Context,
     force: Annotated[bool, typer.Option("--force", "-f", help="Recreate venv from scratch")] = False,
     no_editable: Annotated[bool, typer.Option("--no-editable", help="Build wheel instead of editable install")] = False,
     quiet: Annotated[bool, typer.Option("--quiet", "-q", help="Suppress command output")] = False,
@@ -205,11 +243,12 @@ def library_venv(
     the OAREPO_VENV_PATH environment variable or [tool.oarepo-cli.venv.path]
     in pyproject.toml.
     """
-    _library_venv_impl(force=force, no_editable=no_editable, quiet=quiet)
+    _library_venv_impl(force=force, no_editable=_resolve_no_editable(ctx, no_editable=no_editable), quiet=quiet)
 
 
 @library_app.command("install")
 def library_install(
+    ctx: typer.Context,
     force: Annotated[bool, typer.Option("--force", "-f", help="Recreate venv from scratch")] = False,
     no_editable: Annotated[bool, typer.Option("--no-editable", help="Build wheel instead of editable install")] = False,
     quiet: Annotated[bool, typer.Option("--quiet", "-q", help="Suppress command output")] = False,
@@ -227,8 +266,7 @@ def library_install(
     the OAREPO_VENV_PATH environment variable or [tool.oarepo-cli.venv.path]
     in pyproject.toml.
     """
-    # Just call library_venv with the same parameters
-    library_venv(force=force, no_editable=no_editable, quiet=quiet)
+    _library_venv_impl(force=force, no_editable=_resolve_no_editable(ctx, no_editable=no_editable), quiet=quiet)
 
 
 @with_context_and_console(
