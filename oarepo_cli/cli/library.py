@@ -260,7 +260,7 @@ def _library_clean_impl(
             console.info("  ✓ Services stopped", fg=typer.colors.GREEN)
             items_removed.append("services")
         # Best-effort cleanup step: keep going even on a non-OARepoError failure.
-        except Exception as e:
+        except Exception as e:  # noqa: BLE001
             console.warning(
                 f"  ⚠ Warning: Failed to stop services: {e}",
                 fg=typer.colors.YELLOW,
@@ -277,7 +277,7 @@ def _library_clean_impl(
             console.info(f"  ✓ {ENV_SERVICES_FILE} removed", fg=typer.colors.GREEN)
             items_removed.append(ENV_SERVICES_FILE)
         # Best-effort cleanup step: keep going even on a non-OARepoError failure.
-        except Exception as e:
+        except Exception as e:  # noqa: BLE001
             console.warning(
                 f"  ⚠ Warning: Failed to remove {ENV_SERVICES_FILE}: {e}",
                 fg=typer.colors.YELLOW,
@@ -302,7 +302,7 @@ def _library_clean_impl(
                 console.info("  ✓ uv.lock file removed", fg=typer.colors.GREEN)
                 items_removed.append("uv.lock")
         # Best-effort cleanup step: keep going even on a non-OARepoError failure.
-        except Exception as e:
+        except Exception as e:  # noqa: BLE001
             console.warning(
                 f"  ⚠ Warning: Failed to remove venv/uv.lock: {e}",
                 fg=typer.colors.YELLOW,
@@ -371,7 +371,7 @@ def _library_upgrade_impl(
             services_mgr.stop_services()
             console.info("  ✓ Services stopped", fg=typer.colors.GREEN)
         # Best-effort cleanup step: keep going even on a non-OARepoError failure.
-        except Exception as e:
+        except Exception as e:  # noqa: BLE001
             console.warning(
                 f"  ⚠ Warning: Failed to stop services: {e}",
                 fg=typer.colors.YELLOW,
@@ -388,7 +388,7 @@ def _library_upgrade_impl(
         )
         console.info("  ✓ Cache cleaned", fg=typer.colors.GREEN)
     # Best-effort step: keep going even on a non-OARepoError failure.
-    except Exception as e:
+    except Exception as e:  # noqa: BLE001
         console.warning(f"  ⚠ Warning: Failed to clean uv cache: {e}", fg=typer.colors.YELLOW)
 
     # Remove and recreate venv using VirtualEnvironmentManager

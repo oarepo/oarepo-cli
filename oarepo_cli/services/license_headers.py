@@ -306,7 +306,7 @@ def add_license_headers(
                 # Add SPDX header to this file
                 _add_spdx_header(file_path, organization, current_year)
                 files_processed += 1
-        except Exception as e:
+        except OSError as e:
             # Return a synthetic failure result
             return process.ProcessResult(
                 return_code=1,

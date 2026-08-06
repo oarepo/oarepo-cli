@@ -109,7 +109,7 @@ def cli_main() -> None:
     except KeyboardInterrupt:
         typer.echo("\nInterrupted by user", err=True)
         sys.exit(130)  # Standard exit code for SIGINT
-    except Exception as e:
+    except Exception as e:  # noqa: BLE001
         typer.echo(f"Error: {e}", err=True)
         sys.exit(1)
 
