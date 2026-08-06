@@ -269,18 +269,20 @@ def library_install(
     _library_venv_impl(force=force, no_editable=_resolve_no_editable(ctx, no_editable=no_editable), quiet=quiet)
 
 
-@with_context_and_console(
-    start_message="Cleaning environment...",
-    error_prefix="Error cleaning environment",
-    console_quiet_from_args=True,
-)
 def _stop_services_if_running(
     context: ProjectContext,
     console: ConsoleOutput,
     items_removed: list[str],
     quiet: bool,
 ) -> None:
-    """Stop services if running and record in items_removed."""
+    """Stop services if running and record in items_removed.
+
+    Plain helper (not `@with_context_and_console`-wrapped): called from
+    `_library_clean_impl`, which already has `context`/`console` from its
+    own decorator - wrapping this one too would inject a second, freshly
+    `discover_context()`-ed context/console on top of the explicit ones
+    passed in below.
+    """
     services_mgr = ServicesLifecycleManager(config=context.config, project_root=context.root_directory, quiet=quiet)
     if services_mgr.are_services_running():
         console.info("🛁 Stopping services...", fg=typer.colors.CYAN)

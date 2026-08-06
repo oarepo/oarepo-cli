@@ -210,7 +210,22 @@ class RepositoryInstaller:
         process.run(["git", "init", "-b", "main"], cwd=target_dir, output_mode=ProcessOutputMode.INTERACTIVE)
         process.run(["git", "add", "."], cwd=target_dir, output_mode=ProcessOutputMode.INTERACTIVE)
         process.run(
-            ["git", "commit", "-m", "Initial commit"],
+            # -c user.*: a machine running this for the very first time may
+            # have no global git identity configured yet (git commit would
+            # otherwise fail outright with "Please tell me who you are");
+            # this scaffolding commit isn't meant to carry real authorship,
+            # so a placeholder identity is fine and the user's own commits
+            # from here on use their own configured (or later-configured) one.
+            [
+                "git",
+                "-c",
+                "user.email=oarepo-cli@localhost",
+                "-c",
+                "user.name=oarepo-cli",
+                "commit",
+                "-m",
+                "Initial commit",
+            ],
             cwd=target_dir,
             output_mode=ProcessOutputMode.INTERACTIVE,
         )

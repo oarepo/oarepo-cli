@@ -6,6 +6,7 @@
 from __future__ import annotations
 
 import contextlib
+import os
 import shutil
 import subprocess
 import tempfile
@@ -21,6 +22,18 @@ from oarepo_cli.core.config import CliConfig, ServicesConfig, TestingConfig
 from oarepo_cli.core.context import ProjectContext
 from oarepo_cli.core.platform import get_platform_detector
 from oarepo_cli.services.services_lifecycle import ServicesLifecycleManager
+
+# Rich/Click's help-text renderer falls back to os.get_terminal_size() on the
+# real stdout/stderr file descriptors, which typer.testing.CliRunner.invoke()
+# doesn't redirect (it only swaps the Python-level sys.stdout object) -- so
+# on a CI runner whose job step happens to have a narrow controlling pty,
+# `--help` output wraps differently than on a real dev terminal and can
+# split an option name (e.g. "--force") across a line break. Rich/Click both
+# prefer the COLUMNS/LINES env vars over that OS query when set, so pinning
+# them here makes every CliRunner-rendered help text deterministic across
+# environments.
+os.environ.setdefault("COLUMNS", "200")
+os.environ.setdefault("LINES", "50")
 
 
 def _cleanup_testlib(project_path: Path, stop_services: bool = True) -> None:
