@@ -256,6 +256,9 @@ class TestOrchestrator:
                 cmd.extend(["--cov", module_name])
                 cmd.append("--cov-report=html")
                 cmd.append("--cov-report=term")
+                cmd.append("--cov-report=xml")  # For Codecov
+            # Add JUnit XML output for test results (Codecov test-results-action)
+            cmd.append("--junitxml=junit.xml")
 
         # Add user-provided args
         cmd.extend(pytest_args)
