@@ -22,14 +22,12 @@ whoever wants to implement it.
 
 ### Implement Features
 
-Look through the GitHub issues for features, or [`docs/architecture/implementation-steps.md`](./docs/architecture/implementation-steps.md)
-for the project's own step-by-step build plan — see [Where to look](./AGENTS.md#where-to-look)
-in `AGENTS.md` for the full set of design docs behind it.
+Look through the GitHub issues for features.
 
 ### Improve Documentation
 
 `oarepo-cli` could always use more documentation, whether in `README.md`,
-docstrings, or the architecture docs under `docs/architecture/`.
+docstrings, or dedicated docs.
 
 ### Submit Feedback
 
@@ -54,19 +52,14 @@ Ready to contribute? Here's how to set up `oarepo-cli` for local development.
    `.venv` and installs the right dependency group automatically the first time you run it — no
    separate install step needed.
 
-3. **Create a branch off `cli-as-python`, not `main`** — this repository is
-   mid-rewrite (see `AGENTS.md`), and `cli-as-python` is the integration
-   branch all work targets until the rewrite is complete:
+3. **Create a branch off `main`**
 
    ```console
    $ git fetch origin
-   $ git checkout cli-as-python
+   $ git checkout main
    $ git pull
    $ git checkout -b your-branch-name
    ```
-
-   If you're picking up a step from `implementation-steps.md`, name the
-   branch after it (e.g. `step-5.2-repository-installation-workflow`).
 
 4. Make your changes locally, following the conventions in `AGENTS.md`
    (SPDX license headers, `from __future__ import annotations`, no
@@ -91,8 +84,7 @@ Ready to contribute? Here's how to set up `oarepo-cli` for local development.
    $ git commit -m "fix: short summary of the change"
    ```
 
-7. Push your branch and open a pull request **against `cli-as-python`**, not
-   `main`:
+7. Push your branch and open a pull request:
 
    ```console
    $ git push -u origin your-branch-name
@@ -106,10 +98,7 @@ Before you submit a pull request, check that it meets these guidelines:
 2. `./run.sh check` and `./run.sh test` both pass.
 3. If the pull request changes user-facing behavior, `README.md` is updated
    to match.
-4. If the pull request implements or finishes a step from
-   `docs/architecture/implementation-steps.md`, its checklist items are
-   marked accordingly (`[x]` done, `[~]` in progress, `[!]` blocked).
-5. New public and private functions/classes have a docstring explaining
+4. New public and private functions/classes have a docstring explaining
    what they do and, where it isn't obvious from the code, why.
 
 ## Code Style
@@ -128,8 +117,7 @@ Before you submit a pull request, check that it meets these guidelines:
   ```
 
 See `AGENTS.md` for the complete set of conventions and non-negotiable
-constraints, and `docs/architecture/02-testing-strategy.md` for this
-project's testing philosophy (unit vs. integration, fakes vs. real tools).
+constraints.
 
 ## License
 
