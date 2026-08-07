@@ -66,8 +66,26 @@ def run_jslint(context: ProjectContext, *, quiet: bool = False) -> process.Proce
     eslint_bin = root / "node_modules" / ".bin" / "eslint"
     dir_names = [str(d.relative_to(root)) for d in code_directories]
 
+    # Filter out directories with no JS/JSX files
+    dirs_with_js = []
+    for dir_name in dir_names:
+        dir_path = root / dir_name
+        if any(dir_path.rglob("*.js")) or any(dir_path.rglob("*.jsx")):
+            dirs_with_js.append(dir_name)
+
+    # If no directories have JS files, skip linting
+    if not dirs_with_js:
+        return process.ProcessResult(
+            return_code=0,
+            stdout="No JavaScript files found in code directories",
+            stderr="",
+            command=[],
+            cwd=root,
+            duration_ms=0,
+        )
+
     result = process.run(
-        [str(eslint_bin), "--ext", ".js,.jsx", "--fix", *dir_names],
+        [str(eslint_bin), "--ext", ".js,.jsx", "--fix", *dirs_with_js],
         cwd=root,
         check=False,
         output_mode=ProcessOutputMode.INTERACTIVE if not quiet else ProcessOutputMode.CAPTURE,
@@ -76,7 +94,9 @@ def run_jslint(context: ProjectContext, *, quiet: bool = False) -> process.Proce
         return result
 
     # Run prettier
-    return _run_prettier(root, code_directories, quiet)
+    # Convert dir names back to Path objects for prettier
+    dirs_with_js_paths = [root / d for d in dirs_with_js]
+    return _run_prettier(root, dirs_with_js_paths, quiet)
 
 
 def run_repository_jslint(context: ProjectContext, *, quiet: bool = False) -> process.ProcessResult:
@@ -87,12 +107,6 @@ def run_repository_jslint(context: ProjectContext, *, quiet: bool = False) -> pr
     directory. This avoids interfering with Invenio's JavaScript dependency
     locking mechanisms.
 
-    Steps:
-    1. Check if instance assets/node_modules exists; if not, run repository install
-    2. If no top-level package.json exists, lock JavaScript files first
-    3. Create symlink from top-level node_modules to instance assets/node_modules
-    4. Run linting without pnpm install (dependencies already installed)
-
     Args:
         context: Project context with paths and configuration
         quiet: If True, suppress progress output
@@ -101,29 +115,18 @@ def run_repository_jslint(context: ProjectContext, *, quiet: bool = False) -> pr
         ProcessResult from the linting commands
 
     """
-    from oarepo_cli.services.repository import get_instance_path, install_repository, lock_assets
+    from oarepo_cli.services.repository import lock_assets
     from oarepo_cli.ui import ConsoleOutput
 
     console = ConsoleOutput(quiet=quiet)
     root = context.root_directory
 
-    # Get instance path and assets directory
-    instance_path = get_instance_path(context)
-    assets_dir = instance_path / "assets"
-    instance_node_modules = assets_dir / "node_modules"
-
-    # Step 1: Ensure instance assets/node_modules exists
-    if not instance_node_modules.exists():
-        console.info("-> Instance node_modules not found, running repository install\n")
-        install_repository(context, quiet=quiet)
-
-    # Step 2: If no top-level package.json, lock JavaScript files
+    # Ensure package.json exists (lock if needed)
     package_json_path = root / "package.json"
     if not package_json_path.exists():
         console.info("-> No package.json found, locking JavaScript dependencies\n")
         lock_assets(context, quiet=quiet)
 
-    # Check again after locking
     if not package_json_path.exists():
         return process.ProcessResult(
             return_code=0,
@@ -134,23 +137,30 @@ def run_repository_jslint(context: ProjectContext, *, quiet: bool = False) -> pr
             duration_ms=0,
         )
 
-    # Step 3: Create symlink from top-level node_modules to instance node_modules
-    top_level_node_modules = root / "node_modules"
-    if not top_level_node_modules.exists():
-        console.info("-> Creating node_modules symlink\n")
-        top_level_node_modules.symlink_to(instance_node_modules)
-    elif not top_level_node_modules.is_symlink():
-        console.warning("Warning: node_modules exists but is not a symlink - using it as-is")
+    # Ensure node_modules symlink
+    top_level_node_modules = _ensure_repository_node_modules(context, root, quiet=quiet)
 
-    # Step 4: Write ESLint config
+    # Write ESLint config
     eslintrc = root / ".eslintrc.yaml"
     eslintrc.write_text(resources.read_text("eslintrc.yaml.tmpl"))
 
-    # Step 5: Run eslint with --fix (without installing dependencies)
-    # Exclude tests directory for jslint, matching bash script behavior
+    # Filter code directories to those with JS files
     code_directories = [d for d in context.code_directories if d.name != "tests"]
-    eslint_bin = top_level_node_modules / ".bin" / "eslint"
+    dir_names = [str(d.relative_to(root)) for d in code_directories]
+    dirs_with_js = _filter_dirs_with_js_files(root, dir_names)
 
+    if not dirs_with_js:
+        return process.ProcessResult(
+            return_code=0,
+            stdout="No JavaScript files found in code directories",
+            stderr="",
+            command=[],
+            cwd=root,
+            duration_ms=0,
+        )
+
+    # Run eslint
+    eslint_bin = top_level_node_modules / ".bin" / "eslint"
     if not eslint_bin.exists():
         return process.ProcessResult(
             return_code=1,
@@ -161,9 +171,8 @@ def run_repository_jslint(context: ProjectContext, *, quiet: bool = False) -> pr
             duration_ms=0,
         )
 
-    dir_names = [str(d.relative_to(root)) for d in code_directories]
     result = process.run(
-        [str(eslint_bin), "--ext", ".js,.jsx", "--fix", *dir_names],
+        [str(eslint_bin), "--ext", ".js,.jsx", "--fix", *dirs_with_js],
         cwd=root,
         check=False,
         output_mode=ProcessOutputMode.INTERACTIVE if not quiet else ProcessOutputMode.CAPTURE,
@@ -171,8 +180,63 @@ def run_repository_jslint(context: ProjectContext, *, quiet: bool = False) -> pr
     if not result.success:
         return result
 
-    # Step 6: Run prettier
-    return _run_prettier(root, code_directories, quiet)
+    # Run prettier
+    dirs_with_js_paths = [root / d for d in dirs_with_js]
+    return _run_prettier(root, dirs_with_js_paths, quiet)
+
+
+def _filter_dirs_with_js_files(root: Path, dir_names: list[str]) -> list[str]:
+    """Filter directory names to only include those containing JS/JSX files.
+
+    Args:
+        root: Project root directory
+        dir_names: List of directory names relative to root
+
+    Returns:
+        List of directory names that contain at least one .js or .jsx file
+
+    """
+    dirs_with_js = []
+    for dir_name in dir_names:
+        dir_path = root / dir_name
+        if any(dir_path.rglob("*.js")) or any(dir_path.rglob("*.jsx")):
+            dirs_with_js.append(dir_name)
+    return dirs_with_js
+
+
+def _ensure_repository_node_modules(context: ProjectContext, root: Path, *, quiet: bool) -> Path:
+    """Ensure node_modules symlink exists and return its path.
+
+    Args:
+        context: Project context
+        root: Project root directory
+        quiet: If True, suppress output
+
+    Returns:
+        Path to the top-level node_modules (symlink or directory)
+
+    """
+    from oarepo_cli.services.repository import get_instance_path, install_repository
+    from oarepo_cli.ui import ConsoleOutput
+
+    console = ConsoleOutput(quiet=quiet)
+    instance_path = get_instance_path(context)
+    instance_node_modules = instance_path / "assets" / "node_modules"
+
+    # Ensure instance node_modules exists
+    if not instance_node_modules.exists():
+        console.info("-> Instance node_modules not found, running repository install\n")
+        install_repository(context, quiet=quiet)
+
+    # Create symlink if needed
+    top_level_node_modules = root / "node_modules"
+    if not top_level_node_modules.exists():
+        console.info("-> Creating node_modules symlink\n")
+        top_level_node_modules.symlink_to(instance_node_modules)
+    elif not top_level_node_modules.is_symlink():
+        console.warning("Warning: node_modules exists but is not a symlink - using it as-is")
+
+    return top_level_node_modules
 
 
 def _ensure_eslint_dependency(package_json_path: Path, root: Path, quiet: bool) -> process.ProcessResult:
