@@ -6,7 +6,6 @@
 from __future__ import annotations
 
 import textwrap
-from pathlib import Path
 from typing import TYPE_CHECKING
 
 import tomlkit
@@ -85,13 +84,13 @@ class AlembicManager:
 
         # Step 7: Create branch migration if no python files exist
         if not self._has_python_files(alembic_path):
-            self._create_branch_migration(alembic_path)
+            self._create_branch_migration()
 
         # Step 8: Upgrade to heads
         self._upgrade_heads()
 
         # Step 9: Create initial tables migration
-        self._create_tables_migration(alembic_path)
+        self._create_tables_migration()
 
         self._console.success("\n✓ Alembic initialization completed successfully!")
         self._console.warning(
@@ -279,7 +278,8 @@ class AlembicManager:
         """Sync project to register entrypoints."""
         self._console.info("→ Syncing project to register entrypoints...")
 
-        cmd = ["uv", "pip", "install", "--no-deps", "-e", "."]
+        # Use --upgrade to ensure the latest version is installed from CESNET index
+        cmd = ["uv", "pip", "install", "--upgrade", "--no-deps", "--prerelease", "allow", "-e", "."]
         process.run(
             cmd,
             cwd=self._context.root_directory,
@@ -362,24 +362,13 @@ class AlembicManager:
 
         return cmd_env
 
-    def _create_branch_migration(self, alembic_path: Path) -> None:
-        """Create initial branch migration.
-
-        Args:
-            alembic_path: Path to the alembic directory
-
-        """
+    def _create_branch_migration(self) -> None:
+        """Create initial branch migration."""
         package_name = self._get_package_name()
-        branch_name = f"invenio_{package_name}"
+        # Branch name should match the entrypoint name (package_name)
+        branch_name = package_name
 
         self._console.info(f"→ Creating branch migration '{branch_name}'...")
-
-        # Calculate relative path from root to alembic directory for --path argument
-        try:
-            relative_path = alembic_path.relative_to(self._context.root_directory)
-        except ValueError:
-            # Fallback: use package_name/alembic
-            relative_path = Path(package_name) / "alembic"
 
         invenio_path = self._get_venv_invenio_path()
         cmd_env = self._build_invenio_env()
@@ -393,8 +382,6 @@ class AlembicManager:
             branch_name,
             "-p",
             "dbdbc1b19cf2",
-            "--path",
-            str(relative_path),
             "--empty",
         ]
 
@@ -435,7 +422,6 @@ class AlembicManager:
         cmd_env = self._build_invenio_env()
 
         cmd = [str(invenio_path), "alembic", "upgrade", "heads"]
-
         process.run(
             cmd,
             cwd=self._context.root_directory,
@@ -446,23 +432,13 @@ class AlembicManager:
 
         self._console.info("✓ Alembic upgrade completed")
 
-    def _create_tables_migration(self, alembic_path: Path) -> None:
-        """Create migration for initial tables.
-
-        Args:
-            alembic_path: Path to the alembic directory
-
-        """
+    def _create_tables_migration(self) -> None:
+        """Create migration for initial tables."""
         package_name = self._get_package_name()
+        # Branch name should match the entrypoint name (package_name)
+        branch_name = package_name
 
         self._console.info(f"→ Creating tables migration for {package_name}...")
-
-        # Calculate relative path from root to alembic directory for --path argument
-        try:
-            relative_path = alembic_path.relative_to(self._context.root_directory)
-        except ValueError:
-            # Fallback: use package_name/alembic
-            relative_path = Path(package_name) / "alembic"
 
         invenio_path = self._get_venv_invenio_path()
         cmd_env = self._build_invenio_env()
@@ -472,8 +448,8 @@ class AlembicManager:
             "alembic",
             "revision",
             f"Create {package_name} tables.",
-            "--path",
-            str(relative_path),
+            "-b",
+            branch_name,
         ]
 
         process.run(
