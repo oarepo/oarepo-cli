@@ -6,6 +6,7 @@
 from __future__ import annotations
 
 import contextlib
+import io
 import os
 import shutil
 import tempfile
@@ -13,6 +14,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING
 
 import pytest
+from colorama import AnsiToWin32
 from typer.testing import CliRunner
 
 if TYPE_CHECKING:
@@ -37,6 +39,30 @@ from oarepo_cli.services.services_lifecycle import ServicesLifecycleManager
 # COLUMNS/LINES value is exactly the failure case this works around.
 os.environ["COLUMNS"] = "200"
 os.environ["LINES"] = "50"
+
+
+def _strip_ansi(text: str) -> str:
+    """Strip ANSI escape sequences (Rich/Click color codes) from text.
+
+    Rich's option highlighter can wrap sub-spans of what looks like one
+    token -- e.g. the "--" prefix and the option name -- in separate style
+    codes, splitting a literal substring like "--force" across escape
+    sequences in the raw captured stdout. This shows up far more often on a
+    CI runner with no controlling terminal than in a real dev terminal, and
+    survives even with COLUMNS/LINES/TERMINAL_WIDTH pinned (those fix
+    wrapping width, not color-code placement). Stripping the codes first
+    makes `"--force" in ...`-style assertions robust regardless of how the
+    output ended up colorized.
+    """
+    output = io.StringIO()
+    AnsiToWin32(output, strip=True, convert=False).write(text)
+    return output.getvalue()
+
+
+@pytest.fixture
+def strip_ansi() -> Callable[[str], str]:
+    """Fixture handle for ``_strip_ansi``, for tests asserting on CliRunner help text."""
+    return _strip_ansi
 
 
 def _cleanup_testlib(project_path: Path, stop_services: bool = True) -> None:

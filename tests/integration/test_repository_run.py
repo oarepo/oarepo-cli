@@ -31,7 +31,7 @@ from oarepo_cli.cli.main import app
 from oarepo_cli.core.errors import ConfigurationError, ProcessExecutionError
 
 if TYPE_CHECKING:
-    from collections.abc import Sequence
+    from collections.abc import Callable, Sequence
     from pathlib import Path
 
 
@@ -180,7 +180,7 @@ def test_run_reports_server_runner_error_and_exits_1(
     assert "Failed to start server" in result.output
 
 
-def test_run_help_shows_oarepo_clis_own_help(mock_context: Mock) -> None:
+def test_run_help_shows_oarepo_clis_own_help(mock_context: Mock, strip_ansi: Callable[[str], str]) -> None:
     """Help shows oarepo-cli's own options.
 
     Shows --no-services/--no-celery/--quiet, unlike the services subcommands,
@@ -188,11 +188,12 @@ def test_run_help_shows_oarepo_clis_own_help(mock_context: Mock) -> None:
     """
     runner = CliRunner()
     result = runner.invoke(app, ["repository", "run", "--help"])
+    output = strip_ansi(result.output)
 
     assert result.exit_code == 0, result.output
-    assert "--no-services" in result.output
-    assert "--no-celery" in result.output
-    assert "--quiet" in result.output
+    assert "--no-services" in output
+    assert "--no-celery" in output
+    assert "--quiet" in output
 
 
 FAKE_INVENIO_CLI_SCRIPT = """#!/bin/sh

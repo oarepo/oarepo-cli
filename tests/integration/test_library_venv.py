@@ -13,6 +13,7 @@ from typer.testing import CliRunner
 from oarepo_cli.cli.main import app
 
 if TYPE_CHECKING:
+    from collections.abc import Callable
     from pathlib import Path
 
 
@@ -46,14 +47,15 @@ def test_library_venv_creates_venv_real(
         assert (venv_path / "bin" / "python").exists()
 
 
-def test_library_venv_help_displays(runner: CliRunner) -> None:
+def test_library_venv_help_displays(runner: CliRunner, strip_ansi: Callable[[str], str]) -> None:
     """Test that 'library venv --help' displays help text."""
     result = runner.invoke(app, ["library", "venv", "--help"])
+    output = strip_ansi(result.stdout)
 
     assert result.exit_code == 0
-    assert "Set up virtual environment" in result.stdout
-    assert "--force" in result.stdout
-    assert "--no-editable" in result.stdout
+    assert "Set up virtual environment" in output
+    assert "--force" in output
+    assert "--no-editable" in output
 
 
 def test_library_venv_force_flag_exists(runner: CliRunner) -> None:
@@ -64,12 +66,12 @@ def test_library_venv_force_flag_exists(runner: CliRunner) -> None:
     assert "--force" in result.stdout or "-f" in result.stdout
 
 
-def test_library_venv_no_editable_flag_exists(runner: CliRunner) -> None:
+def test_library_venv_no_editable_flag_exists(runner: CliRunner, strip_ansi: Callable[[str], str]) -> None:
     """Test that --no-editable flag is recognized."""
     result = runner.invoke(app, ["library", "venv", "--help"])
 
     assert result.exit_code == 0
-    assert "--no-editable" in result.stdout
+    assert "--no-editable" in strip_ansi(result.stdout)
 
 
 def test_library_venv_strips_parent_venv_real(
