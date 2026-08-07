@@ -21,6 +21,7 @@ AI coding agent guide for `oarepo-cli` development.
 - Uses CESNET-patched `invenio-cli` from private registry (see `pyproject.toml`)
 - Never use `subprocess` with `shell=True` — always pass argument lists
 - All source files require SPDX headers and `from __future__ import annotations`
+- User might be editting the files in parallel. If you find an unexpected content, do not automatically revert it - ask first.
 
 ## Repository layout
 
@@ -108,6 +109,10 @@ Or via `run.sh`:
 ```bash
 ./run.sh test
 ```
+
+**Important:** running all tests (especially integration tests) takes a lot of time. If you implement a new feature, not a major refactoring, prefer running targeted tests for your feature instead.
+
+The whole test suite is always run in CI.
 
 **Run targeted tests during development:**
 

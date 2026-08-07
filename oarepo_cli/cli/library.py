@@ -47,8 +47,18 @@ services_app = typer.Typer(
     no_args_is_help=True,
 )
 
+# Create the alembic subcommand group
+alembic_app = typer.Typer(
+    name="alembic",
+    help="Alembic migration management",
+    no_args_is_help=True,
+)
+
 # Register services as a subcommand of library
 library_app.add_typer(services_app)
+
+# Register alembic as a subcommand of library
+library_app.add_typer(alembic_app)
 
 
 @library_app.callback()
@@ -76,6 +86,58 @@ def library_callback(
 @services_app.callback()
 def services_callback() -> None:
     """Services command group."""
+
+
+@alembic_app.callback()
+def alembic_callback() -> None:
+    """Alembic command group."""
+
+
+@with_context_and_console(
+    start_message="Initializing Alembic support...",
+    error_prefix="Error initializing Alembic",
+)
+def _alembic_init_impl(
+    context: ProjectContext,
+    console: ConsoleOutput,
+    *,
+    quiet: bool = False,  # noqa: ARG001 (used by decorator to control console output)
+) -> None:
+    """Shared implementation for alembic init.
+
+    Args:
+        context: Project context (injected by decorator)
+        console: Console output handler (injected by decorator)
+        quiet: Suppress command output (passed from CLI, used by decorator)
+
+    """
+    from oarepo_cli.services.alembic import AlembicManager
+
+    manager = AlembicManager(context, console)
+    manager.init()
+
+
+@alembic_app.command("init")
+def alembic_init(
+    quiet: Annotated[bool, typer.Option("--quiet", "-q", help="Suppress command output")] = False,
+) -> None:
+    """Initialize Alembic support for the library.
+
+    This command performs the following steps:
+    1. Checks for the required 'invenio_db.models' entrypoint in pyproject.toml
+    2. Creates an 'alembic' directory in the first code directory if it doesn't exist
+    3. Adds the 'invenio_db.alembic' entrypoint to pyproject.toml if missing
+
+    The 'invenio_db.models' entrypoint is required for Alembic support and should
+    point to your database models module. If it's missing, the command will exit
+    with an error and provide an example configuration.
+
+    Example:
+        oarepo-cli library alembic init
+        oarepo-cli library alembic init --quiet
+
+    """
+    _alembic_init_impl(quiet=quiet)
 
 
 @with_context_and_console(
