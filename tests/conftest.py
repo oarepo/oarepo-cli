@@ -6,34 +6,63 @@
 from __future__ import annotations
 
 import contextlib
+import io
 import os
 import shutil
-import subprocess
 import tempfile
 from pathlib import Path
 from typing import TYPE_CHECKING
 
 import pytest
+from colorama import AnsiToWin32
+from typer.testing import CliRunner
 
 if TYPE_CHECKING:
     from collections.abc import Callable, Iterator
 
+from oarepo_cli.cli.main import app
 from oarepo_cli.core.config import CliConfig, ServicesConfig, TestingConfig
 from oarepo_cli.core.context import ProjectContext
-from oarepo_cli.core.platform import get_platform_detector
 from oarepo_cli.services.services_lifecycle import ServicesLifecycleManager
 
 # Rich/Click's help-text renderer falls back to os.get_terminal_size() on the
 # real stdout/stderr file descriptors, which typer.testing.CliRunner.invoke()
 # doesn't redirect (it only swaps the Python-level sys.stdout object) -- so
-# on a CI runner whose job step happens to have a narrow controlling pty,
-# `--help` output wraps differently than on a real dev terminal and can
-# split an option name (e.g. "--force") across a line break. Rich/Click both
-# prefer the COLUMNS/LINES env vars over that OS query when set, so pinning
-# them here makes every CliRunner-rendered help text deterministic across
-# environments.
-os.environ.setdefault("COLUMNS", "200")
-os.environ.setdefault("LINES", "50")
+# on a CI runner whose job step has no controlling terminal (or one reporting
+# a degenerate size), `--help` output can wrap down to almost nothing --
+# observed on GitHub Actions as help panels rendering as an empty box with no
+# visible option text at all (COLUMNS/LINES of "1" reproduces this exactly
+# locally). Rich/Click both prefer the COLUMNS/LINES env vars over that OS
+# query when set, so pinning them here makes every CliRunner-rendered help
+# text deterministic across environments -- unconditionally, not just
+# `setdefault`, since a CI environment that already exports a degenerate
+# COLUMNS/LINES value is exactly the failure case this works around.
+os.environ["COLUMNS"] = "200"
+os.environ["LINES"] = "50"
+
+
+def _strip_ansi(text: str) -> str:
+    """Strip ANSI escape sequences (Rich/Click color codes) from text.
+
+    Rich's option highlighter can wrap sub-spans of what looks like one
+    token -- e.g. the "--" prefix and the option name -- in separate style
+    codes, splitting a literal substring like "--force" across escape
+    sequences in the raw captured stdout. This shows up far more often on a
+    CI runner with no controlling terminal than in a real dev terminal, and
+    survives even with COLUMNS/LINES/TERMINAL_WIDTH pinned (those fix
+    wrapping width, not color-code placement). Stripping the codes first
+    makes `"--force" in ...`-style assertions robust regardless of how the
+    output ended up colorized.
+    """
+    output = io.StringIO()
+    AnsiToWin32(output, strip=True, convert=False).write(text)
+    return output.getvalue()
+
+
+@pytest.fixture
+def strip_ansi() -> Callable[[str], str]:
+    """Fixture handle for ``_strip_ansi``, for tests asserting on CliRunner help text."""
+    return _strip_ansi
 
 
 def _cleanup_testlib(project_path: Path, stop_services: bool = True) -> None:
@@ -140,13 +169,6 @@ def _remove_pycache_directories(project_path: Path) -> None:
         shutil.rmtree(pycache)
 
 
-# https://raw.githubusercontent.com/oarepo/oarepo/refs/heads/main/tools/repository_installer.sh
-# creates a real repository from the nrp-app-copier template, as documented at
-# https://nrp-cz.github.io/docs/installation/create_instance
-REPOSITORY_INSTALLER_URL = (
-    "https://raw.githubusercontent.com/oarepo/oarepo/refs/heads/main/tools/repository_installer.sh"
-)
-
 REPOSITORY_CONFIG_YAML = """\
 repository_human_name: Test Repository
 repository_description: Integration test repository for oarepo-cli
@@ -211,13 +233,14 @@ def testrepo_project() -> Path:
     Unlike ``testlib_project`` (a small, hand-written fixture committed to
     the repo), a real repository is too large and heavyweight (its own
     nested git repo, generated docker/i18n/UI assets) to commit. Instead
-    it's created on demand, once, via the real installer described at
-    https://nrp-cz.github.io/docs/installation/create_instance -- the same
-    ``repository_installer.sh`` a user would run, driving the
-    ``nrp-app-copier`` template through ``copier``. If ``tests/testrepo``
-    already exists (from a previous run), creation is skipped entirely and
-    the cached scaffold is reused, since generation itself is slow
-    (network + copier) even before ``repository install`` runs anything.
+    it's created on demand, once, via ``oarepo-cli new`` itself -- the same
+    scaffolding operation (``nrp-app-copier`` template through ``copier``)
+    a user would run, exercised in-process through ``CliRunner`` rather
+    than downloading and shelling out to ``repository_installer.sh``. If
+    ``tests/testrepo`` already exists (from a previous run), creation is
+    skipped entirely and the cached scaffold is reused, since generation
+    itself is slow (network + copier) even before ``repository install``
+    runs anything.
     """
     root = Path(__file__).parent / "testrepo"
     if (root / "pyproject.toml").exists():
@@ -226,34 +249,23 @@ def testrepo_project() -> Path:
     root.parent.mkdir(parents=True, exist_ok=True)
 
     with tempfile.TemporaryDirectory() as tmp:
-        tmp_path = Path(tmp)
-        installer = tmp_path / "repository_installer.sh"
-        subprocess.run(  # noqa: S603 - just a test, not a security issue
-            ["curl", "-fsSL", "-o", str(installer), REPOSITORY_INSTALLER_URL],  # noqa: S607 - curl is trusted
-            check=True,
-        )
-        installer.chmod(0o755)
-
-        config_file = tmp_path / "repo_config.yaml"
+        config_file = Path(tmp) / "repo_config.yaml"
         config_file.write_text(REPOSITORY_CONFIG_YAML)
 
-        # macOS ships bash 3.2 as /bin/bash (frozen for licensing reasons),
-        # which mishandles the script's `"${@}"` expansion under `set -u`
-        # when called with zero arguments. Same issue and fix as
-        # PlatformDetector.get_default_shell().
-        subprocess.run(  # noqa: S603 - just a test, not a security issue to run the program
-            [
-                get_platform_detector().get_default_shell(),
-                str(installer),
-                "--python",
-                "python3.14",
-                "--config",
-                str(config_file),
-                root.name,
-            ],
-            cwd=root.parent,
-            check=True,
-        )
+        cwd = Path.cwd()
+        os.chdir(root.parent)
+        try:
+            result = CliRunner().invoke(
+                app,
+                ["new", "--config", str(config_file), root.name],
+                catch_exceptions=False,
+            )
+        finally:
+            os.chdir(cwd)
+
+    if result.exit_code != 0:
+        msg = f"Failed to create testrepo fixture via 'oarepo-cli new':\n{result.output}"
+        raise RuntimeError(msg)
 
     return root
 

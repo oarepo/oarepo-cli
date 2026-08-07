@@ -24,6 +24,8 @@ from oarepo_cli.cli.main import app
 from oarepo_cli.core.errors import ConfigurationError
 
 if TYPE_CHECKING:
+    from collections.abc import Callable
+
     from oarepo_cli.ui import ConsoleOutput
 
 runner = CliRunner()
@@ -213,9 +215,10 @@ def test_new_rejects_missing_config_file() -> None:
     assert result.exit_code == 2
 
 
-def test_new_help_lists_all_options() -> None:
+def test_new_help_lists_all_options(strip_ansi: Callable[[str], str]) -> None:
     """--help documents every option and the positional repository_name argument."""
     result = runner.invoke(app, ["new", "--help"])
+    output = strip_ansi(result.output)
 
     assert result.exit_code == 0
     for expected in (
@@ -227,4 +230,4 @@ def test_new_help_lists_all_options() -> None:
         "--config",
         "repository_name",
     ):
-        assert expected in result.output
+        assert expected in output

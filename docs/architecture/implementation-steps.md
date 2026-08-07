@@ -2140,13 +2140,13 @@ steps, etc.):
 **Current State**: The `testrepo_project` fixture in `tests/conftest.py` downloads the `repository_installer.sh` bash script from GitHub and executes it with copier to create a test repository.
 
 **Implementation**:
-- Modify the `testrepo_project` fixture to call `oarepo-cli new` command instead
-- Remove the dependency on downloading the bash script
-- Use the library scaffolding functionality that is already implemented
+- [x] Modify the `testrepo_project` fixture to call `oarepo-cli new` command instead
+- [x] Remove the dependency on downloading the bash script
+- [x] Use the library scaffolding functionality that is already implemented
 
 **Deliverables**:
-- Updated `testrepo_project` fixture using oarepo-cli `new` command
-- Removed bash script download logic from tests
+- [x] Updated `testrepo_project` fixture using oarepo-cli `new` command
+- [x] Removed bash script download logic from tests
 
 ---
 
