@@ -1,0 +1,767 @@
+# SPDX-FileCopyrightText: 2026 CESNET z.s.p.o.
+# SPDX-License-Identifier: MIT
+
+"""Repository-specific service operations for OARepo projects."""
+
+from __future__ import annotations
+
+import os
+import re
+from dataclasses import dataclass
+from pathlib import Path
+from typing import TYPE_CHECKING, NoReturn
+
+from oarepo_cli.core.platform import get_platform_detector
+from oarepo_cli.services import invenio_cli, process, translations
+from oarepo_cli.services.process import ProcessOutputMode
+from oarepo_cli.services.venv import VenvRequirements, VirtualEnvironmentManager
+from oarepo_cli.ui import ConsoleOutput
+
+if TYPE_CHECKING:
+    from collections.abc import Sequence
+
+    from oarepo_cli.core.context import ProjectContext
+
+
+def configure_local_ports(context: ProjectContext) -> None:
+    """Configure local service ports in .invenio.private file.
+
+    Mirrors ``repository_runner.sh``'s port configuration step in install_repository:
+    reads port values from the ``variables`` file and writes them to ``.invenio.private``.
+
+    Args:
+        context: Project context with paths and configuration
+
+    Raises:
+        FileNotFoundError: If .invenio.private or variables file doesn't exist
+        IOError: If reading/writing files fails
+
+    """
+    invenio_private = context.root_directory / ".invenio.private"
+    variables_file = context.root_directory / "variables"
+
+    if not invenio_private.exists():
+        msg = f".invenio.private not found at {invenio_private}"
+        raise FileNotFoundError(msg)
+
+    if not variables_file.exists():
+        msg = f"variables file not found at {variables_file}"
+        raise FileNotFoundError(msg)
+
+    # Read port mappings from variables file
+    ports = _extract_port_variables(variables_file)
+
+    if not ports:
+        return
+
+    # Update .invenio.private with new port values
+    _update_invenio_private(invenio_private, ports)
+
+
+def _extract_port_variables(variables_file: Path) -> dict[str, str]:
+    """Extract port variable mappings from the variables file.
+
+    Args:
+        variables_file: Path to the variables file
+
+    Returns:
+        Dictionary mapping port keys to their values
+
+    """
+    variables_content = variables_file.read_text()
+    port_vars = {
+        "search_port": "INVENIO_OPENSEARCH_PORT",
+        "db_port": "INVENIO_DATABASE_PORT",
+        "redis_port": "INVENIO_REDIS_PORT",
+        "rabbitmq_port": "INVENIO_RABBIT_PORT",
+        "s3_port": "INVENIO_S3_PORT",
+        "web_port": "INVENIO_UI_PORT",
+    }
+
+    ports: dict[str, str] = {}
+    for key, var_name in port_vars.items():
+        # Match pattern like: export INVENIO_OPENSEARCH_PORT=9200
+        # or INVENIO_OPENSEARCH_PORT=9200
+        pattern = rf"(?:export\s+)?{re.escape(var_name)}=([^\s]+)"
+        match = re.search(pattern, variables_content)
+        if match:
+            ports[key] = match.group(1).strip("\"'")
+
+    return ports
+
+
+def _update_invenio_private(invenio_private: Path, ports: dict[str, str]) -> None:
+    """Update .invenio.private file with new port values.
+
+    Args:
+        invenio_private: Path to the .invenio.private file
+        ports: Dictionary of port names to values
+
+    """
+    # Read existing .invenio.private and remove old port entries
+    content = invenio_private.read_text()
+    lines = content.splitlines()
+
+    # Remove lines matching port patterns
+    port_pattern = re.compile(r"^(search|db|redis|rabbitmq|s3|web)_port\s*=")
+    filtered_lines = [line for line in lines if not port_pattern.match(line)]
+
+    # Write back with new port values
+    with invenio_private.open("w") as f:
+        # Write existing non-port lines
+        if filtered_lines:
+            f.write("\n".join(filtered_lines))
+            # Add newline if file didn't end with one
+            if filtered_lines[-1]:
+                f.write("\n")
+
+        # Add new port values
+        for key, value in ports.items():
+            f.write(f"{key} = {value}\n")
+
+
+def get_instance_path(context: ProjectContext) -> Path:
+    """Get the Invenio instance path without booting the Flask app.
+
+    Asking Invenio directly (``invenio shell -c "print(app.instance_path)"``)
+    would mean spinning up the full application just to read one path, which
+    is slow. Invenio's own default instance path is
+    ``sys.prefix/var/instance``, which for a project's venv is
+    ``<venv>/var/instance``; ``INVENIO_INSTANCE_PATH``, when set, overrides
+    it. Replicating that resolution here avoids the subprocess entirely. See
+    ADR-007 in 00-main-architecture.md.
+
+    Args:
+        context: Project context with paths and configuration
+
+    Returns:
+        Path to the Invenio instance directory
+
+    """
+    instance_path = os.environ.get("INVENIO_INSTANCE_PATH")
+    if instance_path:
+        return Path(instance_path)
+
+    return context.venv_path / "var" / "instance"
+
+
+def ensure_instance_structure(
+    context: ProjectContext,
+    instance_path: Path,
+    *,
+    quiet: bool = False,
+) -> None:
+    """Ensure instance directory structure exists and invenio.cfg is symlinked.
+
+    Mirrors ``repository_runner.sh``'s instance setup steps:
+    - Create instance_path if it doesn't exist
+    - Create symlink to invenio.cfg if it doesn't exist
+
+    Args:
+        context: Project context with paths and configuration
+        instance_path: Path to the instance directory
+        quiet: If True, suppress status messages
+
+    """
+    if not quiet:
+        pass
+
+    # Create instance directory if it doesn't exist
+    if not instance_path.exists():
+        if not quiet:
+            pass
+
+        instance_path.mkdir(parents=True, exist_ok=True)
+
+    # Create symlink to invenio.cfg if it doesn't exist
+    invenio_cfg_link = instance_path / "invenio.cfg"
+    invenio_cfg_source = context.root_directory / "invenio.cfg"
+
+    if not invenio_cfg_link.exists() and invenio_cfg_source.exists():
+        if not quiet:
+            pass
+
+        # Use relative path if possible, absolute otherwise
+        try:
+            invenio_cfg_link.symlink_to(invenio_cfg_source)
+        except OSError:
+            # If symlink fails (e.g., on Windows without admin), try copy instead
+            import shutil
+
+            shutil.copy2(invenio_cfg_source, invenio_cfg_link)
+
+    if not quiet:
+        pass
+
+
+def lock_assets(
+    context: ProjectContext,
+    *,
+    quiet: bool = False,
+) -> None:
+    """Lock JavaScript dependencies to specific versions.
+
+    Runs invenio-cli assets lock to generate/update lock files for
+    JavaScript dependencies (package.json and pnpm-lock.yaml), which
+    are automatically copied to the repository root by invenio-cli. This ensures
+    consistent JavaScript dependency versions across installs.
+
+    Args:
+        context: Project context with paths and configuration
+        quiet: If True, suppress status messages
+
+    """
+    console = ConsoleOutput(quiet=quiet)
+
+    console.info("-> Locking JavaScript dependencies\n")
+
+    result = invenio_cli.run_invenio_cli(
+        context,
+        ["assets", "lock"],
+        quiet=quiet,
+        check=False,
+    )
+
+    if not result.success:
+        console.warning("Warning: invenio-cli assets lock failed!")
+
+
+def install_repository(context: ProjectContext, *, quiet: bool = False) -> None:
+    """Install/reinstall a repository into its virtual environment.
+
+    Mirrors ``repository_runner.sh``'s ``install_repository`` function:
+    1. Creates/syncs virtual environment with uv
+    2. Copies translation overlays to site-packages
+    3. Resolves instance path (INVENIO_INSTANCE_PATH or <venv>/var/instance)
+    4. Creates instance directory and symlinks invenio.cfg
+    5. Runs invenio-cli install
+    6. Configures local service ports in .invenio.private
+    7. Compiles backend translations
+
+    Shared by ``repository install``, ``upgrade_repository`` (below, which
+    cleans the venv and uv cache first, then reinstalls), and
+    ``ModelManager.create_model()`` (which reinstalls after adding a model,
+    if a venv already exists) -- mirroring how repository_runner.sh's
+    ``install_repository`` is called from ``install``, ``upgrade_repository``,
+    and ``create_model`` alike. Callers are responsible for their own
+    top-level success message and ``(OARepoError, ProcessExecutionError)``
+    handling.
+
+    Args:
+        context: Project context with paths and configuration
+        quiet: If True, suppress status/progress messages
+
+    Raises:
+        ProcessExecutionError: If a required step (uv sync, invenio-cli
+            install) fails
+
+    """
+    console = ConsoleOutput(quiet=quiet)
+
+    # Step 1: Ensure virtual environment exists and sync dependencies
+    console.info(f"→ Syncing dependencies in {context.config.venv.path}\n")
+
+    venv_manager = VirtualEnvironmentManager(context.config, context.root_directory)
+    requirements = VenvRequirements(
+        python_binary=str(context.python_binary),
+        oarepo_version=context.oarepo_version,
+        extras=[],  # No explicit extras for repositories; uv sync reads pyproject.toml
+        editable=True,  # Repositories are always editable installs
+    )
+    venv_manager.ensure_venv(requirements, quiet=quiet)
+
+    # Step 2: Copy translation overlays
+    console.info("→ Copying translation overlays\n")
+
+    collected_dir = os.environ.get("COLLECTED_TRANSLATIONS_DIR")
+    translations.copy_translations(
+        context,
+        collected_translations_dir=collected_dir,
+        quiet=quiet,
+    )
+
+    # Step 3: Get instance path from Invenio shell
+    console.info("→ Detecting instance path\n")
+
+    instance_path = get_instance_path(context)
+
+    # Step 4: Ensure instance structure (directory + invenio.cfg symlink)
+    ensure_instance_structure(context, instance_path, quiet=quiet)
+
+    # Step 5: Run invenio-cli install
+    console.info("→ Running invenio-cli install\n")
+
+    invenio_cli.run_invenio_cli(
+        context,
+        ["install"],
+        quiet=quiet,
+        check=True,
+    )
+
+    # Step 6: Configure local service ports
+    console.info("→ Configuring service ports\n")
+
+    configure_local_ports(context)
+
+    # Step 7: Compile backend translations
+    # First, ensure translations directory structure exists (bootstrap if needed)
+    translations_dir = context.root_directory / "translations"
+    messages_pot = translations_dir / "messages.pot"
+    en_lc_messages = translations_dir / "en" / "LC_MESSAGES"
+
+    if not messages_pot.exists() or not en_lc_messages.exists():
+        console.info("→ Bootstrapping translations with make-translations\n")
+        # Try to run make-translations to bootstrap; don't fail if it errors
+        result = translations.run_translations(context, quiet=quiet)
+        if not result.success:
+            console.warning("⚠️  Warning: make-translations failed, translations not compiled!")
+
+    console.info("→ Compiling backend translations\n")
+
+    # Run invenio-cli translations compile
+    result = invenio_cli.run_invenio_cli(
+        context,
+        ["translations", "compile"],
+        quiet=quiet,
+        check=False,  # Don't fail if translations compile fails
+    )
+
+    if not result.success:
+        console.warning("⚠️  Warning: invenio-cli failed to compile backend translations!")
+
+
+def upgrade_repository(context: ProjectContext, *, quiet: bool = False, clean_cache: bool = True) -> None:
+    """Upgrade repository: clean venv (and, by default, cache) and reinstall from scratch.
+
+    Mirrors ``repository_runner.sh``'s ``upgrade_repository`` function:
+    1. Removes the virtual environment (if present)
+    2. Removes uv.lock (if present)
+    3. Cleans the uv cache (``uv cache clean --force``), unless ``clean_cache`` is False
+    4. Reinstalls the repository (see ``install_repository`` above)
+    5. Locks JavaScript dependencies (``invenio-cli assets lock``)
+
+    Shared by ``repository upgrade`` (``clean_cache=True``, matching bash) and
+    ``LocalPackageManager`` (which triggers a full upgrade after adding/removing
+    a local package, unconditionally -- mirroring repository_runner.sh's
+    ``local_sources_cmd``'s unconditional call to ``upgrade_repository`` after
+    ``uv add``, unlike ``ModelManager.create_model()``'s conditional reinstall
+    -- but with ``clean_cache=False``: a local package's own dependencies
+    haven't changed, so purging already-downloaded wheels for everything else
+    just to reinstall the same versions is wasted time, unlike a real
+    ``repository upgrade``, which explicitly wants to force a fresh resolve).
+    Callers are responsible for their own top-level success message and
+    ``(OARepoError, ProcessExecutionError)`` handling.
+
+    Args:
+        context: Project context with paths and configuration
+        quiet: If True, suppress status/progress messages
+        clean_cache: If False, skip the ``uv cache clean --force`` step
+
+    Raises:
+        ProcessExecutionError: If ``uv cache clean`` or ``install_repository``
+            fails
+
+    """
+    console = ConsoleOutput(quiet=quiet)
+
+    venv_manager = VirtualEnvironmentManager(context.config, context.root_directory)
+    if context.venv_path.exists():
+        console.info("→ Removing virtual environment...\n")
+    if (context.root_directory / "uv.lock").exists():
+        console.info("→ Removing uv.lock...\n")
+    venv_manager.cleanup()
+
+    if clean_cache:
+        console.info("-> Cleaning uv cache...\n")
+        process.run(
+            ["uv", "cache", "clean", "--force"],
+            check=True,
+            output_mode=ProcessOutputMode.INTERACTIVE if not quiet else ProcessOutputMode.CAPTURE,
+        )
+
+    console.info("-> Reinstalling repository...\n")
+    install_repository(context, quiet=quiet)
+
+    lock_assets(context, quiet=quiet)
+
+
+def get_invenio_binary(context: ProjectContext) -> Path:
+    """Resolve the path to the venv's own ``invenio`` binary (bare, not ``invenio-cli``)."""
+    bin_dir = get_platform_detector().get_venv_bin_dir()
+    return context.venv_path / bin_dir / "invenio"
+
+
+def exec_invenio(context: ProjectContext, args: Sequence[str]) -> NoReturn:
+    """Replace the current process with the venv's own ``invenio`` binary. Never returns.
+
+    Mirrors ``repository_runner.sh``'s ``run_invenio()`` (``export
+    PYTHONWARNINGS=ignore; activate_venv; invenio "$@"``): a pure, one-shot
+    passthrough to the bare ``invenio`` CLI (not ``invenio-cli``, which
+    ``invenio_cli.exec_invenio_cli`` handles), like ``cli/library.py``'s
+    ``library_invenio``. Process replacement (``os.execve``) lets a
+    terminal Ctrl+C hit ``invenio`` directly, exactly as if the user had
+    run it themselves, and preserves its exit code exactly -- mirrors
+    ``ServerRunner._exec_bare_invenio``'s same approach for ``invenio run``
+    specifically.
+
+    Args:
+        context: Project context with paths and configuration -- also
+            ``chdir``s into ``context.root_directory`` first, since
+            ``execve`` has no ``cwd`` parameter of its own
+        args: Arguments to pass to ``invenio``
+
+    Raises:
+        OSError: If the invenio binary can't be exec'd (not found, not
+            executable, ...)
+
+    """
+    os.chdir(context.root_directory)
+    binary = get_invenio_binary(context)
+    # build_subprocess_env() strips oarepo-cli's own venv and injects
+    # OAREPO_ENV_DEFAULTS (INVENIO_*/... settings), same as any process.run()
+    # call gets -- there's no other subprocess env-merging safety net once
+    # this replaces the current process.
+    env = process.build_subprocess_env({"PYTHONWARNINGS": "ignore"})
+    os.execve(str(binary), [str(binary), *args], env)  # noqa S606 no shell is ok here, replacing the process
+
+
+def exec_shell(context: ProjectContext) -> NoReturn:
+    """Replace the current process with an interactive bash shell in the repository's venv.
+
+    Mirrors ``cli/library.py``'s ``library_shell``'s environment setup
+    (``VIRTUAL_ENV``/``PATH``, ``VIRTUAL_ENV_PROMPT``, a fallback ``PS1``,
+    dropping an inherited ``PROMPT_COMMAND``, silencing macOS's bash
+    deprecation nag) -- but unlike ``library_shell``, doesn't load any
+    ``.env-services`` environment variables: a repository resolves its own
+    service connection details from ``invenio.cfg``/``.invenio.private``
+    (see ``configure_local_ports()``), not from env vars
+    docker-services-cli would write, so there's nothing to load. Docker
+    services themselves are the caller's responsibility (started via
+    ``invenio-cli services start``, like ``repository run``, not
+    ``ServicesLifecycleManager`` -- a repository's services are always
+    managed through invenio-cli, unlike a library's).
+
+    Args:
+        context: Project context with paths and configuration -- also
+            ``chdir``s into ``context.root_directory`` first, since
+            ``execve`` has no ``cwd`` parameter of its own
+
+    Raises:
+        OSError: If the shell can't be exec'd (not found, not executable, ...)
+
+    """
+    platform = get_platform_detector()
+    bin_dir = platform.get_venv_bin_dir()
+
+    shell_env = process.build_subprocess_env()
+    shell_env["VIRTUAL_ENV"] = str(context.venv_path)
+    venv_bin_path = str(context.venv_path / bin_dir)
+    shell_env["PATH"] = f"{venv_bin_path}{os.pathsep}{shell_env.get('PATH', '')}"
+
+    # Advertise the venv to prompt tools that read it directly (uv's own
+    # activate script sets this too). Use the project name rather than
+    # ".venv" since it's the more useful thing to see in the prompt.
+    shell_env["VIRTUAL_ENV_PROMPT"] = context.root_directory.name
+
+    # Fallback PS1 for plain bash with no prompt tool of its own. Only takes
+    # effect if nothing later in shell startup (rc files, prompt tools that
+    # respect this convention) resets it -- VIRTUAL_ENV_DISABLE_PROMPT lets
+    # users who prefer their own prompt opt out entirely.
+    if "VIRTUAL_ENV_DISABLE_PROMPT" not in shell_env:
+        shell_env["PS1"] = f"({context.root_directory.name}) \\u@\\h:\\w\\$ "
+
+    # Drop PROMPT_COMMAND: prompt tools (e.g. starship) set it to recompute
+    # PS1 before every prompt render, so an inherited value would silently
+    # override PS1 above the moment the first prompt is drawn.
+    shell_env.pop("PROMPT_COMMAND", None)
+
+    # Suppress macOS's "default interactive shell is now zsh" nag: it's
+    # printed on every interactive bash startup and reads like something
+    # went wrong.
+    shell_env["BASH_SILENCE_DEPRECATION_WARNING"] = "1"
+
+    os.chdir(context.root_directory)
+    bash_path = platform.get_default_shell()
+    os.execve(bash_path, ["bash"], shell_env)  # noqa S606 no shell is ok here, replacing the process
+
+
+def _run_invenio(context: ProjectContext, args: Sequence[str], *, quiet: bool = False) -> None:
+    """Run a bare ``invenio`` subcommand in the venv, waiting for it to complete.
+
+    Unlike ``ServerRunner``, which ``exec``s the final long-running ``invenio
+    run``, callers here (``rebuild_index``, ``reset_repository``) need to run
+    several one-shot commands in sequence, so this blocks and raises on
+    failure like any other subprocess call in this module.
+    """
+    process.run(
+        [str(get_invenio_binary(context)), *args],
+        cwd=context.root_directory,
+        check=True,
+        output_mode=ProcessOutputMode.INTERACTIVE if not quiet else ProcessOutputMode.CAPTURE,
+    )
+
+
+def rebuild_index(context: ProjectContext, *, quiet: bool = False) -> None:
+    """Destroy and re-create the search index, then rebuild all records/custom fields.
+
+    Mirrors ``repository_runner.sh``'s ``rebuild_index()``: a sequence of bare
+    ``invenio`` subcommands (not ``invenio-cli``), run directly against the venv.
+
+    Args:
+        context: Project context with paths and configuration
+        quiet: If True, suppress status/progress messages
+
+    Raises:
+        ProcessExecutionError: If any of the ``invenio`` subcommands fail
+
+    """
+    console = ConsoleOutput(quiet=quiet)
+
+    console.info("→ Destroying search index...\n")
+    _run_invenio(context, ["index", "destroy", "--yes-i-know"], quiet=quiet)
+
+    console.info("→ Initializing search index...\n")
+    _run_invenio(context, ["index", "init"], quiet=quiet)
+
+    console.info("→ Initializing custom fields...\n")
+    _run_invenio(context, ["rdm-records", "custom-fields", "init"], quiet=quiet)
+    _run_invenio(context, ["communities", "custom-fields", "init"], quiet=quiet)
+
+    console.info("→ Rebuilding all indices...\n")
+    _run_invenio(context, ["rdm", "rebuild-all-indices"], quiet=quiet)
+
+    console.success("✓ Search index was destroyed and re-created\n")
+    console.info("Please run the server with workers (oarepo-cli repository run) to complete the indexing.\n")
+
+
+def reset_repository(context: ProjectContext, *, quiet: bool = False) -> None:
+    """Full reset: destroy services, wipe venv/lock/local config, reinstall, reseed demo data.
+
+    Mirrors ``repository_runner.sh``'s ``reset_repository()`` (the confirmation
+    prompt is the caller's responsibility, e.g. ``cli/repository.py``'s
+    ``reset`` command -- this always proceeds unconditionally). Docker
+    service destruction failure (e.g. nothing was running) is deliberately
+    ignored, matching bash's ``services destroy || true``; every other step
+    raises on failure.
+
+    Args:
+        context: Project context with paths and configuration
+        quiet: If True, suppress status/progress messages
+
+    Raises:
+        ProcessExecutionError: If reinstalling, setting up services, or
+            seeding the demo admin/user fails
+
+    """
+    console = ConsoleOutput(quiet=quiet)
+
+    console.info("→ Stopping and removing services (if running)...\n")
+    invenio_cli.run_invenio_cli(context, ["services", "destroy"], quiet=quiet, check=False)
+
+    venv_manager = VirtualEnvironmentManager(context.config, context.root_directory)
+    if context.venv_path.exists():
+        console.info("→ Removing virtual environment...\n")
+    venv_manager.cleanup()
+
+    uv_lock = context.root_directory / "uv.lock"
+    if uv_lock.exists():
+        console.info("→ Removing uv.lock...\n")
+        uv_lock.unlink()
+
+    invenio_private = context.root_directory / ".invenio.private"
+    if invenio_private.exists():
+        console.info("→ Removing local invenio settings...\n")
+        invenio_private.unlink()
+
+    console.info("→ Cleaning uv cache...\n")
+    process.run(
+        ["uv", "cache", "clean", "--force"],
+        check=True,
+        output_mode=ProcessOutputMode.INTERACTIVE if not quiet else ProcessOutputMode.CAPTURE,
+    )
+
+    console.info("→ Reinstalling repository...\n")
+    install_repository(context, quiet=quiet)
+
+    console.info("→ Setting up services...\n")
+    invenio_cli.run_invenio_cli(context, ["services", "setup", "-N"], quiet=quiet, check=True)
+
+    console.info("→ Creating administration group and a sample user@demo.org...\n")
+    _run_invenio(context, ["roles", "create", "administration"], quiet=quiet)
+    _run_invenio(
+        context,
+        ["access", "allow", "administration-access", "role", "administration"],
+        quiet=quiet,
+    )
+    _run_invenio(
+        context,
+        ["access", "allow", "administration-moderation", "role", "administration"],
+        quiet=quiet,
+    )
+    _run_invenio(
+        context,
+        [
+            "users",
+            "create",
+            "-a",
+            "-c",
+            "user@demo.org",
+            "--password",
+            context.config.security.demo_user_password,
+        ],
+        quiet=quiet,
+    )
+    _run_invenio(context, ["roles", "add", "user@demo.org", "administration"], quiet=quiet)
+
+
+def run_tests(
+    context: ProjectContext,
+    *,
+    pytest_args: Sequence[str] = (),
+    coverage: bool = False,
+    quiet: bool = False,
+) -> NoReturn:
+    """Install pytest/pytest-cov if needed, then replace the current process with pytest.
+
+    Never returns: unlike installing dependencies (which must complete and
+    be checked before pytest can run), nothing needs to happen in this
+    process once pytest starts -- this doesn't stop Docker services
+    afterward (see below), so there's no cleanup step being skipped by
+    exec'ing. Lets a terminal Ctrl+C hit pytest directly and preserves its
+    exit code exactly, mirroring every other one-shot passthrough in this
+    module (``exec_invenio``, ``exec_shell``).
+
+    Unlike ``services.test_orchestrator.TestOrchestrator`` (used by
+    ``library test``), this doesn't manage Docker services itself -- the
+    caller starts them via ``invenio-cli services start`` first, like
+    ``repository run``/``shell`` (a repository's services are always
+    invenio-cli-managed, unlike a library's raw docker-services-cli setup
+    via ``ServicesLifecycleManager``, which wouldn't correctly drive a
+    repository's own ``docker/docker-compose.yml``), and doesn't stop them
+    afterward either, matching every other ``repository`` command.
+
+    Also doesn't assume a single importable package name for ``--cov``
+    like ``TestOrchestrator`` does (derived from ``[project].name``, correct
+    for a library's one src/-or-package-dir layout): a repository's
+    ``context.code_directories`` (resolved from ``[tool.uv.build-backend]``
+    when declared) are typically several top-level module directories, each
+    already a real importable package name, so every one of them (except
+    ``tests/``) is passed to ``--cov`` instead.
+
+    Unlike a library (which either declares a ``tests`` extra itself or
+    already depends on it transitively), a fresh repository has no such
+    convention, so ``pytest``/``pytest-cov`` are installed directly into the
+    venv on demand if missing, rather than via an extras group.
+
+    Args:
+        context: Project context with paths and configuration
+        pytest_args: Additional arguments to pass to pytest
+        coverage: If True, enable coverage reporting (HTML + terminal)
+        quiet: If True, suppress dependency-installation progress messages
+
+    Raises:
+        ProcessExecutionError: If installing pytest/pytest-cov fails
+        OSError: If pytest can't be exec'd (not found, not executable, ...)
+
+    """
+    console = ConsoleOutput(quiet=quiet)
+    bin_dir = get_platform_detector().get_venv_bin_dir()
+    venv_python = context.venv_path / bin_dir / "python"
+    pytest_bin = context.venv_path / bin_dir / "pytest"
+
+    if not pytest_bin.exists():
+        console.info("→ Installing pytest...\n")
+        process.run(
+            ["uv", "pip", "install", "--python", str(venv_python), "pytest"],
+            cwd=context.root_directory,
+            check=True,
+            output_mode=ProcessOutputMode.INTERACTIVE if not quiet else ProcessOutputMode.CAPTURE,
+        )
+
+    if coverage:
+        check_cov = process.run(
+            [str(venv_python), "-c", "import pytest_cov"],
+            check=False,
+        )
+        if not check_cov.success:
+            console.info("→ Installing pytest-cov...\n")
+            process.run(
+                ["uv", "pip", "install", "--python", str(venv_python), "pytest-cov"],
+                cwd=context.root_directory,
+                check=True,
+                output_mode=ProcessOutputMode.INTERACTIVE if not quiet else ProcessOutputMode.CAPTURE,
+            )
+
+    cmd = [str(pytest_bin)]
+    if coverage:
+        for directory in context.code_directories:
+            if directory.name != "tests":
+                cmd.extend(["--cov", directory.name])
+        cmd.extend(["--cov-report=html", "--cov-report=term"])
+    cmd.extend(pytest_args)
+
+    os.chdir(context.root_directory)
+    env = process.build_subprocess_env()
+    os.execve(str(pytest_bin), cmd, env)  # noqa S606 no shell is ok here, replacing the process
+
+
+def get_python_version(context: ProjectContext) -> str:
+    """Return the resolved Python interpreter's version string (e.g. "Python 3.14.4").
+
+    Mirrors ``repository_runner.sh``'s ``show_info()``: ``"$PYTHON" --version``.
+    """
+    result = process.run(
+        [str(context.python_binary), "--version"],
+        check=False,
+    )
+    return (result.stdout or result.stderr).strip()
+
+
+@dataclass(frozen=True)
+class ModelInfo:
+    """A discovered record model: name and version extracted from its ``model.py``."""
+
+    name: str
+    version: str
+
+
+_MODEL_VERSION_PATTERN = re.compile(r"""version\s*=\s*["']([^"']+)["']""")
+
+
+def list_repository_models(context: ProjectContext) -> list[ModelInfo]:
+    """List record models under ``models/``, with their version from ``model.py``.
+
+    Mirrors ``repository_runner.sh``'s ``show_info()``'s model discovery: a
+    directory under ``models/`` counts as a model only if it has both
+    ``.copier-answers.yml`` and ``model.py``; version is the first
+    ``version = "..."`` match in ``model.py``, or ``"unknown"`` if none.
+    """
+    models_dir = context.root_directory / "models"
+    if not models_dir.is_dir():
+        return []
+
+    models = []
+    for entry in sorted(models_dir.iterdir()):
+        if not entry.is_dir():
+            continue
+        if not (entry / ".copier-answers.yml").exists() or not (entry / "model.py").exists():
+            continue
+        models.append(ModelInfo(name=entry.name, version=_extract_model_version(entry / "model.py")))
+    return models
+
+
+def _extract_model_version(model_py: Path) -> str:
+    """Extract the __version__ string from a model's Python file.
+
+    Args:
+        model_py: Path to the model's __init__.py or model.py file
+
+    Returns:
+        The version string if found, otherwise "unknown"
+
+    """
+    for line in model_py.read_text().splitlines():
+        match = _MODEL_VERSION_PATTERN.search(line)
+        if match:
+            return match.group(1)
+    return "unknown"
