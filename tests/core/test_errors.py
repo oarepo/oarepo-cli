@@ -1,0 +1,235 @@
+# SPDX-FileCopyrightText: 2026 CESNET z.s.p.o.
+# SPDX-License-Identifier: MIT
+
+"""Tests for oarepo_cli.core.errors and safe_run decorator."""
+
+from __future__ import annotations
+
+import pytest
+
+from oarepo_cli.core.errors import (
+    ConfigurationError,
+    FileNotFoundExitCodeError,
+    OARepoError,
+    ProcessExecutionError,
+    ValidationError,
+    VersionMismatchError,
+    safe_run,
+)
+
+
+def test_base_exception_can_be_raised() -> None:
+    """The base OARepoError can be raised and caught like any exception."""
+    with pytest.raises(OARepoError):
+        raise OARepoError("Base error message")
+
+
+def test_configuration_error_can_be_raised() -> None:
+    """ConfigurationError can be raised and caught like any exception."""
+    with pytest.raises(ConfigurationError):
+        raise ConfigurationError("Config is invalid")
+
+
+def test_version_mismatch_error_can_be_raised() -> None:
+    """VersionMismatchError can be raised and caught like any exception."""
+    with pytest.raises(VersionMismatchError):
+        raise VersionMismatchError("Version mismatch")
+
+
+def test_process_execution_error_can_be_raised() -> None:
+    """ProcessExecutionError can be raised and caught like any exception."""
+    with pytest.raises(ProcessExecutionError):
+        raise ProcessExecutionError(
+            "Process failed",
+            command=["echo", "test"],
+            returncode=1,
+            stdout="",
+            stderr="error",
+        )
+
+
+def test_file_not_found_error_can_be_raised() -> None:
+    """FileNotFoundError can be raised and caught like any exception."""
+    with pytest.raises(FileNotFoundExitCodeError):
+        raise FileNotFoundExitCodeError("File not found")
+
+
+def test_validation_error_can_be_raised() -> None:
+    """ValidationError can be raised and caught like any exception."""
+    with pytest.raises(ValidationError):
+        raise ValidationError("Validation failed")
+
+
+def test_all_exceptions_are_subclasses_of_base() -> None:
+    """Every specific exception type is a subclass of OARepoError."""
+    assert issubclass(ConfigurationError, OARepoError)
+    assert issubclass(VersionMismatchError, OARepoError)
+    assert issubclass(ProcessExecutionError, OARepoError)
+    assert issubclass(FileNotFoundExitCodeError, OARepoError)
+    assert issubclass(ValidationError, OARepoError)
+
+
+def test_base_exception_catches_all_subclasses() -> None:
+    """`except OARepoError` catches any specific subclass raised."""
+    with pytest.raises(OARepoError):
+        raise ConfigurationError("Should be caught by base")
+
+    with pytest.raises(OARepoError):
+        raise ProcessExecutionError(
+            "Should be caught",
+            command=["test"],
+            returncode=1,
+        )
+
+
+def test_base_exception_exit_code() -> None:
+    """OARepoError's default exit_code is 1."""
+    assert OARepoError.exit_code == 1
+
+
+def test_configuration_error_exit_code() -> None:
+    """ConfigurationError.exit_code is 10."""
+    assert ConfigurationError.exit_code == 10
+
+
+def test_version_mismatch_error_exit_code() -> None:
+    """VersionMismatchError.exit_code is 11."""
+    assert VersionMismatchError.exit_code == 11
+
+
+def test_process_execution_error_exit_code() -> None:
+    """ProcessExecutionError.exit_code is 12."""
+    assert ProcessExecutionError.exit_code == 12
+
+
+def test_file_not_found_error_exit_code() -> None:
+    """FileNotFoundError.exit_code is 13."""
+    assert FileNotFoundExitCodeError.exit_code == 13
+
+
+def test_validation_error_exit_code() -> None:
+    """ValidationError.exit_code is 14."""
+    assert ValidationError.exit_code == 14
+
+
+def test_process_execution_error_basic_attributes() -> None:
+    """ProcessExecutionError stores message/command/returncode/stdout/stderr as given."""
+    exc = ProcessExecutionError(
+        "Process failed",
+        command=["echo", "test"],
+        returncode=1,
+        stdout="output",
+        stderr="error",
+    )
+    assert exc.message == "Process failed"
+    assert exc.command == ["echo", "test"]
+    assert exc.returncode == 1
+    assert exc.stdout == "output"
+    assert exc.stderr == "error"
+
+
+def test_process_execution_error_str_format_with_all_fields() -> None:
+    """str() includes the message, command, return code, stdout, and stderr."""
+    exc = ProcessExecutionError(
+        "Process failed",
+        command=["echo", "test"],
+        returncode=1,
+        stdout="output",
+        stderr="error",
+    )
+    str_repr = str(exc)
+    assert "Process failed" in str_repr
+    assert "Command: echo test" in str_repr
+    assert "Return code: 1" in str_repr
+    assert "Stdout: output" in str_repr
+    assert "Stderr: error" in str_repr
+
+
+def test_process_execution_error_str_format_without_stdout_stderr() -> None:
+    """str() omits the Stdout:/Stderr: lines entirely when neither was captured."""
+    exc = ProcessExecutionError(
+        "Process failed",
+        command=["echo", "test"],
+        returncode=1,
+        stdout=None,
+        stderr=None,
+    )
+    str_repr = str(exc)
+    assert "Process failed" in str_repr
+    assert "Command: echo test" in str_repr
+    assert "Return code: 1" in str_repr
+    assert "Stdout:" not in str_repr
+    assert "Stderr:" not in str_repr
+
+
+def test_process_execution_error_command_with_multiple_args() -> None:
+    """str() joins a multi-argument command with spaces."""
+    exc = ProcessExecutionError(
+        "Failed",
+        command=["python", "-m", "pytest", "-v"],
+        returncode=2,
+    )
+    assert "Command: python -m pytest -v" in str(exc)
+
+
+def test_safe_run_returns_result_on_success() -> None:
+    """safe_run() returns the wrapped function's own return value on success."""
+
+    def success_func() -> int:
+        return 42
+
+    result = safe_run(success_func)
+    assert result == 42
+
+
+def test_safe_run_raises_on_oarepo_error_when_check_true() -> None:
+    """safe_run(check=True) (the default) re-raises an OARepoError from the wrapped function."""
+
+    def failing_func() -> None:
+        raise ConfigurationError("Config error")
+
+    with pytest.raises(ConfigurationError):
+        safe_run(failing_func, check=True)
+
+
+def test_safe_run_returns_exception_when_check_false() -> None:
+    """safe_run(check=False) returns the exception instance instead of raising it."""
+
+    def failing_func() -> None:
+        raise ConfigurationError("Config error")
+
+    result = safe_run(failing_func, check=False)
+    assert isinstance(result, ConfigurationError)
+    assert result.message == "Config error"
+
+
+def test_safe_run_passes_arguments() -> None:
+    """safe_run() forwards positional arguments to the wrapped function."""
+
+    def add_func(a: int, b: int) -> int:
+        return a + b
+
+    result = safe_run(add_func, 10, 20)
+    assert result == 30
+
+
+def test_safe_run_passes_keyword_arguments() -> None:
+    """safe_run() forwards keyword arguments to the wrapped function."""
+
+    def greet_func(name: str, greeting: str = "Hello") -> str:
+        return f"{greeting}, {name}!"
+
+    result = safe_run(greet_func, "World", greeting="Hi")
+    assert result == "Hi, World!"
+
+
+def test_safe_run_preserves_custom_exit_codes() -> None:
+    """The re-raised exception's exit_code is still the original exception class's own."""
+
+    def failing_func() -> None:
+        raise ConfigurationError("Custom error")
+
+    with pytest.raises(ConfigurationError) as exc_info:
+        safe_run(failing_func, check=True)
+
+    assert exc_info.value.exit_code == 10

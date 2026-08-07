@@ -1,16 +1,16 @@
-#
-# Copyright (c) 2025 CESNET z.s.p.o.
-#
-# This file is a part of oarepo-cli (see https://github.com/oarepo/oarepo-cli).
-#
-# oarepo-cli is free software; you can redistribute it and/or modify it
-# under the terms of the MIT License; see LICENSE file for more details.
-#
-"""A set of extensions to invenio-cli module."""
+# SPDX-FileCopyrightText: 2026 CESNET z.s.p.o.
+# SPDX-License-Identifier: MIT
+
+"""OARepo CLI - Library and Repository Management Tool.
+
+Re-exports core exceptions and utilities for convenience.
+"""
 
 from __future__ import annotations
 
-__version__ = "13.0.0dev1"
-"""Version string."""
+from importlib.metadata import PackageNotFoundError, version
 
-__all__ = ("__version__",)
+try:
+    __version__ = version("oarepo-cli")
+except PackageNotFoundError:
+    __version__ = "0.0.0dev0+unknown"
