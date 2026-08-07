@@ -20,7 +20,7 @@ if TYPE_CHECKING:
     from pytest_mock import MockerFixture
 
 
-def test_version_range_parsing_gte_lt(tmp_path: Path) -> None:
+def test_version_range_parsing_gte_lt(tmp_path: Path, mocker: MockerFixture) -> None:
     """Test parsing >=X.Y,<Z constraint returns versions in that range."""
     (tmp_path / "pyproject.toml").write_text(
         """
@@ -28,6 +28,12 @@ def test_version_range_parsing_gte_lt(tmp_path: Path) -> None:
 name = "test-package"
 requires-python = ">=3.12,<3.15"
 """
+    )
+
+    # Mock Node.js detection to return empty list (no Node.js installed)
+    mocker.patch(
+        "oarepo_cli.services.version_resolver.VersionResolver._find_available_node",
+        return_value=[],
     )
 
     reader = PyProjectReader()
@@ -44,7 +50,7 @@ requires-python = ">=3.12,<3.15"
         assert Version(versions[i]) > Version(versions[i + 1]), "Versions should be sorted highest-first"
 
 
-def test_version_range_parsing_gte_only(tmp_path: Path) -> None:
+def test_version_range_parsing_gte_only(tmp_path: Path, mocker: MockerFixture) -> None:
     """Test parsing >=X.Y constraint returns all known versions >= X.Y."""
     (tmp_path / "pyproject.toml").write_text(
         """
@@ -52,6 +58,12 @@ def test_version_range_parsing_gte_only(tmp_path: Path) -> None:
 name = "test-package"
 requires-python = ">=3.11"
 """
+    )
+
+    # Mock Node.js detection to return empty list (no Node.js installed)
+    mocker.patch(
+        "oarepo_cli.services.version_resolver.VersionResolver._find_available_node",
+        return_value=[],
     )
 
     reader = PyProjectReader()
@@ -81,6 +93,11 @@ requires-python = "==3.14.*"
     mocker.patch(
         "oarepo_cli.services.version_resolver.shutil.which",
         return_value="/usr/bin/python3.14",
+    )
+    # Mock Node.js detection to return empty list (no Node.js installed)
+    mocker.patch(
+        "oarepo_cli.services.version_resolver.VersionResolver._find_available_node",
+        return_value=[],
     )
 
     reader = PyProjectReader()
@@ -238,7 +255,7 @@ def test_is_compatible_convenience_method() -> None:
     assert resolver.is_compatible("3.12", 99) is True
 
 
-def test_extract_oarepo_versions_with_python_resolution(tmp_path: Path) -> None:
+def test_extract_oarepo_versions_with_python_resolution(tmp_path: Path, mocker: MockerFixture) -> None:
     """Test full resolution including OARepo version extraction."""
     (tmp_path / "pyproject.toml").write_text(
         """
@@ -250,6 +267,12 @@ requires-python = ">=3.12,<3.15"
 oarepo14 = ["oarepo>=14.0.0,<15.0.0"]
 oarepo13 = ["oarepo>=13.0.0,<14.0.0"]
 """
+    )
+
+    # Mock Node.js detection to return empty list (no Node.js installed)
+    mocker.patch(
+        "oarepo_cli.services.version_resolver.VersionResolver._find_available_node",
+        return_value=[],
     )
 
     reader = PyProjectReader()
