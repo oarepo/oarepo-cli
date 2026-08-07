@@ -40,6 +40,7 @@ def test_upgrade_removes_venv_and_lock(
     """`repository upgrade` removes the existing .venv and uv.lock before reinstalling."""
     monkeypatch.chdir(clean_testrepo)
     monkeypatch.setattr("oarepo_cli.services.repository.install_repository", lambda *_args, **_kwargs: None)
+    monkeypatch.setattr("oarepo_cli.services.repository.lock_assets", lambda *_args, **_kwargs: None)
     monkeypatch.setattr(
         "oarepo_cli.services.repository.process.run",
         lambda cmd, **_kwargs: process.ProcessResult(
@@ -71,6 +72,7 @@ def test_upgrade_cleans_uv_cache_with_force(
     """
     monkeypatch.chdir(clean_testrepo)
     monkeypatch.setattr("oarepo_cli.services.repository.install_repository", lambda *_args, **_kwargs: None)
+    monkeypatch.setattr("oarepo_cli.services.repository.lock_assets", lambda *_args, **_kwargs: None)
 
     calls: list[list[str]] = []
 
@@ -113,3 +115,5 @@ def test_upgrade_reinstalls_successfully(upgraded_repo: Path) -> None:
     assert (upgraded_repo / ".venv" / "bin" / "python").exists()
     assert (upgraded_repo / "uv.lock").exists()
     assert (upgraded_repo / ".invenio.private").exists()
+    assert (upgraded_repo / "package.json").exists()
+    assert (upgraded_repo / "pnpm-lock.yaml").exists()

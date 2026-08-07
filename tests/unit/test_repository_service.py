@@ -206,6 +206,7 @@ def test_upgrade_repository_cleans_cache_by_default(tmp_path: Path, monkeypatch:
     monkeypatch.setattr("oarepo_cli.services.repository.process.run", fake_run)
     monkeypatch.setattr("oarepo_cli.services.repository.VirtualEnvironmentManager.cleanup", lambda _self: None)
     monkeypatch.setattr("oarepo_cli.services.repository.install_repository", lambda *_args, **_kwargs: None)
+    monkeypatch.setattr("oarepo_cli.services.repository.lock_assets", lambda *_args, **_kwargs: None)
 
     repository.upgrade_repository(context, quiet=True)
 
@@ -237,6 +238,7 @@ def test_upgrade_repository_skips_cache_clean_when_disabled(tmp_path: Path, monk
         "oarepo_cli.services.repository.install_repository",
         lambda *_args, **kwargs: install_calls.append(kwargs),
     )
+    monkeypatch.setattr("oarepo_cli.services.repository.lock_assets", lambda *_args, **_kwargs: None)
 
     repository.upgrade_repository(context, quiet=True, clean_cache=False)
 
