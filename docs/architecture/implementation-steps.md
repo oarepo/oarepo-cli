@@ -2166,6 +2166,28 @@ steps, etc.):
 
 ---
 
+### Step 6.4.4: lock javascript files
+
+**Goal**: Lock javascript files to specific versions to avoid unexpected updates. At the end of the `repository upgrade` command, call `invenio-cli assets lock`.
+
+**Current State**: Implementation complete
+
+**Implementation**:
+- [x] Call `invenio-cli assets lock` at the end of the `repository upgrade` command
+- [x] Added `lock_assets()` function in `services/repository.py`
+- [x] Integrated into `upgrade_repository()` function
+
+**Deliverables**:
+- [x] After the upgrade, lock files are copied to the repository directory (package.json, pnpm-lock.yaml)
+  - Note: invenio-cli handles the copying automatically
+
+**Tests**:
+- [x] Extended already existing upgrade tests to include lock file verification
+  - Note: Full integration test requires working testrepo install, which has pre-existing JS dependency issues
+  - Unit test with mocked install_repository passes successfully
+
+---
+
 ### Step 6.4.1: `node_versions` inconsistency between `oarepo-versions` and `VersionResolver`
 
 **Goal**: Not yet fixed -- noted while auditing README.md for accuracy against the

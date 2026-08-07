@@ -194,6 +194,38 @@ def ensure_instance_structure(
         pass
 
 
+def lock_assets(
+    context: ProjectContext,
+    *,
+    quiet: bool = False,
+) -> None:
+    """Lock JavaScript dependencies to specific versions.
+
+    Runs invenio-cli assets lock to generate/update lock files for
+    JavaScript dependencies (package.json and pnpm-lock.yaml), which
+    are automatically copied to the repository root by invenio-cli. This ensures
+    consistent JavaScript dependency versions across installs.
+
+    Args:
+        context: Project context with paths and configuration
+        quiet: If True, suppress status messages
+
+    """
+    console = ConsoleOutput(quiet=quiet)
+
+    console.info("-> Locking JavaScript dependencies\n")
+
+    result = invenio_cli.run_invenio_cli(
+        context,
+        ["assets", "lock"],
+        quiet=quiet,
+        check=False,
+    )
+
+    if not result.success:
+        console.warning("Warning: invenio-cli assets lock failed!")
+
+
 def install_repository(context: ProjectContext, *, quiet: bool = False) -> None:
     """Install/reinstall a repository into its virtual environment.
 
@@ -306,6 +338,7 @@ def upgrade_repository(context: ProjectContext, *, quiet: bool = False, clean_ca
     2. Removes uv.lock (if present)
     3. Cleans the uv cache (``uv cache clean --force``), unless ``clean_cache`` is False
     4. Reinstalls the repository (see ``install_repository`` above)
+    5. Locks JavaScript dependencies (``invenio-cli assets lock``)
 
     Shared by ``repository upgrade`` (``clean_cache=True``, matching bash) and
     ``LocalPackageManager`` (which triggers a full upgrade after adding/removing
@@ -339,15 +372,17 @@ def upgrade_repository(context: ProjectContext, *, quiet: bool = False, clean_ca
     venv_manager.cleanup()
 
     if clean_cache:
-        console.info("→ Cleaning uv cache...\n")
+        console.info("-> Cleaning uv cache...\n")
         process.run(
             ["uv", "cache", "clean", "--force"],
             check=True,
             output_mode=ProcessOutputMode.INTERACTIVE if not quiet else ProcessOutputMode.CAPTURE,
         )
 
-    console.info("→ Reinstalling repository...\n")
+    console.info("-> Reinstalling repository...\n")
     install_repository(context, quiet=quiet)
+
+    lock_assets(context, quiet=quiet)
 
 
 def get_invenio_binary(context: ProjectContext) -> Path:

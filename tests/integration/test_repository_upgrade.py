@@ -113,3 +113,5 @@ def test_upgrade_reinstalls_successfully(upgraded_repo: Path) -> None:
     assert (upgraded_repo / ".venv" / "bin" / "python").exists()
     assert (upgraded_repo / "uv.lock").exists()
     assert (upgraded_repo / ".invenio.private").exists()
+    assert (upgraded_repo / "package.json").exists()
+    assert (upgraded_repo / "pnpm-lock.yaml").exists()
