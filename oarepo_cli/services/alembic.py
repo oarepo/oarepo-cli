@@ -5,20 +5,26 @@
 
 from __future__ import annotations
 
+import textwrap
+from pathlib import Path
 from typing import TYPE_CHECKING
 
 import tomlkit
 
 from oarepo_cli.core.errors import ValidationError
+from oarepo_cli.services import process
 from oarepo_cli.services.pyproject_reader import PyProjectReader
+from oarepo_cli.services.services_lifecycle import ServicesLifecycleManager
+from oarepo_cli.services.venv import VirtualEnvironmentManager
 from oarepo_cli.ui import ConsoleOutput  # noqa: TC001 (used at runtime, not just type hints)
 
 if TYPE_CHECKING:
-    from pathlib import Path
-
     from tomlkit import TOMLDocument
 
     from oarepo_cli.core.context import ProjectContext
+
+# Minimum number of Python files to consider alembic initialized
+_MIN_INITIALIZED_FILES = 2
 
 
 class AlembicManager:
@@ -45,9 +51,16 @@ class AlembicManager:
         1. Verifies invenio_db.models entrypoint exists
         2. Creates alembic/ directory in the first code directory if needed
         3. Adds invenio_db.alembic entrypoint if missing
+        4. Checks if alembic is already initialized (2+ python files)
+        5. Syncs the project to register entrypoints
+        6. Starts/restarts services
+        7. Checks that alembic state is clean (no uncommitted changes)
+        8. Creates initial branch migration if needed
+        9. Runs alembic upgrade heads
+        10. Creates migration for initial tables
 
         Raises:
-            ValidationError: If required entrypoints are missing
+            ValidationError: If required entrypoints are missing or alembic state is not clean
 
         """
         # Step 1: Check for invenio_db.models entrypoint
@@ -59,7 +72,36 @@ class AlembicManager:
         # Step 3: Check/create invenio_db.alembic entrypoint
         self._ensure_alembic_entrypoint(alembic_path)
 
+        # Step 4: Check if already initialized
+        if self._is_already_initialized(alembic_path):
+            self._console.success("\n✓ Alembic is already initialized (found migrations)")
+            return
+
+        # Step 5: Sync project to register entrypoints
+        self._sync_project()
+
+        # Step 6: Start/restart services
+        self._restart_services()
+
+        # Step 7: Create branch migration if no python files exist
+        if not self._has_python_files(alembic_path):
+            self._create_branch_migration(alembic_path)
+
+        # Step 8: Upgrade to heads
+        self._upgrade_heads()
+
+        # Step 9: Create initial tables migration
+        self._create_tables_migration(alembic_path)
+
         self._console.success("\n✓ Alembic initialization completed successfully!")
+        self._console.warning(
+            "\n⚠️  IMPORTANT: Please carefully review the generated migration file in the alembic directory.",
+            fg=None,
+        )
+        self._console.warning(
+            "   Verify that it contains only the intended table changes for your models.",
+            fg=None,
+        )
 
     def _check_db_models_entrypoint(self) -> None:
         """Check if invenio_db.models entrypoint exists.
@@ -200,3 +242,300 @@ class AlembicManager:
 
         """
         self._context.pyproject_path.write_text(tomlkit.dumps(document), encoding="utf-8")
+
+    def _is_already_initialized(self, alembic_path: Path) -> bool:
+        """Check if alembic is already initialized.
+
+        Args:
+            alembic_path: Path to the alembic directory
+
+        Returns:
+            True if there are at least 2 Python files in the alembic directory
+
+        """
+        if not alembic_path.exists():
+            return False
+
+        python_files = list(alembic_path.glob("*.py"))
+        return len(python_files) >= _MIN_INITIALIZED_FILES
+
+    def _has_python_files(self, alembic_path: Path) -> bool:
+        """Check if alembic directory has any Python files.
+
+        Args:
+            alembic_path: Path to the alembic directory
+
+        Returns:
+            True if there's at least one Python file
+
+        """
+        if not alembic_path.exists():
+            return False
+
+        python_files = list(alembic_path.glob("*.py"))
+        return len(python_files) > 0
+
+    def _sync_project(self) -> None:
+        """Sync project to register entrypoints."""
+        self._console.info("→ Syncing project to register entrypoints...")
+
+        cmd = ["uv", "pip", "install", "--no-deps", "-e", "."]
+        process.run(
+            cmd,
+            cwd=self._context.root_directory,
+            check=True,
+            output_mode=process.ProcessOutputMode.CAPTURE,
+        )
+
+        self._console.info("✓ Project synced")
+
+    def _get_package_name(self) -> str:
+        """Get the package name from pyproject.toml.
+
+        Returns:
+            Package name with hyphens replaced by underscores
+
+        """
+        pyproject_data = PyProjectReader().read(self._context.pyproject_path)
+        return pyproject_data.name.replace("-", "_")
+
+    def _get_venv_invenio_path(self) -> Path:
+        """Get path to invenio executable in the virtual environment.
+
+        Returns:
+            Path to invenio binary
+
+        Raises:
+            ValidationError: If invenio is not found in venv
+
+        """
+        from oarepo_cli.core.platform import get_platform_detector
+
+        venv_mgr = VirtualEnvironmentManager(config=self._context.config, project_root=self._context.root_directory)
+        # Access internal venv path directly
+        venv_path = venv_mgr._venv_path  # noqa: SLF001
+
+        if not venv_path or not venv_path.exists():
+            raise ValidationError("Virtual environment not found. Run 'oarepo-cli library install' first.")
+
+        platform = get_platform_detector()
+        bin_dir = platform.get_venv_bin_dir()
+        invenio_path = venv_path / bin_dir / "invenio"
+
+        if not invenio_path.exists():
+            raise ValidationError(
+                "invenio command not found in virtual environment. "
+                "Ensure invenio is installed in your project dependencies."
+            )
+
+        return invenio_path
+
+    def _get_service_env(self) -> dict[str, str]:
+        """Get environment variables from services.
+
+        Returns:
+            Dictionary of environment variables
+
+        """
+        services_mgr = ServicesLifecycleManager(
+            config=self._context.config,
+            project_root=self._context.root_directory,
+            quiet=self._console.is_quiet,
+        )
+        return services_mgr.load_service_env()
+
+    def _build_invenio_env(self) -> dict[str, str]:
+        """Build environment for running invenio commands.
+
+        Returns:
+            Dictionary of environment variables with INVENIO_SQLALCHEMY_DATABASE_URI set
+
+        """
+        # Get base environment with service variables
+        service_env = self._get_service_env()
+        cmd_env = process.build_subprocess_env()
+        cmd_env.update(service_env)
+
+        # Map SQLALCHEMY_DATABASE_URI to INVENIO_SQLALCHEMY_DATABASE_URI
+        if "SQLALCHEMY_DATABASE_URI" in cmd_env:
+            cmd_env["INVENIO_SQLALCHEMY_DATABASE_URI"] = cmd_env["SQLALCHEMY_DATABASE_URI"]
+
+        return cmd_env
+
+    def _create_branch_migration(self, alembic_path: Path) -> None:
+        """Create initial branch migration.
+
+        Args:
+            alembic_path: Path to the alembic directory
+
+        """
+        package_name = self._get_package_name()
+        branch_name = f"invenio_{package_name}"
+
+        self._console.info(f"→ Creating branch migration '{branch_name}'...")
+
+        # Calculate relative path from root to alembic directory for --path argument
+        try:
+            relative_path = alembic_path.relative_to(self._context.root_directory)
+        except ValueError:
+            # Fallback: use package_name/alembic
+            relative_path = Path(package_name) / "alembic"
+
+        invenio_path = self._get_venv_invenio_path()
+        cmd_env = self._build_invenio_env()
+
+        cmd = [
+            str(invenio_path),
+            "alembic",
+            "revision",
+            f"Create {package_name} branch.",
+            "-b",
+            branch_name,
+            "-p",
+            "dbdbc1b19cf2",
+            "--path",
+            str(relative_path),
+            "--empty",
+        ]
+
+        process.run(
+            cmd,
+            cwd=self._context.root_directory,
+            env=cmd_env,
+            check=True,
+            output_mode=process.ProcessOutputMode.FORWARD,
+        )
+
+        self._console.info(f"✓ Branch migration '{branch_name}' created")
+
+    def _restart_services(self) -> None:
+        """Restart Docker services (stop and start)."""
+        services_mgr = ServicesLifecycleManager(
+            config=self._context.config,
+            project_root=self._context.root_directory,
+            quiet=self._console.is_quiet,
+        )
+
+        self._console.info("→ Restarting services...")
+
+        # Stop services if running
+        if services_mgr.are_services_running():
+            services_mgr.stop_services()
+
+        # Start services
+        services_mgr.start_services()
+
+        self._console.info("✓ Services started")
+
+    def _upgrade_heads(self) -> None:
+        """Run invenio alembic upgrade heads."""
+        self._console.info("→ Running alembic upgrade heads...")
+
+        invenio_path = self._get_venv_invenio_path()
+        cmd_env = self._build_invenio_env()
+
+        cmd = [str(invenio_path), "alembic", "upgrade", "heads"]
+
+        process.run(
+            cmd,
+            cwd=self._context.root_directory,
+            env=cmd_env,
+            check=True,
+            output_mode=process.ProcessOutputMode.FORWARD,
+        )
+
+        self._console.info("✓ Alembic upgrade completed")
+
+    def _create_tables_migration(self, alembic_path: Path) -> None:
+        """Create migration for initial tables.
+
+        Args:
+            alembic_path: Path to the alembic directory
+
+        """
+        package_name = self._get_package_name()
+
+        self._console.info(f"→ Creating tables migration for {package_name}...")
+
+        # Calculate relative path from root to alembic directory for --path argument
+        try:
+            relative_path = alembic_path.relative_to(self._context.root_directory)
+        except ValueError:
+            # Fallback: use package_name/alembic
+            relative_path = Path(package_name) / "alembic"
+
+        invenio_path = self._get_venv_invenio_path()
+        cmd_env = self._build_invenio_env()
+
+        cmd = [
+            str(invenio_path),
+            "alembic",
+            "revision",
+            f"Create {package_name} tables.",
+            "--path",
+            str(relative_path),
+        ]
+
+        process.run(
+            cmd,
+            cwd=self._context.root_directory,
+            env=cmd_env,
+            check=True,
+            output_mode=process.ProcessOutputMode.FORWARD,
+        )
+
+        self._console.info(f"✓ Tables migration for {package_name} created")
+
+    def _check_alembic_differences(self) -> None:
+        """Check if alembic state is clean (no uncommitted database changes).
+
+        Runs invenio shell with a script that checks for differences between
+        the database schema and the alembic migrations.
+
+        Raises:
+            ValidationError: If alembic state is not clean (has uncommitted changes)
+
+        """
+        self._console.info("→ Checking alembic state...")
+
+        # Python script to check alembic differences
+        check_script = textwrap.dedent(
+            """
+            from flask import current_app
+            ext = current_app.extensions["invenio-db"]
+            alembic = ext.alembic
+            if alembic.compare_metadata():
+                print("Alembic state not clean:")
+                print(alembic.compare_metadata())
+            """
+        )
+
+        invenio_path = self._get_venv_invenio_path()
+        cmd_env = self._build_invenio_env()
+
+        cmd = [
+            str(invenio_path),
+            "shell",
+            "-c",
+            check_script,
+        ]
+
+        result = process.run(
+            cmd,
+            cwd=self._context.root_directory,
+            env=cmd_env,
+            check=True,
+            output_mode=process.ProcessOutputMode.CAPTURE,
+        )
+
+        # Check if output contains "Alembic state not clean"
+        if "Alembic state not clean" in result.stdout:
+            self._console.error("❌ Alembic state is not clean!")
+            self._console.error("\nUncommitted database changes detected:")
+            self._console.error(result.stdout)
+            raise ValidationError(
+                "Alembic state is not clean. There are uncommitted database schema changes. "
+                "Please ensure your database schema matches your migrations before running alembic init."
+            )
+
+        self._console.info("✓ Alembic state is clean")

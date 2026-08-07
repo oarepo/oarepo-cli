@@ -105,6 +105,10 @@ def _alembic_init_impl(
 ) -> None:
     """Shared implementation for alembic init.
 
+    Initializes Alembic support including creating migrations and setting up
+    the database schema. After completion, instructs the user to review the
+    generated migration files.
+
     Args:
         context: Project context (injected by decorator)
         console: Console output handler (injected by decorator)
@@ -127,10 +131,23 @@ def alembic_init(
     1. Checks for the required 'invenio_db.models' entrypoint in pyproject.toml
     2. Creates an 'alembic' directory in the first code directory if it doesn't exist
     3. Adds the 'invenio_db.alembic' entrypoint to pyproject.toml if missing
+    4. Checks if alembic is already initialized (exits early if 2+ migrations exist)
+    5. Syncs the project to register entrypoints (uv pip install --no-deps -e .)
+    6. Restarts Docker services to ensure clean database state
+    7. Verifies alembic state is clean (no uncommitted database changes)
+    8. Creates initial branch migration if no Python files exist in alembic/
+    9. Runs 'invenio alembic upgrade heads' to apply base migrations
+    10. Creates migration for initial database tables
+
+    After completion, you should carefully review the generated migration file
+    to ensure it contains only the intended table changes for your models.
 
     The 'invenio_db.models' entrypoint is required for Alembic support and should
     point to your database models module. If it's missing, the command will exit
     with an error and provide an example configuration.
+
+    Note: This command requires Docker services to be available and will restart
+    them to ensure a clean database state.
 
     Example:
         oarepo-cli library alembic init
