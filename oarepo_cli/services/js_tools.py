@@ -79,6 +79,102 @@ def run_jslint(context: ProjectContext, *, quiet: bool = False) -> process.Proce
     return _run_prettier(root, code_directories, quiet)
 
 
+def run_repository_jslint(context: ProjectContext, *, quiet: bool = False) -> process.ProcessResult:
+    """Run ESLint and Prettier on repository JavaScript files using Invenio's node_modules.
+
+    Unlike library jslint, which installs dependencies in the project root,
+    repository jslint uses the node_modules from the Invenio instance assets
+    directory. This avoids interfering with Invenio's JavaScript dependency
+    locking mechanisms.
+
+    Steps:
+    1. Check if instance assets/node_modules exists; if not, run repository install
+    2. If no top-level package.json exists, lock JavaScript files first
+    3. Create symlink from top-level node_modules to instance assets/node_modules
+    4. Run linting without pnpm install (dependencies already installed)
+
+    Args:
+        context: Project context with paths and configuration
+        quiet: If True, suppress progress output
+
+    Returns:
+        ProcessResult from the linting commands
+
+    """
+    from oarepo_cli.services.repository import get_instance_path, install_repository, lock_assets
+    from oarepo_cli.ui import ConsoleOutput
+
+    console = ConsoleOutput(quiet=quiet)
+    root = context.root_directory
+
+    # Get instance path and assets directory
+    instance_path = get_instance_path(context)
+    assets_dir = instance_path / "assets"
+    instance_node_modules = assets_dir / "node_modules"
+
+    # Step 1: Ensure instance assets/node_modules exists
+    if not instance_node_modules.exists():
+        console.info("-> Instance node_modules not found, running repository install\n")
+        install_repository(context, quiet=quiet)
+
+    # Step 2: If no top-level package.json, lock JavaScript files
+    package_json_path = root / "package.json"
+    if not package_json_path.exists():
+        console.info("-> No package.json found, locking JavaScript dependencies\n")
+        lock_assets(context, quiet=quiet)
+
+    # Check again after locking
+    if not package_json_path.exists():
+        return process.ProcessResult(
+            return_code=0,
+            stdout="No package.json found and lock_assets did not create one",
+            stderr="",
+            command=[],
+            cwd=root,
+            duration_ms=0,
+        )
+
+    # Step 3: Create symlink from top-level node_modules to instance node_modules
+    top_level_node_modules = root / "node_modules"
+    if not top_level_node_modules.exists():
+        console.info("-> Creating node_modules symlink\n")
+        top_level_node_modules.symlink_to(instance_node_modules)
+    elif not top_level_node_modules.is_symlink():
+        console.warning("Warning: node_modules exists but is not a symlink - using it as-is")
+
+    # Step 4: Write ESLint config
+    eslintrc = root / ".eslintrc.yaml"
+    eslintrc.write_text(resources.read_text("eslintrc.yaml.tmpl"))
+
+    # Step 5: Run eslint with --fix (without installing dependencies)
+    # Exclude tests directory for jslint, matching bash script behavior
+    code_directories = [d for d in context.code_directories if d.name != "tests"]
+    eslint_bin = top_level_node_modules / ".bin" / "eslint"
+
+    if not eslint_bin.exists():
+        return process.ProcessResult(
+            return_code=1,
+            stdout="",
+            stderr="eslint binary not found in node_modules",
+            command=[],
+            cwd=root,
+            duration_ms=0,
+        )
+
+    dir_names = [str(d.relative_to(root)) for d in code_directories]
+    result = process.run(
+        [str(eslint_bin), "--ext", ".js,.jsx", "--fix", *dir_names],
+        cwd=root,
+        check=False,
+        output_mode=ProcessOutputMode.INTERACTIVE if not quiet else ProcessOutputMode.CAPTURE,
+    )
+    if not result.success:
+        return result
+
+    # Step 6: Run prettier
+    return _run_prettier(root, code_directories, quiet)
+
+
 def _ensure_eslint_dependency(package_json_path: Path, root: Path, quiet: bool) -> process.ProcessResult:
     """Ensure ESLint dependency is installed.
 

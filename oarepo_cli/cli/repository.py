@@ -802,7 +802,7 @@ def jslint_command(
         console_err.error(f"\n✗ repository jslint failed: {e}\n", fg=typer.colors.RED)
         raise typer.Exit(1) from e
 
-    js_commands.run_jslint_command(context, quiet=quiet)
+    js_commands.run_repository_jslint_command(context, quiet=quiet)
 
 
 @repository_app.command(

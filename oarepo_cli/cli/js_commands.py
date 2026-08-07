@@ -34,7 +34,7 @@ from typing import TYPE_CHECKING, NoReturn
 import typer
 
 from oarepo_cli.core.errors import OARepoError
-from oarepo_cli.services.js_tools import run_jslint, run_jstest
+from oarepo_cli.services.js_tools import run_jslint, run_jstest, run_repository_jslint
 from oarepo_cli.ui import ConsoleOutput
 
 if TYPE_CHECKING:
@@ -50,6 +50,29 @@ def run_jslint_command(context: ProjectContext, *, quiet: bool) -> NoReturn:
 
     try:
         result = run_jslint(context, quiet=quiet)
+    except OARepoError as e:
+        console.error(f"❌ Error running jslint: {e}", fg=typer.colors.BRIGHT_RED, bold=True)
+        raise typer.Exit(code=1) from e
+
+    if result.success:
+        console.success("✨ ✓ JavaScript linting complete!", fg=typer.colors.BRIGHT_GREEN, bold=True)
+    else:
+        console.error("❌ JavaScript linting failed!", fg=typer.colors.BRIGHT_RED, bold=True)
+
+    raise typer.Exit(code=result.return_code)
+
+
+def run_repository_jslint_command(context: ProjectContext, *, quiet: bool) -> NoReturn:
+    """Run repository-specific jslint and exit with its result.
+
+    Unlike library jslint, this uses Invenio's instance node_modules and
+    respects Invenio's JavaScript dependency locking mechanisms.
+    """
+    console = ConsoleOutput(quiet=quiet)
+    console.info("🔍 Running JavaScript linters...", fg=typer.colors.BRIGHT_BLUE, bold=True)
+
+    try:
+        result = run_repository_jslint(context, quiet=quiet)
     except OARepoError as e:
         console.error(f"❌ Error running jslint: {e}", fg=typer.colors.BRIGHT_RED, bold=True)
         raise typer.Exit(code=1) from e

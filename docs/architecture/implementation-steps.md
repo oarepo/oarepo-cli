@@ -2188,6 +2188,30 @@ steps, etc.):
 
 ---
 
+### Step 6.4.5: Use correct node_modules for repository jslint
+
+**Goal**: Make sure that `oarepo-cli repository jslint` works with invenio repository, not causing any problems to invenio locking mechanisms.
+
+**Current State**: Implemented
+
+**Implementation**:
+Before running the lint, check the following:
+
+- [x] Check if the INVENIO_INSTANCE_PATH/assets/node_modules directory exists. If not, run `oarepo-cli repository install` command (internally)
+- [x] If there is no top-level `package.json` file, lock javascript files, as in Step 6.4.4: lock javascript files
+- [x] link the INVENIO_INSTANCE_PATH/assets/`node_modules` directory to the top-level `node_modules` directory
+- [x] do not run the pnpm install - everything should have been installed already
+- [x] run the lint
+- [x] it is ok to keep the top-level `node_modules` link (just check for it when run again).
+
+**Deliverables**:
+- [x] functioning jslint that does not disrupt the invenio locking mechanisms
+
+**Tests**:
+- [x] no extra tests needed (existing tests cover the functionality)
+
+---
+
 ### Step 6.4.1: `node_versions` inconsistency between `oarepo-versions` and `VersionResolver`
 
 **Goal**: Not yet fixed -- noted while auditing README.md for accuracy against the
