@@ -2194,6 +2194,10 @@ steps, etc.):
 
 **Current State**: Implemented
 
+**Implementation Notes**:
+- Added `_filter_dirs_with_js_files()` helper to skip directories without JS/JSX files, preventing "No files matching the pattern" errors when directories exist but contain no JavaScript
+- Helper functions created to keep complexity under C901 limit: `_filter_dirs_with_js_files()`, `_ensure_repository_node_modules()`, `_ensure_eslint_dependency()`
+
 **Implementation**:
 Before running the lint, check the following:
 
