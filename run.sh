@@ -29,6 +29,7 @@ PYTHON_VERSION="${PYTHON_VERSION:-3.14}"
 export TERMINAL_WIDTH="${TERMINAL_WIDTH:-200}"
 export COLUMNS="${COLUMNS:-200}"
 export LINES="${LINES:-50}"
+export PYTEST_ADDOPTS="-vvv"
 
 if [ ! -d .venv ] ; then
     uv venv
