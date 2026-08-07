@@ -2218,25 +2218,35 @@ Before running the lint, check the following:
 
 ### Step 6.4.1: `node_versions` inconsistency between `oarepo-versions` and `VersionResolver`
 
-**Goal**: Not yet fixed -- noted while auditing README.md for accuracy against the
-real CLI behavior (Step 6.4), kept here so it isn't lost.
+**Goal**: Make `node_versions` consistent throughout the codebase by having
+`VersionResolver` actually detect available Node.js versions and using that
+in `library oarepo-versions` output.
 
-`cli.library.library_oarepo_versions()` hardcodes `"node_versions": ["24"]`
-directly in its JSON output, entirely independent of
-`services.version_resolver.VersionResolver`/`VersionInfo.node_versions`,
-which is always populated as `[]` (Node.js version detection isn't
-implemented there) and is never read by `library_oarepo_versions()` at all.
-So the CLI's actual, user-visible output (`["24"]`, matching the old bash
-script) and the `VersionResolver`'s own dedicated field for the same
-information silently disagree, with two independent, redundant code paths
-for what should be one value.
+**Current State**: Implemented
 
-- [ ] Decide which is the source of truth: either make `VersionResolver`
-      resolve a real `node_versions` (if that's ever needed for anything
-      beyond this one JSON field) and have `library_oarepo_versions()` use
-      it, or drop `VersionInfo.node_versions` entirely (it currently has no
-      other reader) and keep the hardcoded `["24"]` as a simple constant in
-      `cli/library.py`, documented as such rather than looking resolved.
+**Implementation**:
+- [x] Add `KNOWN_NODE_VERSIONS` constant to `configuration/constants.py` with supported versions `["24", "22", "20"]`
+- [x] Update `VersionInfo.node_versions` type from `list[int]` to `list[str]` for consistency with how versions are used
+- [x] Update `VersionInfo.__post_init__` to sort `node_versions` descending
+- [x] Implement `VersionResolver._find_available_node()` to detect available Node.js versions
+- [x] Implement `VersionResolver._is_node_available(version)` to check if a specific Node.js major version is installed
+- [x] Update `VersionResolver.resolve_from_pyproject()` to populate `node_versions` with detected versions
+- [x] Update `library_oarepo_versions()` to use `info.node_versions` instead of hardcoded `["24"]`
+- [x] Update docstrings to reflect dynamic Node.js detection
+- [x] Update test to verify `node_versions` is a list of strings (not hardcoded to `["24"]`)
+
+**Technical Details**:
+- Node.js detection uses `node --version` to get the installed version
+- Parses version output format "v24.1.0" to extract major version
+- Only checks system PATH (excludes active venv, same as Python detection)
+- Returns empty list if no Node.js is installed (graceful degradation)
+- Sorts versions descending (highest first) for consistency with Python versions
+
+**Deliverables**:
+- [x] `VersionResolver` consistently resolves Node.js versions
+- [x] `library oarepo-versions` uses the resolved versions
+- [x] Single source of truth for Node.js version detection
+- [x] Tests updated and passing
 
 ---
 

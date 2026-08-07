@@ -99,8 +99,10 @@ def test_oarepo_versions_correct_values(
     for i in range(len(output["python_versions"]) - 1):
         assert output["python_versions"][i] >= output["python_versions"][i + 1]
 
-    # Node versions is hard-coded to ["24"]
-    assert output["node_versions"] == ["24"]
+    # Node versions should be dynamically detected (list of available versions)
+    # Could be empty if no Node.js is installed, or contain versions like ["24", "22", "20"]
+    assert isinstance(output["node_versions"], list)
+    assert all(isinstance(v, str) for v in output["node_versions"])
 
 
 def test_oarepo_versions_pipeable(

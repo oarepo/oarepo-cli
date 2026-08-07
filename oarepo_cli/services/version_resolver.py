@@ -16,7 +16,7 @@ if TYPE_CHECKING:
 from packaging.specifiers import SpecifierSet
 from packaging.version import Version
 
-from oarepo_cli.configuration.constants import KNOWN_PYTHON_VERSIONS, OAREPO_PYTHON_COMPATIBILITY
+from oarepo_cli.configuration.constants import KNOWN_NODE_VERSIONS, KNOWN_PYTHON_VERSIONS, OAREPO_PYTHON_COMPATIBILITY
 from oarepo_cli.core.errors import VersionMismatchError
 from oarepo_cli.services import process
 from oarepo_cli.services.process import ProcessOutputMode, get_system_path
@@ -30,22 +30,28 @@ class VersionInfo:
     Attributes:
         oarepo_versions: List of OARepo major versions required (e.g., [13, 14])
         python_versions: List of compatible Python versions sorted descending (e.g., ["3.14", "3.13", "3.12"])
-        node_versions: List of Node.js major versions required (always empty --
-            Node.js version detection isn't implemented)
+        node_versions: List of Node.js major versions available on the system,
+            sorted descending (e.g., ["24", "22", "20"])
 
     """
 
     oarepo_versions: list[int]
     python_versions: list[str]
-    node_versions: list[int]
+    node_versions: list[str]
 
     def __post_init__(self) -> None:
-        """Sort python_versions in descending order."""
+        """Sort python_versions and node_versions in descending order."""
         # Sort in descending order (highest first)
         object.__setattr__(
             self,
             "python_versions",
             sorted(self.python_versions, key=Version, reverse=True),
+        )
+        # Sort node versions as integers for proper ordering ("24" > "20" > "8")
+        object.__setattr__(
+            self,
+            "node_versions",
+            sorted(self.node_versions, key=int, reverse=True),
         )
 
 
@@ -97,10 +103,13 @@ class VersionResolver:
                 f"Available versions checked: {KNOWN_PYTHON_VERSIONS}"
             )
 
+        # Find available Node.js versions on the system
+        available_node_versions = self._find_available_node()
+
         return VersionInfo(
             oarepo_versions=data.oarepo_versions,
             python_versions=available_versions,
-            node_versions=[],  # Node.js version detection isn't implemented
+            node_versions=available_node_versions,
         )
 
     def find_available_python(self, versions: list[str]) -> str:
@@ -303,3 +312,56 @@ class VersionResolver:
         except json.JSONDecodeError:
             return False
         return bool(installed)
+
+    def _find_available_node(self) -> list[str]:
+        """Find available Node.js versions on the system.
+
+        Checks for known Node.js versions (from KNOWN_NODE_VERSIONS) that are
+        available on the system PATH.
+
+        Returns:
+            List of available Node.js major versions as strings (e.g., ["24", "22"]),
+            sorted descending (highest first). May be empty if no Node.js is found.
+
+        """
+        return [ver for ver in KNOWN_NODE_VERSIONS if self._is_node_available(ver)]
+
+    def _is_node_available(self, version: str) -> bool:
+        """Check if a specific Node.js version is available on the system.
+
+        Uses `node --version` to check if the binary exists and extracts the
+        major version to match against the requested version.
+
+        Args:
+            version: Node.js major version string (e.g., "24", "22", "20")
+
+        Returns:
+            True if a `node` binary is found in PATH (excluding any active venv)
+            and its major version matches the requested version
+
+        """
+        system_path = get_system_path()
+        node_binary = shutil.which("node", path=system_path)
+        if node_binary is None:
+            return False
+
+        # Get node version
+        result = process.run(
+            ["node", "--version"],
+            check=False,
+            output_mode=ProcessOutputMode.CAPTURE,
+        )
+        if not result.success:
+            return False
+
+        # Parse version (output format: "v24.1.0" or "v22.9.0")
+        version_output = result.stdout.strip()
+        if not version_output.startswith("v"):
+            return False
+
+        # Extract major version
+        try:
+            major_version = version_output[1:].split(".")[0]
+            return major_version == version
+        except IndexError, ValueError:
+            return False

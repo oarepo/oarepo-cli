@@ -14,6 +14,9 @@ CESNET_PYPI_INDEX_URL = "https://gitlab.cesnet.cz/api/v4/projects/1408/packages/
 # Python versions supported by the CLI (highest first for efficiency)
 KNOWN_PYTHON_VERSIONS = ["3.14"]
 
+# Node.js versions supported by OARepo (highest first)
+KNOWN_NODE_VERSIONS = ["24", "22", "20"]
+
 # OARepo version to compatible Python versions mapping
 # Based on the old library_runner.sh implementation
 OAREPO_PYTHON_COMPATIBILITY = {

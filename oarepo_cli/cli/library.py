@@ -1188,7 +1188,7 @@ def library_oarepo_versions(
     and [project].optional-dependencies, and outputs a JSON object with:
     - oarepo_versions: List of detected OARepo major versions (as strings), highest-first
     - python_versions: List of compatible Python versions (as strings)
-    - node_versions: List of Node.js versions (hard-coded to ["24"])
+    - node_versions: List of Node.js major versions available on the system (as strings)
 
     Example pyproject.toml:
         [project]
@@ -1241,7 +1241,7 @@ def library_oarepo_versions(
     output = {
         "oarepo_versions": [str(v) for v in info.oarepo_versions],
         "python_versions": info.python_versions,
-        "node_versions": ["24"],  # Hard-coded to match bash script behavior
+        "node_versions": info.node_versions,
     }
 
     # Print JSON to stdout (so it can be piped or parsed)

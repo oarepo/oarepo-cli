@@ -382,14 +382,16 @@ oarepo-cli library jstest
 
 ### `library oarepo-versions`
 
-Prints the OARepo/Python/Node versions detected from `pyproject.toml`'s dependency constraints, as JSON:
+Prints the OARepo/Python/Node versions detected from `pyproject.toml`'s dependency constraints and system availability, as JSON:
 
 ```bash
 $ oarepo-cli library oarepo-versions
-{"oarepo_versions": ["14"], "python_versions": ["3.14"], "node_versions": ["24"]}
+{"oarepo_versions": ["14"], "python_versions": ["3.14"], "node_versions": ["24", "22"]}
 ```
 
-OARepo major versions are extracted from `oarepo` constraints in `[project].dependencies`/`[project.optional-dependencies]`, sorted highest-first. Commands that need a single version (`venv`, `test`, ...) use the highest one; override with `OAREPO_VERSION`.
+- **OARepo versions**: Extracted from `oarepo` constraints in `[project].dependencies`/`[project.optional-dependencies]`, sorted highest-first. Commands that need a single version (`venv`, `test`, ...) use the highest one; override with `OAREPO_VERSION`.
+- **Python versions**: Compatible versions from `requires-python` constraint that are available on the system.
+- **Node.js versions**: Available Node.js major versions detected on the system (empty array if Node.js is not installed).
 
 ### `library clean`
 
