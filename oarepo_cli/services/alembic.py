@@ -8,6 +8,9 @@ from __future__ import annotations
 import textwrap
 from typing import TYPE_CHECKING
 
+if TYPE_CHECKING:
+    from pathlib import Path
+
 import tomlkit
 
 from oarepo_cli.core.errors import ValidationError
@@ -18,6 +21,8 @@ from oarepo_cli.services.venv import VirtualEnvironmentManager
 from oarepo_cli.ui import ConsoleOutput  # noqa: TC001 (used at runtime, not just type hints)
 
 if TYPE_CHECKING:
+    from pathlib import Path
+
     from tomlkit import TOMLDocument
 
     from oarepo_cli.core.context import ProjectContext
