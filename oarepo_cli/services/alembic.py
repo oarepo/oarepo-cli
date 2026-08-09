@@ -43,7 +43,7 @@ class AlembicManager:
         self._context = context
         self._console = console
 
-    def init(self) -> None:
+    def init(self, alembic_path: Path | None = None) -> None:
         """Initialize Alembic support for the library.
 
         Performs the following checks and operations:
@@ -58,6 +58,9 @@ class AlembicManager:
         9. Runs alembic upgrade heads
         10. Creates migration for initial tables
 
+        Args:
+            alembic_path: optional path to the alembic directory
+
         Raises:
             ValidationError: If required entrypoints are missing or alembic state is not clean
 
@@ -66,7 +69,7 @@ class AlembicManager:
         self._check_db_models_entrypoint()
 
         # Step 2: Check/create alembic directory
-        alembic_path = self._ensure_alembic_directory()
+        alembic_path = self._ensure_alembic_directory(alembic_path)
 
         # Step 3: Check/create invenio_db.alembic entrypoint
         self._ensure_alembic_entrypoint(alembic_path)
@@ -182,7 +185,7 @@ class AlembicManager:
                 return package_alembic_dir
         return None
 
-    def _ensure_alembic_directory(self) -> Path:
+    def _ensure_alembic_directory(self, alembic_path: Path | None) -> Path:
         """Ensure alembic directory exists in the first code directory.
 
         Returns:
@@ -193,8 +196,9 @@ class AlembicManager:
         pyproject_data = PyProjectReader().read(self._context.pyproject_path)
         package_name = pyproject_data.name.replace("-", "_")
 
-        alembic_directory = self._get_alembic_directory()
+        alembic_directory = alembic_path if alembic_path is not None else self._get_alembic_directory()
         if alembic_directory is not None:
+            alembic_directory.mkdir(parents=True, exist_ok=True)
             return alembic_directory
 
         # Check if alembic directory already exists in any code directory

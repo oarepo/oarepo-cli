@@ -121,7 +121,6 @@ def _alembic_init_impl(
     manager.init()
 
 
-
 @with_context_and_console(
     start_message="Creating alembic migration...",
     error_prefix="Error creating alembic migration",
@@ -151,6 +150,7 @@ def _alembic_revision_impl(
 
     manager = AlembicManager(context, console)
     return manager.revision(message=message)
+
 
 @alembic_app.command("init")
 def alembic_init(
@@ -186,6 +186,7 @@ def alembic_init(
 
     """
     _alembic_init_impl(quiet=quiet)
+
 
 @alembic_app.command("revision")
 def alembic_revision(
