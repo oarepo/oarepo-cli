@@ -46,6 +46,25 @@ requires-python = ">=3.14,<3.15"
 """
 
 
+@pytest.fixture(autouse=True)
+def _no_real_migration_workflow(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Stub out the parts of init() that shell out (uv/docker/invenio).
+
+    AlembicManager only touches pyproject.toml and the filesystem for the
+    directory/entrypoint bookkeeping exercised here; the rest of init()'s
+    migration workflow requires a real venv, Docker services and an invenio
+    binary, which these tests don't set up.
+    """
+    for method in (
+        "_sync_project",
+        "_restart_services",
+        "_create_branch_migration",
+        "_upgrade_heads",
+        "_create_tables_migration",
+    ):
+        monkeypatch.setattr(f"oarepo_cli.services.alembic.AlembicManager.{method}", lambda self, *a, **kw: None)  # noqa: ARG005
+
+
 def make_context(root: Path) -> ProjectContext:
     return ProjectContext(
         root_directory=root,
