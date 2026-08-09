@@ -121,6 +121,37 @@ def _alembic_init_impl(
     manager.init()
 
 
+
+@with_context_and_console(
+    start_message="Creating alembic migration...",
+    error_prefix="Error creating alembic migration",
+)
+def _alembic_revision_impl(
+    context: ProjectContext,
+    console: ConsoleOutput,
+    *,
+    message: str,
+    quiet: bool = False,  # noqa: ARG001 (used by decorator to control console output)
+) -> bool:
+    """Shared implementation for alembic revision.
+
+    Creates an Alembic revision with the given message.
+
+    Args:
+        context: Project context (injected by decorator)
+        console: Console output handler (injected by decorator)
+        message: Revision message to use
+        quiet: Suppress command output (passed from CLI, used by decorator)
+
+    Returns:
+        bool: True if revision was created successfully, False otherwise
+
+    """
+    from oarepo_cli.services.alembic import AlembicManager
+
+    manager = AlembicManager(context, console)
+    return manager.revision(message=message)
+
 @alembic_app.command("init")
 def alembic_init(
     quiet: Annotated[bool, typer.Option("--quiet", "-q", help="Suppress command output")] = False,
@@ -155,6 +186,30 @@ def alembic_init(
 
     """
     _alembic_init_impl(quiet=quiet)
+
+@alembic_app.command("revision")
+def alembic_revision(
+    message: Annotated[str, typer.Argument(help="Revision message")],
+    quiet: Annotated[bool, typer.Option("--quiet", "-q", help="Suppress command output")] = False,
+) -> None:
+    """Add a new Alembic revision.
+
+    This command performs the following steps:
+
+    1. If there is no alembic support yet, print message and exit 1
+    2. Restarts Docker services to ensure clean database state
+    3. Performs alembic upgrade heads
+    4. Creates alembic migration
+
+    After completion, you should carefully review the generated migration file
+    to ensure it contains only the intended table changes for your models.
+
+    Example:
+        oarepo-cli library alembic revision "Add user table"
+
+    """
+    if not _alembic_revision_impl(message=message, quiet=quiet):
+        raise typer.Exit(1)
 
 
 @with_context_and_console(

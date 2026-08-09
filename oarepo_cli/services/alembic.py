@@ -102,6 +102,37 @@ class AlembicManager:
             fg=None,
         )
 
+    def revision(self, message: str) -> bool:
+        """Create an Alembic revision with the given message.
+
+        Returns:
+            True if revision was created successfully, False otherwise
+
+        """
+        self._console.info(f"✓ Creating revision: {message}")
+
+        # Step 1: Get alembic directory
+        alembic_path = self._get_alembic_directory()
+        if alembic_path is None:
+            self._console.error("✗ No alembic directory found")
+            return False
+
+        # Step 2: Ensure alembic directory exists and contains at least 2 files (initial + tables)
+        if self._count_python_files(alembic_path) < _MIN_INITIALIZED_FILES:
+            self._console.error("✗ Alembic directory is not initialized - run 'alembic init' first")
+            return False
+
+        # Step 3: Restart services
+        self._restart_services()
+
+        # Step 4: Upgrade to heads
+        self._upgrade_heads()
+
+        # Step 4: create a new revision
+        self._create_revision(message)
+
+        return True
+
     def _check_db_models_entrypoint(self) -> None:
         """Check if invenio_db.models entrypoint exists.
 
@@ -125,6 +156,32 @@ class AlembicManager:
 
         self._console.info("✓ Found invenio_db.models entrypoint")
 
+    def _get_alembic_directory(self) -> Path | None:
+        """Get the path to the alembic directory.
+
+        Returns:
+            Path to alembic directory if found, None otherwise
+
+        """
+        code_dirs = self._context.code_directories_without_tests
+        pyproject_data = PyProjectReader().read(self._context.pyproject_path)
+        package_name = pyproject_data.name.replace("-", "_")
+
+        # Check if alembic directory already exists in any code directory
+        for code_dir in code_dirs:
+            # Check if alembic exists directly in code_dir (flat layout)
+            alembic_dir = code_dir / "alembic"
+            if alembic_dir.exists():
+                self._console.info(f"✓ Found existing alembic directory: {alembic_dir}")
+                return alembic_dir
+
+            # Check if alembic exists in package subdirectory (src layout)
+            package_alembic_dir = code_dir / package_name / "alembic"
+            if package_alembic_dir.exists():
+                self._console.info(f"✓ Found existing alembic directory: {package_alembic_dir}")
+                return package_alembic_dir
+        return None
+
     def _ensure_alembic_directory(self) -> Path:
         """Ensure alembic directory exists in the first code directory.
 
@@ -135,6 +192,10 @@ class AlembicManager:
         code_dirs = self._context.code_directories_without_tests
         pyproject_data = PyProjectReader().read(self._context.pyproject_path)
         package_name = pyproject_data.name.replace("-", "_")
+
+        alembic_directory = self._get_alembic_directory()
+        if alembic_directory is not None:
+            return alembic_directory
 
         # Check if alembic directory already exists in any code directory
         for code_dir in code_dirs:
@@ -258,6 +319,12 @@ class AlembicManager:
         python_files = list(alembic_path.glob("*.py"))
         return len(python_files) >= _MIN_INITIALIZED_FILES
 
+    def _count_python_files(self, alembic_path: Path) -> int:
+        """Count the number of Python files in the alembic directory."""
+        if not alembic_path.exists():
+            return 0
+        return len(list(alembic_path.glob("*.py")))
+
     def _has_python_files(self, alembic_path: Path) -> bool:
         """Check if alembic directory has any Python files.
 
@@ -268,11 +335,7 @@ class AlembicManager:
             True if there's at least one Python file
 
         """
-        if not alembic_path.exists():
-            return False
-
-        python_files = list(alembic_path.glob("*.py"))
-        return len(python_files) > 0
+        return self._count_python_files(alembic_path) > 0
 
     def _sync_project(self) -> None:
         """Sync project to register entrypoints."""
@@ -435,10 +498,21 @@ class AlembicManager:
     def _create_tables_migration(self) -> None:
         """Create migration for initial tables."""
         package_name = self._get_package_name()
+
+        self._create_revision(f"Create {package_name} tables.")
+
+    def _create_revision(self, message: str) -> None:
+        """Create an Alembic revision with the given message.
+
+        Args:
+            message (str): The revision message to use.
+
+        """
+        package_name = self._get_package_name()
         # Branch name should match the entrypoint name (package_name)
         branch_name = package_name
 
-        self._console.info(f"→ Creating tables migration for {package_name}...")
+        self._console.info(f"→ Creating revision {message} for {package_name}...")
 
         invenio_path = self._get_venv_invenio_path()
         cmd_env = self._build_invenio_env()
@@ -447,7 +521,7 @@ class AlembicManager:
             str(invenio_path),
             "alembic",
             "revision",
-            f"Create {package_name} tables.",
+            message,
             "-b",
             branch_name,
         ]
@@ -460,7 +534,7 @@ class AlembicManager:
             output_mode=process.ProcessOutputMode.FORWARD,
         )
 
-        self._console.info(f"✓ Tables migration for {package_name} created")
+        self._console.info(f"✓ Created alembic revision: {message}")
 
     def _check_alembic_differences(self) -> None:
         """Check if alembic state is clean (no uncommitted database changes).
