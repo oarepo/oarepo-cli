@@ -43,7 +43,11 @@ class AlembicManager:
         self._context = context
         self._console = console
 
-    def init(self, alembic_path: Path | None = None) -> None:
+    def init(
+        self,
+        alembic_path: Path | None = None,
+        verify_model_entrypoint: bool = True,
+    ) -> None:
         """Initialize Alembic support for the library.
 
         Performs the following checks and operations:
@@ -60,16 +64,18 @@ class AlembicManager:
 
         Args:
             alembic_path: optional path to the alembic directory
+            verify_model_entrypoint: whether to verify the invenio_db.models entrypoint
 
         Raises:
             ValidationError: If required entrypoints are missing or alembic state is not clean
 
         """
         # Step 1: Check for invenio_db.models entrypoint
-        self._check_db_models_entrypoint()
+        if verify_model_entrypoint:
+            self._check_db_models_entrypoint()
 
         # Step 2: Check/create alembic directory
-        alembic_path = self._ensure_alembic_directory(alembic_path)
+        alembic_path = self._ensure_alembic_directory(alembic_path).resolve()
 
         # Step 3: Check/create invenio_db.alembic entrypoint
         self._ensure_alembic_entrypoint(alembic_path)
@@ -87,7 +93,7 @@ class AlembicManager:
 
         # Step 7: Create branch migration if no python files exist
         if not self._has_python_files(alembic_path):
-            self._create_branch_migration()
+            self._create_branch_migration(alembic_path)
 
         # Step 8: Upgrade to heads
         self._upgrade_heads()
@@ -105,8 +111,12 @@ class AlembicManager:
             fg=None,
         )
 
-    def revision(self, message: str) -> bool:
+    def revision(self, message: str, alembic_path: Path | None = None) -> bool:
         """Create an Alembic revision with the given message.
+
+        Args:
+            message: Revision message to use
+            alembic_path: Optional path to the alembic directory
 
         Returns:
             True if revision was created successfully, False otherwise
@@ -115,13 +125,13 @@ class AlembicManager:
         self._console.info(f"✓ Creating revision: {message}")
 
         # Step 1: Get alembic directory
-        alembic_path = self._get_alembic_directory()
-        if alembic_path is None:
+        alembic_directory = alembic_path if alembic_path is not None else self._get_alembic_directory()
+        if alembic_directory is None:
             self._console.error("✗ No alembic directory found")
             return False
 
         # Step 2: Ensure alembic directory exists and contains at least 2 files (initial + tables)
-        if self._count_python_files(alembic_path) < _MIN_INITIALIZED_FILES:
+        if self._count_python_files(alembic_directory) < _MIN_INITIALIZED_FILES:
             self._console.error("✗ Alembic directory is not initialized - run 'alembic init' first")
             return False
 
@@ -131,10 +141,62 @@ class AlembicManager:
         # Step 4: Upgrade to heads
         self._upgrade_heads()
 
-        # Step 4: create a new revision
+        # Step 5: Create a new revision
         self._create_revision(message)
 
+        # Destroy services after completion
+        services_mgr = ServicesLifecycleManager(
+            config=self._context.config,
+            project_root=self._context.root_directory,
+            quiet=self._console.is_quiet,
+        )
+        services_mgr.destroy_services()
+
         return True
+
+    def apply(self) -> None:
+        """Apply all pending migrations by running 'invenio alembic upgrade heads'.
+
+        This command upgrades the database to the latest migration head.
+        It restarts Docker services to ensure a clean state before applying migrations.
+
+        """
+        self._console.info("→ Applying all pending migrations...")
+
+        # Restart services to ensure clean state
+        self._restart_services()
+
+        # Run upgrade heads
+        self._upgrade_heads()
+
+        self._console.success("\n✓ All migrations applied successfully!")
+
+    def stamp(self, revision: str) -> None:
+        """Stamp the database with the specified revision without applying migrations.
+
+        This command sets the current database schema version to the specified revision
+        without actually running any migration scripts. Useful for syncing the database
+        state with the codebase when migrations have been applied manually or externally.
+
+        Args:
+            revision: The revision identifier to stamp (e.g., 'head', 'base', or a specific revision ID)
+
+        """
+        self._console.info(f"→ Stamping database with revision: {revision}...")
+
+        invenio_path = self._get_venv_invenio_path()
+        cmd_env = self._build_invenio_env()
+
+        cmd = [str(invenio_path), "alembic", "stamp", revision]
+        process.run(
+            cmd,
+            cwd=self._context.root_directory,
+            env=cmd_env,
+            check=True,
+            output_mode=process.ProcessOutputMode.FORWARD,
+        )
+
+        self._console.success(f"\n✓ Database stamped with revision: {revision}")
 
     def _check_db_models_entrypoint(self) -> None:
         """Check if invenio_db.models entrypoint exists.
@@ -429,8 +491,13 @@ class AlembicManager:
 
         return cmd_env
 
-    def _create_branch_migration(self) -> None:
-        """Create initial branch migration."""
+    def _create_branch_migration(self, alembic_path: Path) -> None:  # noqa: ARG002
+        """Create initial branch migration.
+
+        Args:
+            alembic_path: Path to the alembic directory (not used, kept for API compatibility)
+
+        """
         package_name = self._get_package_name()
         # Branch name should match the entrypoint name (package_name)
         branch_name = package_name
@@ -593,3 +660,121 @@ class AlembicManager:
             )
 
         self._console.info("✓ Alembic state is clean")
+
+    def check(self, sql: bool = False) -> int:
+        """Check for pending database migrations.
+
+        Runs the check_migrations.py script to compare the current database schema
+        against the model metadata and detect any pending migrations.
+
+        Args:
+            sql: If True, output SQL statements instead of JSON
+
+        Returns:
+            Exit code: 0 if no migrations needed, 1 if pending migrations detected
+
+        """
+        import os
+        import tempfile
+        from importlib.resources import files
+        from pathlib import Path
+
+        # Get the script content and write it to a temporary file
+        script_content = files("oarepo_cli.configuration").joinpath("check_migrations.py").read_text()
+
+        # Create a temporary file that persists after closing (delete=False)
+        # We manually manage the lifecycle to ensure the file exists during subprocess execution
+        fd, temp_script_path = tempfile.mkstemp(suffix=".py")
+        try:
+            # Write script content to the temporary file
+            with os.fdopen(fd, "w", encoding="utf-8") as f:
+                f.write(script_content)
+
+            # Build the command to run the migration check script via invenio shell
+            # This ensures Flask and Invenio are properly initialized
+            cmd = [
+                str(self._get_venv_invenio_path()),
+                "shell",
+                temp_script_path,
+            ]
+            if sql:
+                cmd.append("sql")
+            cmd_env = self._build_invenio_env()
+
+            result = process.run(
+                cmd,
+                cwd=self._context.root_directory,
+                env=cmd_env,
+                check=True,
+                output_mode=process.ProcessOutputMode.FORWARD,
+            )
+
+            # Parse the output to determine if there are pending migrations
+            output = result.stdout.strip()
+
+            # Forward mode doesn't actually forward, so we need to print manually
+            if output:
+                print(output)  # noqa: T201
+
+            if sql:
+                # For SQL mode, return 1 if there is any output (migrations needed)
+                if output and output != "[]":
+                    return 1  # Pending migrations
+                return 0  # No migrations
+
+            # JSON mode - parse and check if empty
+            import json
+
+            try:
+                migrations = json.loads(output)
+                if isinstance(migrations, list) and len(migrations) > 0:
+                    # There are pending migrations
+                    return 1
+                return 0  # No pending migrations
+            except json.JSONDecodeError:
+                # If we can't parse JSON, assume there might be issues
+                return 1
+        finally:
+            # Clean up temporary file
+            Path(temp_script_path).unlink()
+
+    def check_with_services(self, sql: bool = False) -> int:
+        """Check for pending database migrations with service lifecycle management.
+
+        This method starts Docker services, upgrades to heads, runs the migration
+        check, and then destroys the services. Intended for library commands where
+        services should not persist after the check.
+
+        Args:
+            sql: If True, output SQL statements instead of JSON
+
+        Returns:
+            Exit code: 0 if no migrations needed, 1 if pending migrations detected
+
+        """
+        try:
+            # Start services
+            self._console.info("→ Starting services...")
+            services_mgr = ServicesLifecycleManager(
+                config=self._context.config,
+                project_root=self._context.root_directory,
+                quiet=self._console.is_quiet,
+            )
+            services_mgr.start_services()
+            self._console.info("✓ Services started")
+
+            # Upgrade to heads to ensure database is up to date before checking
+            self._upgrade_heads()
+
+            # Run the check
+            return self.check(sql=sql)
+        finally:
+            # Always destroy services after completion
+            self._console.info("→ Destroying services...")
+            services_mgr = ServicesLifecycleManager(
+                config=self._context.config,
+                project_root=self._context.root_directory,
+                quiet=self._console.is_quiet,
+            )
+            services_mgr.destroy_services()
+            self._console.info("✓ Services destroyed")

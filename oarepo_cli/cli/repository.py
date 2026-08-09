@@ -19,6 +19,7 @@ from oarepo_cli.cli.command_wrapper import with_context_and_console
 from oarepo_cli.core.context import discover_context
 from oarepo_cli.core.errors import OARepoError
 from oarepo_cli.services import invenio_cli, repository, translations
+from oarepo_cli.services.alembic import AlembicManager
 from oarepo_cli.services.local_packages import LocalPackageManager
 from oarepo_cli.services.models import ModelManager
 from oarepo_cli.services.server import ServerRunner
@@ -59,11 +60,19 @@ index_app = typer.Typer(
     no_args_is_help=True,
 )
 
-# Register services, model, local and index as subcommands of repository
+# Create the alembic subcommand group
+alembic_app = typer.Typer(
+    name="alembic",
+    help="Alembic migration management",
+    no_args_is_help=True,
+)
+
+# Register services, model, local, index, and alembic as subcommands of repository
 repository_app.add_typer(services_app)
 repository_app.add_typer(model_app)
 repository_app.add_typer(local_app)
 repository_app.add_typer(index_app)
+repository_app.add_typer(alembic_app)
 
 # Each services subcommand is a pure passthrough to invenio-cli: extra
 # arguments/options are forwarded verbatim, and --help must reach
@@ -112,6 +121,11 @@ def local_callback() -> None:
 @index_app.callback()
 def index_callback() -> None:
     """Repository search index command group."""
+
+
+@alembic_app.callback()
+def alembic_callback() -> None:
+    """Repository alembic migration command group."""
 
 
 def _run_services_subcommand(ctx: typer.Context, subcommand: str, *, quiet: bool) -> None:
@@ -1063,3 +1077,298 @@ def info_command() -> None:
     else:
         for model in models:
             typer.echo(f"  - {model.name}: {model.version}")
+
+
+@with_context_and_console(
+    start_message="Initializing Alembic support...",
+    error_prefix="Error initializing Alembic",
+)
+def _alembic_init_impl(
+    context: ProjectContext,
+    console: ConsoleOutput,
+    *,
+    quiet: bool = False,  # noqa: ARG001 (used by decorator to control console output)
+) -> None:
+    """Initialize Alembic support for the repository.
+
+    Initializes Alembic support in the common/alembic directory including creating
+    migrations and setting up the database schema. After completion, instructs the
+    user to review the generated migration files.
+
+    Args:
+        context: Project context (injected by decorator)
+        console: Console output handler (injected by decorator)
+        quiet: Suppress command output (passed from CLI, used by decorator)
+
+    """
+    from pathlib import Path
+
+    manager = AlembicManager(context, console)
+    manager.init(Path("common/alembic"), verify_model_entrypoint=False)
+
+
+@with_context_and_console(
+    start_message="Creating alembic migration...",
+    error_prefix="Error creating alembic migration",
+)
+def _alembic_revision_impl(
+    context: ProjectContext,
+    console: ConsoleOutput,
+    *,
+    message: str,
+    quiet: bool = False,  # noqa: ARG001 (used by decorator to control console output)
+) -> bool:
+    """Create an Alembic revision for the repository.
+
+    Creates an Alembic revision with the given message in the common/alembic directory.
+
+    Args:
+        context: Project context (injected by decorator)
+        console: Console output handler (injected by decorator)
+        message: Revision message to use
+        quiet: Suppress command output (passed from CLI, used by decorator)
+
+    Returns:
+        bool: True if revision was created successfully, False otherwise
+
+    """
+    from pathlib import Path
+
+    manager = AlembicManager(context, console)
+    return manager.revision(message=message, alembic_path=Path("common/alembic"))
+
+
+@alembic_app.command("init")
+def alembic_init(
+    quiet: Annotated[bool, typer.Option("--quiet", "-q", help="Suppress command output")] = False,
+) -> None:
+    """Initialize Alembic support for the repository.
+
+    This command initializes Alembic support in the common/alembic directory and
+    performs the following steps:
+    1. Checks for the required 'invenio_db.models' entrypoint in pyproject.toml
+    2. Creates the 'common/alembic' directory if it doesn't exist
+    3. Adds the 'invenio_db.alembic' entrypoint to pyproject.toml if missing
+    4. Checks if alembic is already initialized (exits early if 2+ migrations exist)
+    5. Syncs the project to register entrypoints (uv pip install --no-deps -e .)
+    6. Restarts Docker services to ensure clean database state
+    7. Verifies alembic state is clean (no uncommitted database changes)
+    8. Creates initial branch migration if no Python files exist in common/alembic/
+    9. Runs 'invenio alembic upgrade heads' to apply base migrations
+    10. Creates migration for initial database tables
+
+    After completion, you should carefully review the generated migration file
+    to ensure it contains only the intended table changes for your models.
+
+    The 'invenio_db.models' entrypoint is required for Alembic support and should
+    point to your database models module. If it's missing, the command will exit
+    with an error and provide an example configuration.
+
+    Note: This command requires Docker services to be available and will restart
+    them to ensure a clean database state.
+
+    Example:
+        oarepo-cli repository alembic init
+        oarepo-cli repository alembic init --quiet
+
+    """
+    _alembic_init_impl(quiet=quiet)
+
+
+@alembic_app.command("revision")
+def alembic_revision(
+    message: Annotated[str, typer.Argument(help="Revision message")],
+    quiet: Annotated[bool, typer.Option("--quiet", "-q", help="Suppress command output")] = False,
+) -> None:
+    """Add a new Alembic revision.
+
+    This command performs the following steps:
+
+    1. If there is no alembic support yet, print message and exit 1
+    2. Restarts Docker services to ensure clean database state
+    3. Performs alembic upgrade heads
+    4. Creates alembic migration in common/alembic
+
+    After completion, you should carefully review the generated migration file
+    to ensure it contains only the intended table changes for your models.
+
+    Example:
+        oarepo-cli repository alembic revision "Add user table"
+
+    """
+    if not _alembic_revision_impl(message=message, quiet=quiet):
+        raise typer.Exit(1)
+
+
+@with_context_and_console(
+    start_message="Applying pending migrations...",
+    error_prefix="Error applying migrations",
+)
+def _alembic_apply_impl(
+    context: ProjectContext,
+    console: ConsoleOutput,
+    *,
+    quiet: bool = False,  # noqa: ARG001 (used by decorator to control console output)
+) -> None:
+    """Apply all pending Alembic migrations.
+
+    Runs 'invenio alembic upgrade heads' to apply all pending migrations to the database.
+    Restarts Docker services to ensure a clean state before applying migrations.
+
+    Args:
+        context: Project context (injected by decorator)
+        console: Console output handler (injected by decorator)
+        quiet: Suppress command output (passed from CLI, used by decorator)
+
+    """
+    manager = AlembicManager(context, console)
+    manager.apply()
+
+
+@alembic_app.command("apply")
+def alembic_apply(
+    quiet: Annotated[bool, typer.Option("--quiet", "-q", help="Suppress command output")] = False,
+) -> None:
+    """Apply all pending Alembic migrations.
+
+    This command upgrades the database to the latest migration head by running
+    'invenio alembic upgrade heads'. It restarts Docker services to ensure a clean
+    state before applying migrations.
+
+    Use this command when:
+    - You have new migration files and want to apply them to the database
+    - The database schema is out of sync with the latest migrations
+    - You want to ensure all pending migrations are applied
+
+    Note: This command requires Docker services to be available and will restart
+    them to ensure a clean database state.
+
+    Example:
+        oarepo-cli repository alembic apply
+        oarepo-cli repository alembic apply --quiet
+
+    """
+    _alembic_apply_impl(quiet=quiet)
+
+
+@with_context_and_console(
+    start_message="Stamping database...",
+    error_prefix="Error stamping database",
+)
+def _alembic_stamp_impl(
+    context: ProjectContext,
+    console: ConsoleOutput,
+    *,
+    revision: str,
+    quiet: bool = False,  # noqa: ARG001 (used by decorator to control console output)
+) -> None:
+    """Stamp the database with a specific revision.
+
+    Sets the current database schema version to the specified revision without
+    actually running any migration scripts. This is useful when migrations have
+    been applied manually or externally and you need to sync the database state
+    with the codebase.
+
+    Args:
+        context: Project context (injected by decorator)
+        console: Console output handler (injected by decorator)
+        revision: The revision identifier to stamp (e.g., 'head', 'base', or a specific revision ID)
+        quiet: Suppress command output (passed from CLI, used by decorator)
+
+    """
+    manager = AlembicManager(context, console)
+    manager.stamp(revision)
+
+
+@alembic_app.command("stamp")
+def alembic_stamp(
+    revision: Annotated[str, typer.Argument(help="Revision to stamp (e.g., 'head', 'base', or specific revision ID)")],
+    quiet: Annotated[bool, typer.Option("--quiet", "-q", help="Suppress command output")] = False,
+) -> None:
+    """Stamp the database with a specific revision.
+
+    This command sets the current database schema version to the specified revision
+    without actually running any migration scripts. The database schema remains unchanged,
+    but Alembic will recognize it as being at the specified revision.
+
+    Common use cases:
+    - Syncing database state after manual schema changes
+    - Marking the database as already having certain migrations applied
+    - Resetting the migration history without dropping tables
+    - Setting the database to 'base' (no migrations) or 'head' (latest migration)
+
+    Common revision identifiers:
+    - 'head' - The latest migration
+    - 'base' - No migrations applied
+    - A specific revision ID (e.g., 'abc123def456')
+
+    Warning: Use this command with caution. Stamping the database with an incorrect
+    revision can lead to inconsistencies between the actual schema and what Alembic
+    believes has been applied.
+
+    Example:
+        oarepo-cli repository alembic stamp head
+        oarepo-cli repository alembic stamp base
+        oarepo-cli repository alembic stamp abc123def456
+
+    """
+    _alembic_stamp_impl(revision=revision, quiet=quiet)
+
+
+def _alembic_check_impl(
+    context: ProjectContext,
+    console: ConsoleOutput,
+    *,
+    sql: bool = False,
+) -> int:
+    """Check for pending database migrations.
+
+    Runs the check_migrations.py script to compare the current database schema
+    against the model metadata and detect any pending migrations.
+
+    Args:
+        context: Project context with paths and configuration
+        console: Console output handler
+        sql: If True, output SQL statements instead of JSON
+
+    Returns:
+        Exit code: 0 if no migrations needed, 1 if pending migrations detected
+
+    """
+    manager = AlembicManager(context, console)
+    return manager.check(sql=sql)
+
+
+@alembic_app.command("check")
+def alembic_check(
+    sql_mode: Annotated[
+        bool,
+        typer.Option("--sql", help="Output SQL statements instead of JSON"),
+    ] = False,
+) -> None:
+    """Check for pending database migrations.
+
+    Compares the current database schema against the model metadata to detect
+    any pending migrations that haven't been applied yet.
+
+    Exit codes:
+        0: No pending migrations (database is up to date)
+        1: Pending migrations detected or error occurred
+
+    Examples:
+        # Check for pending migrations (JSON output)
+        oarepo-cli repository alembic check
+
+        # Check and see SQL statements for pending migrations
+        oarepo-cli repository alembic check sql
+
+    """
+    try:
+        context = discover_context()
+    except OARepoError as e:
+        console_err = ConsoleOutput(quiet=False)
+        console_err.error(f"\n✗ Failed to discover project context: {e}\n", fg=typer.colors.RED)
+        raise typer.Exit(1) from e
+
+    exit_code = _alembic_check_impl(context, ConsoleOutput(quiet=False), sql=bool(sql_mode))
+    raise typer.Exit(code=exit_code)

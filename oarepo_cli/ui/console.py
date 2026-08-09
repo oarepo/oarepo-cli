@@ -37,10 +37,14 @@ class ConsoleOutput:
 
         Args:
             message: Message to print
-            **kwargs: Same arguments as typer.secho (fg, bg, bold, etc.)
+            **kwargs: Same arguments as typer.secho (fg, bg, bold, err, etc.)
+                     err=True by default for info messages
 
         """
         if not self._quiet:
+            # Default to stderr for info messages
+            if "err" not in kwargs:
+                kwargs["err"] = True
             typer.secho(message, **kwargs)
 
     def success(self, message: str, **kwargs: Any) -> None:
@@ -48,10 +52,14 @@ class ConsoleOutput:
 
         Args:
             message: Message to print
-            **kwargs: Same arguments as typer.secho (fg, bg, bold, etc.)
+            **kwargs: Same arguments as typer.secho (fg, bg, bold, err, etc.)
+                     err=True by default for success messages
 
         """
         if not self._quiet:
+            # Default to stderr for success messages
+            if "err" not in kwargs:
+                kwargs["err"] = True
             typer.secho(message, **kwargs)
 
     def warning(self, message: str, **kwargs: Any) -> None:

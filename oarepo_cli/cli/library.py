@@ -213,6 +213,45 @@ def alembic_revision(
         raise typer.Exit(1)
 
 
+@alembic_app.command("check")
+def alembic_check(
+    sql_mode: Annotated[
+        bool,
+        typer.Option("--sql", help="Output SQL statements instead of JSON"),
+    ] = False,
+) -> None:
+    """Check for pending database migrations.
+
+    Starts Docker services, checks for pending migrations by comparing the
+    current database schema against the model metadata, then destroys the services.
+
+    Exit codes:
+        0: No pending migrations (database is up to date)
+        1: Pending migrations detected or error occurred
+
+    Examples:
+        # Check for pending migrations (JSON output)
+        oarepo-cli library alembic check
+
+        # Check and see SQL statements for pending migrations
+        oarepo-cli library alembic check --sql
+
+    """
+    from oarepo_cli.services.alembic import AlembicManager
+
+    try:
+        context = discover_context()
+    except OARepoError as e:
+        console_err = ConsoleOutput(quiet=False)
+        console_err.error(f"\n✗ Failed to discover project context: {e}\n", fg=typer.colors.RED)
+        raise typer.Exit(1) from e
+
+    console = ConsoleOutput(quiet=False)
+    manager = AlembicManager(context, console)
+    exit_code = manager.check_with_services(sql=bool(sql_mode))
+    raise typer.Exit(code=exit_code)
+
+
 @with_context_and_console(
     start_message="Starting services...",
     error_prefix="Error starting services",

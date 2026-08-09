@@ -141,6 +141,40 @@ class ServicesLifecycleManager:
         if self._env_file.exists():
             self._env_file.unlink()
 
+    def destroy_services(self) -> None:
+        """Stop Docker services and clean up.
+
+        Uses docker-services-cli to stop all running services and removes
+        the .env-services file. Note: This does not destroy persistent volumes;
+        it only stops the containers.
+
+        Raises:
+            ProcessExecutionError: If docker-services-cli fails
+
+        """
+        if self._config.services.skip:
+            return
+
+        # Run docker-services-cli down
+        cmd = [
+            "uvx",
+            "--with",
+            "setuptools",
+            "docker-services-cli",
+            "down",
+            "--env",
+        ]
+
+        # Add --quiet flag if requested
+        if self._quiet:
+            cmd.append("--quiet")
+
+        process.run(cmd, cwd=self._project_root, check=True)
+
+        # Remove .env-services file if it exists
+        if self._env_file.exists():
+            self._env_file.unlink()
+
     def load_service_env(self) -> dict[str, str]:
         """Load environment variables from .env-services file.
 
