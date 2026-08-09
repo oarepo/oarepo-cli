@@ -56,9 +56,6 @@ class ServicesLifecycleManager:
 
         # Build docker-services-cli command
         cmd = [
-            "uvx",
-            "--with",
-            "setuptools",
             "docker-services-cli",
             "up",
             "--db",
@@ -123,9 +120,6 @@ class ServicesLifecycleManager:
 
         # Run docker-services-cli down
         cmd = [
-            "uvx",
-            "--with",
-            "setuptools",
             "docker-services-cli",
             "down",
             "--env",
@@ -157,9 +151,6 @@ class ServicesLifecycleManager:
 
         # Run docker-services-cli down
         cmd = [
-            "uvx",
-            "--with",
-            "setuptools",
             "docker-services-cli",
             "down",
             "--env",
