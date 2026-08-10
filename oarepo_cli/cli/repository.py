@@ -1315,28 +1315,32 @@ def alembic_stamp(
     _alembic_stamp_impl(revision=revision, quiet=quiet)
 
 
+@with_context_and_console(
+    success_message=None,  # Custom success/error handling in impl
+    error_prefix="Error checking alembic migrations",
+)
 def _alembic_check_impl(
     context: ProjectContext,
     console: ConsoleOutput,
     *,
     sql: bool = False,
-) -> int:
+    quiet: bool = False,  # noqa: ARG001 (used by decorator to control console output)
+) -> None:
     """Check for pending database migrations.
 
     Runs the check_migrations.py script to compare the current database schema
     against the model metadata and detect any pending migrations.
 
     Args:
-        context: Project context with paths and configuration
-        console: Console output handler
+        context: Project context (injected by decorator)
+        console: Console output handler (injected by decorator)
         sql: If True, output SQL statements instead of JSON
-
-    Returns:
-        Exit code: 0 if no migrations needed, 1 if pending migrations detected
+        quiet: Suppress command output (passed from CLI, used by decorator)
 
     """
     manager = AlembicManager(context, console)
-    return manager.check(sql=sql)
+    exit_code = manager.check(sql=sql)
+    raise typer.Exit(code=exit_code)
 
 
 @alembic_app.command("check")
@@ -1363,12 +1367,4 @@ def alembic_check(
         oarepo-cli repository alembic check sql
 
     """
-    try:
-        context = discover_context()
-    except OARepoError as e:
-        console_err = ConsoleOutput(quiet=False)
-        console_err.error(f"\n✗ Failed to discover project context: {e}\n", fg=typer.colors.RED)
-        raise typer.Exit(1) from e
-
-    exit_code = _alembic_check_impl(context, ConsoleOutput(quiet=False), sql=bool(sql_mode))
-    raise typer.Exit(code=exit_code)
+    _alembic_check_impl(sql=bool(sql_mode))
