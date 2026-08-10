@@ -219,9 +219,7 @@ def test_install_copies_run_script(tmp_path: Path, local_template: Path, monkeyp
     )
 
     run_script = target / "run.sh"
-    bundled_script = (
-        Path(__file__).parent.parent.parent / "oarepo_cli" / "scripts" / "repository_run.sh"
-    )
+    bundled_script = Path(__file__).parent.parent.parent / "oarepo_cli" / "scripts" / "repository_run.sh"
     assert run_script.read_text() == bundled_script.read_text()
     assert run_script.stat().st_mode & 0o111, "run.sh is not executable"
 
