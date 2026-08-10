@@ -188,6 +188,37 @@ def alembic_init(
     _alembic_init_impl(quiet=quiet)
 
 
+@with_context_and_console(
+    success_message=None,  # Custom success/error handling in impl
+    error_prefix="Error checking alembic migrations",
+)
+def _alembic_check_impl(
+    context: ProjectContext,
+    console: ConsoleOutput,
+    *,
+    sql_mode: bool = False,
+    quiet: bool = False,  # noqa: ARG001 (used by decorator to control console output)
+) -> None:
+    """Shared implementation for alembic check.
+
+    Starts Docker services, checks for pending migrations by comparing the
+    current database schema against the model metadata, then destroys the
+    services.
+
+    Args:
+        context: Project context (injected by decorator)
+        console: Console output handler (injected by decorator)
+        sql_mode: If True, output SQL statements instead of JSON
+        quiet: Suppress command output (passed from CLI, used by decorator)
+
+    """
+    from oarepo_cli.services.alembic import AlembicManager
+
+    manager = AlembicManager(context, console)
+    exit_code = manager.check_with_services(sql=sql_mode)
+    raise typer.Exit(code=exit_code)
+
+
 @alembic_app.command("revision")
 def alembic_revision(
     message: Annotated[str, typer.Argument(help="Revision message")],
@@ -237,19 +268,7 @@ def alembic_check(
         oarepo-cli library alembic check --sql
 
     """
-    from oarepo_cli.services.alembic import AlembicManager
-
-    try:
-        context = discover_context()
-    except OARepoError as e:
-        console_err = ConsoleOutput(quiet=False)
-        console_err.error(f"\n✗ Failed to discover project context: {e}\n", fg=typer.colors.RED)
-        raise typer.Exit(1) from e
-
-    console = ConsoleOutput(quiet=False)
-    manager = AlembicManager(context, console)
-    exit_code = manager.check_with_services(sql=bool(sql_mode))
-    raise typer.Exit(code=exit_code)
+    _alembic_check_impl(sql_mode=bool(sql_mode))
 
 
 @with_context_and_console(
