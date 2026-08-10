@@ -370,12 +370,11 @@ def run_jstest(
 
     if setup:
         # Setting up Jest config involves webpack entry-point discovery and
-        # config generation -- not ported from library_runner.sh yet, so
-        # this delegates to it instead of duplicating that logic here.
+        # config generation -- not implemented yet.
         return process.ProcessResult(
             return_code=1,
             stdout="",
-            stderr="jstest setup not implemented - use library_runner.sh for this",
+            stderr="jstest --setup is not implemented",
             command=[],
             cwd=context.root_directory,
             duration_ms=0,
