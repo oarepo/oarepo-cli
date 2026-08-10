@@ -21,7 +21,8 @@ compose file present, matching the shell script's own `|| true`.
 from __future__ import annotations
 
 import subprocess
-from typing import TYPE_CHECKING, Any
+from pathlib import Path
+from typing import Any
 
 import copier
 import pytest
@@ -31,9 +32,6 @@ from oarepo_cli.cli.main import app
 from oarepo_cli.core.errors import ConfigurationError
 from oarepo_cli.services.repository_installer import RepositoryInstaller
 from oarepo_cli.ui import ConsoleOutput
-
-if TYPE_CHECKING:
-    from pathlib import Path
 
 runner = CliRunner()
 
@@ -205,6 +203,25 @@ def test_template_url_handling_vcs_ref_only_for_github_urls(
     RepositoryInstaller(ConsoleOutput(quiet=True)).install("my-repo", template=str(local_template), version="some-ref")
 
     assert calls[0]["vcs_ref"] is None
+
+
+def test_install_copies_run_script(tmp_path: Path, local_template: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """The bundled repository_run.sh is copied to run.sh and made executable.
+
+    Mirrors oarepo_cli/scripts/README.md: "The repository installer will
+    automatically copy the repository_run.sh into the run.sh script when
+    the repository is installed."
+    """
+    monkeypatch.chdir(tmp_path)
+
+    target = RepositoryInstaller(ConsoleOutput(quiet=True)).install(
+        "my-repo", template=str(local_template), version="HEAD"
+    )
+
+    run_script = target / "run.sh"
+    bundled_script = Path(__file__).parent.parent.parent / "oarepo_cli" / "scripts" / "repository_run.sh"
+    assert run_script.read_text() == bundled_script.read_text()
+    assert run_script.stat().st_mode & 0o111, "run.sh is not executable"
 
 
 def test_install_generates_development_certificates(
