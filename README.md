@@ -1,6 +1,6 @@
 # OARepo CLI
 
-`oarepo-cli` is a command-line tool for scaffolding and developing OARepo repositories and libraries. It replaces the previous `library_runner.sh`, `repository_runner.sh`, and `repository_installer.sh` scripts with a single executable.
+`oarepo-cli` is a command-line tool for scaffolding and developing OARepo repositories and libraries.
 
 It provides three things:
 
@@ -19,10 +19,12 @@ It provides three things:
 
 ## New Repository
 
-`oarepo-cli new` scaffolds a new repository from a [copier](https://copier.readthedocs.io/) template into `./<name>`.
+At first, make sure that you have `uv` installed. See [docs.astral.sh](https://docs.astral.sh/uv/getting-started/installation/) for installation instructions.
+
+Then, `uvx oarepo-cli new <name>` scaffolds a new repository from a [copier](https://copier.readthedocs.io/) template into `./<name>`.
 
 ```bash
-oarepo-cli new my-repo
+uva oarepo-cli new my-repo
 ```
 
 | Option | Description | Default |
@@ -38,6 +40,7 @@ What it does:
 2. Generates a self-signed development TLS certificate/key pair (`docker/development.crt`/`.key`)
 3. Clears out any stale Docker containers left over from a previous attempt at the same name
 4. Initializes a git repository with an initial commit (skipped in CI, or if git isn't installed)
+5. Adds a run.sh script for installing and running the repository
 
 ## Repository Tools
 
@@ -189,7 +192,7 @@ oarepo-cli repository jstest
 
 | Option | Description |
 |---|---|
-| `--setup` (`jstest` only) | Not implemented — set up Jest config via `library_runner.sh jstest setup` instead |
+| `--setup` (`jstest` only) | Not implemented |
 | `--skip-services` (`jstest` only) | Don't start Docker services first |
 
 ### `repository test`
@@ -377,7 +380,7 @@ oarepo-cli library jstest
 
 | Option | Description |
 |---|---|
-| `--setup` (`jstest` only) | Not implemented — set up Jest config via `library_runner.sh jstest setup` instead |
+| `--setup` (`jstest` only) | Not implemented |
 | `--skip-services` (`jstest` only) | Don't start Docker services first |
 
 ### `library oarepo-versions`

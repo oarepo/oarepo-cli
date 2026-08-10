@@ -7,6 +7,8 @@ from __future__ import annotations
 
 import os
 import shutil
+import stat
+from importlib import resources
 from pathlib import Path
 from typing import Any
 
@@ -133,12 +135,27 @@ class RepositoryInstaller:
             # exception types to expect.
             raise ConfigurationError(f"Failed to render template '{template}': {e}") from e
 
+        self._install_run_script(target_dir)
         self._generate_certificates(target_dir)
         self._clean_docker_state(target_dir)
         self._init_git(target_dir)
 
         self._console.success(f"✓ Repository '{name}' created successfully.\n")
         return target_dir
+
+    def _install_run_script(self, target_dir: Path) -> None:
+        """Copy the bundled ``repository_run.sh`` to ``run.sh`` in the new repository.
+
+        See ``oarepo_cli/scripts/README.md``: this is the "repository
+        installer" side of the runner scripts -- the library counterpart
+        (``library_run.sh``) is copied manually by the user when creating a
+        new library.
+        """
+        self._console.info("→ Installing run.sh wrapper script\n")
+        script_text = resources.files("oarepo_cli.scripts").joinpath("repository_run.sh").read_text(encoding="utf-8")
+        run_script = target_dir / "run.sh"
+        run_script.write_text(script_text, encoding="utf-8")
+        run_script.chmod(run_script.stat().st_mode | stat.S_IXUSR | stat.S_IXGRP | stat.S_IXOTH)
 
     def _generate_certificates(self, target_dir: Path) -> None:
         """Generate a self-signed development TLS cert/key pair.
