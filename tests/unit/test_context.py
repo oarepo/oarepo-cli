@@ -300,6 +300,67 @@ dependencies = ["oarepo>=14.0.0,<15.0.0"]
     assert context.assets_path is None
 
 
+def test_computed_properties_code_directories_without_tests_src_layout(tmp_path: Path) -> None:
+    """Test code_directories_without_tests excludes tests/ for src layout."""
+    (tmp_path / "pyproject.toml").write_text(
+        """
+[project]
+name = "test-project"
+requires-python = ">=3.12,<3.15"
+dependencies = ["oarepo>=14.0.0,<15.0.0"]
+"""
+    )
+    (tmp_path / "src").mkdir()
+    (tmp_path / "tests").mkdir()
+
+    context = ContextBuilder().from_directory(tmp_path).validate()
+
+    # code_directories includes tests
+    assert context.code_directories == [tmp_path / "src", tmp_path / "tests"]
+    # code_directories_without_tests excludes tests
+    assert context.code_directories_without_tests == [tmp_path / "src"]
+
+
+def test_computed_properties_code_directories_without_tests_flat_layout(tmp_path: Path) -> None:
+    """Test code_directories_without_tests excludes tests/ for flat layout."""
+    (tmp_path / "pyproject.toml").write_text(
+        """
+[project]
+name = "test-project"
+requires-python = ">=3.12,<3.15"
+dependencies = ["oarepo>=14.0.0,<15.0.0"]
+"""
+    )
+    (tmp_path / "test_project").mkdir()
+    (tmp_path / "tests").mkdir()
+
+    context = ContextBuilder().from_directory(tmp_path).validate()
+
+    # code_directories includes tests
+    assert context.code_directories == [tmp_path / "test_project", tmp_path / "tests"]
+    # code_directories_without_tests excludes tests
+    assert context.code_directories_without_tests == [tmp_path / "test_project"]
+
+
+def test_computed_properties_code_directories_without_tests_no_tests(tmp_path: Path) -> None:
+    """Test code_directories_without_tests when no tests/ directory exists."""
+    (tmp_path / "pyproject.toml").write_text(
+        """
+[project]
+name = "test-project"
+requires-python = ">=3.12,<3.15"
+dependencies = ["oarepo>=14.0.0,<15.0.0"]
+"""
+    )
+    (tmp_path / "src").mkdir()
+
+    context = ContextBuilder().from_directory(tmp_path).validate()
+
+    # Both should be the same when tests/ doesn't exist
+    assert context.code_directories == [tmp_path / "src"]
+    assert context.code_directories_without_tests == [tmp_path / "src"]
+
+
 def test_builder_pattern_with_overrides(tmp_path: Path) -> None:
     """Test builder pattern with various overrides."""
     (tmp_path / "pyproject.toml").write_text(

@@ -80,8 +80,9 @@ def test_upgrade_displays_output(
 
     result = runner.invoke(app, ["library", "upgrade"], catch_exceptions=False)
 
-    # Should produce some output
-    assert len(result.stdout) > 0 or result.exit_code != 0
+    # Should produce some output (CLI messages are written to stderr, mixed
+    # into `.output` in invocation order; `.stdout` alone is empty by design)
+    assert len(result.output) > 0 or result.exit_code != 0
 
 
 def test_upgrade_handles_missing_pyproject(

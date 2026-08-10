@@ -47,8 +47,18 @@ services_app = typer.Typer(
     no_args_is_help=True,
 )
 
+# Create the alembic subcommand group
+alembic_app = typer.Typer(
+    name="alembic",
+    help="Alembic migration management",
+    no_args_is_help=True,
+)
+
 # Register services as a subcommand of library
 library_app.add_typer(services_app)
+
+# Register alembic as a subcommand of library
+library_app.add_typer(alembic_app)
 
 
 @library_app.callback()
@@ -76,6 +86,189 @@ def library_callback(
 @services_app.callback()
 def services_callback() -> None:
     """Services command group."""
+
+
+@alembic_app.callback()
+def alembic_callback() -> None:
+    """Alembic command group."""
+
+
+@with_context_and_console(
+    start_message="Initializing Alembic support...",
+    error_prefix="Error initializing Alembic",
+)
+def _alembic_init_impl(
+    context: ProjectContext,
+    console: ConsoleOutput,
+    *,
+    quiet: bool = False,  # noqa: ARG001 (used by decorator to control console output)
+) -> None:
+    """Shared implementation for alembic init.
+
+    Initializes Alembic support including creating migrations and setting up
+    the database schema. After completion, instructs the user to review the
+    generated migration files.
+
+    Args:
+        context: Project context (injected by decorator)
+        console: Console output handler (injected by decorator)
+        quiet: Suppress command output (passed from CLI, used by decorator)
+
+    """
+    from oarepo_cli.services.alembic import AlembicManager
+
+    manager = AlembicManager(context, console)
+    manager.init()
+
+
+@with_context_and_console(
+    start_message="Creating alembic migration...",
+    error_prefix="Error creating alembic migration",
+)
+def _alembic_revision_impl(
+    context: ProjectContext,
+    console: ConsoleOutput,
+    *,
+    message: str,
+    quiet: bool = False,  # noqa: ARG001 (used by decorator to control console output)
+) -> bool:
+    """Shared implementation for alembic revision.
+
+    Creates an Alembic revision with the given message.
+
+    Args:
+        context: Project context (injected by decorator)
+        console: Console output handler (injected by decorator)
+        message: Revision message to use
+        quiet: Suppress command output (passed from CLI, used by decorator)
+
+    Returns:
+        bool: True if revision was created successfully, False otherwise
+
+    """
+    from oarepo_cli.services.alembic import AlembicManager
+
+    manager = AlembicManager(context, console)
+    return manager.revision(message=message)
+
+
+@alembic_app.command("init")
+def alembic_init(
+    quiet: Annotated[bool, typer.Option("--quiet", "-q", help="Suppress command output")] = False,
+) -> None:
+    """Initialize Alembic support for the library.
+
+    This command performs the following steps:
+    1. Checks for the required 'invenio_db.models' entrypoint in pyproject.toml
+    2. Creates an 'alembic' directory in the first code directory if it doesn't exist
+    3. Adds the 'invenio_db.alembic' entrypoint to pyproject.toml if missing
+    4. Checks if alembic is already initialized (exits early if 2+ migrations exist)
+    5. Syncs the project to register entrypoints (uv pip install --no-deps -e .)
+    6. Restarts Docker services to ensure clean database state
+    7. Verifies alembic state is clean (no uncommitted database changes)
+    8. Creates initial branch migration if no Python files exist in alembic/
+    9. Runs 'invenio alembic upgrade heads' to apply base migrations
+    10. Creates migration for initial database tables
+
+    After completion, you should carefully review the generated migration file
+    to ensure it contains only the intended table changes for your models.
+
+    The 'invenio_db.models' entrypoint is required for Alembic support and should
+    point to your database models module. If it's missing, the command will exit
+    with an error and provide an example configuration.
+
+    Note: This command requires Docker services to be available and will restart
+    them to ensure a clean database state.
+
+    Example:
+        oarepo-cli library alembic init
+        oarepo-cli library alembic init --quiet
+
+    """
+    _alembic_init_impl(quiet=quiet)
+
+
+@with_context_and_console(
+    success_message=None,  # Custom success/error handling in impl
+    error_prefix="Error checking alembic migrations",
+)
+def _alembic_check_impl(
+    context: ProjectContext,
+    console: ConsoleOutput,
+    *,
+    sql_mode: bool = False,
+    quiet: bool = False,  # noqa: ARG001 (used by decorator to control console output)
+) -> None:
+    """Shared implementation for alembic check.
+
+    Starts Docker services, checks for pending migrations by comparing the
+    current database schema against the model metadata, then destroys the
+    services.
+
+    Args:
+        context: Project context (injected by decorator)
+        console: Console output handler (injected by decorator)
+        sql_mode: If True, output SQL statements instead of JSON
+        quiet: Suppress command output (passed from CLI, used by decorator)
+
+    """
+    from oarepo_cli.services.alembic import AlembicManager
+
+    manager = AlembicManager(context, console)
+    exit_code = manager.check_with_services(sql=sql_mode)
+    raise typer.Exit(code=exit_code)
+
+
+@alembic_app.command("revision")
+def alembic_revision(
+    message: Annotated[str, typer.Argument(help="Revision message")],
+    quiet: Annotated[bool, typer.Option("--quiet", "-q", help="Suppress command output")] = False,
+) -> None:
+    """Add a new Alembic revision.
+
+    This command performs the following steps:
+
+    1. If there is no alembic support yet, print message and exit 1
+    2. Restarts Docker services to ensure clean database state
+    3. Performs alembic upgrade heads
+    4. Creates alembic migration
+
+    After completion, you should carefully review the generated migration file
+    to ensure it contains only the intended table changes for your models.
+
+    Example:
+        oarepo-cli library alembic revision "Add user table"
+
+    """
+    if not _alembic_revision_impl(message=message, quiet=quiet):
+        raise typer.Exit(1)
+
+
+@alembic_app.command("check")
+def alembic_check(
+    sql_mode: Annotated[
+        bool,
+        typer.Option("--sql", help="Output SQL statements instead of JSON"),
+    ] = False,
+) -> None:
+    """Check for pending database migrations.
+
+    Starts Docker services, checks for pending migrations by comparing the
+    current database schema against the model metadata, then destroys the services.
+
+    Exit codes:
+        0: No pending migrations (database is up to date)
+        1: Pending migrations detected or error occurred
+
+    Examples:
+        # Check for pending migrations (JSON output)
+        oarepo-cli library alembic check
+
+        # Check and see SQL statements for pending migrations
+        oarepo-cli library alembic check --sql
+
+    """
+    _alembic_check_impl(sql_mode=bool(sql_mode))
 
 
 @with_context_and_console(

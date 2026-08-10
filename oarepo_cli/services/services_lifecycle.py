@@ -5,15 +5,37 @@
 
 from __future__ import annotations
 
+import sys
+from pathlib import Path
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from pathlib import Path
-
     from oarepo_cli.core.config import CliConfig
 
 from oarepo_cli.configuration.constants import ENV_SERVICES_FILE
 from oarepo_cli.services import process
+
+
+def _docker_services_cli_path() -> str:
+    """Resolve the docker-services-cli binary installed alongside oarepo-cli's own venv.
+
+    docker-services-cli is a regular oarepo-cli dependency (see
+    pyproject.toml), not a target-project dependency, so it's resolved next
+    to the running interpreter rather than via PATH -- ``process.run``
+    strips the oarepo-cli venv's own bin directory from PATH by default to
+    keep it from leaking into target-project subprocesses, which would
+    otherwise make this bundled binary unresolvable. Mirrors
+    ``services.lint._tool_path``/``services.invenio_cli._invenio_cli_path``'s
+    identical rationale.
+
+    Returns:
+        Absolute path to the binary if found next to the current
+        interpreter, otherwise the bare name (resolved via PATH by the
+        subprocess call).
+
+    """
+    candidate = Path(sys.executable).parent / "docker-services-cli"
+    return str(candidate) if candidate.exists() else "docker-services-cli"
 
 
 class ServicesLifecycleManager:
@@ -56,10 +78,7 @@ class ServicesLifecycleManager:
 
         # Build docker-services-cli command
         cmd = [
-            "uvx",
-            "--with",
-            "setuptools",
-            "docker-services-cli",
+            _docker_services_cli_path(),
             "up",
             "--db",
             self._config.services.db,
@@ -123,10 +142,38 @@ class ServicesLifecycleManager:
 
         # Run docker-services-cli down
         cmd = [
-            "uvx",
-            "--with",
-            "setuptools",
-            "docker-services-cli",
+            _docker_services_cli_path(),
+            "down",
+            "--env",
+        ]
+
+        # Add --quiet flag if requested
+        if self._quiet:
+            cmd.append("--quiet")
+
+        process.run(cmd, cwd=self._project_root, check=True)
+
+        # Remove .env-services file if it exists
+        if self._env_file.exists():
+            self._env_file.unlink()
+
+    def destroy_services(self) -> None:
+        """Stop Docker services and clean up.
+
+        Uses docker-services-cli to stop all running services and removes
+        the .env-services file. Note: This does not destroy persistent volumes;
+        it only stops the containers.
+
+        Raises:
+            ProcessExecutionError: If docker-services-cli fails
+
+        """
+        if self._config.services.skip:
+            return
+
+        # Run docker-services-cli down
+        cmd = [
+            _docker_services_cli_path(),
             "down",
             "--env",
         ]

@@ -64,6 +64,28 @@ class ProjectContext:
             ConfigurationError: If none of the above can be found
 
         """
+        directories = list(self.code_directories_without_tests)
+
+        tests_dir = self.root_directory / "tests"
+        if tests_dir.is_dir():
+            directories.append(tests_dir)
+
+        return directories
+
+    @property
+    def code_directories_without_tests(self) -> list[Path]:
+        """Source directories to lint/type-check/format, excluding tests.
+
+        Same as code_directories but without the tests/ directory appended.
+        Useful for operations that should only affect production code.
+
+        Returns:
+            List of existing source directories (without tests/)
+
+        Raises:
+            ConfigurationError: If none of the source directories can be found
+
+        """
         pyproject_data = PyProjectReader().read(self.pyproject_path)
 
         directories: list[Path] = []
@@ -95,10 +117,6 @@ class ProjectContext:
                     raise ConfigurationError(
                         f"No src/ or {top_level}/ directory found, please ensure your package structure is correct."
                     )
-
-        tests_dir = self.root_directory / "tests"
-        if tests_dir.is_dir():
-            directories.append(tests_dir)
 
         return directories
 
