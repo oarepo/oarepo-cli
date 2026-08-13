@@ -20,6 +20,13 @@
 
 set -euo pipefail
 
+# OARepo packages and the CESNET-patched invenio-cli build (which oarepo-cli
+# requires) live in the CESNET GitLab PyPI registry, not on public PyPI. uv
+# gives an extra index higher priority than the default index, so invenio-cli
+# resolves to the patched build here. Override-able via the environment.
+export UV_EXTRA_INDEX_URL=${UV_EXTRA_INDEX_URL:-"https://gitlab.cesnet.cz/api/v4/projects/1408/packages/pypi/simple"}
+export PIP_EXTRA_INDEX_URL=${PIP_EXTRA_INDEX_URL:-"https://gitlab.cesnet.cz/api/v4/projects/1408/packages/pypi/simple"}
+
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 TOOLS_DIR="${SCRIPT_DIR}/.tools"
 VENV_DIR="${TOOLS_DIR}/venv"
