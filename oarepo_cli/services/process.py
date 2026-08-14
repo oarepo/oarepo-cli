@@ -19,6 +19,7 @@ if TYPE_CHECKING:
 
 from oarepo_cli.configuration.constants import OAREPO_ENV_DEFAULTS
 from oarepo_cli.core import signals
+from oarepo_cli.core.platform import get_platform_detector
 
 # Environment variables that should be stripped when running subprocesses
 # to prevent oarepo-cli's own venv from leaking into project venvs
@@ -165,6 +166,10 @@ def build_subprocess_env(
             (``UV_EXTRA_INDEX_URL``, ``INVENIO_*`` settings, etc.), only
             where not already set in the parent environment
 
+    Platform-specific extras (e.g. ``DYLD_FALLBACK_LIBRARY_PATH`` on macOS,
+    see :meth:`PlatformDetector.extra_env_vars`) are always applied, only
+    where not already set in the parent environment.
+
     Returns:
         A full environment dict, suitable for ``subprocess.run(env=...)``/
         ``os.execve``/``os.execvpe``
@@ -179,6 +184,10 @@ def build_subprocess_env(
         for key, value in OAREPO_ENV_DEFAULTS.items():
             if key not in run_env:
                 run_env[key] = value
+
+    for key, value in get_platform_detector().extra_env_vars().items():
+        if key not in run_env:
+            run_env[key] = value
 
     if env is not None:
         run_env.update(env)
