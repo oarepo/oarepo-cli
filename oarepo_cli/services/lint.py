@@ -72,7 +72,8 @@ def _iter_python_files(directories: list[Path]) -> list[Path]:
 
     Returns:
         Sorted list of Python file paths, excluding any matched by the
-        library's/repository's root `.gitignore`
+        library's/repository's root `.gitignore` and any file under a
+        directory named `alembic` (migration scripts)
 
     """
     files: list[Path] = []
@@ -90,6 +91,8 @@ def _iter_python_files(directories: list[Path]) -> list[Path]:
                 spec_cache[gitignore_root] = pathspec.PathSpec.from_lines("gitignore", lines)
             spec_info = (gitignore_root, spec_cache[gitignore_root])
         for file in directory.rglob("*.py"):
+            if "alembic" in file.parts:
+                continue
             if spec_info is not None:
                 root, spec = spec_info
                 if spec.match_file(file.relative_to(root).as_posix()):
