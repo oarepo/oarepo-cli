@@ -99,6 +99,19 @@ class PlatformDetector:
         """
         return self.is_macos()
 
+    def extra_env_vars(self) -> dict[str, str]:
+        """Get extra environment variables to set on the platform.
+
+        Returns:
+            Dictionary of extra environment variables.
+
+        """
+        if self.needs_dyld_fix():
+            dyld_path = Path("/opt/homebrew/lib")
+            if dyld_path.exists():
+                return {"DYLD_FALLBACK_LIBRARY_PATH": str(dyld_path)}
+        return {}
+
     def get_celery_pool_recommendation(self) -> str:
         """Get the recommended Celery pool implementation for the platform.
 
