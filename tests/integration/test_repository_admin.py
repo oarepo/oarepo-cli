@@ -292,11 +292,11 @@ def test_info_prints_python_version_and_models(mock_context: Mock, monkeypatch: 
     mock_context.python_binary = "/usr/bin/python3.14"
     monkeypatch.setattr(
         "oarepo_cli.cli.repository.repository.get_python_version",
-        lambda context: "Python 3.14.4",  # noqa: ARG005
+        lambda context: "Python 3.14.4",
     )
     monkeypatch.setattr(
         "oarepo_cli.cli.repository.repository.list_repository_models",
-        lambda context: [  # noqa: ARG005
+        lambda context: [
             ModelInfo(name="my_model", version="1.0.0"),
             ModelInfo(name="other_model", version="unknown"),
         ],
@@ -316,11 +316,11 @@ def test_info_prints_no_models_found_when_empty(mock_context: Mock, monkeypatch:
     mock_context.python_binary = "/usr/bin/python3.14"
     monkeypatch.setattr(
         "oarepo_cli.cli.repository.repository.get_python_version",
-        lambda context: "Python 3.14.4",  # noqa: ARG005
+        lambda context: "Python 3.14.4",
     )
     monkeypatch.setattr(
         "oarepo_cli.cli.repository.repository.list_repository_models",
-        lambda context: [],  # noqa: ARG005
+        lambda context: [],
     )
 
     runner = CliRunner()

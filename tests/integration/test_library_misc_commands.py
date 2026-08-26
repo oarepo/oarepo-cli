@@ -201,7 +201,7 @@ def mock_library_context(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Moc
     monkeypatch.setattr("oarepo_cli.cli.library.discover_context", lambda: context)
     monkeypatch.setattr(
         "oarepo_cli.cli.library.VirtualEnvironmentManager.ensure_venv_exists",
-        lambda self, requirements, quiet=False: context.venv_path,  # noqa: ARG005
+        lambda self, requirements, quiet=False: context.venv_path,
     )
     monkeypatch.setattr("oarepo_cli.cli.library.ServicesLifecycleManager.load_service_env", lambda _self: {})
     return context

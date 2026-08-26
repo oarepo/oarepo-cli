@@ -1,0 +1,74 @@
+// This file is part of Invenio-RDM-Records
+// Copyright (C) 2020 CERN.
+// Copyright (C) 2020 Northwestern University.
+//
+// Invenio-RDM-Records is free software; you can redistribute it and/or modify it
+// under the terms of the MIT License; see LICENSE file for more details.
+
+/**
+ * For a detailed explanation regarding each configuration property, visit:
+ * https://jestjs.io/docs/configuration
+ */
+
+const fs = require("fs");
+const webpackConfig = require("./build/config.json");
+
+/** @type {import('jest').Config} */
+const config = {
+  clearMocks: true,
+  collectCoverageFrom: [
+    @@COVERAGE_ROOTS@@,
+    "!**/node_modules/**",
+  ],
+  coverageDirectory: "_coverage",
+  coverageProvider: "v8",
+  moduleDirectories: ["@@ASSETS_PATH@@/node_modules"],
+  moduleFileExtensions: ["js", "jsx", "json"],
+  moduleNameMapper: {
+    ...Object.fromEntries(
+      Object.entries(webpackConfig.aliases).map(([alias, path]) => {
+        const escapedAlias = alias.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+        try {
+          const realPath = fs.realpathSync(path)
+          return [`^${escapedAlias}(.*)$`, `${realPath}$1`];
+        } catch {
+          return [`^${escapedAlias}(.*)$`, `<rootDir>/${path}$1`]
+        }
+      })),
+    '^axios$': require.resolve('axios'),
+  },
+  rootDir: "@@ROOT_DIR@@",
+  roots: [@@TEST_ROOTS@@],
+  testEnvironment: "jsdom",
+  setupFilesAfterEnv: [
+    '@@ASSETS_PATH@@/setupTests.js',
+  ],
+  transform: {
+    "^.+\\.(js|jsx)$": [
+      'babel-jest', {
+      presets: [
+        ['@babel/preset-env', {
+          targets: { chrome: '48' },
+          modules: 'auto'
+        }],
+        '@babel/preset-react'
+      ],
+      plugins: [
+        '@babel/plugin-transform-modules-commonjs',
+        '@babel/plugin-transform-runtime'
+      ]
+    }]
+  },
+  // Environment variables simulation
+  globals: {
+    'process.env': {
+      NODE_ENV: 'test',
+      ...process.env  // Preserve existing environment variables
+    }
+  },
+  transformIgnorePatterns: [
+    "node_modules/(?!axios|react-error-boundary|sanitize-html)",
+  ],
+};
+
+module.exports = config;
