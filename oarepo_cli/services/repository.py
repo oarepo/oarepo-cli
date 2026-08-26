@@ -501,6 +501,41 @@ def _run_invenio(context: ProjectContext, args: Sequence[str], *, quiet: bool = 
     )
 
 
+def run_invenio_shell(
+    context: ProjectContext,
+    code: str,
+    *,
+    env: dict[str, str] | None = None,
+) -> process.ProcessResult:
+    """Run a Python snippet inside ``invenio shell`` and return the captured result.
+
+    ``invenio shell -c`` boots the project's Flask app with an active
+    application context, so snippets that resolve against ``current_app``
+    (extension objects, entry-point bundles, ...) work -- unlike a bare
+    ``python -c``, which has no app. This is the reusable form of the
+    ``invenio shell -c`` pattern also used by ``services.alembic``.
+
+    Args:
+        context: Project context with paths and configuration
+        code: Python source to execute inside the shell
+        env: Extra environment variables (e.g. service connection vars)
+
+    Returns:
+        The ``ProcessResult`` (stdout captured); raises on non-zero exit.
+
+    Raises:
+        ProcessExecutionError: If the shell command fails
+
+    """
+    return process.run(
+        [str(get_invenio_binary(context)), "shell", "-c", code],
+        cwd=context.root_directory,
+        env=env,
+        check=True,
+        output_mode=ProcessOutputMode.CAPTURE,
+    )
+
+
 def rebuild_index(context: ProjectContext, *, quiet: bool = False) -> None:
     """Destroy and re-create the search index, then rebuild all records/custom fields.
 

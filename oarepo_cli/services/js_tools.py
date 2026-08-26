@@ -7,14 +7,14 @@ from __future__ import annotations
 
 import json
 import os
+from pathlib import Path
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from pathlib import Path
-
     from oarepo_cli.core.context import ProjectContext
 
 from oarepo_cli.configuration import resources
+from oarepo_cli.core.errors import ConfigurationError
 from oarepo_cli.services import process
 from oarepo_cli.services.process import ProcessOutputMode
 
@@ -323,7 +323,7 @@ def run_jstest(
     setup: bool = False,
     service_env: dict[str, str] | None = None,
     extra_args: list[str] | None = None,
-    quiet: bool = False,  # noqa: ARG001 -- kept for interface symmetry with run_jslint
+    quiet: bool = False,
 ) -> process.ProcessResult:
     """Replace the current process with ``invenio webpack run test`` (Jest).
 
@@ -333,10 +333,11 @@ def run_jstest(
     preserved exactly -- mirrors this module's ``run_jslint`` sibling being
     the exception (multi-step, so it can't do the same, see its own
     docstring) and every other one-shot passthrough elsewhere in this
-    codebase (``services.repository.exec_invenio``, etc.). Only the two
-    precondition-failure paths below (``setup`` not implemented, missing
-    ``invenio`` binary) return a value instead -- they're infrastructure
-    errors, not a real test-run outcome, so there's nothing to exec into.
+    codebase (``services.repository.exec_invenio``, etc.). Only the
+    ``setup`` path (which delegates to ``setup_jstests``) and the
+    missing-``invenio``-binary precondition below return a value instead --
+    they're setup/infrastructure outcomes, not a real test-run outcome, so
+    there's nothing to exec into.
 
     Unlike ``library``/``repository``'s callers of this function, which
     decide *how* to start Docker services differently (``library``: raw
@@ -349,16 +350,16 @@ def run_jstest(
 
     Args:
         context: Project context with paths and configuration
-        setup: If True, run setup instead of tests
+        setup: If True, generate the Jest configuration instead of running tests
         service_env: Environment variables for connecting to already-started
             services, if any (a repository needs none -- see
             ``services.repository.exec_shell``'s identical rationale)
         extra_args: Additional arguments passed to the test command
-        quiet: Unused (kept for interface symmetry with ``run_jslint``)
+        quiet: If True, suppress progress output during setup
 
     Returns:
-        A precondition-failure ``ProcessResult`` for the ``setup``/missing-binary
-        cases; never returns otherwise
+        A ``ProcessResult`` for the ``setup``/missing-binary cases; never
+        returns otherwise (successful test runs ``os.execve`` into Jest)
 
     Raises:
         OSError: If invenio can't be exec'd (not found, not executable, ...)
@@ -369,16 +370,7 @@ def run_jstest(
     extra_args = extra_args or []
 
     if setup:
-        # Setting up Jest config involves webpack entry-point discovery and
-        # config generation -- not implemented yet.
-        return process.ProcessResult(
-            return_code=1,
-            stdout="",
-            stderr="jstest --setup is not implemented",
-            command=[],
-            cwd=context.root_directory,
-            duration_ms=0,
-        )
+        return setup_jstests(context, quiet=quiet)
 
     # Get the invenio binary from venv
     platform = get_platform_detector()
@@ -406,3 +398,154 @@ def run_jstest(
     os.chdir(context.root_directory)
     os.execve(str(invenio_path), cmd, cmd_env)  # noqa S606 no shell is ok here, replacing the process
     return None
+
+
+def setup_jstests(context: ProjectContext, *, quiet: bool = False) -> process.ProcessResult:
+    """Generate the Jest configuration for a library's JavaScript tests.
+
+    Port of ``library_runner.sh``'s ``setup_jstests``: creates the webpack
+    project, writes ``jest.config.js``/``setupTests.js`` into the Invenio
+    instance's ``assets/`` directory, and installs the webpack + Jest
+    dependencies. ``invenio webpack``/``collect`` are pure asset operations
+    (no DB/search), so no service connection env is threaded here.
+
+    Args:
+        context: Project context with paths and configuration
+        quiet: If True, suppress subprocess output
+
+    Returns:
+        A success ``ProcessResult`` once setup completes
+
+    Raises:
+        ProcessExecutionError: If any setup subprocess fails
+
+    """
+    from oarepo_cli.services.pyproject_reader import PyProjectReader
+    from oarepo_cli.services.repository import _run_invenio, get_instance_path
+    from oarepo_cli.ui import ConsoleOutput
+
+    console = ConsoleOutput(quiet=quiet)
+    root = context.root_directory
+    assets_path = get_instance_path(context) / "assets"
+
+    console.info("-> Creating webpack project\n")
+    _run_invenio(context, ["webpack", "clean", "create"], quiet=quiet)
+
+    # Work around the Invenio RSPack "packages field missing or empty" error.
+    _patch_pnpm_workspace(assets_path / "pnpm-workspace.yaml")
+    # Plain "jest": `invenio webpack run test <args>` forwards <args> via pnpm's
+    # own trailing-arg appending, so a bash-style `$@` (as in the old
+    # library_runner.sh) is a dead no-op under pnpm's `sh -c`.
+    _ensure_npm_script(assets_path / "package.json", "test", "jest")
+
+    console.info("-> Generating jest.config.js\n")
+    package_name = PyProjectReader().read(context.pyproject_path).name
+    entries = _get_webpack_entries(context, package_name)
+    if not entries:
+        raise ConfigurationError(
+            f"No 'invenio_assets.webpack' entry points found for '{package_name}', so there is "
+            "nothing to test and jest.config.js cannot be generated. Ensure the package declares "
+            'a webpack bundle (see [project.entry-points."invenio_assets.webpack"] in pyproject.toml).'
+        )
+
+    # Paths embedded into jest.config.js are normalized to POSIX (forward
+    # slashes): a Windows backslash path in a JS string literal would be read
+    # as escape sequences (e.g. "C:\Users" -> invalid "\U"). Node/Jest accept
+    # forward slashes on every platform.
+    coverage_roots = ",\n    ".join(f'"**{e[1:]}/**/*.{{js,jsx}}"' for e in entries)
+    test_roots = ", ".join(f'"{Path(os.path.realpath(assets_path / e)).as_posix()}"' for e in entries)
+
+    jest_config = (
+        resources.read_text("jest.config.js.tmpl")
+        .replace("@@COVERAGE_ROOTS@@", coverage_roots)
+        .replace("@@TEST_ROOTS@@", test_roots)
+        .replace("@@ASSETS_PATH@@", assets_path.as_posix())
+        .replace("@@ROOT_DIR@@", root.as_posix())
+    )
+    (assets_path / "jest.config.js").write_text(jest_config)
+    (assets_path / "setupTests.js").write_text(resources.read_text("setupTests.js.tmpl"))
+
+    console.info("-> Installing webpack and Jest dependencies\n")
+    _run_invenio(context, ["collect"], quiet=quiet)
+    _run_invenio(context, ["webpack", "install"], quiet=quiet)
+
+    dev_deps = _get_rdm_dev_deps(context)
+    if dev_deps:
+        process.run(
+            ["pnpm", "add", "-C", str(assets_path), "-w", "-D", *dev_deps],
+            cwd=root,
+            check=True,
+            output_mode=ProcessOutputMode.CAPTURE if quiet else ProcessOutputMode.INTERACTIVE,
+        )
+
+    console.success("✓ Jest setup complete\n")
+    return process.ProcessResult(return_code=0, stdout="", stderr="", command=[], cwd=root, duration_ms=0)
+
+
+def _marked_result(output: str, marker: str) -> str:
+    """Extract the marker-prefixed result line from ``invenio shell`` output.
+
+    The scripts print their result on a ``<marker>...`` line so it can be
+    picked out of the app-boot logging invenio shell also writes to stdout.
+    """
+    line = next((line for line in output.splitlines() if line.startswith(marker)), "")
+    return line[len(marker) :]
+
+
+def _get_webpack_entries(context: ProjectContext, package_name: str) -> list[str]:
+    """Discover the package's ``invenio_assets.webpack`` entry-point root dirs.
+
+    The bundle objects' ``.entry`` resolves against ``current_app``, so
+    ``webpack_entries.py`` runs inside ``invenio shell`` (live app context).
+    The distribution name is passed via an environment variable.
+    """
+    from oarepo_cli.services.repository import run_invenio_shell
+
+    out = run_invenio_shell(
+        context,
+        resources.read_text("webpack_entries.py"),
+        env={"OAREPO_WEBPACK_PACKAGE": package_name},
+    ).stdout
+    return [e for e in _marked_result(out, _ENTRIES_MARKER).split(",") if e]
+
+
+def _get_rdm_dev_deps(context: ProjectContext) -> list[str]:
+    """Read invenio-rdm-records' Jest devDependencies as ``name@version`` specs.
+
+    Runs ``rdm_dev_deps.py`` in ``invenio shell`` -- it only reads a bundled
+    ``package.json`` (no app needed), but setup already boots the app for
+    other steps, so reusing the one shell primitive is simpler than a second.
+    """
+    from oarepo_cli.services.repository import run_invenio_shell
+
+    out = run_invenio_shell(context, resources.read_text("rdm_dev_deps.py")).stdout
+    return _marked_result(out, _DEV_DEPS_MARKER).split()
+
+
+def _ensure_npm_script(package_file: Path, name: str, script: str) -> None:
+    """Add an npm script to ``package.json`` if it isn't already defined."""
+    data = json.loads(package_file.read_text())
+    scripts = data.setdefault("scripts", {})
+    if name not in scripts:
+        scripts[name] = script
+        package_file.write_text(json.dumps(data, indent=2))
+
+
+def _patch_pnpm_workspace(workspace_file: Path) -> None:
+    """Ensure ``pnpm-workspace.yaml`` has a ``packages`` key (RSPack workaround).
+
+    Edits the file as text rather than via a YAML library so oarepo-cli needs
+    no PyYAML dependency: ``invenio webpack create`` writes an empty (or
+    ``packages``-less) workspace file, so appending the key is sufficient.
+    """
+    text = workspace_file.read_text() if workspace_file.exists() else ""
+    if "packages:" not in text:
+        text = (text.rstrip() + "\n" if text.strip() else "") + "packages: []\n"
+        workspace_file.write_text(text)
+
+
+# Prefixes the discovery scripts print their result on, so the caller can pick
+# it out of invenio shell's own logging on stdout. Kept in sync with the
+# ``MARKER`` constants in webpack_entries.py / rdm_dev_deps.py.
+_ENTRIES_MARKER = "OAREPO_WEBPACK_ENTRIES:"
+_DEV_DEPS_MARKER = "OAREPO_RDM_DEV_DEPS:"

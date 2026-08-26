@@ -146,6 +146,12 @@ branch = true
 omit = [
     "*/tests/*",
     "*/__init__.py",
+    # Scripts executed as text inside the *target project's* venv (via
+    # `invenio shell` / `python`), never imported by this in-process suite,
+    # so coverage.py here can never see them run.
+    "*/configuration/check_migrations.py",
+    "*/configuration/webpack_entries.py",
+    "*/configuration/rdm_dev_deps.py",
 ]
 
 [tool.coverage.report]
