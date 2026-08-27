@@ -1,12 +1,13 @@
 # SPDX-FileCopyrightText: 2026 CESNET z.s.p.o.
 # SPDX-License-Identifier: MIT
 
-"""JavaScript linting and testing for OARepo library projects."""
+"""JavaScript linting and testing for OARepo library and repository projects."""
 
 from __future__ import annotations
 
 import json
 import os
+import shutil
 from pathlib import Path
 from typing import TYPE_CHECKING
 
@@ -325,19 +326,30 @@ def run_jstest(
     extra_args: list[str] | None = None,
     quiet: bool = False,
 ) -> process.ProcessResult:
-    """Replace the current process with ``invenio webpack run test`` (Jest).
+    """Replace the current process with ``pnpm test`` (Jest) in the assets dir.
 
-    Mirrors ``library_runner.sh``'s ``run_jstest``. Never returns once the
-    real test run starts: nothing needs to happen in this process
-    afterward, so a terminal Ctrl+C hits Jest directly and its exit code is
-    preserved exactly -- mirrors this module's ``run_jslint`` sibling being
-    the exception (multi-step, so it can't do the same, see its own
-    docstring) and every other one-shot passthrough elsewhere in this
-    codebase (``services.repository.exec_invenio``, etc.). Only the
-    ``setup`` path (which delegates to ``setup_jstests``) and the
-    missing-``invenio``-binary precondition below return a value instead --
-    they're setup/infrastructure outcomes, not a real test-run outcome, so
-    there's nothing to exec into.
+    Runs Jest via ``pnpm -C <instance-assets> test`` rather than the more
+    obvious ``invenio webpack run test``. We deliberately bypass ``invenio
+    webpack run`` because it *swallows the npm script's exit code*: when Jest
+    fails, pnpm exits non-zero (``ELIFECYCLE  Test failed``), but ``invenio
+    webpack run`` prints "Executed NPM script" and returns 0 regardless.
+    Since this function ``os.execve``s and thereby inherits the child's exit
+    code verbatim, going through invenio made a *failing* JS suite report
+    success -- so CI would stay green on red tests. ``pnpm`` propagates
+    Jest's real exit code. Verified end-to-end against a real repository; the
+    swallowing hit ``library`` and ``repository`` identically, since both
+    callers funnel through this one passthrough (a library was never any
+    safer here -- the bug was just never exercised with a failing test).
+
+    Never returns once the real test run starts: nothing needs to happen in
+    this process afterward, so a terminal Ctrl+C hits Jest directly and its
+    exit code is preserved exactly -- mirrors this module's ``run_jslint``
+    sibling being the exception (multi-step, so it can't do the same, see its
+    own docstring) and every other one-shot passthrough elsewhere in this
+    codebase (``services.repository.exec_invenio``, etc.). Only the ``setup``
+    path (which delegates to ``setup_jstests``) and the missing-``pnpm``
+    precondition below return a value instead -- they're setup/infrastructure
+    outcomes, not a real test-run outcome, so there's nothing to exec into.
 
     Unlike ``library``/``repository``'s callers of this function, which
     decide *how* to start Docker services differently (``library``: raw
@@ -362,52 +374,69 @@ def run_jstest(
         returns otherwise (successful test runs ``os.execve`` into Jest)
 
     Raises:
-        OSError: If invenio can't be exec'd (not found, not executable, ...)
+        OSError: If pnpm can't be exec'd (not found, not executable, ...)
 
     """
     from oarepo_cli.core.platform import get_platform_detector
+    from oarepo_cli.services.repository import get_instance_path
 
     extra_args = extra_args or []
 
     if setup:
         return setup_jstests(context, quiet=quiet)
 
-    # Get the invenio binary from venv
-    platform = get_platform_detector()
-    bin_dir = platform.get_venv_bin_dir()
-    invenio_path = context.venv_path / bin_dir / "invenio"
-
-    if not invenio_path.exists():
+    # Resolve pnpm from PATH -- it isn't a venv binary (it's the system/Node
+    # package manager, same one setup_jstests shells out to). We exec pnpm
+    # rather than `invenio webpack run test` on purpose: see the note in this
+    # function's docstring -- `invenio webpack run` returns 0 even when the
+    # underlying Jest run fails, which would hide failing tests from CI.
+    pnpm_path = shutil.which("pnpm")
+    if pnpm_path is None:
         return process.ProcessResult(
             return_code=1,
             stdout="",
-            stderr="invenio command not found in virtual environment",
+            stderr="pnpm command not found on PATH",
             command=[],
             cwd=context.root_directory,
             duration_ms=0,
         )
 
+    # jest.config.js / setupTests.js and the `test` npm script all live in the
+    # instance's assets dir (written there by setup_jstests), so run pnpm with
+    # that as its working directory.
+    assets_path = get_instance_path(context) / "assets"
+
+    bin_dir = get_platform_detector().get_venv_bin_dir()
     cmd_env = process.build_subprocess_env(service_env)
     cmd_env["VIRTUAL_ENV"] = str(context.venv_path)
     venv_bin_path = str(context.venv_path / bin_dir)
     cmd_env["PATH"] = f"{venv_bin_path}{os.pathsep}{cmd_env.get('PATH', '')}"
 
-    # Run: invenio webpack run test [extra_args]
-    cmd = [str(invenio_path), "webpack", "run", "test", *extra_args]
+    # `pnpm -C <assets> test [extra_args]`: pnpm forwards args after the
+    # script name straight to Jest (no `--` separator -- unlike npm, pnpm
+    # passes a literal `--` through to the script, which Jest would then read
+    # as "end of options" and treat following flags as positional paths).
+    cmd = [pnpm_path, "-C", str(assets_path), "test", *extra_args]
 
     os.chdir(context.root_directory)
-    os.execve(str(invenio_path), cmd, cmd_env)  # noqa S606 no shell is ok here, replacing the process
+    os.execve(pnpm_path, cmd, cmd_env)  # noqa S606 no shell is ok here, replacing the process
     return None
 
 
 def setup_jstests(context: ProjectContext, *, quiet: bool = False) -> process.ProcessResult:
-    """Generate the Jest configuration for a library's JavaScript tests.
+    """Generate the Jest configuration for a project's JavaScript tests.
 
     Port of ``library_runner.sh``'s ``setup_jstests``: creates the webpack
     project, writes ``jest.config.js``/``setupTests.js`` into the Invenio
     instance's ``assets/`` directory, and installs the webpack + Jest
     dependencies. ``invenio webpack``/``collect`` are pure asset operations
     (no DB/search), so no service connection env is threaded here.
+
+    Works for both ``library`` and ``repository`` projects: it discovers the
+    package's own ``invenio_assets.webpack`` entry points, which a repository
+    has just as a library does. Verified end-to-end against a real repository
+    (it was originally ported for libraries only, but nothing here is
+    library-specific).
 
     Args:
         context: Project context with paths and configuration
