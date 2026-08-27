@@ -99,8 +99,8 @@ def run_jstest_command(
     their connection environment variables via ``service_env``.
 
     ``run_jstest()`` never returns on successful test runs (it ``os.execve``s into
-    Jest) -- only precondition failures (setup not implemented, missing ``invenio``
-    binary) return a ``ProcessResult``, which this function then exits with.
+    Jest via ``pnpm``) -- only the ``--setup`` path and the missing-``pnpm``
+    precondition return a ``ProcessResult``, which this function then exits with.
     """
     console = ConsoleOutput(quiet=quiet)
     if setup:
@@ -120,8 +120,8 @@ def run_jstest_command(
         console.error(f"❌ Error running jstest: {e}", fg=typer.colors.BRIGHT_RED, bold=True)
         raise typer.Exit(code=1) from e
 
-    # Only precondition failures (setup not implemented, missing invenio binary)
-    # return a ProcessResult -- successful test runs never return (os.execve)
+    # Only the --setup path and the missing-pnpm precondition return a
+    # ProcessResult -- successful test runs never return (os.execve into Jest)
     if result.success:
         console.success("✨ ✓ JavaScript tests complete!", fg=typer.colors.BRIGHT_GREEN, bold=True)
     else:

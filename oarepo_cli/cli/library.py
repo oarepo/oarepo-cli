@@ -1340,10 +1340,10 @@ def library_jstest(
     skip_services: Annotated[bool, typer.Option("--skip-services", help="Skip starting Docker services")] = False,
     quiet: Annotated[bool, typer.Option("--quiet", "-q", help="Suppress command output")] = False,
 ) -> None:
-    """Run JavaScript tests (Jest) via invenio webpack.
+    """Run JavaScript tests (Jest).
 
-    Runs Jest tests through the invenio webpack test command. Use --setup
-    to set up the Jest configuration (currently delegates to bash script).
+    Runs Jest via ``pnpm test`` in the instance assets dir. Use --setup to
+    generate the Jest configuration.
 
     By default, starts Docker services if needed. Use --skip-services to
     skip service startup.

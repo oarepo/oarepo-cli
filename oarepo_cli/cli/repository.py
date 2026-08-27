@@ -833,18 +833,19 @@ def jstest_command(
     skip_services: Annotated[bool, typer.Option("--skip-services", help="Skip starting Docker services")] = False,
     quiet: Annotated[bool, typer.Option("--quiet", "-q", help="Suppress output from subprocesses")] = False,
 ) -> None:
-    """Run JavaScript tests (Jest) via ``invenio webpack``.
+    """Run JavaScript tests (Jest).
 
-    Runs Jest tests through ``invenio webpack run test``, collecting every
-    registered ``invenio_assets.webpack`` entry point -- including the
-    repository's own (see ``[project.entry-points."invenio_assets.webpack"]``
-    in ``pyproject.toml``), same as for a library. Requires the repository
-    to already be installed (``repository install``), so its webpack build
-    exists.
+    Runs Jest over every registered ``invenio_assets.webpack`` entry point --
+    including the repository's own (see
+    ``[project.entry-points."invenio_assets.webpack"]`` in ``pyproject.toml``),
+    same as for a library. Requires the repository to already be installed
+    (``repository install``), so its webpack build exists.
 
-    Use ``--setup`` to set up the Jest configuration (currently delegates
-    to bash script). By default, starts Docker services if needed. Use
-    ``--skip-services`` to skip service startup.
+    Use ``--setup`` to generate the Jest configuration (the same
+    ``setup_jstests`` path used by ``library jstest --setup`` -- it is not
+    library-specific and works for a repository too). By default, starts
+    Docker services if needed. Use ``--skip-services`` to skip service
+    startup.
 
     Any additional arguments are passed directly to the test command.
 
