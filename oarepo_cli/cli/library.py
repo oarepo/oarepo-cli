@@ -1364,6 +1364,14 @@ def library_jstest(
     """
     extra_args = ctx.args or []
 
+    # TODO(jstest): accept a bare positional `setup` (i.e. `jstest setup`) as an
+    # alias for `--setup`, so the shared oarepo CI action can keep calling
+    # `./run.sh jstest setup`. Remove this once that action is switched to the
+    # `--setup` flag, leaving `--setup` as the only spelling.
+    if extra_args and extra_args[0] == "setup":
+        setup = True
+        extra_args = extra_args[1:]
+
     context = discover_context()
 
     # Start services unless already running or explicitly skipped, and get

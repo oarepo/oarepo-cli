@@ -1,7 +1,7 @@
 # SPDX-FileCopyrightText: 2026 CESNET z.s.p.o.
 # SPDX-License-Identifier: MIT
 
-"""Integration tests for `library jstest --setup`.
+"""Integration tests for `library jstest` setup (both `--setup` and `setup`).
 
 Exercise the CLI wiring end to end -- flag parsing, service handling and the
 route into ``setup_jstests`` -- with the heavy webpack/Jest work itself
@@ -31,13 +31,20 @@ def runner() -> CliRunner:
     return CliRunner()
 
 
+@pytest.mark.parametrize(
+    "setup_arg",
+    ["--setup", "setup"],
+    ids=["flag", "positional"],
+)
 def test_jstest_setup_routes_to_setup_jstests(
-    runner: CliRunner, lint_project: Path, monkeypatch: pytest.MonkeyPatch
+    runner: CliRunner, lint_project: Path, monkeypatch: pytest.MonkeyPatch, setup_arg: str
 ) -> None:
-    """`library jstest --setup` runs setup_jstests, not the Jest run path.
+    """`library jstest {--setup,setup}` runs setup_jstests, not the Jest run path.
 
-    The bare word `setup` (without dashes) used to be swallowed as an extra
-    arg and silently ran the test path; the flag must reach setup instead.
+    Both spellings must reach setup: the `--setup` flag, and the bare positional
+    `setup` alias (kept for now so the shared oarepo CI action can call
+    `./run.sh jstest setup`). The positional form used to be swallowed as an
+    extra arg and silently ran the Jest run path instead.
     """
     monkeypatch.chdir(lint_project)
 
@@ -54,9 +61,9 @@ def test_jstest_setup_routes_to_setup_jstests(
         lambda _self: {},
     )
 
-    result = runner.invoke(app, ["library", "jstest", "--setup", "--skip-services"], catch_exceptions=False)
+    result = runner.invoke(app, ["library", "jstest", setup_arg, "--skip-services"], catch_exceptions=False)
 
-    # setup_jstests being called (exactly once) is what proves the --setup flag
+    # setup_jstests being called (exactly once) is what proves the setup request
     # reached the setup path rather than being swallowed into the Jest run path.
     assert result.exit_code == 0
     assert setup_calls == [False]

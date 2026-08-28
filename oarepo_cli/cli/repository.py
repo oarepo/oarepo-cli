@@ -856,6 +856,14 @@ def jstest_command(
     """
     extra_args = ctx.args or []
 
+    # TODO(jstest): accept a bare positional `setup` (i.e. `jstest setup`) as an
+    # alias for `--setup`, so the shared oarepo CI action can keep calling
+    # `./run.sh jstest setup`. Remove this once that action is switched to the
+    # `--setup` flag, leaving `--setup` as the only spelling.
+    if extra_args and extra_args[0] == "setup":
+        setup = True
+        extra_args = extra_args[1:]
+
     try:
         context = discover_context()
 
