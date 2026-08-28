@@ -5,7 +5,7 @@
 
 Runs inside ``invenio shell`` (needs an application context: the webpack
 bundle objects' ``.entry`` attribute resolves against ``current_app``). The
-target distribution name is passed via the ``OAREPO_WEBPACK_PACKAGE``
+target distribution name is passed via the ``OAREPO_PACKAGE``
 environment variable. The result is printed on a marker-prefixed line so the
 caller can pick it out of invenio shell's own logging on stdout.
 
@@ -33,7 +33,7 @@ def _flatten(value: object) -> list[str]:
     return []
 
 
-dist = importlib_metadata.distribution(os.environ["OAREPO_WEBPACK_PACKAGE"])
+dist = importlib_metadata.distribution(os.environ["OAREPO_PACKAGE"])
 
 entry_files = [
     entry
