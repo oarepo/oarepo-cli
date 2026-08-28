@@ -45,10 +45,10 @@ def test_ensure_npm_script_adds_when_missing(tmp_path: Path) -> None:
     package_file = tmp_path / "package.json"
     package_file.write_text(json.dumps({"name": "assets", "scripts": {"build": "webpack"}}))
 
-    js_tools._ensure_npm_script(package_file, "test", "jest $@")
+    js_tools._ensure_npm_script(package_file, "test", "jest")
 
     data = json.loads(package_file.read_text())
-    assert data["scripts"]["test"] == "jest $@"
+    assert data["scripts"]["test"] == "jest"
     # existing content is preserved
     assert data["scripts"]["build"] == "webpack"
     assert data["name"] == "assets"
@@ -58,7 +58,7 @@ def test_ensure_npm_script_keeps_existing_definition(tmp_path: Path) -> None:
     package_file = tmp_path / "package.json"
     package_file.write_text(json.dumps({"scripts": {"test": "my-own-runner"}}))
 
-    js_tools._ensure_npm_script(package_file, "test", "jest $@")
+    js_tools._ensure_npm_script(package_file, "test", "jest")
 
     assert json.loads(package_file.read_text())["scripts"]["test"] == "my-own-runner"
 
@@ -67,9 +67,9 @@ def test_ensure_npm_script_creates_scripts_block(tmp_path: Path) -> None:
     package_file = tmp_path / "package.json"
     package_file.write_text(json.dumps({"name": "assets"}))
 
-    js_tools._ensure_npm_script(package_file, "test", "jest $@")
+    js_tools._ensure_npm_script(package_file, "test", "jest")
 
-    assert json.loads(package_file.read_text())["scripts"] == {"test": "jest $@"}
+    assert json.loads(package_file.read_text())["scripts"] == {"test": "jest"}
 
 
 # --- _patch_pnpm_workspace ---------------------------------------------------
@@ -133,7 +133,7 @@ def test_get_webpack_entries_parses_and_passes_package_env(monkeypatch: pytest.M
     entries = js_tools._get_webpack_entries(Mock(spec=ProjectContext), "mypkg")
 
     assert entries == ["./js/foo", "./js/bar"]
-    assert captured["env"] == {"OAREPO_WEBPACK_PACKAGE": "mypkg"}
+    assert captured["env"] == {"OAREPO_PACKAGE": "mypkg"}
     # the real webpack_entries.py script is what gets executed
     assert "invenio_assets.webpack" in captured["code"]  # type: ignore[operator]
 

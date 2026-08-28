@@ -533,7 +533,7 @@ def _get_webpack_entries(context: ProjectContext, package_name: str) -> list[str
     out = run_invenio_shell(
         context,
         resources.read_text("webpack_entries.py"),
-        env={"OAREPO_WEBPACK_PACKAGE": package_name},
+        env={"OAREPO_PACKAGE": package_name},
     ).stdout
     return [e for e in _marked_result(out, _ENTRIES_MARKER).split(",") if e]
 
@@ -552,25 +552,48 @@ def _get_rdm_dev_deps(context: ProjectContext) -> list[str]:
 
 
 def _ensure_npm_script(package_file: Path, name: str, script: str) -> None:
-    """Add an npm script to ``package.json`` if it isn't already defined."""
+    """Add an npm script to ``package.json`` if it isn't already defined.
+
+    ``invenio webpack create`` currently writes a real (merged) ``package.json``
+    into the instance, but guard against it being a symlink into the installed
+    package all the same -- writing through it would inject our script into the
+    shared ``invenio-assets`` copy in site-packages (see ``_patch_pnpm_workspace``
+    for the same LinkStorage hazard).
+    """
     data = json.loads(package_file.read_text())
     scripts = data.setdefault("scripts", {})
     if name not in scripts:
         scripts[name] = script
+        if package_file.is_symlink():
+            package_file.unlink()
         package_file.write_text(json.dumps(data, indent=2))
 
 
 def _patch_pnpm_workspace(workspace_file: Path) -> None:
     """Ensure ``pnpm-workspace.yaml`` has a ``packages`` key (RSPack workaround).
 
-    Edits the file as text rather than via a YAML library so oarepo-cli needs
-    no PyYAML dependency: ``invenio webpack create`` writes an empty (or
-    ``packages``-less) workspace file, so appending the key is sufficient.
+    Stock ``invenio-assets`` ships ``pnpm-workspace.yaml`` without a
+    ``packages:`` key, which makes pnpm v10 reject the workspace-root
+    ``pnpm add -w`` in ``setup_jstests`` with "packages field missing or
+    empty". Append ``packages: []`` when it's absent. Edited as text (not via
+    a YAML library) so oarepo-cli needs no PyYAML dependency.
+
+    Crucially, ``invenio webpack create`` **symlinks** this file into the
+    instance's ``assets/`` dir straight from the installed ``invenio-assets``
+    package (pywebpack ``LinkStorage``). Writing through that symlink with
+    ``Path.write_text`` would mutate the shared, pip-installed template in
+    ``site-packages`` -- a side effect that leaks into every instance sharing
+    the venv and silently vanishes on reinstall. So if the target is a
+    symlink, replace it with a real, instance-local copy (preserving the
+    upstream contents we just read) instead of following it.
     """
     text = workspace_file.read_text() if workspace_file.exists() else ""
-    if "packages:" not in text:
-        text = (text.rstrip() + "\n" if text.strip() else "") + "packages: []\n"
-        workspace_file.write_text(text)
+    if "packages:" in text:
+        return
+    if workspace_file.is_symlink():
+        workspace_file.unlink()
+    text = (text.rstrip() + "\n" if text.strip() else "") + "packages: []\n"
+    workspace_file.write_text(text)
 
 
 # Prefixes the discovery scripts print their result on, so the caller can pick
