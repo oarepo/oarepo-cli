@@ -62,7 +62,7 @@ def _no_real_migration_workflow(monkeypatch: pytest.MonkeyPatch) -> None:
         "_upgrade_heads",
         "_create_tables_migration",
     ):
-        monkeypatch.setattr(f"oarepo_cli.services.alembic.AlembicManager.{method}", lambda self, *a, **kw: None)  # noqa: ARG005
+        monkeypatch.setattr(f"oarepo_cli.services.alembic.AlembicManager.{method}", lambda self, *a, **kw: None)
 
 
 def make_context(root: Path) -> ProjectContext:

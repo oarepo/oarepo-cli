@@ -208,7 +208,7 @@ export VAR4=value4
 # Another comment
 """
 
-    env_vars = manager._parse_env_file(content)  # noqa: SLF001
+    env_vars = manager._parse_env_file(content)
 
     assert env_vars["VAR1"] == "value1"
     assert env_vars["VAR2"] == "value2"

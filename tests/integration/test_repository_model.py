@@ -169,7 +169,7 @@ def test_model_create_reports_error_and_exits_1(
         def __init__(self, context: object, console: object) -> None:
             pass
 
-        def create_model(self, name: str, config_file: object = None) -> None:  # noqa: ARG002
+        def create_model(self, name: str, config_file: object = None) -> None:
             raise ConfigurationError(f"Missing model config file: {config_file}")
 
     monkeypatch.setattr("oarepo_cli.cli.repository.ModelManager", RaisingModelManager)
@@ -247,7 +247,7 @@ def test_model_update_reports_error_and_exits_1(
         def __init__(self, context: object, console: object) -> None:
             pass
 
-        def update_model(self, name: str, answers_file: object = None) -> None:  # noqa: ARG002
+        def update_model(self, name: str, answers_file: object = None) -> None:
             raise ConfigurationError(f"Model directory 'models/{name}' does not exist.")
 
     monkeypatch.setattr("oarepo_cli.cli.repository.ModelManager", RaisingModelManager)

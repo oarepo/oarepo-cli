@@ -52,7 +52,7 @@ def test_invenio_cli_path_prefers_binary_next_to_interpreter(tmp_path: Path, mon
     fake_binary.touch()
     monkeypatch.setattr("oarepo_cli.services.invenio_cli.sys.executable", str(tmp_path / "python"))
 
-    assert invenio_cli._invenio_cli_path() == str(fake_binary)  # noqa: SLF001
+    assert invenio_cli._invenio_cli_path() == str(fake_binary)
 
 
 def test_invenio_cli_path_falls_back_to_bare_name(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
@@ -63,7 +63,7 @@ def test_invenio_cli_path_falls_back_to_bare_name(tmp_path: Path, monkeypatch: p
     """
     monkeypatch.setattr("oarepo_cli.services.invenio_cli.sys.executable", str(tmp_path / "python"))
 
-    assert invenio_cli._invenio_cli_path() == "invenio-cli"  # noqa: SLF001
+    assert invenio_cli._invenio_cli_path() == "invenio-cli"
 
 
 def test_run_invenio_cli_passes_options_correctly(mock_context: Mock, monkeypatch: pytest.MonkeyPatch) -> None:

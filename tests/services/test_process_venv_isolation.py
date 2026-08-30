@@ -16,7 +16,7 @@ from oarepo_cli.services import process
 def test_strip_venv_vars_removes_virtual_env() -> None:
     """Test that VIRTUAL_ENV variable is stripped."""
     env = {"VIRTUAL_ENV": "/path/to/venv", "OTHER": "value"}
-    cleaned = process._strip_venv_vars(env)  # noqa: SLF001
+    cleaned = process._strip_venv_vars(env)
 
     assert "VIRTUAL_ENV" not in cleaned
     assert "OTHER" in cleaned
@@ -32,7 +32,7 @@ def test_strip_venv_vars_removes_all_venv_variables() -> None:
         "_OLD_VIRTUAL_PYTHONHOME": "/usr",
         "OTHER": "value",
     }
-    cleaned = process._strip_venv_vars(env)  # noqa: SLF001
+    cleaned = process._strip_venv_vars(env)
 
     assert "VIRTUAL_ENV" not in cleaned
     assert "VIRTUAL_ENV_PROMPT" not in cleaned
@@ -51,7 +51,7 @@ def test_strip_venv_vars_removes_venv_bin_from_path_unix() -> None:
         "VIRTUAL_ENV": venv_path,
         "PATH": f"{venv_path}/bin:/usr/bin:/usr/local/bin",
     }
-    cleaned = process._strip_venv_vars(env)  # noqa: SLF001
+    cleaned = process._strip_venv_vars(env)
 
     assert "VIRTUAL_ENV" not in cleaned
     assert cleaned["PATH"] == "/usr/bin:/usr/local/bin"
@@ -67,7 +67,7 @@ def test_strip_venv_vars_removes_venv_bin_from_path_with_trailing_slash() -> Non
         "VIRTUAL_ENV": venv_path,
         "PATH": f"{venv_path}/bin/:/usr/bin:/usr/local/bin",
     }
-    cleaned = process._strip_venv_vars(env)  # noqa: SLF001
+    cleaned = process._strip_venv_vars(env)
 
     assert cleaned["PATH"] == "/usr/bin:/usr/local/bin"
 
@@ -82,7 +82,7 @@ def test_strip_venv_vars_handles_multiple_venv_bin_in_path() -> None:
         "VIRTUAL_ENV": venv_path,
         "PATH": f"{venv_path}/bin:/usr/bin:{venv_path}/bin:/usr/local/bin",
     }
-    cleaned = process._strip_venv_vars(env)  # noqa: SLF001
+    cleaned = process._strip_venv_vars(env)
 
     assert cleaned["PATH"] == "/usr/bin:/usr/local/bin"
 
@@ -93,7 +93,7 @@ def test_strip_venv_vars_preserves_path_without_venv() -> None:
         "VIRTUAL_ENV": "/home/user/.venv",
         "PATH": "/usr/bin:/usr/local/bin",
     }
-    cleaned = process._strip_venv_vars(env)  # noqa: SLF001
+    cleaned = process._strip_venv_vars(env)
 
     assert cleaned["PATH"] == "/usr/bin:/usr/local/bin"
 
@@ -101,7 +101,7 @@ def test_strip_venv_vars_preserves_path_without_venv() -> None:
 def test_strip_venv_vars_no_virtual_env_set() -> None:
     """Test that PATH is unchanged when VIRTUAL_ENV is not set."""
     env = {"PATH": "/usr/bin:/usr/local/bin"}
-    cleaned = process._strip_venv_vars(env)  # noqa: SLF001
+    cleaned = process._strip_venv_vars(env)
 
     assert cleaned["PATH"] == "/usr/bin:/usr/local/bin"
 
