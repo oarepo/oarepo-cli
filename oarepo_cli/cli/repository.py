@@ -20,6 +20,7 @@ from oarepo_cli.core.context import discover_context
 from oarepo_cli.core.errors import OARepoError
 from oarepo_cli.services import invenio_cli, repository, translations
 from oarepo_cli.services.alembic import AlembicManager
+from oarepo_cli.services.license_headers import add_license_headers
 from oarepo_cli.services.local_packages import LocalPackageManager
 from oarepo_cli.services.models import ModelManager
 from oarepo_cli.services.server import ServerRunner
@@ -980,6 +981,69 @@ def translations_command(
         console_err = ConsoleOutput(quiet=False)
         console_err.error(f"\n✗ Translations failed: {e}\n", fg=typer.colors.RED)
         raise typer.Exit(1) from e
+
+
+@with_context_and_console(
+    success_message=None,  # Custom success/error handling in impl
+    error_prefix="Error adding license headers",
+)
+def _license_headers_impl(
+    context: ProjectContext,
+    console: ConsoleOutput,
+    *,
+    organization: str | None = None,
+    quiet: bool = False,
+) -> None:
+    """Implement repository license-headers command.
+
+    Args:
+        context: Project context (injected by decorator)
+        console: Console output handler (injected by decorator)
+        organization: Organization name for copyright
+        quiet: Suppress command output
+
+    """
+    result = add_license_headers(context, organization=organization, quiet=quiet)
+
+    if result.success:
+        console.success("✨ ✓ License headers complete!", fg=typer.colors.BRIGHT_GREEN, bold=True)
+    else:
+        console.error("❌ License headers failed!", fg=typer.colors.BRIGHT_RED, bold=True)
+
+    raise typer.Exit(code=result.return_code)
+
+
+@repository_app.command("license-headers")
+def license_headers_command(
+    organization: Annotated[
+        str | None,
+        typer.Option(
+            "--organization",
+            "-o",
+            help="Organization name for copyright (overrides pyproject.toml/environment)",
+        ),
+    ] = None,
+    quiet: Annotated[bool, typer.Option("--quiet", "-q", help="Suppress command output")] = False,
+) -> None:
+    """Add MIT license headers to source files.
+
+    Scans source files across every module directory declared in
+    ``[tool.uv.build-backend]`` (see ``repository lint``) and adds MIT
+    license headers to any that don't already have "Copyright (c)"
+    (case-insensitive) in them. Uses the homepage URL from
+    ``pyproject.toml`` ``[project.urls]``.
+
+    By default, uses "CESNET z.s.p.o." as the organization name. This can
+    be set project-wide via ``[tool.oarepo-cli.license].organization`` in
+    pyproject.toml or the ``OAREPO_LICENSE_ORG`` environment variable, and
+    overridden per-invocation with --organization.
+
+    Examples:
+        oarepo-cli repository license-headers
+        oarepo-cli repository license-headers --organization "My Organization"
+
+    """
+    _license_headers_impl(organization=organization, quiet=quiet)
 
 
 @index_app.command("rebuild")

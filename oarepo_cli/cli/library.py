@@ -1282,7 +1282,11 @@ def _library_license_headers_impl(
 def library_license_headers(
     organization: Annotated[
         str | None,
-        typer.Option("--organization", "-o", help="Organization name for copyright"),
+        typer.Option(
+            "--organization",
+            "-o",
+            help="Organization name for copyright (overrides pyproject.toml/environment)",
+        ),
     ] = None,
     quiet: Annotated[bool, typer.Option("--quiet", "-q", help="Suppress command output")] = False,
 ) -> None:
@@ -1292,8 +1296,10 @@ def library_license_headers(
     files that don't already have "Copyright (c)" (case-insensitive) in
     them. Uses the homepage URL from pyproject.toml [project.urls].
 
-    By default, uses "CESNET z.s.p.o." as the organization name, but this
-    can be overridden with --organization.
+    By default, uses "CESNET z.s.p.o." as the organization name. This can
+    be set project-wide via ``[tool.oarepo-cli.license].organization`` in
+    pyproject.toml or the ``OAREPO_LICENSE_ORG`` environment variable, and
+    overridden per-invocation with --organization.
 
     Examples:
         oarepo-cli library license-headers

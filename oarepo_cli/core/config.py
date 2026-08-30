@@ -89,7 +89,7 @@ class CeleryConfig:
 class LicenseConfig:
     """License header configuration."""
 
-    organization: str = "CESNET z.s.p.o"
+    organization: str = "CESNET z.s.p.o."
 
 
 @dataclass
@@ -182,7 +182,7 @@ class CliConfig:
                 pool_type=_get_str("OAREPO_CELERY_POOL_TYPE", "threads"),
                 concurrency=_get_int("OAREPO_CELERY_CONCURRENCY", 10),
             ),
-            license=LicenseConfig(organization=_get_str("OAREPO_LICENSE_ORG", "CESNET z.s.p.o")),
+            license=LicenseConfig(organization=_get_str("OAREPO_LICENSE_ORG", "CESNET z.s.p.o.")),
             security=SecurityConfig(
                 demo_user_password=_get_str("DEMO_USER_PASSWORD", "123456"),
             ),
@@ -284,7 +284,7 @@ class CliConfig:
 
         # License config
         license_data = get_nested(tool_data, "license", default={})
-        license_config = LicenseConfig(organization=license_data.get("organization", "CESNET z.s.p.o"))
+        license_config = LicenseConfig(organization=license_data.get("organization", "CESNET z.s.p.o."))
 
         # Security config
         security_data = get_nested(tool_data, "security", default={})

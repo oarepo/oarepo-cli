@@ -288,7 +288,12 @@ def add_license_headers(
 
     Args:
         context: Project context with paths and configuration
-        organization: Organization name for copyright (default: "CESNET z.s.p.o.")
+        organization: Organization name for copyright. Defaults to
+            ``context.config.license.organization`` (see
+            ``core.config.LicenseConfig``), itself resolved from the
+            ``organization`` key of ``[tool.oarepo-cli.license]`` in
+            pyproject.toml, or the ``OAREPO_LICENSE_ORG`` environment
+            variable, falling back to "CESNET z.s.p.o." if neither is set.
         quiet: If True, suppress progress output
 
     Returns:
@@ -298,7 +303,7 @@ def add_license_headers(
     root = context.root_directory
     code_directories = context.code_directories
 
-    organization = organization or "CESNET z.s.p.o."
+    organization = organization or context.config.license.organization
     current_year = datetime.now(UTC).year
 
     files_processed = 0
