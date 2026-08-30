@@ -42,7 +42,7 @@ def test_default_values_for_all_configs() -> None:
     assert config.translations.overlay_dir is None
     assert config.celery.pool_type == "threads"
     assert config.celery.concurrency == 10
-    assert config.license.organization == "CESNET z.s.p.o"
+    assert config.license.organization == "CESNET z.s.p.o."
     assert config.security.demo_user_password == "123456"  # noqa: S105 - just a test password
 
 

@@ -24,7 +24,7 @@ def test_starts_services_before_tests_real(
     orchestrator = TestOrchestrator(test_context)
 
     # Start services manually first
-    services_mgr = orchestrator._services_manager  # noqa: SLF001
+    services_mgr = orchestrator._services_manager
     env_vars = services_mgr.start_services()
 
     # Verify we got some env vars (services started)
@@ -39,7 +39,7 @@ def test_stops_services_after_tests_real(
 ) -> None:
     """Test that services are stopped after operations complete."""
     orchestrator = TestOrchestrator(test_context)
-    services_mgr = orchestrator._services_manager  # noqa: SLF001
+    services_mgr = orchestrator._services_manager
 
     # Start services
     services_mgr.start_services()
@@ -63,7 +63,7 @@ def test_skips_services_when_configured(
     test_context.config.services.skip = True
 
     orchestrator = TestOrchestrator(test_context)
-    services_mgr = orchestrator._services_manager  # noqa: SLF001
+    services_mgr = orchestrator._services_manager
 
     # Should return empty dict when skipped
     env_vars = services_mgr.start_services()
@@ -129,7 +129,7 @@ def test_passes_coverage_flags_when_enabled_real(
 
     # The orchestrator should add coverage flags when running tests
     # We can verify by checking the command construction
-    pytest_cmd = orchestrator._build_pytest_command(["tests/"], use_coverage=True)  # noqa: SLF001
+    pytest_cmd = orchestrator._build_pytest_command(["tests/"], use_coverage=True)
     assert "--cov" in pytest_cmd
 
 
@@ -144,7 +144,7 @@ def test_passes_additional_pytest_args_real(
     orchestrator = TestOrchestrator(test_context)
 
     # Build pytest command with custom arguments
-    pytest_cmd = orchestrator._build_pytest_command(["-v", "-x", "tests/"], use_coverage=False)  # noqa: SLF001
+    pytest_cmd = orchestrator._build_pytest_command(["-v", "-x", "tests/"], use_coverage=False)
     assert "-v" in pytest_cmd
     assert "-x" in pytest_cmd
     assert "tests/" in pytest_cmd
@@ -160,7 +160,7 @@ def test_coverage_override_via_parameter_real(
     orchestrator = TestOrchestrator(test_context)
 
     # Build command with coverage=True override
-    pytest_cmd = orchestrator._build_pytest_command(["tests/"], use_coverage=True)  # noqa: SLF001
+    pytest_cmd = orchestrator._build_pytest_command(["tests/"], use_coverage=True)
     assert "--cov" in pytest_cmd
 
 
@@ -177,7 +177,7 @@ def test_skip_services_override_via_parameter_real(
     # by checking the internal logic - when skip_services=True is passed,
     # should_skip_services should be True regardless of config
     # We test this indirectly by verifying the command building works
-    pytest_cmd = orchestrator._build_pytest_command(["tests/"], use_coverage=False)  # noqa: SLF001
+    pytest_cmd = orchestrator._build_pytest_command(["tests/"], use_coverage=False)
     assert str(test_context.venv_path / "bin" / "pytest") in pytest_cmd
 
 
@@ -192,7 +192,7 @@ def test_loads_service_env_from_file_real(
     )
 
     orchestrator = TestOrchestrator(test_context)
-    services_mgr = orchestrator._services_manager  # noqa: SLF001
+    services_mgr = orchestrator._services_manager
 
     env_vars = services_mgr.load_service_env()
 

@@ -168,7 +168,7 @@ def test_python_available_via_uv_fallback(mocker: MockerFixture) -> None:
         ),
     )
 
-    assert resolver._is_python_available("3.14") is True  # noqa: SLF001
+    assert resolver._is_python_available("3.14") is True
 
 
 def test_python_unavailable_when_uv_reports_nothing_installed(mocker: MockerFixture) -> None:
@@ -191,7 +191,7 @@ def test_python_unavailable_when_uv_reports_nothing_installed(mocker: MockerFixt
         ),
     )
 
-    assert resolver._is_python_available("3.14") is False  # noqa: SLF001
+    assert resolver._is_python_available("3.14") is False
 
 
 def test_python_unavailable_when_uv_itself_missing(mocker: MockerFixture) -> None:
@@ -201,7 +201,7 @@ def test_python_unavailable_when_uv_itself_missing(mocker: MockerFixture) -> Non
     mocker.patch("oarepo_cli.services.version_resolver.shutil.which", return_value=None)
     run_mock = mocker.patch("oarepo_cli.services.version_resolver.process.run")
 
-    assert resolver._is_python_available("3.14") is False  # noqa: SLF001
+    assert resolver._is_python_available("3.14") is False
     run_mock.assert_not_called()
 
 
@@ -308,13 +308,13 @@ def test_parse_requires_python_with_complex_constraint() -> None:
     resolver = VersionResolver()
 
     # Test various constraint formats - verify behavior works with current KNOWN_PYTHON_VERSIONS
-    result = resolver._parse_requires_python(">=3.10,<3.15")  # noqa: SLF001
+    result = resolver._parse_requires_python(">=3.10,<3.15")
     # With KNOWN_PYTHON_VERSIONS=["3.14"], should include 3.14
     assert "3.14" in result, "Should include 3.14 (which is in range >=3.10,<3.15)"
     assert all(Version(v) >= Version("3.10") for v in result), "All versions should be >= 3.10"
     assert all(Version(v) < Version("3.15") for v in result), "All versions should be < 3.15"
 
-    result = resolver._parse_requires_python(">=3.13")  # noqa: SLF001
+    result = resolver._parse_requires_python(">=3.13")
     assert all(Version(v) >= Version("3.13") for v in result), "All versions should be >= 3.13"
     # With current KNOWN_PYTHON_VERSIONS=["3.14"], should include 3.14
     assert "3.14" in result

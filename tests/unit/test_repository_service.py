@@ -634,7 +634,7 @@ def test_run_tests_execs_pytest_with_correct_env(tmp_path: Path, monkeypatch: py
     pytest_bin = context.venv_path / bin_dir / "pytest"
     pytest_bin.parent.mkdir(parents=True)
     pytest_bin.touch()
-    monkeypatch.setattr("oarepo_cli.services.repository.process.run", lambda *a, **k: None)  # noqa: ARG005
+    monkeypatch.setattr("oarepo_cli.services.repository.process.run", lambda *a, **k: None)
     chdir_calls = []
     execve_calls = []
     monkeypatch.setattr("oarepo_cli.services.repository.os.chdir", chdir_calls.append)

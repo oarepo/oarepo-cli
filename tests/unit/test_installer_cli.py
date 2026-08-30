@@ -36,7 +36,7 @@ def _all_binaries_present(monkeypatch: pytest.MonkeyPatch) -> None:
     """Make every binary lookup succeed by default, so tests exercise only what they intend to."""
     monkeypatch.setattr(
         "oarepo_cli.cli.installer.shutil.which",
-        lambda name, path=None: f"/usr/bin/{name}",  # noqa: ARG005
+        lambda name, path=None: f"/usr/bin/{name}",
     )
 
 
@@ -138,10 +138,10 @@ def test_new_reports_installer_error_and_exits_1(tmp_path: Path, monkeypatch: py
 
         def install(
             self,
-            name: str,  # noqa: ARG002
+            name: str,
             *,
-            template: str,  # noqa: ARG002
-            version: str,  # noqa: ARG002
+            template: str,
+            version: str,
             config_file: Path | None = None,
         ) -> Path:
             raise ConfigurationError(f"Missing repository config file: {config_file}")
@@ -173,7 +173,7 @@ def test_new_reports_missing_uv(monkeypatch: pytest.MonkeyPatch) -> None:
     """A missing `uv` binary is reported before anything else runs."""
     monkeypatch.setattr(
         "oarepo_cli.cli.installer.shutil.which",
-        lambda name, path=None: None if name == "uv" else f"/usr/bin/{name}",  # noqa: ARG005
+        lambda name, path=None: None if name == "uv" else f"/usr/bin/{name}",
     )
 
     result = runner.invoke(app, ["new", "my-repo"])
@@ -186,7 +186,7 @@ def test_new_reports_missing_uvx(monkeypatch: pytest.MonkeyPatch) -> None:
     """A missing `uvx` binary is reported."""
     monkeypatch.setattr(
         "oarepo_cli.cli.installer.shutil.which",
-        lambda name, path=None: None if name == "uvx" else f"/usr/bin/{name}",  # noqa: ARG005
+        lambda name, path=None: None if name == "uvx" else f"/usr/bin/{name}",
     )
 
     result = runner.invoke(app, ["new", "my-repo"])
@@ -199,7 +199,7 @@ def test_new_reports_missing_python(monkeypatch: pytest.MonkeyPatch) -> None:
     """A missing Python binary is reported."""
     monkeypatch.setattr(
         "oarepo_cli.cli.installer.shutil.which",
-        lambda name, path=None: None if name == "python3.14" else f"/usr/bin/{name}",  # noqa: ARG005
+        lambda name, path=None: None if name == "python3.14" else f"/usr/bin/{name}",
     )
 
     result = runner.invoke(app, ["new", "my-repo"])
