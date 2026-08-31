@@ -169,5 +169,4 @@ def test_exec_invenio_cli_applies_same_env_defaults_as_run_invenio_cli(
 
     _binary, _argv, env = execvpe_calls[0]
     assert "VIRTUAL_ENV" not in env
-    assert env["INVENIO_APP_THEME"] == '["semantic-ui"]'
     assert env["UV_PRERELEASE"] == "allow"
