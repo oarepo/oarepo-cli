@@ -171,7 +171,7 @@ def exec_invenio_cli(
             executable, ...)
 
     """
-    run_env = process.build_subprocess_env({**_default_prerelease_env(), **(env or {})})
+    run_env = process.build_subprocess_env({**_default_prerelease_env(), **(env or {})}, include_oarepo_defaults=False)
 
     os.chdir(context.root_directory)
     binary = _invenio_cli_path()
