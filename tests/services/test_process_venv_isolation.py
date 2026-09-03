@@ -126,7 +126,10 @@ def test_build_subprocess_env_includes_oarepo_defaults(monkeypatch: pytest.Monke
 
     assert "UV_EXTRA_INDEX_URL" in result
     assert "gitlab.cesnet.cz" in result["UV_EXTRA_INDEX_URL"]
-    assert "INVENIO_APP_THEME" in result
+    # INVENIO_APP_THEME must not be defaulted: it would override the
+    # project's own APP_THEME from invenio.cfg and break theme-prefixed
+    # template resolution.
+    assert "INVENIO_APP_THEME" not in result
 
 
 def test_build_subprocess_env_preserves_existing_oarepo_vars(

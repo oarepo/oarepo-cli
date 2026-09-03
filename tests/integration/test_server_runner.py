@@ -194,7 +194,11 @@ def test_run_no_celery_applies_same_env_defaults_as_blocking_calls(
 
     env = mock_exec_bare_invenio[0]["env"]
     assert "VIRTUAL_ENV" not in env
-    assert env["INVENIO_APP_THEME"] == '["semantic-ui"]'
+    # INVENIO_APP_THEME must not be defaulted: it would override the
+    # repository's own APP_THEME from invenio.cfg and break theme-prefixed
+    # template resolution.
+    assert "INVENIO_APP_THEME" not in env
+    assert "UV_EXTRA_INDEX_URL" in env
 
 
 def test_run_no_celery_does_not_call_invenio_cli(
