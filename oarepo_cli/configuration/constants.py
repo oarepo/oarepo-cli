@@ -34,7 +34,6 @@ OAREPO_ENV_DEFAULTS = {
     "UV_EXTRA_INDEX_URL": CESNET_PYPI_INDEX_URL,
     "PIP_EXTRA_INDEX_URL": CESNET_PYPI_INDEX_URL,
     # Invenio configuration
-    "INVENIO_APP_THEME": '["semantic-ui"]',
     "INVENIO_WEBPACKEXT_NPM_PKG_CLS": "pynpm.package:PNPMPackage",
     "INVENIO_JAVASCRIPT_PACKAGES_MANAGER": "pnpm",
     "INVENIO_ASSETS_BUILDER": "rspack",

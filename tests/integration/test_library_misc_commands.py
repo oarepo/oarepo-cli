@@ -229,7 +229,11 @@ def test_library_shell_applies_same_env_defaults_as_blocking_calls(
     assert result.exit_code == 0, result.output
     _bash_path, _argv, env = execve_calls[0]
     assert env["VIRTUAL_ENV"] == str(mock_library_context.venv_path)
-    assert env["INVENIO_APP_THEME"] == '["semantic-ui"]'
+    # INVENIO_APP_THEME must not be defaulted: it would override the
+    # project's own APP_THEME from invenio.cfg and break theme-prefixed
+    # template resolution.
+    assert "INVENIO_APP_THEME" not in env
+    assert "UV_EXTRA_INDEX_URL" in env
 
 
 def test_library_invenio_applies_same_env_defaults_as_blocking_calls(
@@ -257,4 +261,8 @@ def test_library_invenio_applies_same_env_defaults_as_blocking_calls(
     assert result.exit_code == 0, result.output
     _invenio_path, _argv, env = execve_calls[0]
     assert env["VIRTUAL_ENV"] == str(mock_library_context.venv_path)
-    assert env["INVENIO_APP_THEME"] == '["semantic-ui"]'
+    # INVENIO_APP_THEME must not be defaulted: it would override the
+    # project's own APP_THEME from invenio.cfg and break theme-prefixed
+    # template resolution.
+    assert "INVENIO_APP_THEME" not in env
+    assert "UV_EXTRA_INDEX_URL" in env
