@@ -28,6 +28,12 @@ ignore = [
     "FBT002",  # Avoid using boolean function parameters
 ]
 
+[lint.pep8-naming]
+classmethod-decorators = [
+    "classmethod",
+    "declared_attr",  # sqlalchemy declared_attr is a classmethod decorator
+]
+
 [lint.per-file-ignores]
 "__init__.py" = ["E402"]
 "**/{tests,docs,tools}/*" = [
