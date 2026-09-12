@@ -62,6 +62,6 @@ class ServiceType:
     OPENSEARCH = "opensearch"
     RABBITMQ = "rabbitmq"
     REDIS = "redis"
-    MINIO = "minio"
+    RUSTFS = "rustfs"
     MYSQL = "mysql"  # Alternative to postgresql
     ELASTICSEARCH = "elasticsearch"  # Alternative to opensearch

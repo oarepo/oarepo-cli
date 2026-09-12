@@ -36,7 +36,7 @@ def test_default_values_for_all_configs() -> None:
     assert config.services.search == ServiceType.OPENSEARCH
     assert config.services.mq == ServiceType.RABBITMQ
     assert config.services.cache == ServiceType.REDIS
-    assert config.services.s3 == ServiceType.MINIO
+    assert config.services.s3 == ServiceType.RUSTFS
     assert config.model.template_url == "https://github.com/oarepo/nrp-model-copier"
     assert config.model.template_version == "rdm-14"
     assert config.translations.overlay_dir is None

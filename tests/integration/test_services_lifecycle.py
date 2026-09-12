@@ -31,7 +31,7 @@ def services_config() -> CliConfig:
         search=ServiceType.OPENSEARCH,
         mq=ServiceType.RABBITMQ,
         cache=ServiceType.REDIS,
-        s3=ServiceType.MINIO,
+        s3=ServiceType.RUSTFS,
     )
     return config
 
@@ -227,7 +227,7 @@ def test_start_services_with_custom_service_types_real(
         search=ServiceType.OPENSEARCH,
         mq=ServiceType.RABBITMQ,  # Use valid MQ service
         cache=ServiceType.REDIS,
-        s3=ServiceType.MINIO,
+        s3=ServiceType.RUSTFS,
     )
     manager = ServicesLifecycleManager(config=config, project_root=clean_testlib)
 
