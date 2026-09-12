@@ -59,7 +59,7 @@ class ServicesConfig:
     search: str = ServiceType.OPENSEARCH
     mq: str = ServiceType.RABBITMQ
     cache: str = ServiceType.REDIS
-    s3: str = ServiceType.MINIO
+    s3: str = ServiceType.RUSTFS
 
 
 @dataclass
@@ -162,7 +162,7 @@ class CliConfig:
                 search=_get_str("OAREPO_SERVICES_SEARCH", ServiceType.OPENSEARCH),
                 mq=_get_str("OAREPO_SERVICES_MQ", ServiceType.RABBITMQ),
                 cache=_get_str("OAREPO_SERVICES_CACHE", ServiceType.REDIS),
-                s3=_get_str("OAREPO_SERVICES_S3", ServiceType.MINIO),
+                s3=_get_str("OAREPO_SERVICES_S3", ServiceType.RUSTFS),
             ),
             model=ModelConfig(
                 template_url=_get_str(
@@ -260,7 +260,7 @@ class CliConfig:
             search=services_data.get("search", ServiceType.OPENSEARCH),
             mq=services_data.get("mq", ServiceType.RABBITMQ),
             cache=services_data.get("cache", ServiceType.REDIS),
-            s3=services_data.get("s3", ServiceType.MINIO),
+            s3=services_data.get("s3", ServiceType.RUSTFS),
         )
 
         # Model config

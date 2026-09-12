@@ -43,8 +43,12 @@ dependencies = [
     # (write-only, full-dict dump), tomlkit is round-trip-preserving --
     # comments, key order, and formatting elsewhere in the file survive.
     "tomlkit>=0.13.0",
-    # Docker services management (services/services_lifecycle.py)
-    "docker-services-cli>=0.12.0,<1.0.0",
+    # Docker services management (services/services_lifecycle.py). Pulled
+    # from the rustfs branch of a fork (see [tool.uv.sources] below) until
+    # RustFS support lands upstream; the [s3] extra pulls in boto3, needed
+    # by that branch's healthcheck to create RustFS's default bucket (unlike
+    # MinIO, RustFS doesn't auto-create it from the data volume at startup).
+    "docker-services-cli[s3]>=0.12.0,<1.0.0",
 ]
 requires-python = ">=3.14,<3.15"
 
@@ -80,6 +84,10 @@ url = "https://gitlab.cesnet.cz/api/v4/projects/1408/packages/pypi/simple"
 
 [tool.uv.sources]
 invenio-cli = { index = "cesnet" }
+# Not yet released upstream/on the cesnet index -- switch back to a normal
+# version constraint once RustFS support lands in a real docker-services-cli
+# release.
+docker-services-cli = { git = "https://github.com/mesemus/docker-services-cli", branch = "rustfs" }
 
 [tool.hatch.build.targets.sdist]
 include = [
