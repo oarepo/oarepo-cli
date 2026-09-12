@@ -1,0 +1,1 @@
+import _oarepo_cli_docker_services_cli_patch as _oarepo_cli_dsc_patch; _oarepo_cli_dsc_patch.bootstrap()

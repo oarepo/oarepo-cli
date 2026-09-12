@@ -13,7 +13,40 @@ if TYPE_CHECKING:
     from oarepo_cli.core.config import CliConfig
 
 from oarepo_cli.configuration.constants import ENV_SERVICES_FILE
+from oarepo_cli.core.errors import ConfigurationError
 from oarepo_cli.services import process
+
+
+def _check_s3_service_supported(s3_service: str) -> None:
+    """Fail early if the installed docker-services-cli can't provide ``s3_service``.
+
+    RustFS support (``ServiceType.RUSTFS``, the default) isn't in any
+    published docker-services-cli release yet -- only a fork carries it (see
+    pyproject.toml's ``[tool.uv.sources]``). Whoever ends up with a plain
+    upstream install (a different lockfile, a manual override, ...) would
+    otherwise only find out via a much less clear ``click.BadParameter``
+    raised deep inside the ``docker-services-cli`` subprocess.
+
+    Args:
+        s3_service: The configured s3 service name (``config.services.s3``)
+
+    Raises:
+        ConfigurationError: If the installed docker-services-cli doesn't
+            list ``s3_service`` as an available s3 service
+
+    """
+    from docker_services_cli.config import SERVICE_TYPES
+
+    available = SERVICE_TYPES.get("s3", [])
+    if s3_service not in available:
+        raise ConfigurationError(
+            f"The installed docker-services-cli does not support {s3_service!r} as an s3 "
+            f"service (available: {', '.join(available) or 'none'}). Install a "
+            "docker-services-cli build with RustFS support, e.g. "
+            '`uv add "docker-services-cli @ git+https://github.com/mesemus/docker-services-cli@rustfs"`, '
+            "or set services.s3 to a supported value (OAREPO_SERVICES_S3 or "
+            "[tool.oarepo-cli.services].s3 in pyproject.toml)."
+        )
 
 
 def _docker_services_cli_path() -> str:
@@ -70,11 +103,15 @@ class ServicesLifecycleManager:
             Dictionary of environment variables for connecting to services
 
         Raises:
+            ConfigurationError: If the installed docker-services-cli doesn't
+                support the configured s3 service
             ProcessExecutionError: If docker-services-cli fails
 
         """
         if self._config.services.skip:
             return {}
+
+        _check_s3_service_supported(self._config.services.s3)
 
         # Build docker-services-cli command
         cmd = [
