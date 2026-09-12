@@ -48,6 +48,9 @@ dependencies = [
     # RustFS support lands upstream; the [s3] extra pulls in boto3, needed
     # by that branch's healthcheck to create RustFS's default bucket (unlike
     # MinIO, RustFS doesn't auto-create it from the data volume at startup).
+    # Projects depending on oarepo-cli can't inherit that git pin, so
+    # _site_bootstrap/oarepo_cli_rustfs_bootstrap.pth installs the fork into
+    # their environment at interpreter startup until this is released.
     "docker-services-cli[s3]>=0.12.0,<1.0.0",
 ]
 requires-python = ">=3.14,<3.15"
@@ -87,12 +90,30 @@ invenio-cli = { index = "cesnet" }
 # Not yet released upstream/on the cesnet index -- switch back to a normal
 # version constraint once RustFS support lands in a real docker-services-cli
 # release.
+#
+# WARNING: uv only applies [tool.uv.sources] for the *root* project of a
+# resolution, so this pin covers oarepo-cli's own environment but NOT projects
+# that merely depend on oarepo-cli (they resolve docker-services-cli from PyPI).
+# _site_bootstrap/oarepo_cli_rustfs_bootstrap.pth repairs those environments at
+# interpreter startup; see that module's docstring. Remove both together with
+# this entry once RustFS support is released.
 docker-services-cli = { git = "https://github.com/mesemus/docker-services-cli", branch = "rustfs" }
 
 [tool.hatch.build.targets.sdist]
 include = [
     "/oarepo_cli",
+    "/oarepo_cli_rustfs_bootstrap.pth",
 ]
+
+# The docker-services-cli bootstrap hook (see oarepo_cli/_docker_services_cli_patch.py).
+# Both files are installed at site-packages *root*: `site` only executes .pth
+# files found in a site directory, and the hook must be importable before any
+# dependency is, so it cannot live inside the oarepo_cli package at runtime.
+# The module itself is kept inside the package in the source tree so that linting,
+# tests and the license-header check treat it like any other source file.
+[tool.hatch.build.targets.wheel.force-include]
+"oarepo_cli_rustfs_bootstrap.pth" = "oarepo_cli_rustfs_bootstrap.pth"
+"oarepo_cli/_docker_services_cli_patch.py" = "_oarepo_cli_docker_services_cli_patch.py"
 
 # Ruff configuration
 [tool.ruff]
