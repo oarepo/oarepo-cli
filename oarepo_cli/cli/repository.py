@@ -5,7 +5,7 @@
 
 from __future__ import annotations
 
-from pathlib import Path  # noqa: TC003
+from pathlib import Path
 from typing import TYPE_CHECKING, Annotated
 
 if TYPE_CHECKING:
@@ -20,7 +20,11 @@ from oarepo_cli.core.context import discover_context
 from oarepo_cli.core.errors import OARepoError
 from oarepo_cli.services import invenio_cli, repository, translations
 from oarepo_cli.services.alembic import AlembicManager
-from oarepo_cli.services.license_headers import add_license_headers
+from oarepo_cli.services.license_headers import (
+    add_license_headers,
+    check_license_header_years,
+    fix_license_header_years,
+)
 from oarepo_cli.services.local_packages import LocalPackageManager
 from oarepo_cli.services.models import ModelManager
 from oarepo_cli.services.server import ServerRunner
@@ -996,11 +1000,13 @@ def translations_command(
     success_message=None,  # Custom success/error handling in impl
     error_prefix="Error adding license headers",
 )
-def _license_headers_impl(
+def _license_headers_impl(  # noqa: PLR0913 too many arguments ok here
     context: ProjectContext,
     console: ConsoleOutput,
     *,
     organization: str | None = None,
+    deep: bool = False,
+    fix_years: bool = False,
     quiet: bool = False,
 ) -> None:
     """Implement repository license-headers command.
@@ -1009,10 +1015,26 @@ def _license_headers_impl(
         context: Project context (injected by decorator)
         console: Console output handler (injected by decorator)
         organization: Organization name for copyright
+        deep: Also check copyright years against git history
+        fix_years: Rewrite wrong copyright years (implies deep)
         quiet: Suppress command output
 
     """
     result = add_license_headers(context, organization=organization, quiet=quiet)
+
+    if result.success and (deep or fix_years):
+        issues = check_license_header_years(context)
+        if fix_years:
+            remaining = fix_license_header_years(issues)
+            if len(remaining) < len(issues):
+                console.info(f"Fixed copyright years in {len(issues) - len(remaining)} file(s).")
+            issues = remaining
+        cwd = Path.cwd()
+        for issue in issues:
+            typer.echo(issue.format(cwd))
+        if issues:
+            console.error(f"\n{len(issues)} file(s) have copyright years not matching git history.")
+            raise typer.Exit(code=1)
 
     if result.success:
         console.success("✨ ✓ License headers complete!", fg=typer.colors.BRIGHT_GREEN, bold=True)
@@ -1032,6 +1054,20 @@ def license_headers_command(
             help="Organization name for copyright (overrides pyproject.toml/environment)",
         ),
     ] = None,
+    deep: Annotated[
+        bool,
+        typer.Option(
+            "--deep",
+            help="Also check that copyright years match when each file was added/modified in git",
+        ),
+    ] = False,
+    fix_years: Annotated[
+        bool,
+        typer.Option(
+            "--fix-years",
+            help="Like --deep, but rewrite wrong years in files with a single copyright holder",
+        ),
+    ] = False,
     quiet: Annotated[bool, typer.Option("--quiet", "-q", help="Suppress command output")] = False,
 ) -> None:
     """Add MIT license headers to source files.
@@ -1047,12 +1083,26 @@ def license_headers_command(
     pyproject.toml or the ``OAREPO_LICENSE_ORG`` environment variable, and
     overridden per-invocation with --organization.
 
+    With --deep, additionally checks source and test files against git
+    history: the SPDX-FileCopyrightText year range must end in the year the
+    file was last modified (uncommitted changes count as this year) and
+    must not start after the year it first appeared. Mismatches are
+    reported as ``LIC001``/``LIC002`` with ``--> path:line:column``
+    locations and make the command exit with code 1. As correcting a header
+    modifies the file, the suggested range always ends in the current year.
+
+    --fix-years implies --deep and rewrites the years in place for files
+    with a single SPDX-FileCopyrightText line; files with several copyright
+    holders are left alone and still reported.
+
     Examples:
         oarepo-cli repository license-headers
         oarepo-cli repository license-headers --organization "My Organization"
+        oarepo-cli repository license-headers --deep
+        oarepo-cli repository license-headers --fix-years
 
     """
-    _license_headers_impl(organization=organization, quiet=quiet)
+    _license_headers_impl(organization=organization, deep=deep, fix_years=fix_years, quiet=quiet)
 
 
 @index_app.command("rebuild")
