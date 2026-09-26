@@ -7,6 +7,7 @@ from __future__ import annotations
 
 import pathlib  # noqa: TC003
 import re
+from dataclasses import dataclass
 from datetime import UTC, datetime
 from enum import Enum
 from typing import TYPE_CHECKING
@@ -341,3 +342,228 @@ def add_license_headers(
         cwd=root,
         duration_ms=0,
     )
+
+
+_COPYRIGHT_YEARS_PATTERN = re.compile(r"SPDX-FileCopyrightText:\s*(?:(\d{4})(?:\s*-\s*(\d{4}))?)?", re.IGNORECASE)
+_FIX_YEARS_PATTERN = re.compile(
+    r"(SPDX-FileCopyrightText:)[ \t]*(?:\d{4}(?:[ \t]*-[ \t]*\d{4})?[ \t]*)?", re.IGNORECASE
+)
+_YEAR_MARKER = "\x1e"
+
+
+@dataclass(frozen=True)
+class LicenseHeaderIssue:
+    """A license header that does not match the file's git history.
+
+    Attributes:
+        code: Stable issue code (``LIC001`` wrong range, ``LIC002`` no year)
+        message: Human-readable description including the expected range
+        path: Path to the offending file
+        line: 1-based line of the SPDX-FileCopyrightText header
+        column: 1-based column of the year (or of the header if no year)
+        expected_years: The year range the header should contain
+        fixable: False if the file has several copyright holders, whose
+            years cannot be derived from a single file history
+
+    """
+
+    code: str
+    message: str
+    path: Path
+    line: int
+    column: int
+    expected_years: str
+    fixable: bool
+
+    def format(self, relative_to: Path) -> str:
+        """Render the issue in a compiler-like format that editors can jump to."""
+        try:
+            display_path = self.path.relative_to(relative_to)
+        except ValueError:
+            display_path = self.path
+        return f"{self.code} {self.message}\n--> {display_path}:{self.line}:{self.column}"
+
+
+def _format_year_range(start: int, end: int) -> str:
+    return str(start) if start == end else f"{start}-{end}"
+
+
+def _collect_name_status_years(
+    lines: list[str], root: Path, years: dict[Path, set[int]], current_name: dict[str, str], year: int
+) -> None:
+    """Record the year of every file touched in ``git --name-status`` output.
+
+    Output must be fed newest first; ``_YEAR_MARKER`` lines switch the year.
+    Renames are followed: once ``old -> new`` is seen, older entries for
+    ``old`` are attributed to the file's current name via ``current_name``.
+    """
+    for line in lines:
+        if line.startswith(_YEAR_MARKER):
+            year = int(line[1:])
+            continue
+        if not line:
+            continue
+        status, *paths = (path.strip('"') for path in line.split("\t"))
+        name = current_name.get(paths[-1], paths[-1])
+        if status.startswith("R") and len(paths) == 2:  # noqa: PLR2004 rename: old, new
+            current_name[paths[0]] = name
+        years.setdefault(root / name, set()).add(year)
+
+
+def _git_modification_years(root: Path) -> dict[Path, set[int]]:
+    """Collect the years in which each file under ``root`` was modified.
+
+    Walks uncommitted changes and then ``git log`` newest to oldest, following
+    renames so that a moved file inherits the history of its previous
+    location. Uncommitted changes and untracked files count as the current
+    year.
+
+    Args:
+        root: Project root; must be inside a git work tree
+
+    Returns:
+        Mapping of absolute file paths (at their current location) to years
+
+    """
+    git = ["git", "-c", "core.quotePath=false"]
+    diff_options = ["-M", "--name-status", "--relative", "--no-color"]
+    current_year = datetime.now(UTC).year
+    years: dict[Path, set[int]] = {}
+    current_name: dict[str, str] = {}
+
+    has_head = process.run([*git, "rev-parse", "--verify", "-q", "HEAD"], cwd=root, check=False).success
+    if has_head:
+        diff = process.run([*git, "diff", *diff_options, "HEAD", "--", "."], cwd=root)
+        _collect_name_status_years(diff.stdout.split("\n"), root, years, current_name, current_year)
+        log = process.run(
+            [
+                *git,
+                "log",
+                "--no-merges",
+                *diff_options,
+                f"--format={_YEAR_MARKER}%ad",
+                "--date=format:%Y",
+                "--",
+                ".",
+            ],
+            cwd=root,
+        )
+        # split("\n"), not splitlines(): the latter also splits on _YEAR_MARKER
+        _collect_name_status_years(log.stdout.split("\n"), root, years, current_name, current_year)
+
+    # Without any commit yet, staged files are as new as untracked ones
+    ls_files_options = ["--others"] if has_head else ["--others", "--cached"]
+    untracked = process.run([*git, "ls-files", *ls_files_options, "--exclude-standard", "--", "."], cwd=root)
+    for path in untracked.stdout.splitlines():
+        years.setdefault(root / path.strip('"'), set()).add(current_year)
+
+    return years
+
+
+def _check_file_years(file_path: Path, content: str, first_year: int, last_year: int) -> LicenseHeaderIssue | None:
+    """Compare a file's SPDX copyright years with its git history.
+
+    The header's end year must equal the last modification year. Its start
+    year may predate the first commit (the file may have existed before the
+    repository did), but must not be later than it.
+
+    Correcting the header modifies the file, so the expected range always
+    ends in the current year - after the fix (and its commit) the header
+    matches the history again.
+    """
+    current_year = datetime.now(UTC).year
+    header_lines = content.splitlines()[:10]
+    holders = sum(1 for line in header_lines if _COPYRIGHT_YEARS_PATTERN.search(line))
+    suffix = "" if holders == 1 else " (multiple copyright holders, fix manually)"
+    for line_no, line in enumerate(header_lines, start=1):
+        match = _COPYRIGHT_YEARS_PATTERN.search(line)
+        if not match:
+            continue
+        if not match.group(1):
+            expected = _format_year_range(first_year, current_year)
+            return LicenseHeaderIssue(
+                code="LIC002",
+                message=f"Missing copyright year, should be {expected}{suffix}",
+                path=file_path,
+                line=line_no,
+                column=match.start() + 1,
+                expected_years=expected,
+                fixable=holders == 1,
+            )
+        header_start = int(match.group(1))
+        header_end = int(match.group(2) or header_start)
+        if header_start > first_year or header_end != last_year:
+            expected = _format_year_range(min(header_start, first_year), current_year)
+            return LicenseHeaderIssue(
+                code="LIC001",
+                message=f"Wrong range, should be {expected}{suffix}",
+                path=file_path,
+                line=line_no,
+                column=match.start(1) + 1,
+                expected_years=expected,
+                fixable=holders == 1,
+            )
+        return None
+    return None
+
+
+def check_license_header_years(context: ProjectContext) -> list[LicenseHeaderIssue]:
+    """Check that SPDX copyright years match each file's git history.
+
+    Scans the same files as :func:`add_license_headers` (source and test
+    directories). For every file with an SPDX header, the year range must
+    span from the year the file first appeared in git to the year it was
+    last modified (uncommitted changes count as the current year). Files
+    without an SPDX header are skipped - adding them is
+    :func:`add_license_headers`' job.
+
+    Args:
+        context: Project context with paths and configuration
+
+    Returns:
+        Issues found, sorted by path
+
+    Raises:
+        ProcessExecutionError: If git is unavailable or the project is not
+            inside a git repository
+
+    """
+    root = context.root_directory.resolve()
+    years_by_path = _git_modification_years(root)
+
+    issues: list[LicenseHeaderIssue] = []
+    for file_path in _iter_target_files(context.code_directories):
+        if ".venv" in file_path.parts:
+            continue
+        years = years_by_path.get(file_path.resolve())
+        if not years:
+            continue
+        content = file_path.read_text(encoding="utf-8", errors="replace")
+        issue = _check_file_years(file_path, content, min(years), max(years))
+        if issue:
+            issues.append(issue)
+    return issues
+
+
+def fix_license_header_years(issues: list[LicenseHeaderIssue]) -> list[LicenseHeaderIssue]:
+    """Rewrite the copyright years of every fixable issue in place.
+
+    Only files with a single SPDX-FileCopyrightText line are fixed; with
+    several copyright holders it is unknown whose years the history reflects.
+
+    Args:
+        issues: Issues returned by :func:`check_license_header_years`
+
+    Returns:
+        The issues that were not fixed
+
+    """
+    for issue in issues:
+        if not issue.fixable:
+            continue
+        lines = issue.path.read_text(encoding="utf-8").splitlines(keepends=True)
+        lines[issue.line - 1] = _FIX_YEARS_PATTERN.sub(
+            lambda m, years=issue.expected_years: f"{m.group(1)} {years} ", lines[issue.line - 1], count=1
+        )
+        issue.path.write_text("".join(lines), encoding="utf-8")
+    return [issue for issue in issues if not issue.fixable]
