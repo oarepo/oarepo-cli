@@ -310,7 +310,9 @@ def _build_llms_txt(root: Path, *, quiet: bool) -> None:
             [_cli_tool_path("mkdocs"), "build", "--clean", "-d", ".tmp-mkdocs"],
             cwd=root,
             check=False,
-            output_mode=ProcessOutputMode.CAPTURE if quiet else ProcessOutputMode.FORWARD,
+            # INTERACTIVE, not FORWARD: FORWARD currently never displays
+            # the output it captures (see process.py's no-op FORWARD block).
+            output_mode=ProcessOutputMode.CAPTURE if quiet else ProcessOutputMode.INTERACTIVE,
         )
         if not result.success:
             return  # llms.txt is best-effort; never fail the docs build over it
