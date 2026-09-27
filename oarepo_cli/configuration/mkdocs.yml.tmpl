@@ -1,0 +1,38 @@
+site_name: "@@SITE_NAME@@"
+# GitHub Pages URL derived from the git origin remote
+# (https://<org>.github.io/<repo>/); required by mkdocs-llmstxt for
+# absolute links in llms.txt.
+site_url: "@@SITE_URL@@"
+site_dir: build/docs
+# Flat .html pages instead of <page>/index.html directories: the build must
+# be browsable when opened straight from disk (file://), where nothing
+# resolves a directory URL to its index.html. Works on GitHub Pages too.
+use_directory_urls: false
+nav:
+@@NAV@@
+plugins:
+  - mkdocstrings:
+      handlers:
+        python:
+          paths:
+            - @@MKDOCSTRINGS_PATH@@
+          options:
+            show_root_heading: true
+            show_source: true
+            members_order: source
+            show_bases: true
+            show_signature_annotations: true
+  # llms.txt generation - ignored by zensical (unknown plugins are dropped
+  # silently); only the second, plain-mkdocs build in `library docs` runs it.
+  - llmstxt:
+      full_output: llms-full.txt
+      sections:
+@@LLMSTXT_SECTIONS@@
+markdown_extensions:
+  - admonition
+  - pymdownx.highlight:
+      anchor_linenums: true
+  - pymdownx.superfences
+  - pymdownx.details
+  - pymdownx.tabbed:
+      alternate_style: true

@@ -24,6 +24,7 @@ from oarepo_cli.core.context import discover_context, find_pyproject_toml
 from oarepo_cli.core.errors import OARepoError
 from oarepo_cli.core.platform import get_platform_detector
 from oarepo_cli.services import process
+from oarepo_cli.services.docs import run_docs
 from oarepo_cli.services.license_headers import (
     add_license_headers,
     check_license_header_years,
@@ -1504,3 +1505,60 @@ def library_oarepo_versions(
 
     # Print JSON to stdout (so it can be piped or parsed)
     typer.echo(json.dumps(output))
+
+
+@with_context_and_console(
+    start_message="Building documentation...",
+    success_message=None,  # Custom success/error handling in impl
+    error_prefix="Error building documentation",
+)
+def _library_docs_impl(
+    context: ProjectContext,
+    console: ConsoleOutput,
+    *,
+    quiet: bool = False,
+) -> None:
+    """Implement library docs command.
+
+    Args:
+        context: Project context (injected by decorator)
+        console: Console output handler (injected by decorator)
+        quiet: Suppress command output
+
+    """
+    result = run_docs(context, quiet=quiet)
+
+    if result.success:
+        console.success(
+            "✨ ✓ Documentation built into build/docs/!",
+            fg=typer.colors.BRIGHT_GREEN,
+            bold=True,
+        )
+    else:
+        console.error("❌ Documentation build failed!", fg=typer.colors.BRIGHT_RED, bold=True)
+
+    raise typer.Exit(code=result.return_code)
+
+
+@library_app.command("docs")
+def library_docs(
+    quiet: Annotated[bool, typer.Option("--quiet", "-q", help="Suppress command output")] = False,
+) -> None:
+    """Build API documentation with zensical/mkdocstrings.
+
+    (Re)generates the docs scaffold from the project's current state
+    (docs/index.md from README.md, contributing/license pages when
+    CONTRIBUTING.md/LICENSE exist, one mkdocstrings API page per Python
+    module under docs/reference/, and mkdocs.yml), adds generated files
+    to .gitignore, then builds the documentation into build/docs/.
+
+    When not running in CI (the CI environment variable is unset), the built
+    documentation is opened in the default browser (open on macOS, xdg-open
+    on Linux).
+
+    Examples:
+        oarepo-cli library docs
+        oarepo-cli library docs --quiet
+
+    """
+    _library_docs_impl(quiet=quiet)
