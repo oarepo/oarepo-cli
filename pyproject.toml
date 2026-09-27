@@ -24,6 +24,16 @@ dependencies = [
     "pathspec>=0.12.0",
     # Tools for library commands
     "oarepo-tools",  # make-translations command
+    # API documentation build (`library docs`, services/docs.py). Bundled like
+    # ruff/ty above so the build runs without a per-call resolve/download; run
+    # from oarepo-cli's own venv, not the target project's. zensical includes
+    # mkdocs + material theme; the [python] extra is the griffe-based handler.
+    "zensical<0.2",
+    "mkdocstrings[python]",
+    # llms.txt generation (`library docs`): zensical can't run this plugin
+    # (unknown plugins are silently dropped from its config), so docs.py runs
+    # a second plain-mkdocs build for llms.txt/llms-full.txt only.
+    "mkdocs-llmstxt",
     # Model manager (services/models.py): run copier in-process from this
     # venv rather than shelling out to `uvx copier`. copier-template-extensions
     # (note: singular -- copier-templates-extensions is the deprecated old
