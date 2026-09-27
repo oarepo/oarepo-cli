@@ -44,7 +44,11 @@ def test_run_docs_uses_readme_optional_pages_and_module_tree(
 ) -> None:
     """Test home page from README, optional pages, per-module API pages, and CI browser skip."""
     root = mock_context.root_directory
-    (root / "README.md").write_text("# My Lib\n\nHello from the readme.\n")
+    (root / "README.md").write_text(
+        "# My Lib\n\nHello from the readme. See [license](LICENSE).\n"
+        "[jslint](#library-jslint--jstest) [venv](#library-venv--install--upgrade)\n"
+        "[already fine](#plain-anchor) [no link](#)\n"
+    )
     (root / "CONTRIBUTING.md").write_text("# How to contribute\n")
     (root / "LICENSE").write_text("MIT license text\n")
 
@@ -64,8 +68,17 @@ def test_run_docs_uses_readme_optional_pages_and_module_tree(
 
     assert result.success
 
-    # README is the home page; contributing/license pages copied from root
-    assert "Hello from the readme." in (root / "docs" / "index.md").read_text()
+    # README is the home page; repo-root file links rewritten to docs pages,
+    # GitHub-style double-hyphen anchors collapsed to zensical slugs
+    index_content = (root / "docs" / "index.md").read_text()
+    assert "Hello from the readme." in index_content
+    assert "](LICENSE)" not in index_content
+    assert "](license.md)" in index_content
+    assert "](#library-jslint-jstest)" in index_content
+    assert "](#library-venv-install-upgrade)" in index_content
+    assert "--" not in index_content
+    assert "](#plain-anchor)" in index_content
+    assert "](#)" in index_content
     assert "How to contribute" in (root / "docs" / "contributing.md").read_text()
     assert "MIT license text" in (root / "docs" / "license.md").read_text()
 
@@ -76,14 +89,18 @@ def test_run_docs_uses_readme_optional_pages_and_module_tree(
     assert "# test_lib.sub" in (reference / "sub" / "index.md").read_text()
     assert "# test_lib.sub.deep" in (reference / "sub" / "deep.md").read_text()
     assert not (reference / "_priv.md").exists()
+    # Package pages list submodules via a summary table; module pages don't
     assert "show_submodules: false" in (reference / "index.md").read_text()
+    assert "summary:\n        modules: true" in (reference / "index.md").read_text()
+    assert "summary:\n        modules: true" in (reference / "sub" / "index.md").read_text()
+    assert "summary:" not in (reference / "mod.md").read_text()
 
     # Nav: top-level pages flat, API docs section with one entry per module
     mkdocs_yml = (root / "mkdocs.yml").read_text()
     nav_block = mkdocs_yml.split("nav:\n", 1)[1].split("plugins:", 1)[0]
     assert nav_block == (
         "  - Home: index.md\n"
-        "  - Contribution: contributing.md\n"
+        "  - Contributing: contributing.md\n"
         "  - License: license.md\n"
         "  - API docs:\n"
         "    - test_lib: reference/index.md\n"
@@ -119,7 +136,7 @@ def test_run_docs_uses_readme_optional_pages_and_module_tree(
     assert not (root / "docs" / "contributing.md").exists()
     mkdocs_yml = (root / "mkdocs.yml").read_text()
     assert "test_lib.mod" not in mkdocs_yml
-    assert "Contribution" not in mkdocs_yml
+    assert "Contributing" not in mkdocs_yml
     assert (root / ".gitignore").read_text() == gitignore_before
     assert len(run_calls) == 3
 

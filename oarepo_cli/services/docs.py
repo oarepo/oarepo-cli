@@ -20,6 +20,39 @@ from oarepo_cli.services import process
 from oarepo_cli.services.process import ProcessOutputMode
 from oarepo_cli.services.pyproject_reader import PyProjectReader
 
+# Markdown link targets that live in the repo root but get copied to a
+# differently-named docs page: [x](LICENSE) works on the GitHub repo view
+# but is a dead link in the built site, where only the generated page
+# (license.md, which mkdocs rewrites to license.html) exists.
+_PAGE_LINK_REWRITES = {
+    "LICENSE": "license.md",
+    "LICENSE.md": "license.md",
+    "CONTRIBUTING.md": "contributing.md",
+}
+
+
+def _rewrite_page_links(content: str) -> str:
+    """Rewrite links in a copied root document so they keep working in the built docs.
+
+    Two kinds of links written for the GitHub repo view break differently
+    on the rendered site:
+
+    - links to repo-root files (``[x](LICENSE)``) have no build counterpart
+      until pointed at the generated page (``license.md``)
+    - same-page anchors follow GitHub's slugification, which keeps runs of
+      ``--`` for headings like ``a / b``; zensical collapses each run into a
+      single ``-``, so every GitHub-style ``#foo--bar`` anchor is missing in
+      the built page unless collapsed the same way
+    """
+    for target, replacement in _PAGE_LINK_REWRITES.items():
+        content = re.sub(rf"\]\({re.escape(target)}(#[^)]+)?\)", rf"]({replacement}\1)", content)
+    return re.sub(r"\]\(#[^)]*\)", _collapse_slug_hyphens, content)
+
+
+def _collapse_slug_hyphens(match: re.Match[str]) -> str:
+    """Collapse runs of hyphens in one ``](#anchor)`` match, GitHub -> zensical slug."""
+    return re.sub(r"-{2,}", "-", match.group(0))
+
 
 def _render_docs_index_fallback(site_name: str, package_name: str) -> str:
     """Render the fallback home page for projects without a README.md."""
@@ -30,9 +63,20 @@ def _render_docs_index_fallback(site_name: str, package_name: str) -> str:
     )
 
 
-def _render_reference_index(module_path: str) -> str:
-    """Render one API reference page for a module from the bundled template."""
-    return resources.read_text("docs-reference-index.md.tmpl").replace("@@PACKAGE_NAME@@", module_path)
+def _render_reference_index(module_path: str, *, module_summary: bool = False) -> str:
+    """Render one API reference page for a module from the bundled template.
+
+    Args:
+        module_path: Dotted path of the module to document
+        module_summary: If True, also render a summary table of submodules
+            (used for package/index pages)
+
+    """
+    return (
+        resources.read_text("docs-reference-index.md.tmpl")
+        .replace("@@PACKAGE_NAME@@", module_path)
+        .replace("@@MODULE_SUMMARY@@", "\n      summary:\n        modules: true" if module_summary else "")
+    )
 
 
 def _site_url(root: Path, project_name: str) -> str:
@@ -135,11 +179,13 @@ def _api_doc_pages(root: Path, package_name: str, docs_dir: Path) -> tuple[dict[
             module_parts = parts[:-1]
             page = Path("reference", *module_parts, "index.md")
             dotted = ".".join((package_name, *module_parts))
+            # Package pages list their submodules as a summary table
+            # (summary.modules), replacing the old show_submodules inlining.
+            files[docs_dir / page] = _render_reference_index(dotted, module_summary=True)
         else:
             page = Path("reference", *parts).with_suffix(".md")
             dotted = ".".join((package_name, *parts))
-
-        files[docs_dir / page] = _render_reference_index(dotted)
+            files[docs_dir / page] = _render_reference_index(dotted)
         nav.append((dotted, page.as_posix()))
 
     if not files:
@@ -209,20 +255,20 @@ def _scaffold_docs(context: ProjectContext) -> None:
 
     readme = root / "README.md"
     if readme.exists():
-        files[docs_dir / "index.md"] = readme.read_text(encoding="utf-8")
+        files[docs_dir / "index.md"] = _rewrite_page_links(readme.read_text(encoding="utf-8"))
     else:
         files[docs_dir / "index.md"] = _render_docs_index_fallback(site_name, package_name)
 
     contributing = root / "CONTRIBUTING.md"
     if contributing.exists():
-        files[docs_dir / "contributing.md"] = contributing.read_text(encoding="utf-8")
-        top_pages.append(("Contribution", "contributing.md"))
+        files[docs_dir / "contributing.md"] = _rewrite_page_links(contributing.read_text(encoding="utf-8"))
+        top_pages.append(("Contributing", "contributing.md"))
 
     license_file = next((candidate for name in ("LICENSE.md", "LICENSE") if (candidate := root / name).exists()), None)
     if license_file is not None:
         # Copied to a .md page regardless of the source extension: mkdocs
         # only builds Markdown files, and a bare LICENSE renders as Markdown.
-        files[docs_dir / "license.md"] = license_file.read_text(encoding="utf-8")
+        files[docs_dir / "license.md"] = _rewrite_page_links(license_file.read_text(encoding="utf-8"))
         top_pages.append(("License", "license.md"))
 
     api_files, api_nav = _api_doc_pages(root, package_name, docs_dir)

@@ -11,7 +11,6 @@ AI coding agent guide for `oarepo-cli` development.
 - `oarepo_cli/cli/` — Typer-based command implementations (`new`, `repository`, `library`)
 - `oarepo_cli/core/` — Configuration, context discovery, error handling, platform detection
 - `oarepo_cli/services/` — Business logic (venv, testing, linting, subprocess execution, services lifecycle)
-- `oarepo_cli/adapters/` — External tool interfaces
 - `oarepo_cli/configuration/` — Constants and bundled configuration templates
 - `oarepo_cli/ui/` — Console output formatting
 
@@ -31,7 +30,6 @@ oarepo-cli/
 │   ├── cli/             # Command-line interface layer
 │   ├── core/            # Core utilities and abstractions
 │   ├── services/        # Business logic and orchestration
-│   ├── adapters/        # External tool wrappers
 │   ├── configuration/   # Constants and templates
 │   └── ui/              # Console output
 ├── tests/
@@ -290,13 +288,12 @@ from __future__ import annotations
 ```
 cli/ → services/ → core/
   ↓       ↓          ↓
- ui/   adapters/  configuration/
+ ui/            configuration/
 ```
 
 - `cli/` calls `services/`, never the reverse
 - `services/` contains business logic, not CLI concerns
 - `core/` is foundation utilities (config, context, errors, platform)
-- `adapters/` wraps external tools (not yet heavily used)
 - `configuration/` provides constants and templates
 - `ui/` handles console output formatting
 
