@@ -3,6 +3,9 @@ site_name: "@@SITE_NAME@@"
 # (https://<org>.github.io/<repo>/); required by mkdocs-llmstxt for
 # absolute links in llms.txt.
 site_url: "@@SITE_URL@@"
+# Build input: docs/ (user pages) + generated pages, staged by `library docs`
+# into docs-build/, which is fully regenerated on every run.
+docs_dir: docs-build
 site_dir: build/docs
 # Flat .html pages instead of <page>/index.html directories: the build must
 # be browsable when opened straight from disk (file://), where nothing

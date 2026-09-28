@@ -5,20 +5,30 @@
 
 from __future__ import annotations
 
+import json
 import os
 import re
 import shutil
 import sys
 from pathlib import Path
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, TypedDict
 
 if TYPE_CHECKING:
     from oarepo_cli.core.context import ProjectContext
 
 from oarepo_cli.configuration import resources
+from oarepo_cli.core.errors import ConfigurationError
 from oarepo_cli.services import process
 from oarepo_cli.services.process import ProcessOutputMode
 from oarepo_cli.services.pyproject_reader import PyProjectReader
+
+
+class _PageEntry(TypedDict):
+    """One entry of docs/pages.json: a nav title and its page location."""
+
+    title: str
+    file: str
+
 
 # Markdown link targets that live in the repo root but get copied to a
 # differently-named docs page: [x](LICENSE) works on the GitHub repo view
@@ -196,6 +206,57 @@ def _api_doc_pages(root: Path, package_name: str, docs_dir: Path) -> tuple[dict[
     return files, nav
 
 
+_BUILTIN_TITLES = ("Home", "Contributing", "License")
+_PAGES_JSON = "pages.json"
+_SITE_NAME = "OARepo API Reference"
+
+
+def _load_pages_json(docs_source_dir: Path) -> list[_PageEntry]:
+    """Load nav overrides/additions from the user-authored docs/pages.json.
+
+    Schema:
+        {"pages": [{"title": "Home", "file": "index.md"}, ...]}
+
+    Built-in titles (Home/Contributing/License) override the otherwise
+    generated copies; any other title adds an extra nav page. Files are
+    paths relative to docs/ and must exist there.
+
+    Args:
+        docs_source_dir: The user-authored docs/ directory
+
+    Returns:
+        List of page entries in file order; empty when no pages.json exists
+
+    Raises:
+        ConfigurationError: On malformed JSON, wrong keys, or a file not
+            found inside docs/
+
+    """
+    pages_file = docs_source_dir / _PAGES_JSON
+    if not pages_file.exists():
+        return []
+
+    try:
+        data = json.loads(pages_file.read_text(encoding="utf-8"))
+        entries = data["pages"]
+    except (json.JSONDecodeError, KeyError, TypeError) as e:
+        raise ConfigurationError(
+            f'Invalid {_PAGES_JSON}: expected an object with a "pages" list of {{"title", "file"}} entries ({e})'
+        ) from e
+
+    pages: list[_PageEntry] = []
+    for i, entry in enumerate(entries):
+        if not isinstance(entry, dict) or "title" not in entry or "file" not in entry:
+            raise ConfigurationError(f"Invalid {_PAGES_JSON} entry #{i + 1}: needs both 'title' and 'file' keys")
+        file = entry["file"]
+        if not (docs_source_dir / file).is_file():
+            raise ConfigurationError(
+                f"{docs_source_dir / file} not found (from {_PAGES_JSON} entry '{entry['title']}')"
+            )
+        pages.append({"title": entry["title"], "file": file})
+    return pages
+
+
 def _render_nav(pages: list[tuple[str, str]], api_children: list[tuple[str, str]]) -> str:
     """Render the mkdocs nav block.
 
@@ -217,23 +278,92 @@ def _render_nav(pages: list[tuple[str, str]], api_children: list[tuple[str, str]
     return "\n".join(lines)
 
 
+def _builtin_page(title: str, root: Path, build_dir: Path, files: dict[str, str], package_name: str) -> str | None:
+    """Resolve a built-in nav page: user file at its slot wins, else stage a generated copy.
+
+    Returns:
+        The build-dir-relative page path, or None when the source (repo-root
+        file, README, LICENSE...) does not exist
+
+    """
+    filename = {"Home": "index.md", "Contributing": "contributing.md", "License": "license.md"}[title]
+    if (build_dir / filename).exists():
+        return filename
+    if title == "Home":
+        readme = root / "README.md"
+        files[filename] = (
+            _rewrite_page_links(readme.read_text(encoding="utf-8"))
+            if readme.exists()
+            else _render_docs_index_fallback(_SITE_NAME, package_name)
+        )
+        return filename
+    if title == "Contributing" and (root / "CONTRIBUTING.md").exists():
+        files[filename] = _rewrite_page_links((root / "CONTRIBUTING.md").read_text(encoding="utf-8"))
+        return filename
+    if (
+        title == "License"
+        and (
+            license_source := next(
+                (candidate for name in ("LICENSE.md", "LICENSE") if (candidate := root / name).exists()), None
+            )
+        )
+        is not None
+    ):
+        # Copied to a .md page regardless of the source extension: mkdocs
+        # only builds Markdown files, and a bare LICENSE renders as Markdown.
+        files[filename] = _rewrite_page_links(license_source.read_text(encoding="utf-8"))
+        return filename
+    return None
+
+
+def _resolve_nav_pages(
+    root: Path,
+    build_dir: Path,
+    files: dict[str, str],
+    package_name: str,
+    pages_json: list[_PageEntry],
+) -> list[tuple[str, str]]:
+    """Assemble nav (title, page) pairs before the API section.
+
+    With pages.json: entries in json order (built-in titles override their
+    slot's page), then built-ins not mentioned, in their default order.
+    Without: Home, Contributing, License (when available), then every other
+    top-level docs/*.md discovered automatically.
+    """
+    nav_pages: list[tuple[str, str]] = [(entry["title"], entry["file"]) for entry in pages_json]
+    mentioned = {entry["title"] for entry in pages_json if entry["title"] in _BUILTIN_TITLES}
+
+    for title in _BUILTIN_TITLES:
+        if title in mentioned:
+            continue
+        if (file := _builtin_page(title, root, build_dir, files, package_name)) is not None:
+            nav_pages.append((title, file))
+
+    if not pages_json:
+        nav_pages.extend(_discover_extra_pages(build_dir, {page for _, page in nav_pages}))
+    return nav_pages
+
+
 def _scaffold_docs(context: ProjectContext) -> None:
-    """Generate the docs scaffold, regenerating every file on each run.
+    """Stage the mkdocs build input in docs-build/.
 
-    Every generated file is fully rewritten (unlike the shared docs.yaml
-    workflow, which writes only missing files) so the docs always match the
-    project's current state:
+    Layout:
+        - docs/ holds only user-authored documentation (never written to by
+          this command)
+        - docs-build/ is fully generated and gitignored: wiped and rebuilt
+          on every run by copying docs/ first, then filling in whatever the
+          project provides - README.md as index.md (fallback page when
+          neither exists), CONTRIBUTING.md as contributing.md, LICENSE(.md)
+          as license.md, and one mkdocstrings page per Python module in
+          reference/
+        - mkdocs.yml is rendered with a nav from docs/pages.json when that
+          file exists (built-in titles Home/Contributing/License override
+          the generated copies; other titles add pages in the given order);
+          without pages.json, built-ins come first and extra docs/ pages
+          follow, discovered automatically
 
-    - docs/index.md is a copy of the project's README.md (or a minimal
-      generated fallback page when there is no README)
-    - docs/contributing.md exists iff CONTRIBUTING.md does
-    - docs/license.md exists iff LICENSE or LICENSE.md does
-    - docs/reference/ holds one mkdocstrings page per Python module,
-      mirroring the package layout
-    - mkdocs.yml gets a nav matching the pages that actually exist
-
-    The whole docs/ directory is deleted and recreated so removed modules or
-    pages never linger as stale copies.
+    A user file already present at a generated page's location wins: no
+    generated copy overwrites anything that came from docs/.
 
     Args:
         context: Project context with paths and configuration
@@ -241,55 +371,77 @@ def _scaffold_docs(context: ProjectContext) -> None:
     """
     pyproject_data = PyProjectReader().read(context.pyproject_path)
     package_name = pyproject_data.name.replace("-", "_")
-    site_name = "OARepo API Reference"
+    site_name = _SITE_NAME
     root = context.root_directory
     site_url = _site_url(root, pyproject_data.name)
     mkdocstrings_path = "src" if (root / "src").is_dir() else "."
 
-    docs_dir = root / "docs"
-    shutil.rmtree(docs_dir, ignore_errors=True)
-    docs_dir.mkdir()
+    docs_source = root / "docs"
+    build_dir = root / "docs-build"
+    shutil.rmtree(build_dir, ignore_errors=True)
+    build_dir.mkdir()
+    if docs_source.is_dir():
+        shutil.copytree(docs_source, build_dir, dirs_exist_ok=True)
 
-    files: dict[Path, str] = {}
-    top_pages = [("Home", "index.md")]
+    files: dict[str, str] = {}  # build-dir-relative page -> content to write
+    pages_json = _load_pages_json(docs_source)
+    nav_pages = _resolve_nav_pages(root, build_dir, files, package_name, pages_json)
 
-    readme = root / "README.md"
-    if readme.exists():
-        files[docs_dir / "index.md"] = _rewrite_page_links(readme.read_text(encoding="utf-8"))
-    else:
-        files[docs_dir / "index.md"] = _render_docs_index_fallback(site_name, package_name)
+    # Link rewriting (GitHub anchors/root-file links) for pages that came
+    # from docs/ -- generated copies above are already rewritten
+    for md_file in build_dir.rglob("*.md"):
+        rel = md_file.relative_to(build_dir).as_posix()
+        if rel not in files:
+            md_file.write_text(_rewrite_page_links(md_file.read_text(encoding="utf-8")), encoding="utf-8")
 
-    contributing = root / "CONTRIBUTING.md"
-    if contributing.exists():
-        files[docs_dir / "contributing.md"] = _rewrite_page_links(contributing.read_text(encoding="utf-8"))
-        top_pages.append(("Contributing", "contributing.md"))
+    api_files, api_nav = _api_doc_pages(root, package_name, build_dir)
+    for path, content in api_files.items():
+        files[path.relative_to(build_dir).as_posix()] = content
 
-    license_file = next((candidate for name in ("LICENSE.md", "LICENSE") if (candidate := root / name).exists()), None)
-    if license_file is not None:
-        # Copied to a .md page regardless of the source extension: mkdocs
-        # only builds Markdown files, and a bare LICENSE renders as Markdown.
-        files[docs_dir / "license.md"] = _rewrite_page_links(license_file.read_text(encoding="utf-8"))
-        top_pages.append(("License", "license.md"))
+    for rel_path, content in files.items():
+        out = build_dir / rel_path
+        out.parent.mkdir(parents=True, exist_ok=True)
+        out.write_text(content, encoding="utf-8")
 
-    api_files, api_nav = _api_doc_pages(root, package_name, docs_dir)
-    files.update(api_files)
+    # pages.json is not a documentation page
+    (build_dir / _PAGES_JSON).unlink(missing_ok=True)
 
     # llmstxt sections mirror the nav: one glob-listing per top-level page,
     # API docs covered by the whole reference tree
-    section_lines = [f"        {title}:\n          - {page}" for title, page in top_pages]
+    section_lines = [f"        {title}:\n          - {page}" for title, page in nav_pages]
     section_lines.append("        API docs:\n          - reference/**/*.md")
     llmstxt_sections = "\n".join(section_lines)
 
-    files[root / "mkdocs.yml"] = _render_mkdocs_yml(
-        site_name, site_url, mkdocstrings_path, _render_nav(top_pages, api_nav), llmstxt_sections
+    (root / "mkdocs.yml").write_text(
+        _render_mkdocs_yml(site_name, site_url, mkdocstrings_path, _render_nav(nav_pages, api_nav), llmstxt_sections),
+        encoding="utf-8",
     )
 
-    for path, content in files.items():
-        path.parent.mkdir(parents=True, exist_ok=True)
-        path.write_text(content, encoding="utf-8")
+
+def _discover_extra_pages(build_dir: Path, already_in_nav: set[str]) -> list[tuple[str, str]]:
+    """Find extra top-level docs/*.md pages not in the nav yet (no pages.json).
+
+    Args:
+        build_dir: Staged docs-build directory
+        already_in_nav: Build-dir-relative pages already in the nav
+
+    Returns:
+        (title, page) pairs, alphabetically; title from the page's first
+        Markdown heading, falling back to the capitalized file name
+
+    """
+    pages: list[tuple[str, str]] = []
+    for page in sorted(build_dir.glob("*.md")):
+        rel = page.name
+        if rel in already_in_nav or rel.startswith("_"):
+            continue
+        heading = re.search(r"^# (.+)$", page.read_text(encoding="utf-8"), re.MULTILINE)
+        title = heading.group(1).strip() if heading else page.stem.replace("-", " ").title()
+        pages.append((title, rel))
+    return pages
 
 
-_GENERATED_GITIGNORE_ENTRIES = ("/docs/", "/mkdocs.yml")
+_GENERATED_GITIGNORE_ENTRIES = ("/docs-build/", "/mkdocs.yml")
 
 
 def _gitignore_generated_files(context: ProjectContext) -> list[str]:
@@ -376,8 +528,8 @@ def run_docs(context: ProjectContext, *, quiet: bool = False) -> process.Process
     """Scaffold, build, and (locally) open the API documentation.
 
     Steps:
-        1. (Re)generate the docs scaffold (docs/index.md from README.md,
-           contributing/license pages, per-module API pages and mkdocs.yml)
+        1. Stage docs-build/ (user docs/ + generated copies of README/
+           CONTRIBUTING/LICENSE + per-module API pages) and mkdocs.yml
         2. Add the generated paths to .gitignore
         3. Build the documentation into build/docs with zensical
         4. Generate llms.txt/llms-full.txt with a plain-mkdocs build

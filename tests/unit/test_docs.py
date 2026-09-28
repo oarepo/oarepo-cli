@@ -14,6 +14,7 @@ if TYPE_CHECKING:
     from pathlib import Path
 
 from oarepo_cli.core.context import ProjectContext
+from oarepo_cli.core.errors import ConfigurationError
 from oarepo_cli.services import docs, process
 
 
@@ -39,26 +40,20 @@ def _fake_run_factory(run_calls: list[list[str]]) -> Mock:
     return fake_run
 
 
-def test_run_docs_uses_readme_optional_pages_and_module_tree(
-    mock_context: Mock, monkeypatch: pytest.MonkeyPatch
-) -> None:
-    """Test home page from README, optional pages, per-module API pages, and CI browser skip."""
+def test_run_docs_stages_docs_build(mock_context: Mock, monkeypatch: pytest.MonkeyPatch) -> None:
+    """Test staging: docs/ untouched, docs-build holds user+generated pages, nav correct."""
     root = mock_context.root_directory
-    (root / "README.md").write_text(
-        "# My Lib\n\nHello from the readme. See [license](LICENSE).\n"
-        "[jslint](#library-jslint--jstest) [venv](#library-venv--install--upgrade)\n"
-        "[already fine](#plain-anchor) [no link](#)\n"
-    )
+    (root / "README.md").write_text("# My Lib\n\nHome content. See [license](LICENSE) and [x](#a--b).\n")
     (root / "CONTRIBUTING.md").write_text("# How to contribute\n")
     (root / "LICENSE").write_text("MIT license text\n")
 
+    docs_source = root / "docs"
+    docs_source.mkdir()
+    (docs_source / "guide.md").write_text("# Guide\n")
     package = root / "test_lib"
-    (package / "sub").mkdir(parents=True)
+    package.mkdir()
     (package / "__init__.py").write_text("")
     (package / "mod.py").write_text("")
-    (package / "_priv.py").write_text("")
-    (package / "sub" / "__init__.py").write_text("")
-    (package / "sub" / "deep.py").write_text("")
 
     monkeypatch.setenv("CI", "true")
     run_calls: list[list[str]] = []
@@ -68,93 +63,107 @@ def test_run_docs_uses_readme_optional_pages_and_module_tree(
 
     assert result.success
 
-    # README is the home page; repo-root file links rewritten to docs pages,
-    # GitHub-style double-hyphen anchors collapsed to zensical slugs
-    index_content = (root / "docs" / "index.md").read_text()
-    assert "Hello from the readme." in index_content
-    assert "](LICENSE)" not in index_content
-    assert "](license.md)" in index_content
-    assert "](#library-jslint-jstest)" in index_content
-    assert "](#library-venv-install-upgrade)" in index_content
-    assert "--" not in index_content
-    assert "](#plain-anchor)" in index_content
-    assert "](#)" in index_content
-    assert "How to contribute" in (root / "docs" / "contributing.md").read_text()
-    assert "MIT license text" in (root / "docs" / "license.md").read_text()
+    # docs/ untouched; everything staged in docs-build/
+    assert (docs_source / "guide.md").read_text() == "# Guide\n"
+    build = root / "docs-build"
+    assert "# Guide" in (build / "guide.md").read_text()
+    index_content = (build / "index.md").read_text()
+    assert "Home content." in index_content
+    assert "](license.md)" in index_content  # root-file link rewritten
+    assert "](#a-b)" in index_content  # GitHub anchor collapsed to zensical slug
+    assert "How to contribute" in (build / "contributing.md").read_text()
+    assert "MIT license text" in (build / "license.md").read_text()
+    assert "# test_lib.mod" in (build / "reference" / "mod.md").read_text()
+    assert "summary:\n        modules: true" in (build / "reference" / "index.md").read_text()
+    assert not (build / "reference" / "index.md").read_text().startswith("# Guide")
 
-    # One API page per module, mirroring the package layout; private skipped
-    reference = root / "docs" / "reference"
-    assert "::: test_lib" in (reference / "index.md").read_text()
-    assert "# test_lib.mod" in (reference / "mod.md").read_text()
-    assert "# test_lib.sub" in (reference / "sub" / "index.md").read_text()
-    assert "# test_lib.sub.deep" in (reference / "sub" / "deep.md").read_text()
-    assert not (reference / "_priv.md").exists()
-    # Package pages list submodules via a summary table; module pages don't
-    assert "show_submodules: false" in (reference / "index.md").read_text()
-    assert "summary:\n        modules: true" in (reference / "index.md").read_text()
-    assert "summary:\n        modules: true" in (reference / "sub" / "index.md").read_text()
-    assert "summary:" not in (reference / "mod.md").read_text()
-
-    # Nav: top-level pages flat, API docs section with one entry per module
+    # Nav: built-ins, then discovered extras, then API section
     mkdocs_yml = (root / "mkdocs.yml").read_text()
+    assert "docs_dir: docs-build" in mkdocs_yml
     nav_block = mkdocs_yml.split("nav:\n", 1)[1].split("plugins:", 1)[0]
     assert nav_block == (
         "  - Home: index.md\n"
         "  - Contributing: contributing.md\n"
         "  - License: license.md\n"
+        "  - Guide: guide.md\n"
         "  - API docs:\n"
         "    - test_lib: reference/index.md\n"
         "    - test_lib.mod: reference/mod.md\n"
-        "    - test_lib.sub: reference/sub/index.md\n"
-        "    - test_lib.sub.deep: reference/sub/deep.md\n"
     )
 
-    # Generated paths are gitignored
-    gitignore = (root / ".gitignore").read_text()
-    assert "/docs/" in gitignore
-    assert "/mkdocs.yml" in gitignore
-
-    # git remote lookup, zensical build, then plain-mkdocs build for llms.txt;
-    # no browser in CI
-    assert run_calls[0][:2] == ["git", "remote"]
-    assert [call[1:3] for call in run_calls[1:]] == [["build", "--clean"], ["build", "--clean"]]
-    assert run_calls[2][3:] == ["-d", ".tmp-mkdocs"]
-    # site_url falls back to the oarepo org when no git remote is configured
-    assert 'site_url: "https://oarepo.github.io/test-lib/"' in mkdocs_yml
-    assert "llmstxt" in mkdocs_yml
-    assert len(run_calls) == 3
-
-    # Second run after removing a module and CONTRIBUTING.md: stale pages
-    # gone, nav regenerated, .gitignore untouched
-    (package / "mod.py").unlink()
-    (root / "CONTRIBUTING.md").unlink()
-    gitignore_before = (root / ".gitignore").read_text()
-    run_calls.clear()
-    docs.run_docs(mock_context, quiet=True)
-
-    assert not (root / "docs" / "reference" / "mod.md").exists()
-    assert not (root / "docs" / "contributing.md").exists()
-    mkdocs_yml = (root / "mkdocs.yml").read_text()
-    assert "test_lib.mod" not in mkdocs_yml
-    assert "Contributing" not in mkdocs_yml
-    assert (root / ".gitignore").read_text() == gitignore_before
-    assert len(run_calls) == 3
+    # Generated dirs gitignored; builds invoked; no browser in CI
+    assert "/docs-build/" in (root / ".gitignore").read_text()
+    assert [call[1] for call in run_calls] == ["remote", "build", "build"]
 
 
-def test_run_docs_fallback_without_readme_or_package(mock_context: Mock, monkeypatch: pytest.MonkeyPatch) -> None:
-    """Test a project without README.md/package dir: generated home page, single API page."""
+def test_run_docs_pages_json_overrides_and_orders(mock_context: Mock, monkeypatch: pytest.MonkeyPatch) -> None:
+    """Test pages.json: built-in override, extra page ordering, no copies for overridden slots."""
     root = mock_context.root_directory
+    (root / "README.md").write_text("# readme should NOT become a page\n")
+    (root / "CONTRIBUTING.md").write_text("# contributing guide\n")
+
+    docs_source = root / "docs"
+    docs_source.mkdir()
+    (docs_source / "intro.md").write_text("# Intro\n")
+    (docs_source / "howto.md").write_text("# How To\n")
+    (docs_source / "pages.json").write_text(
+        '{"pages": [\n  {"title": "Guide", "file": "howto.md"},\n  {"title": "Home", "file": "intro.md"}\n]}\n'
+    )
 
     monkeypatch.setenv("CI", "true")
     monkeypatch.setattr("oarepo_cli.services.docs.process.run", _fake_run_factory([]))
 
     docs.run_docs(mock_context, quiet=True)
 
-    assert "# OARepo API Reference" in (root / "docs" / "index.md").read_text()
+    build = root / "docs-build"
+    # Home overridden by intro.md: README copy not produced, intro used in place
+    assert (build / "intro.md").read_text() == "# Intro\n"
+    assert not (build / "index.md").exists()
+    # Contributing not mentioned in pages.json: copied per default rules
+    assert "contributing guide" in (build / "contributing.md").read_text()
+    # pages.json is not a page
+    assert not (build / "pages.json").exists()
+
     mkdocs_yml = (root / "mkdocs.yml").read_text()
-    assert "  - Home: index.md\n  - API docs: reference/index.md\n" in mkdocs_yml
-    assert "- ." in mkdocs_yml  # flat layout: no src/ directory in fixture
-    assert "::: test_lib" in (root / "docs" / "reference" / "index.md").read_text()
+    nav_block = mkdocs_yml.split("nav:\n", 1)[1].split("plugins:", 1)[0]
+    # pages.json order honored (Guide before Home); the unmentioned
+    # Contributing built-in is appended after json entries
+    assert nav_block == (
+        "  - Guide: howto.md\n  - Home: intro.md\n  - Contributing: contributing.md\n  - API docs: reference/index.md\n"
+    ), nav_block
+
+
+def test_run_docs_pages_json_errors(mock_context: Mock, monkeypatch: pytest.MonkeyPatch) -> None:
+    """Test malformed pages.json fails with a clear error."""
+    root = mock_context.root_directory
+    docs_source = root / "docs"
+    docs_source.mkdir()
+    (docs_source / "pages.json").write_text('{"pages": [{"title": "Home", "file": "missing.md"}]}')
+
+    monkeypatch.setenv("CI", "true")
+    monkeypatch.setattr("oarepo_cli.services.docs.process.run", _fake_run_factory([]))
+
+    with pytest.raises(ConfigurationError, match=r"missing\.md"):
+        docs.run_docs(mock_context, quiet=True)
+
+
+def test_run_docs_src_layout_package(mock_context: Mock, monkeypatch: pytest.MonkeyPatch) -> None:
+    """Test that packages under src/ are found and mkdocstrings points at src."""
+    root = mock_context.root_directory
+    package = root / "src" / "test_lib"
+    package.mkdir(parents=True)
+    (package / "__init__.py").write_text("")
+    (package / "core.py").write_text("")
+
+    monkeypatch.setenv("CI", "true")
+    monkeypatch.setattr("oarepo_cli.services.docs.process.run", _fake_run_factory([]))
+
+    docs.run_docs(mock_context, quiet=True)
+
+    assert "# test_lib.core" in (root / "docs-build" / "reference" / "core.md").read_text()
+    mkdocs_yml = (root / "mkdocs.yml").read_text()
+    assert "- src" in mkdocs_yml
+    assert 'site_url: "https://oarepo.github.io/test-lib/"' in mkdocs_yml
 
 
 @pytest.mark.parametrize(
@@ -193,20 +202,3 @@ def test_site_url_fallback_without_remote(tmp_path: Path, monkeypatch: pytest.Mo
     monkeypatch.setattr("oarepo_cli.services.docs.process.run", fake_run)
 
     assert docs._site_url(tmp_path, "my-lib") == "https://oarepo.github.io/my-lib/"
-
-
-def test_run_docs_src_layout_package(mock_context: Mock, monkeypatch: pytest.MonkeyPatch) -> None:
-    """Test that packages under src/ are found and mkdocstrings points at src."""
-    root = mock_context.root_directory
-    package = root / "src" / "test_lib"
-    package.mkdir(parents=True)
-    (package / "__init__.py").write_text("")
-    (package / "core.py").write_text("")
-
-    monkeypatch.setenv("CI", "true")
-    monkeypatch.setattr("oarepo_cli.services.docs.process.run", _fake_run_factory([]))
-
-    docs.run_docs(mock_context, quiet=True)
-
-    assert "# test_lib.core" in (root / "docs" / "reference" / "core.md").read_text()
-    assert "- src" in (root / "mkdocs.yml").read_text()
