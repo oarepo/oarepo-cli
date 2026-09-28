@@ -1546,11 +1546,17 @@ def library_docs(
 ) -> None:
     """Build API documentation with zensical/mkdocstrings.
 
-    (Re)generates the docs scaffold from the project's current state
-    (docs/index.md from README.md, contributing/license pages when
+    Stages docs-build/ from the user-authored docs/ directory plus
+    generated pages (index.md from README.md, contributing/license when
     CONTRIBUTING.md/LICENSE exist, one mkdocstrings API page per Python
-    module under docs/reference/, and mkdocs.yml), adds generated files
-    to .gitignore, then builds the documentation into build/docs/.
+    module), renders mkdocs.yml, adds generated paths to .gitignore, then
+    builds the site into build/docs/.
+
+    docs/pages.json controls the nav: {"pages": [{"title": ..., "file": ...}]}
+    gives titles, order and locations; the built-in titles Home,
+    Contributing and License override their generated copies (Home
+    overriding to a file other than index.md leaves the site root without
+    a landing page).
 
     When not running in CI (the CI environment variable is unset), the built
     documentation is opened in the default browser (open on macOS, xdg-open
