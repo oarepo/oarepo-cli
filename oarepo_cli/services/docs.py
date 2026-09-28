@@ -249,7 +249,14 @@ def _load_pages_json(docs_source_dir: Path) -> list[_PageEntry]:
         if not isinstance(entry, dict) or "title" not in entry or "file" not in entry:
             raise ConfigurationError(f"Invalid {_PAGES_JSON} entry #{i + 1}: needs both 'title' and 'file' keys")
         file = entry["file"]
-        if not (docs_source_dir / file).is_file():
+        if not isinstance(file, str) or not isinstance(entry["title"], str):
+            raise ConfigurationError(f"Invalid {_PAGES_JSON} entry #{i + 1}: 'title' and 'file' must be strings")
+        resolved = (docs_source_dir / file).resolve()
+        if not resolved.is_relative_to(docs_source_dir.resolve()):
+            raise ConfigurationError(
+                f"Invalid {_PAGES_JSON} entry #{i + 1}: 'file' must stay inside {docs_source_dir.name}/ (got '{file}')"
+            )
+        if not resolved.is_file():
             raise ConfigurationError(
                 f"{docs_source_dir / file} not found (from {_PAGES_JSON} entry '{entry['title']}')"
             )
@@ -447,9 +454,10 @@ _GENERATED_GITIGNORE_ENTRIES = ("/docs-build/", "/mkdocs.yml")
 def _gitignore_generated_files(context: ProjectContext) -> list[str]:
     """Add generated docs paths to .gitignore.
 
-    Everything under docs/ plus mkdocs.yml is regenerated on every build, so
-    it should not be committed; each entry is appended only when no
-    .gitignore line already covers it exactly.
+    docs-build/ and mkdocs.yml are regenerated on every build, so they
+    should not be committed (the user-authored docs/ stays untouched and
+    tracked); each entry is appended only when no .gitignore line already
+    covers it exactly.
 
     Args:
         context: Project context with paths and configuration

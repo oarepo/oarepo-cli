@@ -147,6 +147,21 @@ def test_run_docs_pages_json_errors(mock_context: Mock, monkeypatch: pytest.Monk
         docs.run_docs(mock_context, quiet=True)
 
 
+def test_run_docs_pages_json_rejects_path_traversal(mock_context: Mock, monkeypatch: pytest.MonkeyPatch) -> None:
+    """A file value escaping docs/ (e.g. ../README.md) is rejected even when that file exists."""
+    root = mock_context.root_directory
+    (root / "README.md").write_text("# readable, but outside docs/\n")
+    docs_source = root / "docs"
+    docs_source.mkdir()
+    (docs_source / "pages.json").write_text('{"pages": [{"title": "Home", "file": "../README.md"}]}')
+
+    monkeypatch.setenv("CI", "true")
+    monkeypatch.setattr("oarepo_cli.services.docs.process.run", _fake_run_factory([]))
+
+    with pytest.raises(ConfigurationError, match=r"must stay inside docs/"):
+        docs.run_docs(mock_context, quiet=True)
+
+
 def test_run_docs_src_layout_package(mock_context: Mock, monkeypatch: pytest.MonkeyPatch) -> None:
     """Test that packages under src/ are found and mkdocstrings points at src."""
     root = mock_context.root_directory
