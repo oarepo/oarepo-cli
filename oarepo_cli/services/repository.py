@@ -485,7 +485,13 @@ def exec_shell(context: ProjectContext) -> NoReturn:
     os.execve(bash_path, ["bash"], shell_env)  # noqa S606 no shell is ok here, replacing the process
 
 
-def _run_invenio(context: ProjectContext, args: Sequence[str], *, quiet: bool = False) -> None:
+def _run_invenio(
+    context: ProjectContext,
+    args: Sequence[str],
+    *,
+    env: dict[str, str] | None = None,
+    quiet: bool = False,
+) -> None:
     """Run a bare ``invenio`` subcommand in the venv, waiting for it to complete.
 
     Unlike ``ServerRunner``, which ``exec``s the final long-running ``invenio
@@ -496,6 +502,7 @@ def _run_invenio(context: ProjectContext, args: Sequence[str], *, quiet: bool = 
     process.run(
         [str(get_invenio_binary(context)), *args],
         cwd=context.root_directory,
+        env=env,
         check=True,
         output_mode=ProcessOutputMode.INTERACTIVE if not quiet else ProcessOutputMode.CAPTURE,
     )
