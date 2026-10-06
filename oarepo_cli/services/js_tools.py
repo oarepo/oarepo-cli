@@ -19,6 +19,12 @@ from oarepo_cli.core.errors import ConfigurationError
 from oarepo_cli.services import process
 from oarepo_cli.services.process import ProcessOutputMode
 
+# Theme used for the webpack-scaffolding subprocesses in setup_jstests. The
+# app's default theme (bootstrap3) declares no ``semantic-ui-less``, so
+# ``invenio webpack create`` would leave it out of the merged package.json
+# and the subsequent ``patch-package`` postinstall would fail under pnpm.
+_SEMANTIC_UI_THEME_ENV = {"INVENIO_APP_THEME": '["semantic-ui"]'}
+
 
 def run_jslint(context: ProjectContext, *, quiet: bool = False) -> process.ProcessResult:
     """Run ESLint and Prettier on JavaScript files.
@@ -457,8 +463,10 @@ def setup_jstests(context: ProjectContext, *, quiet: bool = False) -> process.Pr
     root = context.root_directory
     assets_path = get_instance_path(context) / "assets"
 
+    webpack_env = {**os.environ, **_SEMANTIC_UI_THEME_ENV}
+
     console.info("-> Creating webpack project\n")
-    _run_invenio(context, ["webpack", "clean", "create"], quiet=quiet)
+    _run_invenio(context, ["webpack", "clean", "create"], env=webpack_env, quiet=quiet)
 
     # Work around the Invenio RSPack "packages field missing or empty" error.
     _patch_pnpm_workspace(assets_path / "pnpm-workspace.yaml")
@@ -495,8 +503,8 @@ def setup_jstests(context: ProjectContext, *, quiet: bool = False) -> process.Pr
     (assets_path / "setupTests.js").write_text(resources.read_text("setupTests.js.tmpl"))
 
     console.info("-> Installing webpack and Jest dependencies\n")
-    _run_invenio(context, ["collect"], quiet=quiet)
-    _run_invenio(context, ["webpack", "install"], quiet=quiet)
+    _run_invenio(context, ["collect"], env=webpack_env, quiet=quiet)
+    _run_invenio(context, ["webpack", "install"], env=webpack_env, quiet=quiet)
 
     dev_deps = _get_rdm_dev_deps(context)
     if dev_deps:
