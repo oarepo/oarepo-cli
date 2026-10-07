@@ -50,7 +50,7 @@ def test_jstest_setup_routes_to_setup_jstests(
 
     setup_calls: list[bool] = []
 
-    def fake_setup(context: object, *, quiet: bool = False) -> process.ProcessResult:
+    def fake_setup(context: object, *, quiet: bool = False, set_app_theme: bool = False) -> process.ProcessResult:
         setup_calls.append(quiet)
         return process.ProcessResult(return_code=0, stdout="", stderr="", command=[], cwd=lint_project, duration_ms=0)
 
