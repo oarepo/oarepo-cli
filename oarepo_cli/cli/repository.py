@@ -879,7 +879,9 @@ def jstest_command(
         # A repository doesn't need service connection env vars -- it resolves
         # connection details from invenio.cfg/.invenio.private, not from the
         # .env-services file docker-services-cli would write for a library
-        js_commands.run_jstest_command(context, setup=setup, service_env=None, extra_args=extra_args, quiet=quiet)
+        js_commands.run_jstest_command(
+            context, setup=setup, service_env=None, extra_args=extra_args, quiet=quiet, set_app_theme=False
+        )
     except OARepoError as e:
         console_err = ConsoleOutput(quiet=False)
         console_err.error(f"\n✗ repository jstest failed: {e}\n", fg=typer.colors.RED)
