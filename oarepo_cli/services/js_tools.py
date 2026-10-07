@@ -324,12 +324,13 @@ def _run_prettier(root: Path, code_directories: list[Path], quiet: bool) -> proc
     )
 
 
-def run_jstest(
+def run_jstest(  # noqa: PLR0913
     context: ProjectContext,
     *,
     setup: bool = False,
     service_env: dict[str, str] | None = None,
     extra_args: list[str] | None = None,
+    set_app_theme: bool = False,
     quiet: bool = False,
 ) -> process.ProcessResult:
     """Replace the current process with ``pnpm test`` (Jest) in the assets dir.
@@ -373,6 +374,7 @@ def run_jstest(
             services, if any (a repository needs none -- see
             ``services.repository.exec_shell``'s identical rationale)
         extra_args: Additional arguments passed to the test command
+        set_app_theme: If True, set the app theme to semantic ui before running Jest
         quiet: If True, suppress progress output during setup
 
     Returns:
@@ -389,7 +391,7 @@ def run_jstest(
     extra_args = extra_args or []
 
     if setup:
-        return setup_jstests(context, quiet=quiet)
+        return setup_jstests(context, quiet=quiet, set_app_theme=set_app_theme)
 
     # Resolve pnpm from PATH -- it isn't a venv binary (it's the system/Node
     # package manager, same one setup_jstests shells out to). We exec pnpm
@@ -429,7 +431,9 @@ def run_jstest(
     return None
 
 
-def setup_jstests(context: ProjectContext, *, quiet: bool = False) -> process.ProcessResult:
+def setup_jstests(
+    context: ProjectContext, *, set_app_theme: bool = False, quiet: bool = False
+) -> process.ProcessResult:
     """Generate the Jest configuration for a project's JavaScript tests.
 
     Port of ``library_runner.sh``'s ``setup_jstests``: creates the webpack
@@ -446,6 +450,7 @@ def setup_jstests(context: ProjectContext, *, quiet: bool = False) -> process.Pr
 
     Args:
         context: Project context with paths and configuration
+        set_app_theme: If True, set the app theme to semantic ui before running Jest
         quiet: If True, suppress subprocess output
 
     Returns:
@@ -463,7 +468,7 @@ def setup_jstests(context: ProjectContext, *, quiet: bool = False) -> process.Pr
     root = context.root_directory
     assets_path = get_instance_path(context) / "assets"
 
-    webpack_env = {**os.environ, **_SEMANTIC_UI_THEME_ENV}
+    webpack_env = {**os.environ, **_SEMANTIC_UI_THEME_ENV} if set_app_theme else {**os.environ}
 
     console.info("-> Creating webpack project\n")
     _run_invenio(context, ["webpack", "clean", "create"], env=webpack_env, quiet=quiet)

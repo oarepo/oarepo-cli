@@ -85,12 +85,13 @@ def run_repository_jslint_command(context: ProjectContext, *, quiet: bool) -> No
     raise typer.Exit(code=result.return_code)
 
 
-def run_jstest_command(
+def run_jstest_command(  # noqa: PLR0913
     context: ProjectContext,
     *,
     setup: bool,
     service_env: dict[str, str] | None,
     extra_args: Sequence[str],
+    set_app_theme: bool,
     quiet: bool,
 ) -> NoReturn:
     """Run ``run_jstest()`` and exit with its result, for `library`/`repository jstest`.
@@ -114,6 +115,7 @@ def run_jstest_command(
             setup=setup,
             service_env=service_env,
             extra_args=list(extra_args),
+            set_app_theme=set_app_theme,
             quiet=quiet,
         )
     except OARepoError as e:

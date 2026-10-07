@@ -1434,7 +1434,9 @@ def library_jstest(
     else:
         service_env = _start_services_if_needed_impl(quiet=quiet)
 
-    js_commands.run_jstest_command(context, setup=setup, service_env=service_env, extra_args=extra_args, quiet=quiet)
+    js_commands.run_jstest_command(
+        context, setup=setup, service_env=service_env, extra_args=extra_args, quiet=quiet, set_app_theme=True
+    )
 
 
 @library_app.command("oarepo-versions")
