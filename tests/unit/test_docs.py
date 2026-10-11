@@ -181,6 +181,35 @@ def test_run_docs_src_layout_package(mock_context: Mock, monkeypatch: pytest.Mon
     assert 'site_url: "https://oarepo.github.io/test-lib/"' in mkdocs_yml
 
 
+def test_run_docs_uses_uv_build_module_name(mock_context: Mock, monkeypatch: pytest.MonkeyPatch) -> None:
+    """The package import name comes from [tool.uv.build-backend].module-name.
+
+    A module name that differs from the hyphen-normalized distribution name
+    (e.g. oarepo-oai-pmh-harvester ships as oarepo_oaipmh_harvester) is used
+    for the API pages instead of the nonexistent oarepo_oai_pmh_harvester.
+    """
+    root = mock_context.root_directory
+    mock_context.pyproject_path.write_text(
+        '[project]\nname = "oarepo-oai-pmh-harvester"\n\n'
+        '[tool.uv.build-backend]\nmodule-name = ["oarepo_oaipmh_harvester"]\n'
+    )
+    package = root / "oarepo_oaipmh_harvester"
+    package.mkdir()
+    (package / "__init__.py").write_text("")
+    (package / "mod.py").write_text("")
+
+    monkeypatch.setenv("CI", "true")
+    monkeypatch.setattr("oarepo_cli.services.docs.process.run", _fake_run_factory([]))
+
+    docs.run_docs(mock_context, quiet=True)
+
+    build = root / "docs-build"
+    assert "# oarepo_oaipmh_harvester.mod" in (build / "reference" / "mod.md").read_text()
+    mkdocs_yml = (root / "mkdocs.yml").read_text()
+    assert "oarepo_oaipmh_harvester.mod" in mkdocs_yml
+    assert "oarepo_oai_pmh_harvester" not in mkdocs_yml
+
+
 @pytest.mark.parametrize(
     ("remote_url", "expected"),
     [
