@@ -97,10 +97,12 @@ class TestOrchestrator:
             self._cleanup_test_environment(services_started, console)
 
     def _setup_test_environment(self, skip_services: bool) -> tuple[bool, ConsoleOutput | None, dict[str, str]]:
-        """Set up the test environment (start services, etc.).
+        """Set up the test environment (start services, load .env-services).
 
         Args:
-            skip_services: Whether to skip starting services
+            skip_services: Whether to skip starting services. Even when
+                skipped, an existing .env-services file is still loaded and
+                returned so tests can reach already-running services.
 
         Returns:
             Tuple of (services_started, console, service_env_vars)
@@ -110,7 +112,14 @@ class TestOrchestrator:
         service_env_vars: dict[str, str] = {}
         services_started = False
 
-        if not skip_services:
+        if skip_services:
+            # Services are neither started nor stopped, but an existing
+            # .env-services (e.g. left by an earlier `library services start`)
+            # is still passed through so tests can reach already-running
+            # services -- matching library shell/invenio's --skip-services
+            # behaviour, which loads the file unconditionally.
+            service_env_vars = self._services_manager.load_service_env()
+        else:
             already_running = self._services_manager.are_services_running()
 
             if not already_running and not self._quiet:
