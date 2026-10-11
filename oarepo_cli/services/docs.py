@@ -377,7 +377,13 @@ def _scaffold_docs(context: ProjectContext) -> None:
 
     """
     pyproject_data = PyProjectReader().read(context.pyproject_path)
-    package_name = pyproject_data.name.replace("-", "_")
+    # A package's import name need not match its distribution name: e.g.
+    # oarepo-oai-pmh-harvester ships as oarepo_oaipmh_harvester, not
+    # oarepo_oai_pmh_harvester. [tool.uv.build-backend].module-name is
+    # authoritative when set (the same source context discovery uses for
+    # module directories); otherwise fall back to normalizing the name.
+    module_names = pyproject_data.uv_build_module_names
+    package_name = module_names[0] if module_names else pyproject_data.name.replace("-", "_")
     site_name = _SITE_NAME
     root = context.root_directory
     site_url = _site_url(root, pyproject_data.name)
