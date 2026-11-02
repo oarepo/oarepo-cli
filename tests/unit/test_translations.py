@@ -114,3 +114,23 @@ def test_copy_translations_uses_default_path_when_none(
     # Verify default.txt was "copied" (merged into site-packages)
     # Since src is already in site-packages, this is a no-op in practice
     assert (site_packages / "oarepo" / "collected_translations" / "default.txt").exists()
+
+
+def test_compile_package_catalogs(tmp_path: Path) -> None:
+    """Catalogs are compiled without touching a pre-existing (possibly hardlinked) .mo."""
+    import gettext
+
+    lc = tmp_path / "pkg" / "translations" / "cs" / "LC_MESSAGES"
+    lc.mkdir(parents=True)
+    po = lc / "messages.po"
+    po.write_text('msgid ""\nmsgstr ""\n"Content-Type: text/plain; charset=UTF-8\\n"\n\nmsgid "Records"\nmsgstr "Záznamy"\n')
+
+    cached = tmp_path / "uv-cache.mo"
+    cached.write_bytes(b"stale")
+    (lc / "messages.mo").hardlink_to(cached)
+
+    assert translations.compile_package_catalogs(tmp_path) == [lc / "messages.mo"]
+    with (lc / "messages.mo").open("rb") as f:
+        assert gettext.GNUTranslations(f).gettext("Records") == "Záznamy"
+    assert cached.read_bytes() == b"stale"
+    assert not list(lc.glob("*.tmp"))
