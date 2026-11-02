@@ -81,6 +81,8 @@ class TestOrchestrator:
             # Ensure venv exists and install dependencies
             self._ensure_test_environment(use_coverage, console)
 
+            self.extra_setup("start")
+
             # Build and run pytest command
             pytest_cmd = self._build_pytest_command(pytest_args, use_coverage)
 
@@ -93,8 +95,21 @@ class TestOrchestrator:
             )
 
         finally:
+            self.extra_setup("stop")
+
             # Cleanup phase: stop services if we started them
             self._cleanup_test_environment(services_started, console)
+
+    def extra_setup(self, action: str) -> None:
+        """If there is a test-setup.sh in the root of the repository, call it with `action` argument."""
+        pth = self._context.root_directory / "test-setup.sh"
+        if pth.exists():
+            process.run(
+                [str(pth), action],
+                cwd=self._context.root_directory,
+                check=False,
+                output_mode=ProcessOutputMode.INTERACTIVE,
+            )
 
     def _setup_test_environment(self, skip_services: bool) -> tuple[bool, ConsoleOutput | None, dict[str, str]]:
         """Set up the test environment (start services, etc.).
