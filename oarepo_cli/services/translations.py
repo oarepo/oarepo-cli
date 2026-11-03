@@ -5,6 +5,7 @@
 
 from __future__ import annotations
 
+import shutil
 import sys
 from pathlib import Path
 from typing import TYPE_CHECKING
@@ -107,23 +108,26 @@ def copy_translations(
     if not quiet:
         pass
 
-    # Use cp -R to recursively copy and merge
-    # The /. pattern copies contents and merges into existing directories (works on both BSD and GNU cp)
-    import shutil
-
     # Python's shutil.copytree with dirs_exist_ok=True is equivalent to cp -R
     # Copy all items from src into site_packages
     for item in src.iterdir():
         dest = site_packages / item.name
         if item.is_dir():
-            shutil.copytree(item, dest, dirs_exist_ok=True)
+            shutil.copytree(item, dest, dirs_exist_ok=True, copy_function=_copy_replacing)
         else:
-            shutil.copy2(item, dest)
+            _copy_replacing(item, dest)
 
     compile_package_catalogs(site_packages)
 
     if not quiet:
         pass
+
+
+def _copy_replacing(src: str | Path, dst: str | Path) -> None:
+    """Copy via a temp file and rename: ``dst`` may be hardlinked into uv's cache."""
+    tmp = f"{dst}.tmp"
+    shutil.copy2(src, tmp)
+    Path(tmp).replace(dst)
 
 
 def compile_package_catalogs(site_packages: Path) -> list[Path]:
@@ -146,8 +150,12 @@ def compile_package_catalogs(site_packages: Path) -> list[Path]:
 
     # Recompile everything: mtimes from uv extraction and the overlay's copy2 can't tell
     # which .mo is stale, and compiling all catalogs takes only a couple of seconds.
+    overlay = site_packages / "oarepo" / "collected_translations"
     compiled = []
     for po in site_packages.glob("**/translations/*/LC_MESSAGES/*.po"):
+        # a .mo in the overlay source would be copied over the packages' .mo on the next install
+        if po.is_relative_to(overlay):
+            continue
         mo = po.with_suffix(".mo")
         tmp = mo.with_suffix(".mo.tmp")
         try:
