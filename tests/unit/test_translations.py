@@ -36,9 +36,12 @@ def test_copy_translations_copies_files(mock_context: Mock, tmp_path: Path, monk
     (src / "subdir").mkdir()
     (src / "subdir" / "file2.txt").write_text("content2")
 
-    # Setup site-packages
+    # Setup site-packages; file2.txt is hardlinked into a "uv cache" that must stay untouched
     site_packages = tmp_path / "site-packages"
-    site_packages.mkdir()
+    (site_packages / "subdir").mkdir(parents=True)
+    cached = tmp_path / "uv-cache.txt"
+    cached.write_text("cached")
+    (site_packages / "subdir" / "file2.txt").hardlink_to(cached)
 
     # Mock process.run to return site-packages path
     mock_result = Mock(spec=process.ProcessResult)
@@ -58,6 +61,8 @@ def test_copy_translations_copies_files(mock_context: Mock, tmp_path: Path, monk
     assert (site_packages / "file1.txt").read_text() == "content1"
     assert (site_packages / "subdir" / "file2.txt").exists()
     assert (site_packages / "subdir" / "file2.txt").read_text() == "content2"
+    assert cached.read_text() == "cached"
+    assert not list(site_packages.glob("**/*.tmp"))
 
 
 def test_copy_translations_handles_missing_source(
@@ -114,3 +119,29 @@ def test_copy_translations_uses_default_path_when_none(
     # Verify default.txt was "copied" (merged into site-packages)
     # Since src is already in site-packages, this is a no-op in practice
     assert (site_packages / "oarepo" / "collected_translations" / "default.txt").exists()
+
+
+def test_compile_package_catalogs(tmp_path: Path) -> None:
+    """Catalogs are compiled without touching a pre-existing (possibly hardlinked) .mo."""
+    import gettext
+
+    lc = tmp_path / "pkg" / "translations" / "cs" / "LC_MESSAGES"
+    lc.mkdir(parents=True)
+    po = lc / "messages.po"
+    po.write_text(
+        'msgid ""\nmsgstr ""\n"Content-Type: text/plain; charset=UTF-8\\n"\n\nmsgid "Records"\nmsgstr "Záznamy"\n'
+    )
+    overlay_lc = tmp_path / "oarepo" / "collected_translations" / "pkg" / "translations" / "cs" / "LC_MESSAGES"
+    overlay_lc.mkdir(parents=True)
+    (overlay_lc / "messages.po").write_text(po.read_text())
+
+    cached = tmp_path / "uv-cache.mo"
+    cached.write_bytes(b"stale")
+    (lc / "messages.mo").hardlink_to(cached)
+
+    # the overlay source is skipped
+    assert translations.compile_package_catalogs(tmp_path) == [lc / "messages.mo"]
+    with (lc / "messages.mo").open("rb") as f:
+        assert gettext.GNUTranslations(f).gettext("Records") == "Záznamy"
+    assert cached.read_bytes() == b"stale"
+    assert not list(lc.glob("*.tmp"))

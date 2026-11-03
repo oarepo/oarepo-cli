@@ -5,6 +5,7 @@
 
 from __future__ import annotations
 
+import shutil
 import sys
 from pathlib import Path
 from typing import TYPE_CHECKING
@@ -101,23 +102,73 @@ def copy_translations(
         if not quiet:
             pass
 
+        compile_package_catalogs(site_packages)
         return
 
     if not quiet:
         pass
-
-    # Use cp -R to recursively copy and merge
-    # The /. pattern copies contents and merges into existing directories (works on both BSD and GNU cp)
-    import shutil
 
     # Python's shutil.copytree with dirs_exist_ok=True is equivalent to cp -R
     # Copy all items from src into site_packages
     for item in src.iterdir():
         dest = site_packages / item.name
         if item.is_dir():
-            shutil.copytree(item, dest, dirs_exist_ok=True)
+            shutil.copytree(item, dest, dirs_exist_ok=True, copy_function=_copy_replacing)
         else:
-            shutil.copy2(item, dest)
+            _copy_replacing(item, dest)
+
+    compile_package_catalogs(site_packages)
 
     if not quiet:
         pass
+
+
+def _copy_replacing(src: str | Path, dst: str | Path) -> None:
+    """Copy via a temp file and rename: ``dst`` may be hardlinked into uv's cache."""
+    tmp = f"{dst}.tmp"
+    shutil.copy2(src, tmp)
+    Path(tmp).replace(dst)
+
+
+def compile_package_catalogs(site_packages: Path) -> list[Path]:
+    """Compile installed packages' ``messages.po`` files to ``messages.mo``.
+
+    Upstream Invenio wheels ship compiled catalogs, but the CESNET-patched
+    rebuilds and the collected-translations overlay contain only ``.po``
+    files, and flask-babel loads only ``.mo``. Without this step their UI
+    stays in English.
+
+    Args:
+        site_packages: Site-packages directory of the project venv
+
+    Returns:
+        The ``.mo`` files that were (re)written
+
+    """
+    from babel.messages.mofile import write_mo
+    from babel.messages.pofile import read_po
+
+    # Recompile everything: mtimes from uv extraction and the overlay's copy2 can't tell
+    # which .mo is stale, and compiling all catalogs takes only a couple of seconds.
+    overlay = site_packages / "oarepo" / "collected_translations"
+    compiled = []
+    for po in site_packages.glob("**/translations/*/LC_MESSAGES/*.po"):
+        # a .mo in the overlay source would be copied over the packages' .mo on the next install
+        if po.is_relative_to(overlay):
+            continue
+        mo = po.with_suffix(".mo")
+        tmp = mo.with_suffix(".mo.tmp")
+        try:
+            with po.open("rb") as f:
+                catalog = read_po(f, locale=po.parent.parent.name)
+            # use_fuzzy matches upstream Invenio's [tool.babel.compile_catalog]
+            with tmp.open("wb") as f:
+                write_mo(f, catalog, use_fuzzy=True)
+            # replace instead of writing in place: the old .mo may be hardlinked into uv's cache
+            tmp.replace(mo)
+        except Exception as e:  # noqa: BLE001 - a broken catalog must not fail the install
+            tmp.unlink(missing_ok=True)
+            print(f"Warning: could not compile {po}: {e}", file=sys.stderr)  # noqa: T201
+            continue
+        compiled.append(mo)
+    return compiled
