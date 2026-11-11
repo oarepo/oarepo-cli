@@ -29,6 +29,7 @@ dependencies = [
     # from oarepo-cli's own venv, not the target project's. zensical includes
     # mkdocs + material theme; the [python] extra is the griffe-based handler.
     "zensical<0.2",
+    "mkdocs<2.0.0",
     "mkdocstrings[python]",
     # llms.txt generation (`library docs`): zensical can't run this plugin
     # (unknown plugins are silently dropped from its config), so docs.py runs
