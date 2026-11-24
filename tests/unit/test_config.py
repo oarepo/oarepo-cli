@@ -15,6 +15,7 @@ from oarepo_cli.core.config import (
     CeleryConfig,
     CliConfig,
     PythonConfig,
+    ServicesConfig,
     TestingConfig,
     VenvConfig,
 )
@@ -224,3 +225,55 @@ test = {}
 
     assert config.build.editable is True  # Default
     assert config.test.coverage is False  # Default
+
+
+def test_service_disabled_with_false_in_pyproject_is_none(tmp_path: Path) -> None:
+    """Test that `s3 = false` in pyproject.toml disables only that service type."""
+    (tmp_path / "pyproject.toml").write_text(
+        """
+[tool.oarepo-cli.services]
+s3 = false
+mq = "none"
+"""
+    )
+
+    config = CliConfig.from_pyproject(tmp_path)
+
+    assert config.services.s3 is None
+    assert config.services.mq is None
+    assert config.services.enabled_services() == {
+        "db": ServiceType.POSTGRESQL,
+        "search": ServiceType.OPENSEARCH,
+        "cache": ServiceType.REDIS,
+    }
+
+
+@pytest.mark.parametrize("value", ["none", "None", "false", "FALSE"])
+def test_service_disabled_via_environment_variable_is_none(monkeypatch: pytest.MonkeyPatch, value: str) -> None:
+    """Test that OAREPO_SERVICES_* set to none/false disables the service type."""
+    monkeypatch.setenv("OAREPO_SERVICES_S3", value)
+
+    config = CliConfig.from_env()
+
+    assert config.services.s3 is None
+    assert config.services.db == ServiceType.POSTGRESQL
+
+
+@pytest.mark.parametrize("value", ["true", "1", '""', "[]"])
+def test_service_invalid_value_in_pyproject_raises_validation_error(tmp_path: Path, value: str) -> None:
+    """Test that a service value that is neither a name nor false is rejected with the key named."""
+    (tmp_path / "pyproject.toml").write_text(f"[tool.oarepo-cli.services]\ns3 = {value}\n")
+
+    with pytest.raises(ValidationError, match=r"\[tool\.oarepo-cli\.services\]\.s3"):
+        CliConfig.from_pyproject(tmp_path)
+
+
+def test_merge_service_disabled_in_pyproject_overridden_by_environment() -> None:
+    """Test that a disabled service survives merging, and an env service name re-enables it."""
+    from_pyproject = CliConfig(services=ServicesConfig(s3=None))
+    from_env = CliConfig(services=ServicesConfig(db=None, s3="custom-s3"))
+
+    assert CliConfig.merge([CliConfig(), from_pyproject]).services.s3 is None
+    merged = CliConfig.merge([CliConfig(), from_pyproject, from_env])
+    assert merged.services.s3 == "custom-s3"
+    assert merged.services.db is None

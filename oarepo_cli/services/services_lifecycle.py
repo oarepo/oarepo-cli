@@ -97,7 +97,9 @@ class ServicesLifecycleManager:
         """Start Docker services and return environment variables.
 
         Uses docker-services-cli to start the configured services and captures
-        the environment variables needed to connect to them.
+        the environment variables needed to connect to them. Service types
+        disabled in the configuration are not started; if every service type
+        is disabled (or ``skip`` is set), nothing is started at all.
 
         Returns:
             Dictionary of environment variables for connecting to services
@@ -108,27 +110,22 @@ class ServicesLifecycleManager:
             ProcessExecutionError: If docker-services-cli fails
 
         """
-        if self._config.services.skip:
+        enabled = self._config.services.enabled_services()
+        # docker-services-cli starts *every* service when given no service
+        # options, so with all service types disabled there's nothing to run.
+        if self._config.services.skip or not enabled:
             return {}
 
-        _check_s3_service_supported(self._config.services.s3)
+        if "s3" in enabled:
+            _check_s3_service_supported(enabled["s3"])
 
-        # Build docker-services-cli command
-        cmd = [
-            _docker_services_cli_path(),
-            "up",
-            "--db",
-            self._config.services.db,
-            "--search",
-            self._config.services.search,
-            "--mq",
-            self._config.services.mq,
-            "--cache",
-            self._config.services.cache,
-            "--s3",
-            self._config.services.s3,
-            "--env",
-        ]
+        # Build docker-services-cli command; disabled service types are
+        # simply omitted, so docker-services-cli neither starts them nor
+        # exports their connection variables.
+        cmd = [_docker_services_cli_path(), "up"]
+        for service_type, service_name in enabled.items():
+            cmd.extend([f"--{service_type}", service_name])
+        cmd.append("--env")
 
         # Add --quiet flag if requested
         if self._quiet:
