@@ -173,6 +173,7 @@ REPOSITORY_CONFIG_YAML = """\
 repository_human_name: Test Repository
 repository_description: Integration test repository for oarepo-cli
 languages: cs
+admin_email: admin@example.com
 use_ccmm: false
 """
 
