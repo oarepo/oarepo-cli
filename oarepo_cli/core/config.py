@@ -52,14 +52,31 @@ class OARepoConfig:
 
 @dataclass
 class ServicesConfig:
-    """Services configuration."""
+    """Services configuration.
+
+    Each service type holds the docker-services-cli service name to start,
+    or ``None`` if the project doesn't need that service type at all (e.g. a
+    library that never touches S3). Disabled in pyproject.toml with
+    ``false``/``"none"``, or via the environment with ``none``/``false``.
+    """
 
     skip: bool = False
-    db: str = ServiceType.POSTGRESQL
-    search: str = ServiceType.OPENSEARCH
-    mq: str = ServiceType.RABBITMQ
-    cache: str = ServiceType.REDIS
-    s3: str = ServiceType.RUSTFS
+    db: str | None = ServiceType.POSTGRESQL
+    search: str | None = ServiceType.OPENSEARCH
+    mq: str | None = ServiceType.RABBITMQ
+    cache: str | None = ServiceType.REDIS
+    s3: str | None = ServiceType.RUSTFS
+
+    def enabled_services(self) -> dict[str, str]:
+        """Return the enabled service types mapped to their service names.
+
+        Returns:
+            Mapping of service type (``db``, ``search``, ...) to service
+            name, in docker-services-cli option order, omitting disabled ones
+
+        """
+        services = {"db": self.db, "search": self.search, "mq": self.mq, "cache": self.cache, "s3": self.s3}
+        return {service_type: name for service_type, name in services.items() if name is not None}
 
 
 @dataclass
@@ -117,6 +134,44 @@ def _get_str(env_var: str, default: str) -> str:
     return os.getenv(env_var, default) or default
 
 
+_DISABLED_SERVICE_VALUES = frozenset({"none", "false"})
+
+
+def _parse_service(value: object, default: str, source: str) -> str | None:
+    """Parse a single service setting into a service name or ``None`` (disabled).
+
+    Args:
+        value: Raw value from pyproject.toml or an environment variable
+        default: Service name to use when no value is given
+        source: Human-readable origin of the value, used in error messages
+
+    Returns:
+        The service name, or ``None`` if the service type is disabled
+
+    Raises:
+        ValidationError: If the value is neither a service name nor ``false``
+
+    """
+    if value is None:
+        return default
+    if value is False:
+        return None
+    if isinstance(value, str) and value.strip():
+        stripped = value.strip()
+        return None if stripped.lower() in _DISABLED_SERVICE_VALUES else stripped
+    from oarepo_cli.core.errors import ValidationError
+
+    raise ValidationError(
+        f"Invalid value {value!r} for {source}: expected a service name (e.g. {default!r}) "
+        'or false/"none" to not start this service.'
+    )
+
+
+def _get_service(env_var: str, default: str) -> str | None:
+    """Get a service name (or ``None`` if disabled) from an environment variable."""
+    return _parse_service(os.getenv(env_var) or None, default, env_var)
+
+
 @dataclass
 class CliConfig:
     """Complete CLI configuration.
@@ -158,11 +213,11 @@ class CliConfig:
             ),
             services=ServicesConfig(
                 skip=_get_bool("OAREPO_SERVICES_SKIP", default=False),
-                db=_get_str("OAREPO_SERVICES_DB", ServiceType.POSTGRESQL),
-                search=_get_str("OAREPO_SERVICES_SEARCH", ServiceType.OPENSEARCH),
-                mq=_get_str("OAREPO_SERVICES_MQ", ServiceType.RABBITMQ),
-                cache=_get_str("OAREPO_SERVICES_CACHE", ServiceType.REDIS),
-                s3=_get_str("OAREPO_SERVICES_S3", ServiceType.RUSTFS),
+                db=_get_service("OAREPO_SERVICES_DB", ServiceType.POSTGRESQL),
+                search=_get_service("OAREPO_SERVICES_SEARCH", ServiceType.OPENSEARCH),
+                mq=_get_service("OAREPO_SERVICES_MQ", ServiceType.RABBITMQ),
+                cache=_get_service("OAREPO_SERVICES_CACHE", ServiceType.REDIS),
+                s3=_get_service("OAREPO_SERVICES_S3", ServiceType.RUSTFS),
             ),
             model=ModelConfig(
                 template_url=_get_str(
@@ -256,11 +311,13 @@ class CliConfig:
         services_data = get_nested(tool_data, "services", default={})
         services = ServicesConfig(
             skip=services_data.get("skip", False),
-            db=services_data.get("db", ServiceType.POSTGRESQL),
-            search=services_data.get("search", ServiceType.OPENSEARCH),
-            mq=services_data.get("mq", ServiceType.RABBITMQ),
-            cache=services_data.get("cache", ServiceType.REDIS),
-            s3=services_data.get("s3", ServiceType.RUSTFS),
+            db=_parse_service(services_data.get("db"), ServiceType.POSTGRESQL, "[tool.oarepo-cli.services].db"),
+            search=_parse_service(
+                services_data.get("search"), ServiceType.OPENSEARCH, "[tool.oarepo-cli.services].search"
+            ),
+            mq=_parse_service(services_data.get("mq"), ServiceType.RABBITMQ, "[tool.oarepo-cli.services].mq"),
+            cache=_parse_service(services_data.get("cache"), ServiceType.REDIS, "[tool.oarepo-cli.services].cache"),
+            s3=_parse_service(services_data.get("s3"), ServiceType.RUSTFS, "[tool.oarepo-cli.services].s3"),
         )
 
         # Model config

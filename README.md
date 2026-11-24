@@ -301,7 +301,7 @@ Extra arguments are passed directly to pytest.
 
 ### `library start` / `stop`
 
-Starts or stops the Docker services (PostgreSQL, OpenSearch, Redis, RabbitMQ, MinIO) configured via `[tool.oarepo-cli.services]` or `OAREPO_SERVICES_*`, writing connection details to `.env-services`.
+Starts or stops the Docker services (PostgreSQL, OpenSearch, Redis, RabbitMQ, RustFS) configured via `[tool.oarepo-cli.services]` or `OAREPO_SERVICES_*` (set a service type to `false` to not start it), writing connection details to `.env-services`.
 
 ```bash
 oarepo-cli library start
@@ -421,7 +421,7 @@ Settings are resolved with this precedence: **defaults < `pyproject.toml` < envi
 | `OAREPO_SERVICES_SEARCH` | `[tool.oarepo-cli.services].search` | `opensearch` |
 | `OAREPO_SERVICES_CACHE` | `[tool.oarepo-cli.services].cache` | `redis` |
 | `OAREPO_SERVICES_MQ` | `[tool.oarepo-cli.services].mq` | `rabbitmq` |
-| `OAREPO_SERVICES_S3` | `[tool.oarepo-cli.services].s3` | `minio` |
+| `OAREPO_SERVICES_S3` | `[tool.oarepo-cli.services].s3` | `rustfs` |
 | `OAREPO_MODEL_TEMPLATE_URL` | `[tool.oarepo-cli.model].template_url` | `https://github.com/oarepo/nrp-model-copier` |
 | `OAREPO_MODEL_TEMPLATE_VERSION` | `[tool.oarepo-cli.model].template_version` | `rdm-14` |
 | `OAREPO_TRANSLATIONS_OVERLAY` | `[tool.oarepo-cli.translations].overlay_dir` | auto-detected |
@@ -441,11 +441,13 @@ db = "postgresql"
 search = "opensearch"
 cache = "redis"
 mq = "rabbitmq"
-s3 = "minio"
+s3 = false  # this library doesn't need S3, so don't start it
 
 [tool.oarepo-cli.license]
 organization = "Your Organization"
 ```
+
+Any service type (`db`, `search`, `cache`, `mq`, `s3`) can be set to `false` (or `"none"`) in `pyproject.toml` (or to `none`/`false` in its `OAREPO_SERVICES_*` environment variable) so that `library start`/`library test` don't start it. If every service type is disabled, no services are started at all. These settings only apply to libraries; a repository's services are always managed through `invenio-cli`.
 
 ## Exit Codes
 

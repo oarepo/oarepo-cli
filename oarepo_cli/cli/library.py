@@ -301,7 +301,7 @@ def _start_services_impl(
     env_vars = services_mgr.start_services()
 
     if not env_vars:
-        # Services were skipped (SKIP_SERVICES=1)
+        # Services were skipped (skip=true, or every service type disabled)
         console.info("✓ Services skipped", fg=typer.colors.YELLOW)
     else:
         console.success("✨ ✓ Services started successfully!", fg=typer.colors.BRIGHT_GREEN, bold=True)
@@ -718,7 +718,7 @@ def library_start(
     cache, S3) and writes connection details to .env-services file.
 
     The services are configured via environment variables or [tool.oarepo-cli.services]
-    in pyproject.toml.
+    in pyproject.toml. Set a service type to false (e.g. s3 = false) to not start it.
     """
     _start_services_impl(quiet=quiet)
 
@@ -733,7 +733,7 @@ def services_start(
     cache, S3) and writes connection details to .env-services file.
 
     The services are configured via environment variables or [tool.oarepo-cli.services]
-    in pyproject.toml.
+    in pyproject.toml. Set a service type to false (e.g. s3 = false) to not start it.
     """
     _start_services_impl(quiet=quiet)
 

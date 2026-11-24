@@ -18,7 +18,7 @@ dependencies = [
     # the target project. Bundled as regular dependencies (rather than
     # invoked via `uvx`) so they run without a per-call resolve/download.
     "ruff>=0.9.0",
-    "ty>=0.0.65",
+    "ty>=0.0.97",  # import-not-found rule name (see configuration/ty.toml.tmpl)
     # .gitignore pattern parsing for lint's gitignore-aware file discovery
     # (oarepo_cli.services.lint)
     "pathspec>=0.12.0",
